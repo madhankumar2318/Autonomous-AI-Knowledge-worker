@@ -1,6 +1,6 @@
 "use client";
+import { Eye, EyeOff, Lock, LogIn, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Lock, User, Eye, EyeOff, LogIn } from "lucide-react";
 
 interface LoginFormProps {
   onLoginSuccess: () => void;
@@ -28,8 +28,6 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       return;
     }
 
-
-
     try {
       const formData = new FormData();
       formData.append("username", username);
@@ -49,12 +47,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       try {
         if (rememberMe) localStorage.setItem("ak_user", username);
         else localStorage.removeItem("ak_user");
-      } catch (e) {
+      } catch (_e) {
         /* ignore localStorage errors */
       }
 
       onLoginSuccess();
-    } catch (err) {
+    } catch (_err) {
       setError("Invalid username or password");
     } finally {
       setLoading(false);
@@ -68,7 +66,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setUsername(saved);
         setRememberMe(true);
       }
-    } catch (e) {
+    } catch (_e) {
       /* ignore */
     }
     usernameRef.current?.focus();
@@ -81,9 +79,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           <Lock className="w-8 h-8 text-white" />
         </div>
         <h1 className="text-2xl font-bold text-primary mb-2">Welcome Back</h1>
-        <p className="text-secondary">
-          Login to your AI Knowledge Dashboard
-        </p>
+        <p className="text-secondary text-sm">Sign in to your AI Knowledge Dashboard</p>
       </div>
 
       <form
@@ -110,7 +106,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               className="input input-with-icon-left"
               required
               aria-required="true"
-              aria-invalid={error ? true : false}
+              aria-invalid={!!error}
             />
           </div>
         </div>
@@ -174,26 +170,24 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         </button>
 
         <div className="flex items-center justify-between">
-          <label className="inline-flex items-center text-sm text-secondary cursor-pointer">
+          <label className="inline-flex items-center gap-2 text-sm cursor-pointer select-none" style={{ color: "var(--text-secondary)" }}>
             <input
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="mr-2 h-4 w-4 rounded border-light"
+              className="h-4 w-4 rounded cursor-pointer"
+              style={{ accentColor: "var(--accent-primary)" }}
             />
             Remember me
           </label>
-
-          <a href="#" className="text-sm text-accent hover:underline">
+          <button type="button" className="text-sm hover:underline" style={{ color: "var(--accent-primary)" }}>
             Forgot password?
-          </a>
+          </button>
         </div>
       </form>
 
       <div className="text-center mt-6 pt-6 border-t border-light">
-        <p className="text-xs text-muted">
-          🚀 Autonomous AI Knowledge Worker
-        </p>
+        <p className="text-xs text-muted">🚀 Autonomous AI Knowledge Worker</p>
       </div>
     </div>
   );

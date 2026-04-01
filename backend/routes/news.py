@@ -33,8 +33,8 @@ def get_news():
                     for a in articles
                 ]
                 cache["timestamp"] = now
-                # ✅ Log to history
-                insert_history("news_fetch", f"Fetched {len(articles)} articles")
+                # ✅ Log to history (username=system, action=news_fetch)
+                insert_history("system", "news_fetch", f"Fetched {len(articles)} articles")
             else:
                 return {"news": cache["data"], "error": data.get("message")}
 

@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { Search, Calendar } from "lucide-react";
+import { Calendar, Search } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 interface Article {
   title: string;
@@ -13,7 +13,9 @@ interface Article {
 
 export default function NewsSection({
   infiniteScroll = false,
-}: { infiniteScroll?: boolean }) {
+}: {
+  infiniteScroll?: boolean;
+}) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [page, setPage] = useState(1);
   const [topic, setTopic] = useState("");
@@ -21,38 +23,41 @@ export default function NewsSection({
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchNews = async (
-    pageNum: number,
-    searchTopic = topic,
-    searchCategory = category,
-    append = false
-  ) => {
-    setLoading(true);
-    let url = `http://127.0.0.1:8000/news?page=${pageNum}`;
-    if (searchTopic) url += `&topic=${encodeURIComponent(searchTopic)}`;
-    if (searchCategory) url += `&category=${searchCategory}`;
-    try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.news) {
-        if (append) {
-          setArticles((prev) => [...prev, ...data.news]);
-        } else {
-          setArticles(data.news);
+  const fetchNews = useCallback(
+    async (
+      pageNum: number,
+      searchTopic = topic,
+      searchCategory = category,
+      append = false,
+    ) => {
+      setLoading(true);
+      let url = `http://127.0.0.1:8000/news?page=${pageNum}`;
+      if (searchTopic) url += `&topic=${encodeURIComponent(searchTopic)}`;
+      if (searchCategory) url += `&category=${searchCategory}`;
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.news) {
+          if (append) {
+            setArticles((prev) => [...prev, ...data.news]);
+          } else {
+            setArticles(data.news);
+          }
+          setHasMore(data.news.length > 0);
         }
-        setHasMore(data.news.length > 0);
+      } catch (err) {
+        console.error("Error fetching news:", err);
       }
-    } catch (err) {
-      console.error("Error fetching news:", err);
-    }
-    setLoading(false);
-  };
+      setLoading(false);
+      // useCallback hook dependencies
+    },
+    [topic, category],
+  );
 
   useEffect(() => {
     setPage(1);
     fetchNews(1, topic, category, false);
-    // eslint-disable-next-line
-  }, [topic, category]);
+  }, [topic, category, fetchNews]);
 
   // Load more on scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -107,16 +112,17 @@ export default function NewsSection({
 
       {/* Articles Grid */}
       <div
-        className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2"
+        className="grid grid-cols-1 md:grid-cols-2 gap-4"
         onScroll={handleScroll}
       >
         {articles.map((article, i) => (
           <article
-            key={i}
+            key={`${article.url || "news"}-${i}`}
             className="card-compact hover:shadow-md transition-all group"
           >
             {article.urlToImage && (
               <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden bg-surface">
+                {/* biome-ignore lint/performance/noImgElement: External unspecified source */}
                 <img
                   src={article.urlToImage}
                   alt={article.title}
@@ -169,6 +175,7 @@ export default function NewsSection({
       {!infiniteScroll && hasMore && (
         <div className="flex justify-center">
           <button
+            type="button"
             onClick={() => {
               const nextPage = page + 1;
               setPage(nextPage);

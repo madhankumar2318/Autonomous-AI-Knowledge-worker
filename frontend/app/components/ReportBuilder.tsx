@@ -1,6 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { FileText, Download } from "lucide-react";
+import { Download, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { showToast } from "./Toast";
 
 type NewsItem = { title: string; description?: string; url?: string };
 type UploadItem = { id: number; filename: string; filepath: string };
@@ -31,13 +32,13 @@ export default function ReportBuilder() {
 
   const toggleNews = (idx: number) => {
     setSelectedNews((s) =>
-      s.includes(idx) ? s.filter((x) => x !== idx) : [...s, idx]
+      s.includes(idx) ? s.filter((x) => x !== idx) : [...s, idx],
     );
   };
 
   const toggleUpload = (fname: string) => {
     setSelectedUploads((s) =>
-      s.includes(fname) ? s.filter((x) => x !== fname) : [...s, fname]
+      s.includes(fname) ? s.filter((x) => x !== fname) : [...s, fname],
     );
   };
 
@@ -47,15 +48,15 @@ export default function ReportBuilder() {
 
     const selectedNewsItems = selectedNews.map((i) => news[i]).filter(Boolean);
 
-    let stockData = undefined;
+    let stockData: Record<string, unknown> | undefined;
     if (stockSymbol.trim()) {
       try {
         const r = await fetch(
-          `http://127.0.0.1:8000/stock?symbol=${encodeURIComponent(stockSymbol)}`
+          `http://127.0.0.1:8000/stock?symbol=${encodeURIComponent(stockSymbol)}`,
         );
         const sd = await r.json();
-        if (sd && sd.symbol) stockData = sd;
-      } catch (_) { }
+        if (sd?.symbol) stockData = sd;
+      } catch (_) {}
     }
 
     const payload = {
@@ -75,13 +76,15 @@ export default function ReportBuilder() {
       const data = await res.json();
       if (data.url) {
         setResultUrl(data.url);
+        showToast("success", "Report built successfully!");
       } else if (data.filename) {
         setResultUrl(`/reports/${data.filename}`);
+        showToast("success", "Report built successfully!");
       } else {
-        alert("Report created but no URL returned.");
+        showToast("warning", "Report created but no download URL returned.");
       }
     } catch (e) {
-      alert("Error building report: " + String(e));
+      showToast("error", `Error building report: ${String(e)}`);
     } finally {
       setBuilding(false);
     }
@@ -91,10 +94,14 @@ export default function ReportBuilder() {
     <div className="space-y-6">
       {/* Title Input */}
       <div>
-        <label className="block text-sm font-medium text-primary mb-2">
+        <label
+          htmlFor="report-title"
+          className="block text-sm font-medium text-primary mb-2"
+        >
           Report Title
         </label>
         <input
+          id="report-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="input"
@@ -112,7 +119,7 @@ export default function ReportBuilder() {
           )}
           {news.map((n, i) => (
             <label
-              key={i}
+              key={`${n.url || "rb-news"}-${i}`}
               className="flex items-start gap-3 p-3 bg-secondary rounded-lg hover:bg-hover transition-colors cursor-pointer"
             >
               <input
@@ -159,10 +166,14 @@ export default function ReportBuilder() {
 
       {/* Stock Symbol */}
       <div>
-        <label className="block text-sm font-medium text-primary mb-2">
+        <label
+          htmlFor="stock-symbol"
+          className="block text-sm font-medium text-primary mb-2"
+        >
           Stock Symbol (optional)
         </label>
         <input
+          id="stock-symbol"
           value={stockSymbol}
           onChange={(e) => setStockSymbol(e.target.value)}
           placeholder="e.g. AAPL"
@@ -173,6 +184,7 @@ export default function ReportBuilder() {
       {/* Actions */}
       <div className="flex gap-3">
         <button
+          type="button"
           onClick={handleBuild}
           disabled={building}
           className="btn btn-success flex items-center gap-2"

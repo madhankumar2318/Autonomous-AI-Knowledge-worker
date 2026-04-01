@@ -1,6 +1,7 @@
 "use client";
+import { CheckCircle, FileText } from "lucide-react";
 import { useState } from "react";
-import { FileText, CheckCircle } from "lucide-react";
+import { showToast } from "./Toast";
 
 export default function ReportSection() {
   const [message, setMessage] = useState("");
@@ -15,16 +16,19 @@ export default function ReportSection() {
       });
       const data = await res.json();
       setMessage(data.message || "Report generated!");
-    } catch (err) {
+      showToast("success", data.message || "Report generated!");
+    } catch (_err) {
       setMessage("Failed to generate report");
+      showToast("error", "Failed to generate report. Is the backend running?");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <button
+        type="button"
         onClick={generateReport}
         disabled={loading}
         className="btn btn-primary w-full flex items-center justify-center gap-2"

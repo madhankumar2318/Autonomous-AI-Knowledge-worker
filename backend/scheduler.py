@@ -6,7 +6,7 @@ import traceback
 
 def generate_report_job():
     try:
-        resp = requests.post("http://127.0.0.1:8000/report/generate_now", timeout=30)
+        resp = requests.post("http://127.0.0.1:8000/report/", timeout=30)
         print("Scheduler: report job response:", resp.status_code, resp.text)
     except Exception as e:
         print("Scheduler: error running report job:", e)

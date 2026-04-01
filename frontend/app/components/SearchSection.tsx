@@ -1,6 +1,6 @@
 "use client";
+import { AlertCircle, ExternalLink, Search } from "lucide-react";
 import { useState } from "react";
-import { Search, ExternalLink, AlertCircle } from "lucide-react";
 
 interface SearchResult {
   title: string;
@@ -10,10 +10,12 @@ interface SearchResult {
 
 export default function SearchSection({
   infiniteScroll = false,
-}: { infiniteScroll?: boolean }) {
+}: {
+  infiniteScroll?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [page, setPage] = useState(1);
+  const [_page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
@@ -25,7 +27,7 @@ export default function SearchSection({
 
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/search?query=${encodeURIComponent(q)}&page=${pageNum}`
+        `http://127.0.0.1:8000/search?query=${encodeURIComponent(q)}&page=${pageNum}`,
       );
       const data = await res.json();
 
@@ -44,7 +46,7 @@ export default function SearchSection({
     } catch (err) {
       console.error("Error fetching search results:", err);
       setError(
-        "Failed to connect to search service. Please check if the backend is running."
+        "Failed to connect to search service. Please check if the backend is running.",
       );
     } finally {
       setLoading(false);
@@ -79,7 +81,7 @@ export default function SearchSection({
   };
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
+    <div className="space-y-4">
       {/* Search Form */}
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="flex-1 relative">
@@ -96,11 +98,10 @@ export default function SearchSection({
         </div>
         <button
           type="submit"
-          onClick={handleSearch}
           disabled={loading}
           className="btn btn-primary"
         >
-          {loading ? <div className="spinner"></div> : "Search"}
+          {loading ? <div className="spinner" /> : "Search"}
         </button>
       </form>
 
@@ -114,52 +115,61 @@ export default function SearchSection({
 
       {/* Loading State */}
       {loading && results.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="spinner mb-3"></div>
+        <div className="flex flex-col items-center justify-center py-6">
+          <div className="spinner mb-3" />
           <p className="text-sm text-muted">Searching...</p>
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Idle hint — only when no search has been made yet */}
+      {!hasSearched && !loading && !error && (
+        <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
+          Type a query above and press <strong>Search</strong>
+        </p>
+      )}
+
+      {/* Empty State — only show after a search */}
       {!loading && results.length === 0 && !error && hasSearched && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center mb-3">
-            <Search className="w-6 h-6 text-muted" />
+        <div className="flex flex-col items-center justify-center py-4 text-center">
+          <div className="w-9 h-9 rounded-full bg-surface flex items-center justify-center mb-2">
+            <Search className="w-4 h-4 text-muted" />
           </div>
-          <p className="text-sm text-secondary">No results found for "{query}"</p>
+          <p className="text-sm text-secondary">No results for "{query}"</p>
           <p className="text-xs text-muted mt-1">Try different keywords</p>
         </div>
       )}
 
-      {/* Results */}
-      <div
-        className="overflow-y-auto space-y-3 flex-1"
-        onScroll={handleScroll}
-      >
-        {results.map((r, i) => (
-          <div
-            key={i}
-            className="card-compact hover:border-accent transition-all group"
-          >
-            <a
-              href={r.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-start gap-2 group"
+      {/* Results — max height so they don't push other cards away */}
+      {results.length > 0 && (
+        <div
+          className="space-y-2 overflow-y-auto max-h-[320px] pr-1"
+          onScroll={handleScroll}
+        >
+          {results.map((r, _i) => (
+            <div
+              key={`${r.link}-${_i}`}
+              className="card-compact hover:border-accent transition-all group"
             >
-              <div className="flex-1">
-                <h3 className="font-semibold text-sm text-accent group-hover:underline line-clamp-2 mb-1">
-                  {r.title}
-                </h3>
-                <p className="text-xs text-secondary line-clamp-2">
-                  {r.snippet}
-                </p>
-              </div>
-              <ExternalLink className="w-4 h-4 text-muted flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </a>
-          </div>
-        ))}
-      </div>
+              <a
+                href={r.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-2 group"
+              >
+                <div className="flex-1">
+                  <h3 className="font-semibold text-sm text-accent group-hover:underline line-clamp-2 mb-1">
+                    {r.title}
+                  </h3>
+                  <p className="text-xs text-secondary line-clamp-2">
+                    {r.snippet}
+                  </p>
+                </div>
+                <ExternalLink className="w-4 h-4 text-muted flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
