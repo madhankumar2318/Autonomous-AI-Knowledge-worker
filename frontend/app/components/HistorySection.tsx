@@ -56,11 +56,48 @@ export default function HistorySection({ limit, compact }: Props) {
       <div className="relative" ref={dropdownRef}>
         <button
           type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="btn btn-ghost flex items-center gap-2"
+          onClick={() => { setIsOpen(!isOpen); if (!isOpen) fetchHistory(); }}
+          className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200"
+          style={{
+            color: isOpen ? "#d8b4fe" : "#c084fc",
+            background: isOpen ? "rgba(168,85,247,0.18)" : "rgba(168,85,247,0.10)",
+            border: `1px solid ${isOpen ? "rgba(168,85,247,0.55)" : "rgba(168,85,247,0.25)"}`,
+            backdropFilter: "blur(8px)",
+            boxShadow: isOpen ? "0 0 16px rgba(168,85,247,0.3)" : "none",
+          }}
           aria-expanded={isOpen}
           aria-haspopup="true"
+          onMouseEnter={(e) => {
+            if (!isOpen) {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.color = "#ffffff";
+              b.style.background = "rgba(168,85,247,0.22)";
+              b.style.borderColor = "rgba(168,85,247,0.55)";
+              b.style.boxShadow = "0 0 16px rgba(168,85,247,0.3)";
+              b.style.transform = "translateY(-1px)";
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isOpen) {
+              const b = e.currentTarget as HTMLButtonElement;
+              b.style.color = "#c084fc";
+              b.style.background = "rgba(168,85,247,0.10)";
+              b.style.borderColor = "rgba(168,85,247,0.25)";
+              b.style.boxShadow = "none";
+              b.style.transform = "translateY(0)";
+            }
+          }}
         >
+          {/* Pulsing live dot */}
+          <span style={{ position: "relative", display: "flex", alignItems: "center" }}>
+            <span style={{
+              width: "7px", height: "7px", borderRadius: "50%",
+              background: "#4ade80",
+              boxShadow: "0 0 6px #4ade80",
+              display: "inline-block",
+              animation: "pulse 2s ease-in-out infinite",
+            }} />
+          </span>
           <Activity className="w-4 h-4" />
           Activity
         </button>

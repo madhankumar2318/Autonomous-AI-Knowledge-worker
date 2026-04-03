@@ -35,21 +35,22 @@ export default function Home() {
       {/* Header */}
       <header
         style={{
-          background: "rgba(10, 10, 10, 0.85)",
+          background: "rgba(10, 10, 10, 0.88)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(255,255,255,0.08)",
         }}
         className="sticky top-0 z-50"
       >
-        <div className="max-w-[1400px] mx-auto px-6 py-3">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg">
+        <div className="w-full py-3" style={{ paddingLeft: "24px", paddingRight: "24px" }}>
+          <div className="flex justify-between items-center gap-4" style={{ minWidth: 0 }}>
+            {/* Brand */}
+            <div className="flex items-center gap-3" style={{ minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg flex-shrink-0">
                 <Brain className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold leading-tight" style={{ color: "var(--text-primary)" }}>
+                <h1 className="text-base font-bold leading-tight" style={{ color: "var(--text-primary)" }}>
                   Autonomous AI Knowledge Worker
                 </h1>
                 <p className="text-xs leading-tight" style={{ color: "var(--text-muted)" }}>
@@ -57,12 +58,49 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Right-side actions */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0", flexShrink: 0 }}>
+
+              {/* Activity — purple glassmorphic pill */}
               <HistorySection compact={true} limit={5} />
+
+              {/* Vertical divider */}
+              <div style={{
+                width: "1px",
+                height: "28px",
+                background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent)",
+                margin: "0 12px",
+                flexShrink: 0,
+              }} />
+
+              {/* Logout — red-accent pill */}
               <button
                 type="button"
                 onClick={() => setIsLoggedIn(false)}
-                className="btn btn-ghost flex items-center gap-2 text-sm"
+                className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200"
+                style={{
+                  color: "#fca5a5",
+                  background: "rgba(239,68,68,0.10)",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  backdropFilter: "blur(8px)",
+                }}
+                onMouseEnter={(e) => {
+                  const b = e.currentTarget as HTMLButtonElement;
+                  b.style.color = "#ffffff";
+                  b.style.background = "rgba(239,68,68,0.22)";
+                  b.style.borderColor = "rgba(239,68,68,0.55)";
+                  b.style.boxShadow = "0 0 16px rgba(239,68,68,0.3)";
+                  b.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  const b = e.currentTarget as HTMLButtonElement;
+                  b.style.color = "#fca5a5";
+                  b.style.background = "rgba(239,68,68,0.10)";
+                  b.style.borderColor = "rgba(239,68,68,0.25)";
+                  b.style.boxShadow = "none";
+                  b.style.transform = "translateY(0)";
+                }}
               >
                 <LogOut className="w-4 h-4" />
                 Logout
