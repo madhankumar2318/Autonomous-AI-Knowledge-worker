@@ -150,13 +150,13 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Column — CSS Grid rows, equal 3-way split */}
+          {/* Right Column — CSS Grid rows, proportionally split */}
           <div
             className="lg:col-span-1 card-sm"
             style={{
               height: "calc(100vh - 120px)",
               display: "grid",
-              gridTemplateRows: "1fr 1fr 1fr",
+              gridTemplateRows: "1fr 2.5fr 1fr",
               overflow: "hidden",
             }}
           >

@@ -10,7 +10,41 @@ interface StockQuote {
   change_percent?: number;
   volume?: number;
   error?: string;
+  history?: number[];
 }
+
+function Sparkline({ data, isPos }: { data?: number[], isPos: boolean }) {
+  if (!data || data.length < 2) return <div style={{ width: 40, height: 18 }} />;
+  
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const width = 40;
+  const height = 18;
+  
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((val - min) / range) * height;
+    return `${x},${y}`;
+  }).join(" ");
+
+  const color = isPos ? "#34d399" : "#f87171";
+  
+  return (
+    <svg width={width} height={height} style={{ overflow: "visible" }}>
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ filter: `drop-shadow(0 2px 4px ${color}80)` }}
+      />
+    </svg>
+  );
+}
+
 
 interface StockResponse {
   stocks: StockQuote[];
@@ -139,10 +173,11 @@ export default function StockSection() {
                     <div
                       key={s.symbol}
                       className="grid px-2 py-1 rounded items-center"
-                      style={{ gridTemplateColumns: "52px 1fr 68px 52px", gap: "4px", opacity: 0.4 }}
+                      style={{ gridTemplateColumns: "52px 1fr 40px 60px 48px", gap: "4px", opacity: 0.4 }}
                     >
                       <span className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>{s.symbol}</span>
                       <span className="text-xs truncate" style={{ color: "var(--text-muted)" }}>—</span>
+                      <span className="text-xs"></span>
                       <span className="text-xs" style={{ color: "var(--text-muted)" }}>N/A</span>
                       <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>
                     </div>
@@ -157,7 +192,7 @@ export default function StockSection() {
                     key={s.symbol}
                     className="grid px-2 py-1 rounded items-center"
                     style={{
-                      gridTemplateColumns: "52px 1fr 68px 52px",
+                      gridTemplateColumns: "52px 1fr 40px 60px 48px",
                       gap: "4px",
                       transition: "background 0.12s ease",
                       cursor: "default",
@@ -175,9 +210,14 @@ export default function StockSection() {
                       {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ?? ""}
                     </span>
 
+                    {/* Sparkline */}
+                    <div className="flex items-center justify-center">
+                      <Sparkline data={s.history} isPos={isPos} />
+                    </div>
+
                     {/* Change % badge */}
                     <div
-                      className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full justify-center"
+                      className="flex items-center gap-0.5 px-1 py-0.5 rounded-full justify-center"
                       style={{
                         fontSize: "0.65rem",
                         fontWeight: 700,

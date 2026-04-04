@@ -23,8 +23,8 @@ _cache: dict[str, tuple[list, float]] = {}
 CACHE_TTL = 15 * 60  # 15 minutes
 
 
-def _build_quote(ticker_info: dict, symbol: str) -> dict:
-    """Extract and normalise fields from yfinance info dict."""
+def _build_quote(ticker_info: dict, symbol: str, history_prices: list = None) -> dict:
+    """Extract and normalise fields from yfinance info dict, including 7d history."""
     price = ticker_info.get("currentPrice") or ticker_info.get("regularMarketPrice") or ticker_info.get("previousClose")
     prev_close = ticker_info.get("regularMarketPreviousClose") or ticker_info.get("previousClose") or 0
 
@@ -44,19 +44,43 @@ def _build_quote(ticker_info: dict, symbol: str) -> dict:
         "market_cap": ticker_info.get("marketCap"),
         "day_high": ticker_info.get("dayHigh") or ticker_info.get("regularMarketDayHigh"),
         "day_low": ticker_info.get("dayLow") or ticker_info.get("regularMarketDayLow"),
+        "history": history_prices or []
     }
 
 
 def _fetch_all(symbols: list[str]) -> list[dict]:
-    """Fetch all symbols in one yfinance batch call."""
+    """Fetch all symbols info and 7d history."""
     results = []
+    if not symbols:
+        return results
+
     try:
         tickers = yf.Tickers(" ".join(symbols))
+        
+        # We can pull bulk history to save major request time instead of 1-by-1
+        try:
+            bulk_history = tickers.history(period="7d")
+        except Exception:
+            bulk_history = None
+
         for sym in symbols:
             try:
                 info = tickers.tickers[sym].info
-                results.append(_build_quote(info, sym))
-            except Exception:
+                
+                # Extract history for specific symbol from the bulk dataframe
+                history_list = []
+                if bulk_history is not None and not bulk_history.empty:
+                    if 'Close' in bulk_history.columns:
+                        if isinstance(bulk_history.columns, tuple) or hasattr(bulk_history.columns, 'levels'):
+                            # MultiIndex (multiple symbols)
+                            if sym in bulk_history['Close'].columns:
+                                history_list = bulk_history['Close'][sym].dropna().tolist()
+                        else:
+                            # Single symbol case
+                            history_list = bulk_history['Close'].dropna().tolist()
+                            
+                results.append(_build_quote(info, sym, history_list))
+            except Exception as e:
                 results.append({"symbol": sym, "error": "Unavailable"})
     except Exception as e:
         for sym in symbols:
