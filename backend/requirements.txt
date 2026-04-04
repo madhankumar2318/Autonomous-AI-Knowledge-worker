@@ -5,4 +5,5 @@ python-multipart
 apscheduler
 reportlab
 python-dotenv
-openai
+yfinance
+google-genai

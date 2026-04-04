@@ -6,10 +6,9 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 # Routers
-from routes import news, stock, search, auth, report, summarizer, upload
+from routes import news, stock, search, auth, report, summarizer, upload, chat
 from routes import history as history_router
 from routes import scheduler_report as scheduler_report_router
-from routes import report_builder
 
 from db import init_db
 import scheduler as scheduler_module
@@ -49,7 +48,7 @@ app.include_router(summarizer.router)
 app.include_router(upload.router)
 app.include_router(history_router.router)
 app.include_router(scheduler_report_router.router)
-app.include_router(report_builder.router)
+app.include_router(chat.router)
 
 # Ensure folders exist
 BASE_DIR = os.path.dirname(__file__)

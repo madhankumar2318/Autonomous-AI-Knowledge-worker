@@ -5,7 +5,8 @@ import FileUpload from "./components/FileUpload";
 import HistorySection from "./components/HistorySection";
 import LoginForm from "./components/LoginForm";
 import NewsSection from "./components/NewsSection";
-import ReportSection from "./components/ReportSection";
+import ReportHeaderButton from "./components/ReportHeaderButton";
+import ChatAssistant from "./components/ChatAssistant";
 import SearchSection from "./components/SearchSection";
 import StockSection from "./components/StockSection";
 import { ToastContainer } from "./components/Toast";
@@ -61,6 +62,18 @@ export default function Home() {
 
             {/* Right-side actions */}
             <div style={{ display: "flex", alignItems: "center", gap: "0", flexShrink: 0 }}>
+
+              {/* Report Button */}
+              <ReportHeaderButton />
+
+              {/* Vertical divider */}
+              <div style={{
+                width: "1px",
+                height: "28px",
+                background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent)",
+                margin: "0 12px",
+                flexShrink: 0,
+              }} />
 
               {/* Activity — purple glassmorphic pill */}
               <HistorySection compact={true} limit={5} />
@@ -137,13 +150,13 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Column — CSS Grid rows, equal 4-way split */}
+          {/* Right Column — CSS Grid rows, equal 3-way split */}
           <div
             className="lg:col-span-1 card-sm"
             style={{
               height: "calc(100vh - 120px)",
               display: "grid",
-              gridTemplateRows: "1fr 1fr 1fr 1fr",
+              gridTemplateRows: "1fr 1fr 1fr",
               overflow: "hidden",
             }}
           >
@@ -178,20 +191,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Row 3 — Reports */}
-            <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", padding: "12px 0", borderTop: "1px solid rgba(255,255,255,0.07)", minHeight: 0 }}>
-              <div className="flex items-center gap-2 mb-2" style={{ flexShrink: 0 }}>
-                <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                  <span className="text-sm">📊</span>
-                </div>
-                <h2 className="text-sm font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
-                  Reports
-                </h2>
-              </div>
-              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-                <ReportSection />
-              </div>
-            </div>
 
             {/* Row 4 — File Upload */}
             <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.07)", minHeight: 0 }}>
@@ -225,6 +224,10 @@ export default function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Floating AI Chat Assistant — fixed bottom-right */}
+      <ChatAssistant />
+
     </div>
   );
 }
