@@ -21,7 +21,7 @@ export default function Home() {
         {/* Background glow effects on login screen */}
         <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/15 rounded-full blur-[100px] pointer-events-none" />
-        <div className="w-full max-w-md relative z-10">
+        <div className="w-full relative z-10 flex justify-center">
           <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />
         </div>
         <ToastContainer />

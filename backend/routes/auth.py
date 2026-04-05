@@ -3,15 +3,26 @@ from db import get_conn
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+from typing import Optional
+
 @router.post("/register")
-def register(username: str = Form(...), password: str = Form(...)):
+def register(
+    username: str = Form(...), 
+    password: str = Form(...),
+    name: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    mobile: Optional[str] = Form(None)
+):
     """
-    Register a new user.
+    Register a new user with extended details.
     """
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+        cur.execute(
+            "INSERT INTO users (username, password, name, email, mobile) VALUES (?, ?, ?, ?, ?)", 
+            (username, password, name, email, mobile)
+        )
         conn.commit()
     except Exception:
         conn.close()
