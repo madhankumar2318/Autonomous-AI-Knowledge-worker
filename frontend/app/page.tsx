@@ -10,9 +10,12 @@ import ChatAssistant from "./components/ChatAssistant";
 import SearchSection from "./components/SearchSection";
 import StockSection from "./components/StockSection";
 import { ToastContainer } from "./components/Toast";
+import UserProfile from "./components/UserProfile";
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loggedInUser, setLoggedInUser] = useState("");
+  const [showProfile, setShowProfile] = useState(false);
 
   // 🔐 Login Protection
   if (!isLoggedIn) {
@@ -39,7 +42,7 @@ export default function Home() {
         <div className="absolute inset-0 z-0 opacity-[0.18] mix-blend-overlay pointer-events-none" style={{ backgroundImage: "url('data:image/svg+xml;utf8,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }}></div>
 
         <div className="w-full relative z-10 flex justify-center">
-          <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />
+          <LoginForm onLoginSuccess={(username) => { setIsLoggedIn(true); setLoggedInUser(username); }} />
         </div>
         <ToastContainer />
       </div>
@@ -92,8 +95,42 @@ export default function Home() {
                 flexShrink: 0,
               }} />
 
-              {/* Activity — purple glassmorphic pill */}
+              {/* Activity */}
               <HistorySection compact={true} limit={5} />
+
+              {/* Vertical divider */}
+              <div style={{
+                width: "1px",
+                height: "28px",
+                background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent)",
+                margin: "0 12px",
+                flexShrink: 0,
+              }} />
+
+              {/* User Avatar Button */}
+              <button
+                type="button"
+                onClick={() => setShowProfile(true)}
+                title={`Signed in as @${loggedInUser}`}
+                className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl transition-all duration-200"
+                style={{
+                  background: "linear-gradient(135deg, rgba(37,99,235,0.2), rgba(13,148,136,0.15))",
+                  border: "1px solid rgba(59,130,246,0.25)",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = "linear-gradient(135deg, rgba(37,99,235,0.3), rgba(13,148,136,0.22))"}
+                onMouseLeave={e => e.currentTarget.style.background = "linear-gradient(135deg, rgba(37,99,235,0.2), rgba(13,148,136,0.15))"}
+              >
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[11px]"
+                  style={{ background: "linear-gradient(135deg, #2563eb, #0d9488)" }}
+                >
+                  {loggedInUser.slice(0, 2).toUpperCase()}
+                </div>
+                <span className="text-white text-[13px] hidden sm:block" style={{ maxWidth: "80px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {loggedInUser}
+                </span>
+              </button>
 
               {/* Vertical divider */}
               <div style={{
@@ -244,6 +281,15 @@ export default function Home() {
 
       {/* Floating AI Chat Assistant — fixed bottom-right */}
       <ChatAssistant />
+
+      {/* User Profile Slide-in Panel */}
+      {showProfile && (
+        <UserProfile
+          username={loggedInUser}
+          onClose={() => setShowProfile(false)}
+          onLogout={() => { setShowProfile(false); setIsLoggedIn(false); setLoggedInUser(""); }}
+        />
+      )}
 
     </div>
   );

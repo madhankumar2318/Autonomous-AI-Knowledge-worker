@@ -3,7 +3,7 @@ import { Eye, EyeOff, Lock, LogIn, User, Mail, Phone, UserPlus, ArrowLeft } from
 import { useEffect, useRef, useState } from "react";
 
 interface LoginFormProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (username: string) => void;
 }
 
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
@@ -77,7 +77,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           else localStorage.removeItem("ak_user");
         } catch (_e) { /* ignore */ }
 
-        onLoginSuccess();
+        onLoginSuccess(username);
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

@@ -45,3 +45,50 @@ def login(username: str = Form(...), password: str = Form(...)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     return {"status": "success", "message": "Login successful", "username": username}
+
+
+@router.get("/profile")
+def get_profile(username: str):
+    """
+    Fetch the full profile for a given username.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, name, email, mobile FROM users WHERE username = ?", (username,))
+    user = cur.fetchone()
+    conn.close()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "name": user["name"] or "",
+        "email": user["email"] or "",
+        "mobile": user["mobile"] or "",
+    }
+
+
+@router.put("/profile")
+def update_profile(
+    username: str = Form(...),
+    name: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    mobile: Optional[str] = Form(None),
+):
+    """
+    Update user profile fields (name, email, mobile).
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE users SET name = ?, email = ?, mobile = ? WHERE username = ?",
+        (name, email, mobile, username)
+    )
+    conn.commit()
+    rows = cur.rowcount
+    conn.close()
+    if rows == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "success", "message": "Profile updated successfully"}
