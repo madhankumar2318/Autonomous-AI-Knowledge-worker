@@ -8,7 +8,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [isRegistering, setIsRegistering] = useState(false);
-  
+
   // Shared States
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -16,10 +16,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  
+
   // Login Only State
   const [rememberMe, setRememberMe] = useState(false);
-  
+
   // Register Only States
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -44,7 +44,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       const formData = new FormData();
       formData.append("username", username);
       formData.append("password", password);
-      
+
       const endpoint = isRegistering ? "http://127.0.0.1:8000/auth/register" : "http://127.0.0.1:8000/auth/login";
 
       if (isRegistering) {
@@ -76,7 +76,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           if (rememberMe) localStorage.setItem("ak_user", username);
           else localStorage.removeItem("ak_user");
         } catch (_e) { /* ignore */ }
-        
+
         onLoginSuccess();
       }
     } catch (err: any) {
@@ -105,22 +105,24 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   }, [isRegistering]);
 
   return (
-    <div 
-      className="card animate-fade-in w-full mx-auto shadow-2xl shadow-purple-900/10" 
-      style={{ 
-        transition: "max-width 0.5s cubic-bezier(0.4, 0, 0.2, 1), padding 0.5s ease", 
+    <div
+      className="animate-fade-in w-full mx-auto"
+      style={{
+        transition: "max-width 0.5s ease, padding 0.5s ease",
         maxWidth: isRegistering ? "640px" : "420px",
         padding: "48px 40px",
         borderRadius: "32px",
-        border: "1px solid rgba(255,255,255,0.06)",
-        background: "linear-gradient(145deg, rgba(20,20,22,0.8) 0%, rgba(10,10,12,0.95) 100%)",
-        boxShadow: "0 24px 48px -12px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.04)"
+        border: "1px solid rgba(59,130,246,0.2)",
+        background: "linear-gradient(160deg, rgba(8,14,30,0.92) 0%, rgba(4,8,20,0.97) 100%)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        boxShadow: "0 0 0 1px rgba(59,130,246,0.08), 0 32px 64px -16px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05)"
       }}
     >
       <div className="text-center mb-8">
-        <div 
-          className="w-16 h-16 rounded-[22px] bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-white/10 flex items-center justify-center mx-auto mb-5 shadow-inner"
-          style={{ transition: "all 0.3s ease", backdropFilter: "blur(8px)" }}
+        <div
+          className="w-16 h-16 rounded-[22px] flex items-center justify-center mx-auto mb-5"
+          style={{ background: "linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(13,148,136,0.2) 100%)", border: "1px solid rgba(59,130,246,0.3)", boxShadow: "0 0 20px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.05)", transition: "all 0.3s ease", backdropFilter: "blur(8px)" }}
         >
           {isRegistering ? <UserPlus className="w-7 h-7 text-white animate-fade-in" /> : <Lock className="w-7 h-7 text-white animate-fade-in" />}
         </div>
@@ -138,7 +140,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         aria-describedby={error ? "auth-error" : undefined}
       >
         <div className={isRegistering ? "grid grid-cols-2 gap-5" : "space-y-5"}>
-          
+
           {/* Name Field (Register Only) */}
           {isRegistering && (
             <div className="animate-fade-in col-span-1">
@@ -298,9 +300,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           type="submit"
           disabled={loading}
           className="w-full flex items-center justify-center gap-2 mt-8 h-[54px] font-bold text-[15px] transition-all"
-          style={{ 
-            background: "linear-gradient(to right, #8b5cf6, #3b82f6)", 
-            border: "none", 
+          style={{
+            background: "linear-gradient(to right, #8b5cf6, #3b82f6)",
+            border: "none",
             color: "white",
             borderRadius: "14px",
             boxShadow: "0 8px 24px rgba(139, 92, 246, 0.3)",
@@ -317,11 +319,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             </>
           ) : isRegistering ? (
             <>
-               Create Account
+              Create Account
             </>
           ) : (
             <>
-               Secure Login
+              Secure Login
             </>
           )}
         </button>
@@ -340,10 +342,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 />
                 Remember my device
               </label>
-              <button 
-                type="button" 
-                className="text-[13px] font-bold tracking-wide transition-colors" 
-                style={{ color: "#a78bfa", background:"transparent", border:"none", cursor:"pointer" }}
+              <button
+                type="button"
+                className="text-[13px] font-bold tracking-wide transition-colors"
+                style={{ color: "#a78bfa", background: "transparent", border: "none", cursor: "pointer" }}
                 onMouseEnter={(e) => e.currentTarget.style.color = "#c4b5fd"}
                 onMouseLeave={(e) => e.currentTarget.style.color = "#a78bfa"}
                 onClick={() => setIsRegistering(true)}
@@ -352,17 +354,17 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               </button>
             </>
           ) : (
-            <button 
-                type="button" 
-                className="text-[13px] font-semibold flex items-center justify-center gap-2 mx-auto py-2.5 px-6 rounded-full text-zinc-300 hover:text-white transition-all shadow-sm"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}
-                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
-                onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
-                onClick={() => setIsRegistering(false)}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Return to Login screen
-              </button>
+            <button
+              type="button"
+              className="text-[13px] font-semibold flex items-center justify-center gap-2 mx-auto py-2.5 px-6 rounded-full text-zinc-300 hover:text-white transition-all shadow-sm"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.05)", cursor: "pointer" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+              onClick={() => setIsRegistering(false)}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Return to Login screen
+            </button>
           )}
         </div>
       </form>

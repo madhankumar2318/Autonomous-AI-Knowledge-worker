@@ -17,10 +17,27 @@ export default function Home() {
   // 🔐 Login Protection
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-        {/* Background glow effects on login screen */}
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/15 rounded-full blur-[100px] pointer-events-none" />
+      <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#020817]">
+        {/* Electric Ocean Fluid Background */}
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none filter blur-[110px] saturate-[1.8]">
+          {/* Royal Blue — top-left anchor */}
+          <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#1d4ed8] animate-liquid-1 opacity-75"></div>
+          {/* Electric Cobalt — center-right sweep */}
+          <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#3b82f6] animate-liquid-2 opacity-50"></div>
+          {/* Teal — bottom-left */}
+          <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0d9488] animate-liquid-3 opacity-45"></div>
+          {/* Indigo-Blue — bottom-right balance */}
+          <div className="absolute bottom-[-10%] right-[-5%] w-[50vw] h-[50vw] rounded-full mix-blend-screen bg-[#1e40af] animate-liquid-1 opacity-40" style={{ animationDelay: "14s" }}></div>
+        </div>
+
+        {/* Center focus vignette — draws eyes to the login card */}
+        <div className="absolute inset-0 z-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse 60% 70% at 50% 50%, transparent 30%, rgba(2, 8, 23, 0.65) 100%)" }}>
+        </div>
+
+        {/* SVG Noise Matte Texture Overlay */}
+        <div className="absolute inset-0 z-0 opacity-[0.18] mix-blend-overlay pointer-events-none" style={{ backgroundImage: "url('data:image/svg+xml;utf8,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }}></div>
+
         <div className="w-full relative z-10 flex justify-center">
           <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />
         </div>
