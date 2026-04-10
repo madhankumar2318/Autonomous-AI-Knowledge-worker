@@ -47,6 +47,24 @@ def login(username: str = Form(...), password: str = Form(...)):
     return {"status": "success", "message": "Login successful", "username": username}
 
 
+@router.get("/verify")
+def verify_session(username: str):
+    """
+    Verify that a username session is still valid (user exists in DB).
+    Used by the frontend to restore a persisted login on page load.
+    """
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute("SELECT username FROM users WHERE username = ?", (username,))
+    user = cur.fetchone()
+    conn.close()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Session invalid")
+
+    return {"status": "valid", "username": username}
+
+
 @router.get("/profile")
 def get_profile(username: str):
     """

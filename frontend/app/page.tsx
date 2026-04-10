@@ -1,6 +1,6 @@
 "use client";
 import { Brain, LogOut } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload";
 import HistorySection from "./components/HistorySection";
 import LoginForm from "./components/LoginForm";
@@ -13,11 +13,39 @@ import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
 
 export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn]     = useState(false);
   const [loggedInUser, setLoggedInUser] = useState("");
-  const [showProfile, setShowProfile] = useState(false);
+  const [showProfile, setShowProfile]   = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
-  // 🔐 Login Protection
+  // ── Restore persisted session on every page load ──────────────────
+  useEffect(() => {
+    const saved = localStorage.getItem("ak_session");
+    if (!saved) { setSessionChecked(true); return; }
+
+    fetch(`http://127.0.0.1:8000/auth/verify?username=${encodeURIComponent(saved)}`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        setLoggedInUser(data.username);
+        setIsLoggedIn(true);
+      })
+      .catch(() => localStorage.removeItem("ak_session")) // expired / deleted user
+      .finally(() => setSessionChecked(true));
+  }, []);
+
+  // ── Show a blank loading splash while we check ────────────────────
+  if (!sessionChecked) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#070d1a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }}>
+        <div style={{ width: "48px", height: "48px", borderRadius: "16px", background: "linear-gradient(135deg, #2563eb, #0d9488)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px rgba(37,99,235,0.4)" }}>
+          <Brain size={26} style={{ color: "white" }} />
+        </div>
+        <div style={{ width: "36px", height: "36px", borderRadius: "50%", border: "3px solid rgba(37,99,235,0.2)", borderTopColor: "#2563eb", animation: "spin 0.8s linear infinite" }} />
+        <p style={{ color: "#334155", fontSize: "13px", fontWeight: 600, letterSpacing: "1px" }}>Checking session…</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#020817]">
@@ -42,7 +70,11 @@ export default function Home() {
         <div className="absolute inset-0 z-0 opacity-[0.18] mix-blend-overlay pointer-events-none" style={{ backgroundImage: "url('data:image/svg+xml;utf8,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')" }}></div>
 
         <div className="w-full relative z-10 flex justify-center">
-          <LoginForm onLoginSuccess={(username) => { setIsLoggedIn(true); setLoggedInUser(username); }} />
+          <LoginForm onLoginSuccess={(username) => {
+            setIsLoggedIn(true);
+            setLoggedInUser(username);
+            localStorage.setItem("ak_session", username); // 💾 Persist
+          }} />
         </div>
         <ToastContainer />
       </div>
@@ -144,7 +176,7 @@ export default function Home() {
               {/* Logout — red-accent pill */}
               <button
                 type="button"
-                onClick={() => setIsLoggedIn(false)}
+                onClick={() => { localStorage.removeItem("ak_session"); setIsLoggedIn(false); setLoggedInUser(""); }}
                 className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200"
                 style={{
                   color: "#fca5a5",
@@ -287,7 +319,7 @@ export default function Home() {
         <UserProfile
           username={loggedInUser}
           onClose={() => setShowProfile(false)}
-          onLogout={() => { setShowProfile(false); setIsLoggedIn(false); setLoggedInUser(""); }}
+          onLogout={() => { localStorage.removeItem("ak_session"); setShowProfile(false); setIsLoggedIn(false); setLoggedInUser(""); }}
         />
       )}
 
