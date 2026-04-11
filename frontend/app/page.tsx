@@ -11,6 +11,7 @@ import SearchSection from "./components/SearchSection";
 import StockSection from "./components/StockSection";
 import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
+import ThemeToggle from "./components/ThemeToggle";
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn]     = useState(false);
@@ -20,6 +21,11 @@ export default function Home() {
 
   // ── Restore persisted session on every page load ──────────────────
   useEffect(() => {
+    // Restore saved theme immediately
+    const savedTheme = localStorage.getItem("ak_theme") || "dark";
+    document.documentElement.setAttribute("data-theme", savedTheme);
+
+    // Then restore session
     const saved = localStorage.getItem("ak_session");
     if (!saved) { setSessionChecked(true); return; }
 
@@ -114,6 +120,12 @@ export default function Home() {
 
             {/* Right-side actions */}
             <div style={{ display: "flex", alignItems: "center", gap: "0", flexShrink: 0 }}>
+
+              {/* Theme Toggle */}
+              <ThemeToggle />
+
+              {/* Vertical divider */}
+              <div style={{ width: "1px", height: "28px", background: "linear-gradient(to bottom, transparent, rgba(128,128,128,0.3), transparent)", margin: "0 10px", flexShrink: 0 }} />
 
               {/* Report Button */}
               <ReportHeaderButton />
