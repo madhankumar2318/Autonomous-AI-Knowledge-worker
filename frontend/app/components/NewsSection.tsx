@@ -118,7 +118,7 @@ export default function NewsSection({
         {articles.map((article, i) => (
           <article
             key={`${article.url || "news"}-${i}`}
-            className="card-compact hover:shadow-md transition-all group"
+          className="card-compact hover:shadow-md group"
           >
             {article.urlToImage && (
               <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden bg-surface">
@@ -126,7 +126,9 @@ export default function NewsSection({
                 <img
                   src={article.urlToImage}
                   alt={article.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             )}

@@ -241,8 +241,8 @@ export default function Home() {
                   Latest News
                 </h2>
               </div>
-              {/* Independent scrolling news */}
-              <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+              {/* GPU-promoted scroll — isolated compositing layer */}
+              <div className="scroll-container flex-1 min-h-0 pr-1">
                 <NewsSection infiniteScroll={true} />
               </div>
             </div>
