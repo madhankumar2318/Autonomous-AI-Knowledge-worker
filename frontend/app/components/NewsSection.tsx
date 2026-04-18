@@ -23,6 +23,8 @@ export default function NewsSection({
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
+  const [total, setTotal] = useState(0);
+
   const fetchNews = useCallback(
     async (
       pageNum: number,
@@ -32,24 +34,25 @@ export default function NewsSection({
     ) => {
       setLoading(true);
       let url = `http://127.0.0.1:8000/news?page=${pageNum}`;
-      if (searchTopic) url += `&topic=${encodeURIComponent(searchTopic)}`;
-      if (searchCategory) url += `&category=${searchCategory}`;
+      if (searchTopic)    url += `&topic=${encodeURIComponent(searchTopic)}`;
+      if (searchCategory) url += `&category=${encodeURIComponent(searchCategory)}`;
       try {
-        const res = await fetch(url);
+        const res  = await fetch(url);
         const data = await res.json();
         if (data.news) {
           if (append) {
-            setArticles((prev) => [...prev, ...data.news]);
+            setArticles(prev => [...prev, ...data.news]);
           } else {
             setArticles(data.news);
           }
-          setHasMore(data.news.length > 0);
+          // Use the has_more flag from backend — not a guess from article count
+          setHasMore(data.has_more ?? data.news.length >= 20);
+          setTotal(data.total ?? 0);
         }
       } catch (err) {
         console.error("Error fetching news:", err);
       }
       setLoading(false);
-      // useCallback hook dependencies
     },
     [topic, category],
   );
@@ -79,7 +82,7 @@ export default function NewsSection({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Search Form */}
       <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 relative">
@@ -88,7 +91,7 @@ export default function NewsSection({
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Search news topic..."
+            placeholder="Search any news topic..."
             className="input input-with-icon-left"
           />
         </div>
@@ -105,10 +108,31 @@ export default function NewsSection({
           <option value="sports">Sports</option>
           <option value="technology">Technology</option>
         </select>
-        <button type="submit" className="btn btn-primary">
-          Search
-        </button>
+        <button type="submit" className="btn btn-primary">Search</button>
       </form>
+
+      {/* Results count badge */}
+      {total > 0 && (
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
+            {loading ? "Loading…" : `Showing ${articles.length} of ${total} articles`}
+            {(topic || category) && (
+              <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>
+                {topic ? ` for "${topic}"` : ""}{category ? ` in ${category}` : ""}
+              </span>
+            )}
+          </span>
+          {(topic || category) && (
+            <button
+              type="button"
+              onClick={() => { setTopic(""); setCategory(""); }}
+              style={{ fontSize: "11px", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Articles Grid */}
       <div
@@ -121,14 +145,18 @@ export default function NewsSection({
           className="card-compact hover:shadow-md group"
           >
             {article.urlToImage && (
-              <div className="relative w-full h-40 mb-4 rounded-lg overflow-hidden bg-surface">
+              <div
+                className="w-full mb-3 rounded-xl overflow-hidden"
+                style={{ aspectRatio: "16 / 9", background: "rgba(255,255,255,0.04)" }}
+              >
                 {/* biome-ignore lint/performance/noImgElement: External unspecified source */}
                 <img
                   src={article.urlToImage}
                   alt={article.title}
-                  className="w-full h-full object-cover"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", display: "block" }}
                   loading="lazy"
                   decoding="async"
+                  onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
                 />
               </div>
             )}
