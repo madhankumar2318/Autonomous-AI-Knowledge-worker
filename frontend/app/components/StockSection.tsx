@@ -1,6 +1,8 @@
 "use client";
 import { RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useAutoRefresh } from "../hooks/useAutoRefresh";
+import { showToast } from "./Toast";
 
 interface StockQuote {
   symbol: string;
@@ -78,7 +80,7 @@ export default function StockSection() {
 
   const fetchStocks = () => {
     setLoading(true);
-    fetch("http://127.0.0.1:8000/stock/multiple")
+    return fetch("http://127.0.0.1:8000/stock/multiple")
       .then((r) => r.json())
       .then((d: StockResponse) => {
         setData(d);
@@ -88,7 +90,18 @@ export default function StockSection() {
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => { fetchStocks(); }, []);
+  // ── Auto-refresh every 2 minutes ──────────────────────────────────
+  const { countdown, isRefreshing, triggerRefresh } = useAutoRefresh({
+    intervalSeconds: 120,
+    onRefresh: async () => {
+      await fetchStocks();
+      // Only show toast if data actually loaded successfully
+      showToast("success", "Stock prices updated! 📈");
+    },
+    refreshOnMount: true,   // fetch immediately on load
+  });
+
+  useEffect(() => { /* fetchStocks called by useAutoRefresh on mount */ }, []);
 
   if (loading) {
     return (
@@ -121,15 +134,30 @@ export default function StockSection() {
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
           {data.cached ? "Cached" : "Live"} · {data.stocks.filter(s => !s.error).length} stocks · {lastUpdated}
         </p>
+        {/* Countdown + manual refresh button */}
         <button
           type="button"
-          onClick={fetchStocks}
-          className="flex items-center gap-1 text-xs px-2 py-0.5 rounded"
-          style={{ color: "var(--text-muted)", transition: "color 0.15s" }}
-          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-primary)")}
-          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+          onClick={triggerRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg"
+          style={{
+            color: "var(--text-muted)",
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            cursor: isRefreshing ? "wait" : "pointer",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = "var(--accent-primary)"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.3)"; }}
+          onMouseLeave={e => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
+          title="Click to refresh now"
         >
-          <RefreshCw className="w-3 h-3" /> Refresh
+          <RefreshCw
+            className="w-3 h-3"
+            style={{ animation: isRefreshing ? "spin 0.8s linear infinite" : "none" }}
+          />
+          <span style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "0.02em" }}>
+            {isRefreshing ? "Refreshing…" : `⟳ ${countdown}`}
+          </span>
         </button>
       </div>
 

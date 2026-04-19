@@ -690,3 +690,8 @@ a:hover {
   animation: liquidMove3 40s infinite ease-in-out;
   transform-origin: bottom center;
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
