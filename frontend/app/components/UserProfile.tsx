@@ -1,5 +1,5 @@
 "use client";
-import { User, Mail, Phone, Shield, Clock, Edit3, Save, X, CheckCircle, LogOut, KeyRound, Sparkles } from "lucide-react";
+import { User, Mail, Phone, Shield, Clock, Edit3, Save, X, CheckCircle, LogOut, KeyRound, Sparkles, Lock, Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface UserProfileProps {
@@ -18,6 +18,16 @@ export default function UserProfile({ username, onClose, onLogout }: UserProfile
   const [editName, setEditName]     = useState("");
   const [editEmail, setEditEmail]   = useState("");
   const [editMobile, setEditMobile] = useState("");
+
+  // ── Change Password state ─────────────────────────────────────────
+  const [showPwForm, setShowPwForm]     = useState(false);
+  const [oldPw, setOldPw]               = useState("");
+  const [newPw, setNewPw]               = useState("");
+  const [confirmPw, setConfirmPw]       = useState("");
+  const [showOld, setShowOld]           = useState(false);
+  const [showNew, setShowNew]           = useState(false);
+  const [pwSaving, setPwSaving]         = useState(false);
+  const [pwError, setPwError]           = useState("");
 
   const sessionTime = useState(() => new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }))[0];
   const sessionDate = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
@@ -67,6 +77,29 @@ export default function UserProfile({ username, onClose, onLogout }: UserProfile
   function showToast(msg: string, type: "ok" | "err") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
+  }
+
+  async function handleChangePassword() {
+    setPwError("");
+    if (!oldPw)            return setPwError("Please enter your current password.");
+    if (newPw.length < 4)  return setPwError("New password must be at least 4 characters.");
+    if (newPw !== confirmPw) return setPwError("New passwords do not match.");
+    setPwSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("username",     username);
+      fd.append("old_password", oldPw);
+      fd.append("new_password", newPw);
+      const res  = await fetch("http://127.0.0.1:8000/auth/password", { method: "PUT", body: fd });
+      const data = await res.json();
+      if (!res.ok) { setPwError(data.detail || "Failed to change password."); return; }
+      setOldPw(""); setNewPw(""); setConfirmPw(""); setShowPwForm(false);
+      showToast("Password changed successfully! 🔒", "ok");
+    } catch {
+      setPwError("Network error. Please try again.");
+    } finally {
+      setPwSaving(false);
+    }
   }
 
   const field = (label: string, value: string | undefined, color: string, icon: React.ReactNode,
@@ -259,6 +292,105 @@ export default function UserProfile({ username, onClose, onLogout }: UserProfile
                 {field("Full Name",   profile?.name,   "#3b82f6", <User   size={16} style={{ color: "#3b82f6" }} />, editName,   setEditName,   "Your full name")}
                 {field("Email Address", profile?.email, "#2dd4bf", <Mail   size={16} style={{ color: "#2dd4bf" }} />, editEmail,  setEditEmail,  "your@email.com")}
                 {field("Mobile Number", profile?.mobile, "#a78bfa", <Phone size={16} style={{ color: "#a78bfa" }} />, editMobile, setEditMobile, "+1 234 567 8900")}
+              </div>
+
+              {/* ── Change Password Card ────────────────────────────────── */}
+              <div style={{ borderRadius: "16px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.06)", marginBottom: "20px" }}>
+                {/* Header */}
+                <button
+                  type="button"
+                  onClick={() => { setShowPwForm(v => !v); setPwError(""); }}
+                  style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", background: "rgba(255,255,255,0.025)", border: "none", cursor: "pointer" }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(168,85,247,0.12)", border: "1px solid rgba(168,85,247,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Lock size={14} style={{ color: "#c084fc" }} />
+                    </div>
+                    <span style={{ color: "#e2e8f0", fontSize: "14px", fontWeight: 700 }}>Change Password</span>
+                  </div>
+                  <span style={{ color: "#475569", fontSize: "13px", transform: showPwForm ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▾</span>
+                </button>
+
+                {/* Collapsible Form */}
+                {showPwForm && (
+                  <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "14px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+
+                    {/* Current Password */}
+                    <div>
+                      <p style={{ margin: "0 0 6px", color: "#475569", fontSize: "11px", fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase" }}>Current Password</p>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showOld ? "text" : "password"}
+                          value={oldPw}
+                          onChange={e => setOldPw(e.target.value)}
+                          placeholder="Enter current password"
+                          style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", padding: "10px 42px 10px 14px", color: "white", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+                          onFocus={e => e.target.style.borderColor = "rgba(168,85,247,0.6)"}
+                          onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+                        />
+                        <button type="button" onClick={() => setShowOld(v => !v)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#475569", padding: 0 }}>
+                          {showOld ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* New Password */}
+                    <div>
+                      <p style={{ margin: "0 0 6px", color: "#475569", fontSize: "11px", fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase" }}>New Password</p>
+                      <div style={{ position: "relative" }}>
+                        <input
+                          type={showNew ? "text" : "password"}
+                          value={newPw}
+                          onChange={e => setNewPw(e.target.value)}
+                          placeholder="Min. 4 characters"
+                          style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", padding: "10px 42px 10px 14px", color: "white", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+                          onFocus={e => e.target.style.borderColor = "rgba(168,85,247,0.6)"}
+                          onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.1)"}
+                        />
+                        <button type="button" onClick={() => setShowNew(v => !v)} style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#475569", padding: 0 }}>
+                          {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm New Password */}
+                    <div>
+                      <p style={{ margin: "0 0 6px", color: "#475569", fontSize: "11px", fontWeight: 700, letterSpacing: "1.2px", textTransform: "uppercase" }}>Confirm New Password</p>
+                      <input
+                        type="password"
+                        value={confirmPw}
+                        onChange={e => setConfirmPw(e.target.value)}
+                        placeholder="Repeat new password"
+                        onKeyDown={e => e.key === "Enter" && handleChangePassword()}
+                        style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: `1px solid ${confirmPw && confirmPw !== newPw ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: "10px", padding: "10px 14px", color: "white", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+                        onFocus={e => e.target.style.borderColor = confirmPw !== newPw ? "rgba(239,68,68,0.6)" : "rgba(168,85,247,0.6)"}
+                        onBlur={e  => e.target.style.borderColor = confirmPw && confirmPw !== newPw ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}
+                      />
+                      {confirmPw && confirmPw !== newPw && (
+                        <p style={{ margin: "5px 0 0", color: "#f87171", fontSize: "12px" }}>Passwords do not match</p>
+                      )}
+                    </div>
+
+                    {/* Error message */}
+                    {pwError && (
+                      <div style={{ padding: "10px 14px", borderRadius: "10px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                        <p style={{ margin: 0, color: "#f87171", fontSize: "13px", fontWeight: 600 }}>⚠ {pwError}</p>
+                      </div>
+                    )}
+
+                    {/* Buttons */}
+                    <div style={{ display: "flex", gap: "10px" }}>
+                      <button type="button" onClick={() => { setShowPwForm(false); setOldPw(""); setNewPw(""); setConfirmPw(""); setPwError(""); }}
+                        style={{ flex: 1, padding: "10px", borderRadius: "10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "#64748b", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                        Cancel
+                      </button>
+                      <button type="button" onClick={handleChangePassword} disabled={pwSaving}
+                        style={{ flex: 2, padding: "10px", borderRadius: "10px", background: "linear-gradient(135deg, #7c3aed, #a855f7)", border: "none", color: "white", fontSize: "13px", fontWeight: 700, cursor: pwSaving ? "wait" : "pointer", boxShadow: "0 4px 12px rgba(168,85,247,0.35)" }}>
+                        {pwSaving ? "Changing…" : "🔒 Change Password"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sign Out */}

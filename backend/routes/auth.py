@@ -160,3 +160,46 @@ def update_profile(
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"status": "success", "message": "Profile updated successfully"}
+
+
+@router.put("/password")
+def change_password(
+    username:     str = Form(...),
+    old_password: str = Form(...),
+    new_password: str = Form(...),
+):
+    """
+    Change a user's password. Verifies the current password first,
+    then hashes and saves the new one using bcrypt.
+    """
+    if len(new_password) < 4:
+        raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
+
+    conn = get_conn()
+    cur  = conn.cursor()
+    cur.execute("SELECT password FROM users WHERE username = ?", (username,))
+    row = cur.fetchone()
+
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stored = row["password"]
+
+    # Support both legacy plain-text and bcrypt-hashed passwords
+    if _is_plain_text(stored):
+        correct = (stored == old_password)
+    else:
+        correct = _verify_password(old_password, stored)
+
+    if not correct:
+        conn.close()
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    # Save new bcrypt hash
+    new_hash = _hash_password(new_password)
+    cur.execute("UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
+    conn.commit()
+    conn.close()
+
+    return {"status": "success", "message": "Password changed successfully"}
