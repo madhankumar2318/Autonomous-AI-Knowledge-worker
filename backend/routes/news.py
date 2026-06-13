@@ -1,14 +1,14 @@
 import requests
 import time
+import os
 from urllib.parse import quote as url_quote
 from fastapi import APIRouter, Query
 from db import insert_history
 
 router = APIRouter(prefix="/news", tags=["News"])
 
-# ── NewsAPI config ─────────────────────────────────────────────────────
-NEWS_API_KEY = "061a9915bd56414f9075c98eeab90949"
-PAGE_SIZE    = 100   # fetch max articles per API call (NewsAPI max is 100)
+# ── Currents API config ────────────────────────────────────────────────
+PAGE_SIZE    = 50    # fetch max articles per API call (Currents API max for Free tier is 50)
 PER_PAGE     = 20    # articles served per page to the frontend
 CACHE_TTL    = 1800  # 30 minutes
 
@@ -22,59 +22,52 @@ def _make_cache_key(category: str, topic: str) -> str:
 
 def _fetch_from_api(category: str, topic: str) -> list[dict]:
     """
-    Choose the right NewsAPI endpoint based on params:
-      - topic provided  → /everything  (full-text keyword search, any source)
-      - category only   → /top-headlines?category=
-      - nothing         → /top-headlines?country=us
-    Always request pageSize=100 for maximum articles.
+    Fetch articles from Currents News API:
+      - If topic (keywords) is provided, query /v1/search
+      - Otherwise, query /v1/latest-news
     """
-    try:
-        if topic.strip():
-            # Full-text search across all sources worldwide
-            url = (
-                f"https://newsapi.org/v2/everything"
-                f"?q={url_quote(topic)}"
-                f"&language=en"
-                f"&sortBy=publishedAt"
-                f"&pageSize={PAGE_SIZE}"
-                f"&apiKey={NEWS_API_KEY}"
-            )
-        elif category.strip():
-            # Category filter on US top-headlines
-            url = (
-                f"https://newsapi.org/v2/top-headlines"
-                f"?country=us"
-                f"&category={category.strip().lower()}"
-                f"&pageSize={PAGE_SIZE}"
-                f"&apiKey={NEWS_API_KEY}"
-            )
-        else:
-            # Default: US top-headlines, maximum count
-            url = (
-                f"https://newsapi.org/v2/top-headlines"
-                f"?country=us"
-                f"&pageSize={PAGE_SIZE}"
-                f"&apiKey={NEWS_API_KEY}"
-            )
+    api_key = os.getenv("CURRENTS_API_KEY")
+    if not api_key or api_key == "your_currents_api_key_here":
+        print("⚠️ Currents API Key is not set or is still the placeholder. Please set CURRENTS_API_KEY in your .env file.")
+        return []
 
-        response = requests.get(url, timeout=10)
+    try:
+        headers = {
+            "Authorization": api_key
+        }
+        params = {
+            "language": "en",
+            "page_size": PAGE_SIZE,
+        }
+
+        if topic.strip():
+            url = "https://api.currentsapi.services/v1/search"
+            params["keywords"] = topic.strip()
+        else:
+            url = "https://api.currentsapi.services/v1/latest-news"
+            params["country"] = "us"  # default to US latest news
+
+        if category.strip():
+            params["category"] = category.strip().lower()
+
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        
+        if response.status_code != 200:
+            print(f"Currents API error response code: {response.status_code} | text: {response.text}")
+            return []
+
         data = response.json()
 
         if data.get("status") == "ok":
-            articles = data.get("articles", [])
-            # Filter out removed/hidden articles
-            articles = [
-                a for a in articles
-                if a.get("title") and "[Removed]" not in a.get("title", "")
-            ]
+            articles = data.get("news", [])
             clean = [
                 {
                     "title":       a.get("title"),
                     "description": a.get("description") or "",
                     "url":         a.get("url"),
-                    "urlToImage":  a.get("urlToImage"),
-                    "publishedAt": a.get("publishedAt"),
-                    "source":      a.get("source", {}).get("name", ""),
+                    "urlToImage":  a.get("image"),
+                    "publishedAt": a.get("published"),
+                    "source":      a.get("author") or a.get("source") or "",
                 }
                 for a in articles
             ]
@@ -85,7 +78,7 @@ def _fetch_from_api(category: str, topic: str) -> list[dict]:
                 print(f"History log error (non-fatal): {log_err}")
             return clean
         else:
-            print(f"NewsAPI error response: {data.get('message')} | code: {data.get('code')}")
+            print(f"Currents API status error: {data}")
             return []
     except Exception as e:
         print(f"News fetch exception: {e}")
