@@ -76,7 +76,7 @@ def init_db():
             "INSERT INTO users (username, password) VALUES (?, ?)",
             ("admin", "1234")
         )
-        print("✅ Default admin user created (username: admin, password: 1234)")
+        print("[OK] Default admin user created (username: admin, password: 1234)")
 
     conn.commit()
     conn.close()

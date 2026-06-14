@@ -15,23 +15,26 @@ interface StockQuote {
   history?: number[];
 }
 
-function Sparkline({ data, isPos }: { data?: number[], isPos: boolean }) {
-  if (!data || data.length < 2) return <div style={{ width: 40, height: 18 }} />;
-  
+function Sparkline({ data, isPos }: { data?: number[]; isPos: boolean }) {
+  if (!data || data.length < 2)
+    return <div style={{ width: 40, height: 18 }} />;
+
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
   const width = 40;
   const height = 18;
-  
-  const points = data.map((val, i) => {
-    const x = (i / (data.length - 1)) * width;
-    const y = height - ((val - min) / range) * height;
-    return `${x},${y}`;
-  }).join(" ");
+
+  const points = data
+    .map((val, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - ((val - min) / range) * height;
+      return `${x},${y}`;
+    })
+    .join(" ");
 
   const color = isPos ? "#34d399" : "#f87171";
-  
+
   return (
     <svg width={width} height={height} style={{ overflow: "visible" }}>
       <polyline
@@ -46,7 +49,6 @@ function Sparkline({ data, isPos }: { data?: number[], isPos: boolean }) {
     </svg>
   );
 }
-
 
 interface StockResponse {
   stocks: StockQuote[];
@@ -98,10 +100,12 @@ export default function StockSection() {
       // Only show toast if data actually loaded successfully
       showToast("success", "Stock prices updated! 📈");
     },
-    refreshOnMount: true,   // fetch immediately on load
+    refreshOnMount: true, // fetch immediately on load
   });
 
-  useEffect(() => { /* fetchStocks called by useAutoRefresh on mount */ }, []);
+  useEffect(() => {
+    /* fetchStocks called by useAutoRefresh on mount */
+  }, []);
 
   if (loading) {
     return (
@@ -116,10 +120,17 @@ export default function StockSection() {
   if (!data) {
     return (
       <div className="flex flex-col items-center gap-2 py-4 text-center">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>Could not load stocks</p>
-        <button type="button" onClick={fetchStocks}
-          className="btn btn-secondary text-xs" style={{ padding: "4px 12px" }}>
-          <RefreshCw className="w-3 h-3 inline mr-1" />Retry
+        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+          Could not load stocks
+        </p>
+        <button
+          type="button"
+          onClick={fetchStocks}
+          className="btn btn-secondary text-xs"
+          style={{ padding: "4px 12px" }}
+        >
+          <RefreshCw className="w-3 h-3 inline mr-1" />
+          Retry
         </button>
       </div>
     );
@@ -128,11 +139,19 @@ export default function StockSection() {
   const stockMap = Object.fromEntries(data.stocks.map((s) => [s.symbol, s]));
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 0,
+      }}
+    >
       {/* Header bar */}
       <div className="flex items-center justify-between mb-1 flex-shrink-0">
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {data.cached ? "Cached" : "Live"} · {data.stocks.filter(s => !s.error).length} stocks · {lastUpdated}
+          {data.cached ? "Cached" : "Live"} ·{" "}
+          {data.stocks.filter((s) => !s.error).length} stocks · {lastUpdated}
         </p>
         {/* Countdown + manual refresh button */}
         <button
@@ -147,15 +166,28 @@ export default function StockSection() {
             cursor: isRefreshing ? "wait" : "pointer",
             transition: "all 0.2s",
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = "var(--accent-primary)"; e.currentTarget.style.borderColor = "rgba(168,85,247,0.3)"; }}
-          onMouseLeave={e => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = "var(--accent-primary)";
+            e.currentTarget.style.borderColor = "rgba(168,85,247,0.3)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = "var(--text-muted)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+          }}
           title="Click to refresh now"
         >
           <RefreshCw
             className="w-3 h-3"
-            style={{ animation: isRefreshing ? "spin 0.8s linear infinite" : "none" }}
+            style={{
+              animation: isRefreshing ? "spin 0.8s linear infinite" : "none",
+            }}
           />
-          <span style={{ fontVariantNumeric: "tabular-nums", letterSpacing: "0.02em" }}>
+          <span
+            style={{
+              fontVariantNumeric: "tabular-nums",
+              letterSpacing: "0.02em",
+            }}
+          >
             {isRefreshing ? "Refreshing…" : `⟳ ${countdown}`}
           </span>
         </button>
@@ -167,14 +199,22 @@ export default function StockSection() {
         style={{ gridTemplateColumns: "52px 1fr 68px 52px", gap: "4px" }}
       >
         {["Symbol", "Name", "Change", "Price"].map((h) => (
-          <span key={h} className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>{h}</span>
+          <span
+            key={h}
+            className="text-xs font-semibold"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {h}
+          </span>
         ))}
       </div>
 
       {/* Scrollable stock list grouped by sector */}
       <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
         {Object.entries(data.sectors).map(([sector, symbols]) => {
-          const sectorStocks = symbols.map((sym) => stockMap[sym]).filter(Boolean);
+          const sectorStocks = symbols
+            .map((sym) => stockMap[sym])
+            .filter(Boolean);
           if (!sectorStocks.length) return null;
 
           return (
@@ -201,13 +241,37 @@ export default function StockSection() {
                     <div
                       key={s.symbol}
                       className="grid px-2 py-1 rounded items-center"
-                      style={{ gridTemplateColumns: "52px 1fr 40px 60px 48px", gap: "4px", opacity: 0.4 }}
+                      style={{
+                        gridTemplateColumns: "52px 1fr 40px 60px 48px",
+                        gap: "4px",
+                        opacity: 0.4,
+                      }}
                     >
-                      <span className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>{s.symbol}</span>
-                      <span className="text-xs truncate" style={{ color: "var(--text-muted)" }}>—</span>
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: "var(--text-primary)" }}
+                      >
+                        {s.symbol}
+                      </span>
+                      <span
+                        className="text-xs truncate"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        —
+                      </span>
                       <span className="text-xs"></span>
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>N/A</span>
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>—</span>
+                      <span
+                        className="text-xs"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        N/A
+                      </span>
+                      <span
+                        className="text-xs"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        —
+                      </span>
                     </div>
                   );
                 }
@@ -225,16 +289,27 @@ export default function StockSection() {
                       transition: "background 0.12s ease",
                       cursor: "default",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "var(--bg-hover)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
                   >
                     {/* Symbol */}
-                    <span className="text-xs font-bold" style={{ color: "var(--text-primary)" }}>
+                    <span
+                      className="text-xs font-bold"
+                      style={{ color: "var(--text-primary)" }}
+                    >
                       {s.symbol}
                     </span>
 
                     {/* Short name */}
-                    <span className="text-xs truncate" style={{ color: "var(--text-muted)" }} title={s.name}>
+                    <span
+                      className="text-xs truncate"
+                      style={{ color: "var(--text-muted)" }}
+                      title={s.name}
+                    >
                       {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ?? ""}
                     </span>
 
@@ -249,14 +324,18 @@ export default function StockSection() {
                       style={{
                         fontSize: "0.65rem",
                         fontWeight: 700,
-                        background: isPos ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)",
+                        background: isPos
+                          ? "rgba(16,185,129,0.12)"
+                          : "rgba(239,68,68,0.12)",
                         color: isPos ? "#34d399" : "#f87171",
                         border: `1px solid ${isPos ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
                       }}
                     >
-                      {isPos
-                        ? <TrendingUp className="w-2.5 h-2.5 flex-shrink-0" />
-                        : <TrendingDown className="w-2.5 h-2.5 flex-shrink-0" />}
+                      {isPos ? (
+                        <TrendingUp className="w-2.5 h-2.5 flex-shrink-0" />
+                      ) : (
+                        <TrendingDown className="w-2.5 h-2.5 flex-shrink-0" />
+                      )}
                       {pctStr}
                     </div>
 

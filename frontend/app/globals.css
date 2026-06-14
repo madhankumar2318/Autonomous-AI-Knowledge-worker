@@ -93,8 +93,16 @@
 
 [data-theme="light"] body::before {
   background:
-    radial-gradient(circle at 15% 50%, rgba(168, 85, 247, 0.05), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.05), transparent 25%);
+    radial-gradient(
+      circle at 15% 50%,
+      rgba(168, 85, 247, 0.05),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 85% 30%,
+      rgba(59, 130, 246, 0.05),
+      transparent 25%
+    );
 }
 
 [data-theme="light"] .card,
@@ -111,10 +119,21 @@
 
 /* Smooth theme transition — scoped only to layout-level elements, NOT all elements */
 body,
-.card, .card-compact, .card-sm,
-header, footer, main,
-input, select, textarea, button {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease, box-shadow 0.3s ease;
+.card,
+.card-compact,
+.card-sm,
+header,
+footer,
+main,
+input,
+select,
+textarea,
+button {
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.2s ease,
+    box-shadow 0.3s ease;
 }
 
 /* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind v4 @theme */
@@ -229,7 +248,9 @@ a:hover {
   -webkit-backdrop-filter: blur(12px);
   padding: var(--space-6);
   /* Only transition specific cheap properties, NOT 'all' */
-  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
 }
 
 .card:hover {
@@ -245,7 +266,9 @@ a:hover {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--border-light);
   padding: var(--space-3);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .card-compact:hover {
@@ -262,7 +285,9 @@ a:hover {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: var(--space-3);
-  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
 }
 
 .card-sm:hover {
@@ -276,11 +301,11 @@ a:hover {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
-  transform: translateZ(0);       /* promote to own GPU layer */
-  will-change: transform;         /* hint to browser ahead of time */
-  backface-visibility: hidden;    /* prevent bleed from parent compositing */
-  contain: strict;                /* isolate layout/paint from parent tree */
-  overscroll-behavior: contain;   /* stop scroll chain propagation */
+  transform: translateZ(0); /* promote to own GPU layer */
+  will-change: transform; /* hint to browser ahead of time */
+  backface-visibility: hidden; /* prevent bleed from parent compositing */
+  contain: strict; /* isolate layout/paint from parent tree */
+  overscroll-behavior: contain; /* stop scroll chain propagation */
 }
 
 /* ========================================
@@ -533,13 +558,26 @@ a:hover {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 6px #4ade80; }
-  50%       { opacity: 0.5; transform: scale(0.85); box-shadow: 0 0 2px #4ade80; }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 6px #4ade80;
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.85);
+    box-shadow: 0 0 2px #4ade80;
+  }
 }
 
 .animate-fade-in {
@@ -657,23 +695,45 @@ a:hover {
    ✨ CINEMATIC LOGIN ANIMATIONS (STRIPE LIQUID)
    ======================================== */
 @keyframes liquidMove1 {
-  0% { transform: translate(0vw, 0vh) rotate(0deg) scale(1); }
-  33% { transform: translate(15vw, -10vh) rotate(120deg) scale(1.2); }
-  66% { transform: translate(-10vw, 15vh) rotate(240deg) scale(0.85); }
-  100% { transform: translate(0vw, 0vh) rotate(360deg) scale(1); }
+  0% {
+    transform: translate(0vw, 0vh) rotate(0deg) scale(1);
+  }
+  33% {
+    transform: translate(15vw, -10vh) rotate(120deg) scale(1.2);
+  }
+  66% {
+    transform: translate(-10vw, 15vh) rotate(240deg) scale(0.85);
+  }
+  100% {
+    transform: translate(0vw, 0vh) rotate(360deg) scale(1);
+  }
 }
 
 @keyframes liquidMove2 {
-  0% { transform: translate(0vw, 0vh) rotate(0deg) scale(1); }
-  33% { transform: translate(-15vw, 15vh) rotate(-120deg) scale(0.9); }
-  66% { transform: translate(10vw, -15vh) rotate(-240deg) scale(1.15); }
-  100% { transform: translate(0vw, 0vh) rotate(-360deg) scale(1); }
+  0% {
+    transform: translate(0vw, 0vh) rotate(0deg) scale(1);
+  }
+  33% {
+    transform: translate(-15vw, 15vh) rotate(-120deg) scale(0.9);
+  }
+  66% {
+    transform: translate(10vw, -15vh) rotate(-240deg) scale(1.15);
+  }
+  100% {
+    transform: translate(0vw, 0vh) rotate(-360deg) scale(1);
+  }
 }
 
 @keyframes liquidMove3 {
-  0% { transform: translate(0vw, 0vh) rotate(0deg) scale(1.1); }
-  50% { transform: translate(10vw, 10vh) rotate(180deg) scale(0.8); }
-  100% { transform: translate(0vw, 0vh) rotate(360deg) scale(1.1); }
+  0% {
+    transform: translate(0vw, 0vh) rotate(0deg) scale(1.1);
+  }
+  50% {
+    transform: translate(10vw, 10vh) rotate(180deg) scale(0.8);
+  }
+  100% {
+    transform: translate(0vw, 0vh) rotate(360deg) scale(1.1);
+  }
 }
 
 .animate-liquid-1 {
@@ -692,6 +752,10 @@ a:hover {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

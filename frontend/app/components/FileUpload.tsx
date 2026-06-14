@@ -94,7 +94,6 @@ export default function FileUpload() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-
       {/* Drop Zone — grows to fill all available space */}
       <div
         onDragEnter={handleDragEnter}
@@ -122,7 +121,9 @@ export default function FileUpload() {
       >
         <Upload
           className="w-7 h-7 mb-3"
-          style={{ color: isDragging ? "var(--accent-primary)" : "var(--text-muted)" }}
+          style={{
+            color: isDragging ? "var(--accent-primary)" : "var(--text-muted)",
+          }}
         />
         <input
           type="file"
@@ -133,7 +134,10 @@ export default function FileUpload() {
         />
         {file ? (
           <div className="flex items-center justify-center gap-2">
-            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            <span
+              className="text-sm font-medium"
+              style={{ color: "var(--text-primary)" }}
+            >
               {file.name}
             </span>
             <button
@@ -142,13 +146,19 @@ export default function FileUpload() {
               className="p-0.5 rounded hover:bg-white/10"
               aria-label="Clear file"
             >
-              <X className="w-3.5 h-3.5" style={{ color: "var(--text-muted)" }} />
+              <X
+                className="w-3.5 h-3.5"
+                style={{ color: "var(--text-muted)" }}
+              />
             </button>
           </div>
         ) : (
           <label htmlFor="file-upload" className="cursor-pointer">
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              <span className="font-semibold" style={{ color: "var(--accent-primary)" }}>
+              <span
+                className="font-semibold"
+                style={{ color: "var(--accent-primary)" }}
+              >
                 Choose a file
               </span>{" "}
               or drag &amp; drop here
@@ -185,7 +195,10 @@ export default function FileUpload() {
       {/* Uploaded Files List */}
       {uploads.length > 0 && (
         <div style={{ marginTop: "10px", flexShrink: 0 }}>
-          <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+          <h3
+            className="text-sm font-semibold mb-2"
+            style={{ color: "var(--text-primary)" }}
+          >
             Uploaded Files
           </h3>
           <div className="space-y-1">
@@ -194,16 +207,31 @@ export default function FileUpload() {
                 key={u.id}
                 className="flex items-center justify-between p-2 rounded-lg transition-colors"
                 style={{ background: "var(--bg-surface)" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "var(--bg-hover)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "var(--bg-surface)"; }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background =
+                    "var(--bg-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background =
+                    "var(--bg-surface)";
+                }}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <File className="w-4 h-4 flex-shrink-0" style={{ color: "var(--accent-primary)" }} />
+                  <File
+                    className="w-4 h-4 flex-shrink-0"
+                    style={{ color: "var(--accent-primary)" }}
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-xs truncate" style={{ color: "var(--text-primary)" }}>
+                    <p
+                      className="font-medium text-xs truncate"
+                      style={{ color: "var(--text-primary)" }}
+                    >
                       {u.filename}
                     </p>
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    <p
+                      className="text-xs"
+                      style={{ color: "var(--text-muted)" }}
+                    >
                       {Math.round(u.size / 1024)} KB
                     </p>
                   </div>
@@ -214,7 +242,10 @@ export default function FileUpload() {
                   className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                   title="Download"
                 >
-                  <Download className="w-3.5 h-3.5" style={{ color: "var(--accent-primary)" }} />
+                  <Download
+                    className="w-3.5 h-3.5"
+                    style={{ color: "var(--accent-primary)" }}
+                  />
                 </a>
               </div>
             ))}

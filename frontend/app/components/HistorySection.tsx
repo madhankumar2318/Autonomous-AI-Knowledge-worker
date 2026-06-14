@@ -43,7 +43,10 @@ export default function HistorySection({ limit, compact }: Props) {
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -56,11 +59,16 @@ export default function HistorySection({ limit, compact }: Props) {
       <div className="relative" ref={dropdownRef}>
         <button
           type="button"
-          onClick={() => { setIsOpen(!isOpen); if (!isOpen) fetchHistory(); }}
+          onClick={() => {
+            setIsOpen(!isOpen);
+            if (!isOpen) fetchHistory();
+          }}
           className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200"
           style={{
             color: isOpen ? "#d8b4fe" : "#c084fc",
-            background: isOpen ? "rgba(168,85,247,0.18)" : "rgba(168,85,247,0.10)",
+            background: isOpen
+              ? "rgba(168,85,247,0.18)"
+              : "rgba(168,85,247,0.10)",
             border: `1px solid ${isOpen ? "rgba(168,85,247,0.55)" : "rgba(168,85,247,0.25)"}`,
             backdropFilter: "blur(8px)",
             boxShadow: isOpen ? "0 0 16px rgba(168,85,247,0.3)" : "none",
@@ -89,14 +97,24 @@ export default function HistorySection({ limit, compact }: Props) {
           }}
         >
           {/* Pulsing live dot */}
-          <span style={{ position: "relative", display: "flex", alignItems: "center" }}>
-            <span style={{
-              width: "7px", height: "7px", borderRadius: "50%",
-              background: "#4ade80",
-              boxShadow: "0 0 6px #4ade80",
-              display: "inline-block",
-              animation: "pulse 2s ease-in-out infinite",
-            }} />
+          <span
+            style={{
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <span
+              style={{
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                background: "#4ade80",
+                boxShadow: "0 0 6px #4ade80",
+                display: "inline-block",
+                animation: "pulse 2s ease-in-out infinite",
+              }}
+            />
           </span>
           <Activity className="w-4 h-4" />
           Activity
@@ -109,8 +127,14 @@ export default function HistorySection({ limit, compact }: Props) {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4" style={{ color: "var(--accent-primary)" }} />
-                <h3 className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>
+                <Clock
+                  className="w-4 h-4"
+                  style={{ color: "var(--accent-primary)" }}
+                />
+                <h3
+                  className="font-semibold text-sm"
+                  style={{ color: "var(--text-primary)" }}
+                >
                   Recent Activity
                 </h3>
               </div>
@@ -125,7 +149,10 @@ export default function HistorySection({ limit, compact }: Props) {
             </div>
 
             {history.length === 0 ? (
-              <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>
+              <p
+                className="text-sm text-center py-4"
+                style={{ color: "var(--text-muted)" }}
+              >
                 No recent activity
               </p>
             ) : (
@@ -135,13 +162,25 @@ export default function HistorySection({ limit, compact }: Props) {
                     key={item.id}
                     className="p-3 rounded-lg transition-colors"
                     style={{ background: "var(--bg-surface)" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = "var(--bg-hover)"; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = "var(--bg-surface)"; }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.background =
+                        "var(--bg-hover)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLDivElement).style.background =
+                        "var(--bg-surface)";
+                    }}
                   >
-                    <p className="text-sm font-medium line-clamp-2" style={{ color: "var(--text-primary)" }}>
+                    <p
+                      className="text-sm font-medium line-clamp-2"
+                      style={{ color: "var(--text-primary)" }}
+                    >
                       {item.action}
                     </p>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                    <p
+                      className="text-xs mt-1"
+                      style={{ color: "var(--text-muted)" }}
+                    >
                       {new Date(item.created_at).toLocaleString()}
                     </p>
                   </div>
@@ -158,14 +197,20 @@ export default function HistorySection({ limit, compact }: Props) {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Clock className="w-5 h-5" style={{ color: "var(--accent-primary)" }} />
-        <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>
+        <h2
+          className="text-lg font-semibold"
+          style={{ color: "var(--text-primary)" }}
+        >
           Activity History
         </h2>
       </div>
 
       {history.length === 0 ? (
         <div className="text-center py-8">
-          <Activity className="w-12 h-12 mx-auto mb-3" style={{ color: "var(--text-muted)" }} />
+          <Activity
+            className="w-12 h-12 mx-auto mb-3"
+            style={{ color: "var(--text-muted)" }}
+          />
           <p style={{ color: "var(--text-secondary)" }}>No activity yet</p>
         </div>
       ) : (
@@ -175,10 +220,16 @@ export default function HistorySection({ limit, compact }: Props) {
               key={item.id}
               className="card-compact hover:shadow-md transition-all"
             >
-              <p className="text-sm font-medium mb-2" style={{ color: "var(--text-primary)" }}>
+              <p
+                className="text-sm font-medium mb-2"
+                style={{ color: "var(--text-primary)" }}
+              >
                 {item.action}
               </p>
-              <div className="flex items-center gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+              <div
+                className="flex items-center gap-1 text-xs"
+                style={{ color: "var(--text-muted)" }}
+              >
                 <Clock className="w-3 h-3" />
                 {new Date(item.created_at).toLocaleString()}
               </div>

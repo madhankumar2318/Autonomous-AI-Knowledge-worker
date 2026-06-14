@@ -21,30 +21,28 @@ def log_event(event: dict = Body(...)):
     insert_history(event_type, json.dumps(payload))
     return {"status": "ok"}
 
-@router.get("/")
+@router.get("/list")
 def get_history(q: Optional[str] = Query(None), type: Optional[str] = Query(None), limit: int = Query(100)):
     conn = get_conn()
     cur = conn.cursor()
-    sql = "SELECT id, event_type, payload, created_at FROM history"
+    sql = "SELECT id, username, action, details, timestamp AS created_at FROM history"
     params = []
+    
     if type and q:
-        sql += " WHERE event_type = ? AND payload LIKE ?"
-        params = [type, f"%{q}%"]
+        sql += " WHERE username = ? AND (action LIKE ? OR details LIKE ?)"
+        params = [type, f"%{q}%", f"%{q}%"]
     elif type:
-        sql += " WHERE event_type = ?"
+        sql += " WHERE username = ?"
         params = [type]
     elif q:
-        sql += " WHERE payload LIKE ?"
-        params = [f"%{q}%"]
-    sql += " ORDER BY created_at DESC LIMIT ?"
+        sql += " WHERE action LIKE ? OR details LIKE ?"
+        params = [f"%{q}%", f"%{q}%"]
+        
+    sql += " ORDER BY timestamp DESC LIMIT ?"
     params.append(limit)
+    
     rows = cur.execute(sql, params).fetchall()
     history = [dict(r) for r in rows]
     conn.close()
-    # Try parsing payload as JSON
-    for h in history:
-        try:
-            h['payload'] = json.loads(h['payload'])
-        except:
-            pass
+    
     return {"history": history}

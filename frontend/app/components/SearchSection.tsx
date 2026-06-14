@@ -96,11 +96,7 @@ export default function SearchSection({
             disabled={loading}
           />
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn btn-primary"
-        >
+        <button type="submit" disabled={loading} className="btn btn-primary">
           {loading ? <div className="spinner" /> : "Search"}
         </button>
       </form>
@@ -123,7 +119,10 @@ export default function SearchSection({
 
       {/* Idle hint — only when no search has been made yet */}
       {!hasSearched && !loading && !error && (
-        <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
+        <p
+          className="text-xs text-center"
+          style={{ color: "var(--text-muted)" }}
+        >
           Type a query above and press <strong>Search</strong>
         </p>
       )}

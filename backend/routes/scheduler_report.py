@@ -45,7 +45,11 @@ def generate_report_now():
         summary = f"{len(report['news'])} news items; stock {stock_symbol} snapshot."
 
         # insert into DB
-        insert_report(title=f"Auto report {time.strftime('%Y-%m-%d %H:%M:%S')}", json_path=fpath, summary=summary)
+        insert_report(
+            news=json.dumps(report["news"]),
+            stock=json.dumps(report["stock"]),
+            insights=summary
+        )
 
         return {"status": "ok", "file": fpath}
     except Exception as e:

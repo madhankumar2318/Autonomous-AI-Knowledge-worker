@@ -53,11 +53,13 @@ export function useAutoRefresh({
   // Main countdown tick — runs every second
   useEffect(() => {
     const id = setInterval(() => {
-      setSecondsLeft(prev => {
+      setSecondsLeft((prev) => {
         if (prev <= 1) {
           // Trigger async refresh without blocking the interval
           setIsRefreshing(true);
-          Promise.resolve(onRefreshRef.current()).finally(() => setIsRefreshing(false));
+          Promise.resolve(onRefreshRef.current()).finally(() =>
+            setIsRefreshing(false),
+          );
           return intervalSeconds; // reset
         }
         return prev - 1;

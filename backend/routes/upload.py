@@ -26,7 +26,7 @@ async def upload_file(file: UploadFile = File(...)):
         conn.close()
 
         # ✅ Log to history
-        insert_history("file_upload", f"filename={file.filename}, size={size} bytes")
+        insert_history("system", "file_upload", f"filename={file.filename}, size={size} bytes")
 
         if file.filename.lower().endswith(".csv"):
             text = content.decode("utf-8")
@@ -57,7 +57,7 @@ def download_file(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
 
     # ✅ Log to history
-    insert_history("file_download", f"filename={filename}")
+    insert_history("system", "file_download", f"filename={filename}")
 
     return FileResponse(
         path=file_path,
