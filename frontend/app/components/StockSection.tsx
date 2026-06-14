@@ -37,6 +37,7 @@ function Sparkline({ data, isPos }: { data?: number[]; isPos: boolean }) {
 
   return (
     <svg width={width} height={height} style={{ overflow: "visible" }}>
+      <title>Stock price trend line</title>
       <polyline
         points={points}
         fill="none"
@@ -67,15 +68,11 @@ function formatChange(pct?: number) {
   return `${sign}${pct.toFixed(2)}%`;
 }
 
-function formatVolume(v?: number) {
-  if (!v) return "";
-  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
-  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-  if (v >= 1e3) return `${(v / 1e3).toFixed(0)}K`;
-  return String(v);
-}
-
-export default function StockSection() {
+export default function StockSection({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const [data, setData] = useState<StockResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("");
@@ -92,15 +89,13 @@ export default function StockSection() {
       .catch(() => setLoading(false));
   };
 
-  // ── Auto-refresh every 2 minutes ──────────────────────────────────
   const { countdown, isRefreshing, triggerRefresh } = useAutoRefresh({
     intervalSeconds: 120,
     onRefresh: async () => {
       await fetchStocks();
-      // Only show toast if data actually loaded successfully
       showToast("success", "Stock prices updated! 📈");
     },
-    refreshOnMount: true, // fetch immediately on load
+    refreshOnMount: true,
   });
 
   useEffect(() => {
@@ -110,7 +105,7 @@ export default function StockSection() {
   if (loading) {
     return (
       <div className="space-y-1 pt-1">
-        {[...Array(8)].map((_, i) => (
+        {[...Array(6)].map((_, i) => (
           <div key={i} className="skeleton h-7 rounded-md" />
         ))}
       </div>
@@ -138,6 +133,79 @@ export default function StockSection() {
 
   const stockMap = Object.fromEntries(data.stocks.map((s) => [s.symbol, s]));
 
+  // ── COMPACT HOME-VIEW MODE (Top 6 Stocks) ──
+  if (compact) {
+    const topStocks = data.stocks.slice(0, 6);
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        {/* Aligned Headers */}
+        <div
+          className="grid flex-shrink-0 mb-2 px-2 text-[9px] uppercase font-bold tracking-wider"
+          style={{ gridTemplateColumns: "52px 1fr 40px 60px 48px", gap: "4px" }}
+        >
+          <span style={{ color: "var(--text-muted)" }}>Symbol</span>
+          <span style={{ color: "var(--text-muted)" }}>Name</span>
+          <span style={{ color: "var(--text-muted)", textAlign: "center" }}>
+            Trend
+          </span>
+          <span style={{ color: "var(--text-muted)", textAlign: "center" }}>
+            Change
+          </span>
+          <span style={{ color: "var(--text-muted)", textAlign: "right" }}>
+            Price
+          </span>
+        </div>
+
+        {/* List */}
+        <div className="space-y-1 max-h-60 overflow-y-auto">
+          {topStocks.map((s) => {
+            if (s.error) return null;
+            const isPos = (s.change_percent ?? 0) >= 0;
+            const pctStr = formatChange(s.change_percent);
+
+            return (
+              <div
+                key={s.symbol}
+                className="grid px-2 py-1.5 rounded-lg items-center hover:bg-white/5 transition-colors"
+                style={{
+                  gridTemplateColumns: "52px 1fr 40px 60px 48px",
+                  gap: "4px",
+                  cursor: "default",
+                }}
+              >
+                <span className="text-xs font-bold text-white">{s.symbol}</span>
+                <span className="text-xs text-white/50 truncate" title={s.name}>
+                  {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ?? ""}
+                </span>
+                <div className="flex items-center justify-center">
+                  <Sparkline data={s.history} isPos={isPos} />
+                </div>
+                <div
+                  className="flex items-center gap-0.5 px-1 py-0.5 rounded-full justify-center"
+                  style={{
+                    fontSize: "0.65rem",
+                    fontWeight: 700,
+                    background: isPos
+                      ? "rgba(16,185,129,0.12)"
+                      : "rgba(239,68,68,0.12)",
+                    color: isPos ? "#34d399" : "#f87171",
+                    border: `1px solid ${isPos ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
+                  }}
+                >
+                  {pctStr}
+                </div>
+                <span className="text-xs font-bold text-right text-white">
+                  {formatPrice(s.price)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ── FULL TAB MODE ──
   return (
     <div
       style={{
@@ -148,12 +216,11 @@ export default function StockSection() {
       }}
     >
       {/* Header bar */}
-      <div className="flex items-center justify-between mb-1 flex-shrink-0">
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+      <div className="flex items-center justify-between mb-2.5 flex-shrink-0">
+        <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
           {data.cached ? "Cached" : "Live"} ·{" "}
           {data.stocks.filter((s) => !s.error).length} stocks · {lastUpdated}
         </p>
-        {/* Countdown + manual refresh button */}
         <button
           type="button"
           onClick={triggerRefresh}
@@ -165,14 +232,6 @@ export default function StockSection() {
             border: "1px solid rgba(255,255,255,0.06)",
             cursor: isRefreshing ? "wait" : "pointer",
             transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = "var(--accent-primary)";
-            e.currentTarget.style.borderColor = "rgba(168,85,247,0.3)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "var(--text-muted)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
           }}
           title="Click to refresh now"
         >
@@ -193,24 +252,29 @@ export default function StockSection() {
         </button>
       </div>
 
-      {/* Column headers */}
+      {/* Column headers (ALIGNED) */}
       <div
-        className="grid flex-shrink-0 mb-1 px-2"
-        style={{ gridTemplateColumns: "52px 1fr 68px 52px", gap: "4px" }}
+        className="grid flex-shrink-0 mb-2 px-2 text-[10px] uppercase font-bold tracking-wider"
+        style={{ gridTemplateColumns: "52px 1fr 40px 60px 48px", gap: "4px" }}
       >
-        {["Symbol", "Name", "Change", "Price"].map((h) => (
-          <span
-            key={h}
-            className="text-xs font-semibold"
-            style={{ color: "var(--text-muted)" }}
-          >
-            {h}
-          </span>
-        ))}
+        <span style={{ color: "var(--text-muted)" }}>Symbol</span>
+        <span style={{ color: "var(--text-muted)" }}>Name</span>
+        <span style={{ color: "var(--text-muted)", textAlign: "center" }}>
+          Trend
+        </span>
+        <span style={{ color: "var(--text-muted)", textAlign: "center" }}>
+          Change
+        </span>
+        <span style={{ color: "var(--text-muted)", textAlign: "right" }}>
+          Price
+        </span>
       </div>
 
       {/* Scrollable stock list grouped by sector */}
-      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+      <div
+        style={{ flex: 1, overflowY: "auto", minHeight: 0 }}
+        className="space-y-3"
+      >
         {Object.entries(data.sectors).map(([sector, symbols]) => {
           const sectorStocks = symbols
             .map((sym) => stockMap[sym])
@@ -221,134 +285,84 @@ export default function StockSection() {
             <div key={sector} className="mb-2">
               {/* Sector label */}
               <p
-                className="text-xs font-bold px-2 py-0.5 mb-0.5 sticky top-0"
+                className="text-[10px] font-bold px-2 py-1 mb-1.5 sticky top-0 rounded-md"
                 style={{
                   color: "var(--accent-primary)",
-                  background: "var(--bg-secondary)",
+                  background: "rgba(255,255,255,0.04)",
                   borderBottom: "1px solid rgba(255,255,255,0.05)",
-                  letterSpacing: "0.04em",
+                  letterSpacing: "0.05em",
                   textTransform: "uppercase",
-                  fontSize: "0.65rem",
                 }}
               >
                 {sector}
               </p>
 
               {/* Stocks */}
-              {sectorStocks.map((s) => {
-                if (s.error) {
+              <div className="space-y-0.5">
+                {sectorStocks.map((s) => {
+                  if (s.error) return null;
+                  const isPos = (s.change_percent ?? 0) >= 0;
+                  const pctStr = formatChange(s.change_percent);
+
                   return (
                     <div
                       key={s.symbol}
-                      className="grid px-2 py-1 rounded items-center"
+                      className="grid px-2 py-1.5 rounded-lg items-center hover:bg-white/5 transition-colors"
                       style={{
                         gridTemplateColumns: "52px 1fr 40px 60px 48px",
                         gap: "4px",
-                        opacity: 0.4,
+                        cursor: "default",
                       }}
                     >
+                      {/* Symbol */}
                       <span
                         className="text-xs font-bold"
                         style={{ color: "var(--text-primary)" }}
                       >
                         {s.symbol}
                       </span>
+
+                      {/* Short name */}
                       <span
-                        className="text-xs truncate"
-                        style={{ color: "var(--text-muted)" }}
+                        className="text-xs truncate text-white/50"
+                        title={s.name}
                       >
-                        —
+                        {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ??
+                          ""}
                       </span>
-                      <span className="text-xs"></span>
-                      <span
-                        className="text-xs"
-                        style={{ color: "var(--text-muted)" }}
+
+                      {/* Sparkline */}
+                      <div className="flex items-center justify-center">
+                        <Sparkline data={s.history} isPos={isPos} />
+                      </div>
+
+                      {/* Change % badge */}
+                      <div
+                        className="flex items-center gap-0.5 px-1 py-0.5 rounded-full justify-center"
+                        style={{
+                          fontSize: "0.65rem",
+                          fontWeight: 700,
+                          background: isPos
+                            ? "rgba(16,185,129,0.12)"
+                            : "rgba(239,68,68,0.12)",
+                          color: isPos ? "#34d399" : "#f87171",
+                          border: `1px solid ${isPos ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
+                        }}
                       >
-                        N/A
-                      </span>
+                        {pctStr}
+                      </div>
+
+                      {/* Price */}
                       <span
-                        className="text-xs"
-                        style={{ color: "var(--text-muted)" }}
+                        className="text-xs font-bold text-right"
+                        style={{ color: "var(--text-primary)" }}
                       >
-                        —
+                        {formatPrice(s.price)}
                       </span>
                     </div>
                   );
-                }
-
-                const isPos = (s.change_percent ?? 0) >= 0;
-                const pctStr = formatChange(s.change_percent);
-
-                return (
-                  <div
-                    key={s.symbol}
-                    className="grid px-2 py-1 rounded items-center"
-                    style={{
-                      gridTemplateColumns: "52px 1fr 40px 60px 48px",
-                      gap: "4px",
-                      transition: "background 0.12s ease",
-                      cursor: "default",
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "var(--bg-hover)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }
-                  >
-                    {/* Symbol */}
-                    <span
-                      className="text-xs font-bold"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {s.symbol}
-                    </span>
-
-                    {/* Short name */}
-                    <span
-                      className="text-xs truncate"
-                      style={{ color: "var(--text-muted)" }}
-                      title={s.name}
-                    >
-                      {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ?? ""}
-                    </span>
-
-                    {/* Sparkline */}
-                    <div className="flex items-center justify-center">
-                      <Sparkline data={s.history} isPos={isPos} />
-                    </div>
-
-                    {/* Change % badge */}
-                    <div
-                      className="flex items-center gap-0.5 px-1 py-0.5 rounded-full justify-center"
-                      style={{
-                        fontSize: "0.65rem",
-                        fontWeight: 700,
-                        background: isPos
-                          ? "rgba(16,185,129,0.12)"
-                          : "rgba(239,68,68,0.12)",
-                        color: isPos ? "#34d399" : "#f87171",
-                        border: `1px solid ${isPos ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
-                      }}
-                    >
-                      {isPos ? (
-                        <TrendingUp className="w-2.5 h-2.5 flex-shrink-0" />
-                      ) : (
-                        <TrendingDown className="w-2.5 h-2.5 flex-shrink-0" />
-                      )}
-                      {pctStr}
-                    </div>
-
-                    {/* Price */}
-                    <span
-                      className="text-xs font-bold text-right"
-                      style={{ color: "var(--text-primary)" }}
-                    >
-                      {formatPrice(s.price)}
-                    </span>
-                  </div>
-                );
-              })}
+                })}
+              </div>
             </div>
           );
         })}

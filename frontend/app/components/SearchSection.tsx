@@ -1,6 +1,6 @@
 "use client";
 import { AlertCircle, ExternalLink, Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SearchResult {
   title: string;
@@ -10,15 +10,29 @@ interface SearchResult {
 
 export default function SearchSection({
   infiniteScroll = false,
+  initialQuery = "",
 }: {
   infiniteScroll?: boolean;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [_page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
+
+  // Trigger search if initialQuery changes
+  useEffect(() => {
+    if (initialQuery) {
+      setQuery(initialQuery);
+      setResults([]);
+      setPage(1);
+      setError("");
+      setHasSearched(true);
+      fetchSearch(initialQuery, 1);
+    }
+  }, [initialQuery]);
 
   const fetchSearch = async (q: string, pageNum: number) => {
     if (!q) return;

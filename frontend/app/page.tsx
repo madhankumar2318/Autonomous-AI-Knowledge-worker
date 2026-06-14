@@ -1,31 +1,42 @@
 "use client";
-import { Brain, LogOut } from "lucide-react";
-import { useState, useEffect } from "react";
+import {
+  Brain,
+  FolderOpen,
+  LogOut,
+  MessageSquare,
+  Newspaper,
+  Search,
+  TrendingUp,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import ChatAssistant from "./components/ChatAssistant";
 import FileUpload from "./components/FileUpload";
 import HistorySection from "./components/HistorySection";
 import LoginForm from "./components/LoginForm";
 import NewsSection from "./components/NewsSection";
 import ReportHeaderButton from "./components/ReportHeaderButton";
-import ChatAssistant from "./components/ChatAssistant";
 import SearchSection from "./components/SearchSection";
 import StockSection from "./components/StockSection";
+import ThemeToggle from "./components/ThemeToggle";
 import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
-import ThemeToggle from "./components/ThemeToggle";
 
-export default function Home() {
+export default function Home_Page() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loggedInUser, setLoggedInUser] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
 
-  // ── Restore persisted session on every page load ──────────────────
+  // Layout navigation state
+  const [activeTab, setActiveTab] = useState("news");
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  const [globalSearchTrigger, setGlobalSearchTrigger] = useState("");
+
+  // Restore persisted session on page load
   useEffect(() => {
-    // Restore saved theme immediately
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     document.documentElement.setAttribute("data-theme", savedTheme);
 
-    // Then restore session
     const saved = localStorage.getItem("ak_session");
     if (!saved) {
       setSessionChecked(true);
@@ -40,11 +51,19 @@ export default function Home() {
         setLoggedInUser(data.username);
         setIsLoggedIn(true);
       })
-      .catch(() => localStorage.removeItem("ak_session")) // expired / deleted user
+      .catch(() => localStorage.removeItem("ak_session"))
       .finally(() => setSessionChecked(true));
   }, []);
 
-  // ── Show a blank loading splash while we check ────────────────────
+  const handleGlobalSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (globalSearchQuery.trim()) {
+      setGlobalSearchTrigger(globalSearchQuery.trim());
+      setActiveTab("search");
+    }
+  };
+
+  // Loading Splash
   if (!sessionChecked) {
     return (
       <div
@@ -96,48 +115,29 @@ export default function Home() {
       </div>
     );
   }
+
+  // Not Logged In -> Login view
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#020817]">
-        {/* Electric Ocean Fluid Background */}
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none filter blur-[110px] saturate-[1.8]">
-          {/* Royal Blue — top-left anchor */}
-          <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#1d4ed8] animate-liquid-1 opacity-75"></div>
-          {/* Electric Cobalt — center-right sweep */}
-          <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#3b82f6] animate-liquid-2 opacity-50"></div>
-          {/* Teal — bottom-left */}
-          <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0d9488] animate-liquid-3 opacity-45"></div>
-          {/* Indigo-Blue — bottom-right balance */}
-          <div
-            className="absolute bottom-[-10%] right-[-5%] w-[50vw] h-[50vw] rounded-full mix-blend-screen bg-[#1e40af] animate-liquid-1 opacity-40"
-            style={{ animationDelay: "14s" }}
-          ></div>
+          <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#1d4ed8] opacity-75"></div>
+          <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#3b82f6] opacity-50"></div>
+          <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0d9488] opacity-45"></div>
         </div>
-
-        {/* Center focus vignette — draws eyes to the login card */}
         <div
           className="absolute inset-0 z-0 pointer-events-none"
           style={{
             background:
               "radial-gradient(ellipse 60% 70% at 50% 50%, transparent 30%, rgba(2, 8, 23, 0.65) 100%)",
           }}
-        ></div>
-
-        {/* SVG Noise Matte Texture Overlay */}
-        <div
-          className="absolute inset-0 z-0 opacity-[0.18] mix-blend-overlay pointer-events-none"
-          style={{
-            backgroundImage:
-              "url('data:image/svg+xml;utf8,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.85%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E')",
-          }}
-        ></div>
-
+        />
         <div className="w-full relative z-10 flex justify-center">
           <LoginForm
             onLoginSuccess={(username) => {
               setIsLoggedIn(true);
               setLoggedInUser(username);
-              localStorage.setItem("ak_session", username); // 💾 Persist
+              localStorage.setItem("ak_session", username);
             }}
           />
         </div>
@@ -147,353 +147,235 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className="min-h-screen flex flex-col bg-[#050508]"
+      style={{ color: "var(--text-primary)" }}
+    >
       <ToastContainer />
 
-      {/* Header */}
+      {/* ── HEADER ── */}
       <header
         style={{
-          background: "rgba(10, 10, 10, 0.88)",
+          background: "rgba(10, 10, 10, 0.9)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
-          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}
-        className="sticky top-0 z-50"
+        className="sticky top-0 z-50 w-full flex justify-center"
       >
-        <div
-          className="w-full py-3"
-          style={{ paddingLeft: "24px", paddingRight: "24px" }}
-        >
-          <div
-            className="flex justify-between items-center gap-4"
-            style={{ minWidth: 0 }}
+        <div className="w-full max-w-[1600px] py-3.5 px-6 flex items-center justify-between gap-4">
+          {/* Left: Brand Identity */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-blue-500 flex items-center justify-center shadow-lg">
+              <Brain className="w-5 h-5 text-white" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="text-base font-bold leading-tight">
+                AI Workspace
+              </h1>
+              <p className="text-[10px] leading-tight text-white/40">
+                Autonomous Knowledge Worker
+              </p>
+            </div>
+          </div>
+
+          {/* Center: Global Search Bar */}
+          <form
+            onSubmit={handleGlobalSearch}
+            className="flex-1 max-w-xl relative mx-auto hidden md:block"
           >
-            {/* Brand */}
-            <div
-              className="flex items-center gap-3"
-              style={{ minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}
-            >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-lg flex-shrink-0">
-                <Brain className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1
-                  className="text-base font-bold leading-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Autonomous AI Knowledge Worker
-                </h1>
-                <p
-                  className="text-xs leading-tight"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  AI-powered insights &amp; research
-                </p>
-              </div>
-            </div>
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-none" />
+            <input
+              type="text"
+              value={globalSearchQuery}
+              onChange={(e) => setGlobalSearchQuery(e.target.value)}
+              placeholder="Search news topics, stocks or workspace files..."
+              className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/40 focus:outline-none focus:bg-white/10 focus:border-purple-500/50 transition-all"
+            />
+          </form>
 
-            {/* Right-side actions */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0",
-                flexShrink: 0,
+          {/* Right: Actions */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <ThemeToggle />
+            <div className="w-[1px] height-[24px] bg-white/10 mx-1 hidden sm:block" />
+            <ReportHeaderButton />
+            <HistorySection compact={true} limit={5} />
+            <div className="w-[1px] height-[24px] bg-white/10 mx-1 hidden sm:block" />
+
+            {/* Profile */}
+            <button
+              type="button"
+              onClick={() => setShowProfile(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all cursor-pointer"
+            >
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-teal-500 flex items-center justify-center text-white text-[10px] font-black">
+                {loggedInUser.slice(0, 2).toUpperCase()}
+              </div>
+              <span className="text-xs font-semibold hidden lg:block">
+                {loggedInUser}
+              </span>
+            </button>
+
+            {/* Logout */}
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("ak_session");
+                setIsLoggedIn(false);
+                setLoggedInUser("");
               }}
+              className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-white transition-all cursor-pointer"
+              title="Logout"
             >
-              {/* Theme Toggle */}
-              <ThemeToggle />
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
 
-              {/* Vertical divider */}
-              <div
-                style={{
-                  width: "1px",
-                  height: "28px",
-                  background:
-                    "linear-gradient(to bottom, transparent, rgba(128,128,128,0.3), transparent)",
-                  margin: "0 10px",
-                  flexShrink: 0,
-                }}
-              />
-
-              {/* Report Button */}
-              <ReportHeaderButton />
-
-              {/* Vertical divider */}
-              <div
-                style={{
-                  width: "1px",
-                  height: "28px",
-                  background:
-                    "linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent)",
-                  margin: "0 12px",
-                  flexShrink: 0,
-                }}
-              />
-
-              {/* Activity */}
-              <HistorySection compact={true} limit={5} />
-
-              {/* Vertical divider */}
-              <div
-                style={{
-                  width: "1px",
-                  height: "28px",
-                  background:
-                    "linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent)",
-                  margin: "0 12px",
-                  flexShrink: 0,
-                }}
-              />
-
-              {/* User Avatar Button */}
-              <button
-                type="button"
-                onClick={() => setShowProfile(true)}
-                title={`Signed in as @${loggedInUser}`}
-                className="flex items-center gap-2 text-sm font-bold px-3 py-2 rounded-xl transition-all duration-200"
-                style={{
-                  background:
-                    "linear-gradient(135deg, rgba(37,99,235,0.2), rgba(13,148,136,0.15))",
-                  border: "1px solid rgba(59,130,246,0.25)",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background =
-                    "linear-gradient(135deg, rgba(37,99,235,0.3), rgba(13,148,136,0.22))")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background =
-                    "linear-gradient(135deg, rgba(37,99,235,0.2), rgba(13,148,136,0.15))")
-                }
-              >
-                <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black text-[11px]"
+        {/* ── SUB-HEADER NAVIGATION TABS ── */}
+        <div className="w-full border-t border-white/5 bg-black/30 flex justify-center">
+          <div className="w-full max-w-[1600px] px-6 flex items-center gap-6 overflow-x-auto scrollbar-none">
+            {[
+              {
+                id: "news",
+                label: "Live News",
+                icon: <Newspaper className="w-4 h-4" />,
+              },
+              {
+                id: "stocks",
+                label: "Stock Market",
+                icon: <TrendingUp className="w-4 h-4" />,
+              },
+              {
+                id: "chat",
+                label: "AI Chat Agent",
+                icon: <MessageSquare className="w-4 h-4" />,
+              },
+              {
+                id: "files",
+                label: "File Workspace",
+                icon: <FolderOpen className="w-4 h-4" />,
+              },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`py-3 px-1 relative font-medium text-xs transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer`}
                   style={{
-                    background: "linear-gradient(135deg, #2563eb, #0d9488)",
+                    color: isActive
+                      ? "var(--text-primary)"
+                      : "var(--text-secondary)",
                   }}
                 >
-                  {loggedInUser.slice(0, 2).toUpperCase()}
-                </div>
-                <span
-                  className="text-white text-[13px] hidden sm:block"
-                  style={{
-                    maxWidth: "80px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {loggedInUser}
-                </span>
-              </button>
-
-              {/* Vertical divider */}
-              <div
-                style={{
-                  width: "1px",
-                  height: "28px",
-                  background:
-                    "linear-gradient(to bottom, transparent, rgba(255,255,255,0.18), transparent)",
-                  margin: "0 12px",
-                  flexShrink: 0,
-                }}
-              />
-
-              {/* Logout — red-accent pill */}
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.removeItem("ak_session");
-                  setIsLoggedIn(false);
-                  setLoggedInUser("");
-                }}
-                className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200"
-                style={{
-                  color: "#fca5a5",
-                  background: "rgba(239,68,68,0.10)",
-                  border: "1px solid rgba(239,68,68,0.25)",
-                  backdropFilter: "blur(8px)",
-                }}
-                onMouseEnter={(e) => {
-                  const b = e.currentTarget as HTMLButtonElement;
-                  b.style.color = "#ffffff";
-                  b.style.background = "rgba(239,68,68,0.22)";
-                  b.style.borderColor = "rgba(239,68,68,0.55)";
-                  b.style.boxShadow = "0 0 16px rgba(239,68,68,0.3)";
-                  b.style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  const b = e.currentTarget as HTMLButtonElement;
-                  b.style.color = "#fca5a5";
-                  b.style.background = "rgba(239,68,68,0.10)";
-                  b.style.borderColor = "rgba(239,68,68,0.25)";
-                  b.style.boxShadow = "none";
-                  b.style.transform = "translateY(0)";
-                }}
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  {isActive && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-purple-500 shadow-[0_0_8px_#a855f7]" />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 w-full px-6 py-6 relative">
-        {/* Glow Effects */}
-        <div className="absolute top-20 left-10 w-96 h-96 bg-purple-500/15 rounded-full blur-[120px] pointer-events-none -z-10" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/15 rounded-full blur-[120px] pointer-events-none -z-10" />
+      {/* ── MAIN CONTENT VIEWPORTS ── */}
+      <main className="flex-1 w-full max-w-[1600px] self-center px-6 py-6 relative">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-purple-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-blue-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
 
-        {/* Two-column grid — left takes 2/3, right takes 1/3 */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 h-[calc(100vh-120px)]">
-          {/* Left Column — News (2/3 width) */}
-          <div className="lg:col-span-2 flex flex-col min-h-0">
-            <div className="card flex flex-col flex-1 min-h-0">
-              <div className="flex items-center gap-3 mb-5 flex-shrink-0">
-                <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                  <span className="text-lg">📰</span>
-                </div>
-                <h2
-                  className="text-lg font-bold tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Latest News
-                </h2>
-              </div>
-              {/* GPU-promoted scroll — isolated compositing layer */}
-              <div className="scroll-container flex-1 min-h-0 pr-1">
-                <NewsSection infiniteScroll={true} />
+        {/* 📰 NEWS FEED TAB */}
+        {activeTab === "news" && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold mb-2 flex items-center gap-2">
+              <Newspaper className="w-5 h-5 text-purple-400" /> Live News Desk
+            </h2>
+            <NewsSection infiniteScroll={true} />
+          </div>
+        )}
+
+        {/* 📈 STOCKS TAB */}
+        {activeTab === "stocks" && (
+          <div className="space-y-4 bg-white/4 border border-white/5 rounded-2xl p-6">
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-400" /> Stock Market
+              Watchlist
+            </h2>
+            <StockSection compact={false} />
+          </div>
+        )}
+
+        {/* 💬 CHAT TAB */}
+        {activeTab === "chat" && (
+          <div className="bg-white/4 border border-white/5 rounded-2xl p-6 min-h-[500px] flex flex-col">
+            <h2 className="text-lg font-bold mb-2 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-purple-400" /> AI Agent
+              Workspace
+            </h2>
+            <p className="text-xs text-white/40 mb-4">
+              Equipped with yfinance, Google News, and SerpAPI tools. Ask the
+              agent to analyze files or check live quotes.
+            </p>
+            <div className="flex-1 flex justify-center items-center">
+              <div className="text-center max-w-sm">
+                <span className="text-4xl mb-4 block">💬</span>
+                <h3 className="font-bold text-sm mb-1 text-white">
+                  Full-Screen Agent Chat
+                </h3>
+                <p className="text-xs text-white/50 mb-4">
+                  Click the purple chat balloon floating in the bottom-right
+                  corner to talk to the AI agent.
+                </p>
               </div>
             </div>
           </div>
+        )}
 
-          {/* Right Column — CSS Grid rows, proportionally split */}
-          <div
-            className="lg:col-span-1 card-sm"
-            style={{
-              height: "calc(100vh - 120px)",
-              display: "grid",
-              gridTemplateRows: "1fr 2.5fr 1fr",
-              overflow: "hidden",
-            }}
-          >
-            {/* Row 1 — Search */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-                paddingBottom: "12px",
-                minHeight: 0,
-              }}
-            >
-              <div
-                className="flex items-center gap-2 mb-2"
-                style={{ flexShrink: 0 }}
-              >
-                <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                  <span className="text-sm">🔍</span>
-                </div>
-                <h2
-                  className="text-sm font-bold tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Search
-                </h2>
-              </div>
-              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-                <SearchSection infiniteScroll={true} />
-              </div>
+        {/* 📁 FILES TAB */}
+        {activeTab === "files" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 p-6 bg-white/4 border border-white/5 rounded-2xl h-fit">
+              <h2 className="text-sm font-bold mb-4 flex items-center gap-2">
+                <FolderOpen className="w-4 h-4 text-purple-400" /> Upload File
+              </h2>
+              <FileUpload />
             </div>
-
-            {/* Row 2 — Stock Market */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-                padding: "12px 0",
-                borderTop: "1px solid rgba(255,255,255,0.07)",
-                minHeight: 0,
-              }}
-            >
-              <div
-                className="flex items-center gap-2 mb-2"
-                style={{ flexShrink: 0 }}
-              >
-                <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                  <span className="text-sm">📈</span>
-                </div>
-                <h2
-                  className="text-sm font-bold tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  Stock Market
-                </h2>
-              </div>
-              <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-                <StockSection />
-              </div>
-            </div>
-
-            {/* Row 4 — File Upload */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-                paddingTop: "12px",
-                borderTop: "1px solid rgba(255,255,255,0.07)",
-                minHeight: 0,
-              }}
-            >
-              <div
-                className="flex items-center gap-2 mb-2"
-                style={{ flexShrink: 0 }}
-              >
-                <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-                  <span className="text-sm">📁</span>
-                </div>
-                <h2
-                  className="text-sm font-bold tracking-tight"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  File Upload
-                </h2>
-              </div>
-              <div style={{ flex: 1, overflow: "hidden", minHeight: 0 }}>
-                <FileUpload />
+            <div className="lg:col-span-2 p-6 bg-white/4 border border-white/5 rounded-2xl">
+              <h2 className="text-sm font-bold mb-4">Workspace Documents</h2>
+              <p className="text-xs text-white/50 mb-4">
+                Uploaded CSV/JSON files can be parsed and analyzed by calling
+                the AI Chat Assistant.
+              </p>
+              <div className="border border-white/5 rounded-xl p-4 bg-black/20 text-center text-xs text-white/40">
+                All uploaded data is securely stored. Launch the AI agent chat
+                to query, merge, or calculate records.
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* 🔍 SEARCH TAB */}
+        {activeTab === "search" && (
+          <div className="space-y-4 bg-white/4 border border-white/5 rounded-2xl p-6">
+            <h2 className="text-lg font-bold mb-2 flex items-center gap-2">
+              <Search className="w-5 h-5 text-purple-400" /> Global Search
+              Results
+            </h2>
+            <SearchSection
+              infiniteScroll={true}
+              initialQuery={globalSearchTrigger}
+            />
+          </div>
+        )}
       </main>
 
-      {/* Footer */}
-      <footer
-        style={{
-          borderTop: "1px solid rgba(255,255,255,0.07)",
-          background: "rgba(10,10,10,0.6)",
-        }}
-      >
-        <div className="max-w-[1400px] mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              © {new Date().getFullYear()} Autonomous AI Knowledge Worker
-            </p>
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              AI-powered · Real-time insights
-            </p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Floating AI Chat Assistant — fixed bottom-right */}
+      {/* Floating AI Chat Assistant (Always accessible) */}
       <ChatAssistant username={loggedInUser} />
 
-      {/* User Profile Slide-in Panel */}
+      {/* User Profile Panel */}
       {showProfile && (
         <UserProfile
           username={loggedInUser}
@@ -506,6 +388,20 @@ export default function Home() {
           }}
         />
       )}
+
+      {/* Footer */}
+      <footer
+        style={{
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          background: "rgba(10,10,10,0.6)",
+        }}
+        className="w-full flex justify-center"
+      >
+        <div className="w-full max-w-[1600px] px-6 py-4 flex justify-between items-center text-xs text-white/40">
+          <p>© {new Date().getFullYear()} Autonomous AI Workspace</p>
+          <p>Structured &amp; Aligned Dashboard Layout</p>
+        </div>
+      </footer>
     </div>
   );
 }

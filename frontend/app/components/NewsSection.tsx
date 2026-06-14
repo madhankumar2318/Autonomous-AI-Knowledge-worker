@@ -1,6 +1,6 @@
 "use client";
 import { RefreshCw, Search, SearchX } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { showToast } from "./Toast";
 
@@ -16,8 +16,10 @@ interface Article {
 
 export default function NewsSection({
   infiniteScroll = false,
+  layout = "split",
 }: {
   infiniteScroll?: boolean;
+  layout?: "split" | "list";
 }) {
   /** Convert ISO date → "2 hours ago" / "Yesterday" / "Apr 17" */
   function timeAgo(iso?: string): string {
@@ -43,7 +45,6 @@ export default function NewsSection({
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-
   const [total, setTotal] = useState(0);
 
   const fetchNews = useCallback(
@@ -67,7 +68,6 @@ export default function NewsSection({
           } else {
             setArticles(data.news);
           }
-          // Use the has_more flag from backend — not a guess from article count
           setHasMore(data.has_more ?? data.news.length >= 20);
           setTotal(data.total ?? 0);
         }
@@ -79,13 +79,11 @@ export default function NewsSection({
     [topic, category],
   );
 
-  // Reset to page 1 whenever topic or category changes
   useEffect(() => {
     setPage(1);
     fetchNews(1, topic, category, false);
   }, [topic, category, fetchNews]);
 
-  // ── Auto-refresh top-of-feed every 10 minutes ───────────────────────────
   const { countdown, isRefreshing, triggerRefresh } = useAutoRefresh({
     intervalSeconds: 600, // 10 minutes
     onRefresh: async () => {
@@ -95,7 +93,6 @@ export default function NewsSection({
     },
   });
 
-  // Load more on scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (!infiniteScroll || loading || !hasMore) return;
     const bottom =
@@ -114,24 +111,32 @@ export default function NewsSection({
     fetchNews(1, topic, category, false);
   };
 
+  // Google News Split Layout preparation
+  const featuredArticle = articles[0];
+  const sideArticles = articles.slice(1, 4);
+  const remainingArticles = articles.slice(4);
+
   return (
-    <div className="space-y-3">
-      {/* ── Search Form (full width, clean) ── */}
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
+    <div className="space-y-4 pr-1" onScroll={handleScroll}>
+      {/* Search and Filters Header */}
+      <form
+        onSubmit={handleSearch}
+        className="flex gap-2 flex-wrap sm:flex-nowrap"
+      >
+        <div className="flex-1 relative min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
           <input
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Search any news topic..."
-            className="input input-with-icon-left"
+            placeholder="Search news topic..."
+            className="input input-with-icon-left w-full"
           />
         </div>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="select sm:w-40"
+          className="select sm:w-40 w-full"
         >
           <option value="">All Categories</option>
           <option value="business">Business</option>
@@ -141,224 +146,187 @@ export default function NewsSection({
           <option value="sports">Sports</option>
           <option value="technology">Technology</option>
         </select>
-        <button type="submit" className="btn btn-primary">
+        <button type="submit" className="btn btn-primary w-full sm:w-auto">
           Search
         </button>
       </form>
 
-      {/* ── Status bar: article count (left) + auto-refresh countdown (right) ── */}
-      <div className="flex items-center justify-between">
-        {/* Left: results info + clear filter */}
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-            {loading
-              ? "Loading…"
-              : total > 0
-                ? `Showing ${articles.length} of ${total} articles`
-                : ""}
-            {(topic || category) && (
-              <span style={{ color: "var(--accent-primary)", fontWeight: 600 }}>
-                {topic ? ` for "${topic}"` : ""}
-                {category ? ` in ${category}` : ""}
-              </span>
-            )}
-          </span>
-          {(topic || category) && (
-            <button
-              type="button"
-              onClick={() => {
-                setTopic("");
-                setCategory("");
-              }}
-              style={{
-                fontSize: "11px",
-                color: "var(--text-muted)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                textDecoration: "underline",
-              }}
-            >
-              Clear
-            </button>
+      {/* Stats bar */}
+      <div className="flex items-center justify-between text-xs text-white/40">
+        <div>
+          {!loading && total > 0 && (
+            <span>
+              Showing {articles.length} of {total} headlines
+              {(topic || category) && (
+                <span className="text-purple-400 font-semibold ml-1">
+                  {topic ? `for "${topic}"` : ""}{" "}
+                  {category ? `in ${category}` : ""}
+                </span>
+              )}
+            </span>
           )}
         </div>
-
-        {/* Right: countdown pill */}
         <button
           type="button"
           onClick={triggerRefresh}
           disabled={isRefreshing}
-          title="Click to refresh news now"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "5px",
-            padding: "4px 10px",
-            borderRadius: "8px",
-            background: "rgba(255,255,255,0.03)",
-            border: "1px solid rgba(255,255,255,0.07)",
-            color: "var(--text-muted)",
-            fontSize: "11px",
-            fontWeight: 600,
-            cursor: isRefreshing ? "wait" : "pointer",
-            transition: "all 0.2s",
-            whiteSpace: "nowrap",
-            fontVariantNumeric: "tabular-nums",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = "var(--accent-primary)";
-            e.currentTarget.style.borderColor = "rgba(168,85,247,0.3)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = "var(--text-muted)";
-            e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
         >
-          <RefreshCw
-            size={11}
-            style={{
-              animation: isRefreshing ? "spin 0.8s linear infinite" : "none",
-            }}
-          />
-          {isRefreshing ? "Refreshing…" : `Refreshes in ${countdown}`}
+          <RefreshCw size={11} className={isRefreshing ? "animate-spin" : ""} />
+          <span>
+            {isRefreshing ? "Refreshing..." : `Auto-refresh in ${countdown}`}
+          </span>
         </button>
       </div>
 
-      {/* Articles Grid */}
       {articles.length > 0 ? (
-        <div
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          onScroll={handleScroll}
-        >
-          {articles.map((article, i) => (
-            <article
-              key={`${article.url || "news"}-${i}`}
-              className="card-compact hover:shadow-md group"
-            >
-              {article.urlToImage && (
-                <div
-                  className="w-full mb-3 rounded-xl overflow-hidden"
-                  style={{
-                    aspectRatio: "16 / 9",
-                    background: "rgba(255,255,255,0.04)",
-                  }}
-                >
-                  {/* biome-ignore lint/performance/noImgElement: External unspecified source */}
-                  <img
-                    src={article.urlToImage}
-                    alt={article.title}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      objectPosition: "center top",
-                      display: "block",
-                    }}
-                    loading="lazy"
-                    decoding="async"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement)
-                        .parentElement!.style.display = "none";
-                    }}
-                  />
-                </div>
-              )}
-              <h3 className="font-semibold text-sm text-primary line-clamp-2 mb-2">
-                {article.title}
-              </h3>
-              <p className="text-xs text-secondary line-clamp-3 mb-3">
-                {article.description}
-              </p>
-              {article.summary && (
-                <div className="bg-surface p-3 rounded-lg mb-3">
-                  <p className="text-xs text-secondary line-clamp-2">
-                    <span className="font-medium text-primary">Summary:</span>{" "}
-                    {article.summary}
-                  </p>
-                </div>
-              )}
-              {/* ── Source badge + date row ── */}
-              <div className="flex items-center justify-between mt-auto pt-2">
-                <div className="flex items-center gap-2">
-                  {/* Source badge */}
-                  {article.source && (
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        fontWeight: 700,
-                        letterSpacing: "0.4px",
-                        padding: "3px 8px",
-                        borderRadius: "6px",
-                        background: "rgba(99,102,241,0.12)",
-                        border: "1px solid rgba(99,102,241,0.25)",
-                        color: "#818cf8",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        maxWidth: "120px",
-                        textOverflow: "ellipsis",
-                        display: "inline-block",
-                      }}
-                    >
-                      {article.source}
+        <div className="space-y-6">
+          {/* ── GOOGLE NEWS STYLE SPLIT (Only on page 1) ── */}
+          {page === 1 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Featured Large Card (Left 2/3) */}
+              {featuredArticle && (
+                <div className="lg:col-span-2 flex flex-col bg-white/4 border border-white/5 rounded-2xl p-5 hover:bg-white/8 hover:border-purple-500/20 transition-all duration-200">
+                  {featuredArticle.urlToImage && (
+                    <div className="w-full mb-4 rounded-xl overflow-hidden aspect-video bg-white/4">
+                      <img
+                        src={featuredArticle.urlToImage}
+                        alt={featuredArticle.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement)
+                            .parentElement!.style.display = "none";
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {featuredArticle.source && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-purple-400 mb-2">
+                      {featuredArticle.source}
                     </span>
                   )}
+
+                  <h2 className="text-lg font-bold text-white mb-2 leading-snug hover:text-purple-300 transition-colors">
+                    <a
+                      href={featuredArticle.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {featuredArticle.title}
+                    </a>
+                  </h2>
+
+                  <p className="text-sm text-white/60 line-clamp-3 mb-4 leading-relaxed">
+                    {featuredArticle.description}
+                  </p>
+
+                  <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/5 text-xs text-white/40">
+                    <a
+                      href={featuredArticle.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 font-semibold hover:underline"
+                    >
+                      Read full article →
+                    </a>
+                    {featuredArticle.publishedAt && (
+                      <span>{timeAgo(featuredArticle.publishedAt)}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Side Related Stories (Right 1/3) */}
+              <div className="lg:col-span-1 flex flex-col gap-3">
+                <div className="text-xs font-bold uppercase tracking-wider text-white/40 mb-1">
+                  Related Stories
+                </div>
+                {sideArticles.map((art, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col bg-white/4 border border-white/5 rounded-xl p-4 hover:bg-white/8 hover:border-purple-500/20 transition-all cursor-pointer"
+                    onClick={() => window.open(art.url, "_blank")}
+                  >
+                    <span className="text-[9px] uppercase font-bold tracking-wider text-purple-400 mb-1.5">
+                      {art.source || "News Feed"}
+                    </span>
+                    <h3 className="text-xs font-bold text-white line-clamp-2 leading-snug mb-2">
+                      {art.title}
+                    </h3>
+                    <div className="flex items-center justify-between text-[10px] text-white/40 mt-auto pt-1">
+                      <span className="text-purple-400/80 font-medium">
+                        Read Article
+                      </span>
+                      {art.publishedAt && (
+                        <span>{timeAgo(art.publishedAt)}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Remaining stories in a structured grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(page === 1 ? remainingArticles : articles).map((article, i) => (
+              <article
+                key={i}
+                className="flex flex-col bg-white/4 border border-white/5 rounded-xl p-4 hover:bg-white/8 hover:border-purple-500/20 transition-all group"
+              >
+                {article.urlToImage && (
+                  <div className="w-full mb-3 rounded-lg overflow-hidden aspect-video bg-white/4">
+                    <img
+                      src={article.urlToImage}
+                      alt={article.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement)
+                          .parentElement!.style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+                <span className="text-[9px] uppercase font-bold tracking-wider text-purple-400 mb-1.5">
+                  {article.source || "News"}
+                </span>
+                <h3 className="font-bold text-xs text-white line-clamp-2 mb-2 leading-snug">
+                  {article.title}
+                </h3>
+                <p className="text-[11px] text-white/60 line-clamp-3 mb-3 leading-normal">
+                  {article.description}
+                </p>
+                <div className="flex items-center justify-between mt-auto pt-2 border-t border-white/5 text-[10px] text-white/40">
                   <a
                     href={article.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-medium text-accent hover:underline"
+                    className="text-purple-400 font-semibold hover:underline"
                   >
                     Read more →
                   </a>
+                  {article.publishedAt && (
+                    <span>{timeAgo(article.publishedAt)}</span>
+                  )}
                 </div>
-                {/* Relative date */}
-                {article.publishedAt && (
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      color: "var(--text-muted)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {timeAgo(article.publishedAt)}
-                  </span>
-                )}
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
+          </div>
         </div>
       ) : !loading ? (
-        <div
-          className="flex flex-col items-center top-[10%] relative justify-center py-16 text-center animate-fade-in"
-          style={{
-            background: "rgba(255,255,255,0.02)",
-            borderRadius: "16px",
-            border: "1px dashed rgba(255,255,255,0.1)",
-          }}
-        >
-          <div
-            className="w-16 h-16 rounded-2xl mb-4 flex items-center justify-center shadow-lg"
-            style={{
-              background:
-                "linear-gradient(135deg, rgba(168,85,247,0.1), rgba(99,102,241,0.1))",
-              border: "1px solid rgba(168,85,247,0.2)",
-            }}
-          >
-            <SearchX
-              className="w-8 h-8 text-primary"
-              style={{ color: "#a855f7" }}
-            />
+        <div className="flex flex-col items-center justify-center py-16 text-center bg-white/2 border border-dashed border-white/10 rounded-2xl">
+          <div className="w-14 h-14 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/25 mb-4">
+            <SearchX className="w-6 h-6 text-purple-400" />
           </div>
-          <h3 className="text-lg font-bold text-white mb-2 tracking-tight">
+          <h3 className="text-base font-bold text-white mb-2">
             No articles found
           </h3>
-          <p className="text-sm text-secondary max-w-sm px-4 leading-relaxed mb-6">
-            We couldn't find any news matching{" "}
-            <strong className="text-primary tracking-wide">"{topic}"</strong>{" "}
+          <p className="text-xs text-white/40 max-w-sm mb-6">
+            We couldn't find any news matching "{topic}"{" "}
             {category && `in ${category}`}.
-            <br />
-            Try refining your search or relaxing the filters.
           </p>
           <button
             type="button"
@@ -366,24 +334,23 @@ export default function NewsSection({
               setTopic("");
               setCategory("");
             }}
-            className="btn btn-secondary shadow-md transition-all hover:scale-105"
-            style={{ fontWeight: 600, letterSpacing: "0.5px" }}
+            className="btn btn-secondary text-xs"
           >
             Clear all filters
           </button>
         </div>
       ) : null}
 
-      {/* Loading State */}
+      {/* Loading state */}
       {loading && (
         <div className="flex justify-center py-8">
           <div className="spinner"></div>
         </div>
       )}
 
-      {/* Load More Button */}
+      {/* Load More pagination button */}
       {!infiniteScroll && hasMore && (
-        <div className="flex justify-center">
+        <div className="flex justify-center pt-4">
           <button
             type="button"
             onClick={() => {
@@ -391,10 +358,10 @@ export default function NewsSection({
               setPage(nextPage);
               fetchNews(nextPage, topic, category, true);
             }}
-            className="btn btn-secondary"
+            className="btn btn-secondary text-xs"
             disabled={loading}
           >
-            {loading ? "Loading..." : "Load More"}
+            {loading ? "Loading..." : "Load More Headlines"}
           </button>
         </div>
       )}
