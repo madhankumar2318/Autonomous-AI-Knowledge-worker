@@ -65,13 +65,13 @@ export default function HistorySection({ limit, compact }: Props) {
           }}
           className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200"
           style={{
-            color: isOpen ? "#d8b4fe" : "#c084fc",
+            color: isOpen ? "#67e8f9" : "#22d3ee",
             background: isOpen
-              ? "rgba(168,85,247,0.18)"
-              : "rgba(168,85,247,0.10)",
-            border: `1px solid ${isOpen ? "rgba(168,85,247,0.55)" : "rgba(168,85,247,0.25)"}`,
+              ? "rgba(34,211,238,0.18)"
+              : "rgba(34,211,238,0.10)",
+            border: `1px solid ${isOpen ? "rgba(34,211,238,0.55)" : "rgba(34,211,238,0.25)"}`,
             backdropFilter: "blur(8px)",
-            boxShadow: isOpen ? "0 0 16px rgba(168,85,247,0.3)" : "none",
+            boxShadow: isOpen ? "0 0 16px rgba(34,211,238,0.3)" : "none",
           }}
           aria-expanded={isOpen}
           aria-haspopup="true"
@@ -79,18 +79,18 @@ export default function HistorySection({ limit, compact }: Props) {
             if (!isOpen) {
               const b = e.currentTarget as HTMLButtonElement;
               b.style.color = "#ffffff";
-              b.style.background = "rgba(168,85,247,0.22)";
-              b.style.borderColor = "rgba(168,85,247,0.55)";
-              b.style.boxShadow = "0 0 16px rgba(168,85,247,0.3)";
+              b.style.background = "rgba(34,211,238,0.22)";
+              b.style.borderColor = "rgba(34,211,238,0.55)";
+              b.style.boxShadow = "0 0 16px rgba(34,211,238,0.3)";
               b.style.transform = "translateY(-1px)";
             }
           }}
           onMouseLeave={(e) => {
             if (!isOpen) {
               const b = e.currentTarget as HTMLButtonElement;
-              b.style.color = "#c084fc";
-              b.style.background = "rgba(168,85,247,0.10)";
-              b.style.borderColor = "rgba(168,85,247,0.25)";
+              b.style.color = "#22d3ee";
+              b.style.background = "rgba(34,211,238,0.10)";
+              b.style.borderColor = "rgba(34,211,238,0.25)";
               b.style.boxShadow = "none";
               b.style.transform = "translateY(0)";
             }

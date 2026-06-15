@@ -40,7 +40,7 @@ export default function ThemeToggle() {
           ? "1px solid rgba(255,255,255,0.1)"
           : "1px solid rgba(0,0,0,0.1)",
         background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-        color: isDark ? "#fbbf24" : "#6366f1",
+        color: isDark ? "#fbbf24" : "#0891b2",
         flexShrink: 0,
         position: "relative",
         overflow: "hidden",

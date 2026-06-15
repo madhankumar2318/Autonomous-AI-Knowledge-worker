@@ -31,8 +31,8 @@ const NAV_TABS = [
     label: "Live News",
     shortLabel: "News",
     icon: Newspaper,
-    accent: "#a855f7",
-    accentRgb: "168,85,247",
+    accent: "#22d3ee",
+    accentRgb: "34,211,238",
     description: "Real-time headlines",
     badge: "LIVE",
   },
@@ -51,8 +51,8 @@ const NAV_TABS = [
     label: "AI Chat Agent",
     shortLabel: "AI Chat",
     icon: MessageSquare,
-    accent: "#6366f1",
-    accentRgb: "99,102,241",
+    accent: "#38bdf8",
+    accentRgb: "56,189,248",
     description: "Ask me anything",
     badge: null,
   },
@@ -102,11 +102,11 @@ export default function Home_Page() {
 
   if (!sessionChecked) {
     return (
-      <div style={{ minHeight: "100vh", background: "#060610", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }}>
-        <div style={{ width: "52px", height: "52px", borderRadius: "18px", background: "linear-gradient(135deg, #a855f7, #6366f1)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(168,85,247,0.5)" }}>
+      <div style={{ minHeight: "100vh", background: "#030f1a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }}>
+        <div style={{ width: "52px", height: "52px", borderRadius: "18px", background: "linear-gradient(135deg, #22d3ee, #0891b2)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(34,211,238,0.4)" }}>
           <Brain size={26} style={{ color: "white" }} />
         </div>
-        <div style={{ width: "32px", height: "32px", borderRadius: "50%", border: "2.5px solid rgba(168,85,247,0.2)", borderTopColor: "#a855f7", animation: "spin 0.8s linear infinite" }} />
+        <div style={{ width: "32px", height: "32px", borderRadius: "50%", border: "2.5px solid rgba(34,211,238,0.2)", borderTopColor: "#22d3ee", animation: "spin 0.8s linear infinite" }} />
         <p style={{ color: "#52525b", fontSize: "12px", fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase" }}>Initializing…</p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
@@ -115,11 +115,11 @@ export default function Home_Page() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#020817]">
+      <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#030f1a]">
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none filter blur-[110px] saturate-[1.8]">
-          <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#1d4ed8] opacity-75" />
-          <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#3b82f6] opacity-50" />
-          <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0d9488] opacity-45" />
+          <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#0891b2] opacity-60" />
+          <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#22d3ee] opacity-40" />
+          <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0e7490] opacity-35" />
         </div>
         <div className="w-full relative z-10 flex justify-center">
           <LoginForm onLoginSuccess={(username) => { setIsLoggedIn(true); setLoggedInUser(username); localStorage.setItem("ak_session", username); }} />
@@ -402,11 +402,11 @@ export default function Home_Page() {
           width: 36px;
           height: 36px;
           border-radius: 12px;
-          background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%);
+          background: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 16px rgba(168,85,247,0.4);
+          box-shadow: 0 4px 16px rgba(34,211,238,0.4);
           flex-shrink: 0;
         }
         .brand-text { display: flex; flex-direction: column; gap: 1px; }
@@ -443,8 +443,8 @@ export default function Home_Page() {
         }
         .search-input:focus {
           background: rgba(255,255,255,0.07);
-          border-color: rgba(168,85,247,0.4);
-          box-shadow: 0 0 0 3px rgba(168,85,247,0.08);
+          border-color: rgba(34,211,238,0.4);
+          box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
         }
         .search-input::placeholder { color: rgba(255,255,255,0.25); }
         .search-kbd {
@@ -494,7 +494,7 @@ export default function Home_Page() {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #a855f7;
+          background: #22d3ee;
           border: 1.5px solid #060610;
         }
 
@@ -509,11 +509,11 @@ export default function Home_Page() {
           cursor: pointer;
           transition: all 0.2s ease;
         }
-        .header-avatar-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(168,85,247,0.3); }
+        .header-avatar-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(34,211,238,0.3); }
         .avatar-ring {
           padding: 1.5px;
           border-radius: 9px;
-          background: linear-gradient(135deg, #a855f7, #6366f1);
+          background: linear-gradient(135deg, #22d3ee, #0891b2);
         }
         .avatar-inner {
           width: 26px;
@@ -669,9 +669,9 @@ export default function Home_Page() {
           font-weight: 800;
           padding: 2px 5px;
           border-radius: 4px;
-          background: rgba(168,85,247,0.25);
-          color: #d8b4fe;
-          border: 1px solid rgba(168,85,247,0.35);
+          background: rgba(34,211,238,0.25);
+          color: #67e8f9;
+          border: 1px solid rgba(34,211,238,0.35);
           letter-spacing: 0.5px;
           flex-shrink: 0;
           transition: opacity 0.2s;

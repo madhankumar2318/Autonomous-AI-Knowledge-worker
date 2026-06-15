@@ -940,14 +940,14 @@ export default function UserProfile({
                         width: "32px",
                         height: "32px",
                         borderRadius: "10px",
-                        background: "rgba(168,85,247,0.12)",
-                        border: "1px solid rgba(168,85,247,0.25)",
+                        background: "rgba(34,211,238,0.12)",
+                        border: "1px solid rgba(34,211,238,0.25)",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
                     >
-                      <Lock size={14} style={{ color: "#c084fc" }} />
+                      <Lock size={14} style={{ color: "#22d3ee" }} />
                     </div>
                     <span
                       style={{
@@ -1015,7 +1015,7 @@ export default function UserProfile({
                           }}
                           onFocus={(e) =>
                             (e.target.style.borderColor =
-                              "rgba(168,85,247,0.6)")
+                              "rgba(34,211,238,0.6)")
                           }
                           onBlur={(e) =>
                             (e.target.style.borderColor =
@@ -1075,7 +1075,7 @@ export default function UserProfile({
                           }}
                           onFocus={(e) =>
                             (e.target.style.borderColor =
-                              "rgba(168,85,247,0.6)")
+                              "rgba(34,211,238,0.6)")
                           }
                           onBlur={(e) =>
                             (e.target.style.borderColor =
@@ -1139,7 +1139,7 @@ export default function UserProfile({
                           (e.target.style.borderColor =
                             confirmPw !== newPw
                               ? "rgba(239,68,68,0.6)"
-                              : "rgba(168,85,247,0.6)")
+                              : "rgba(34,211,238,0.6)")
                         }
                         onBlur={(e) =>
                           (e.target.style.borderColor =
@@ -1218,13 +1218,13 @@ export default function UserProfile({
                           padding: "10px",
                           borderRadius: "10px",
                           background:
-                            "linear-gradient(135deg, #7c3aed, #a855f7)",
+                            "linear-gradient(135deg, #0891b2, #22d3ee)",
                           border: "none",
                           color: "white",
                           fontSize: "13px",
                           fontWeight: 700,
                           cursor: pwSaving ? "wait" : "pointer",
-                          boxShadow: "0 4px 12px rgba(168,85,247,0.35)",
+                          boxShadow: "0 4px 12px rgba(34,211,238,0.35)",
                         }}
                       >
                         {pwSaving ? "Changing…" : "🔒 Change Password"}

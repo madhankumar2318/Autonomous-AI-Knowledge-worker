@@ -32,7 +32,7 @@ const SOURCE_COLORS: Record<string, string> = {
   "TechCrunch": "#0a8a07",
   "The Verge": "#e40000",
   "Wired": "#000000",
-  default: "#a855f7",
+  default: "#22d3ee",
 };
 
 function getSourceColor(source?: string) {
@@ -349,7 +349,7 @@ export default function NewsSection({
       {articles.length === 0 && !loading && (
         <div className="news-empty">
           <div className="news-empty-icon">
-            <SearchX className="w-6 h-6 text-purple-400" />
+            <SearchX className="w-6 h-6 text-cyan-400" />
           </div>
           <h3 className="news-empty-title">No articles found</h3>
           <p className="news-empty-sub">
@@ -431,7 +431,7 @@ export default function NewsSection({
         }
         .news-search-input:focus {
           background: rgba(255,255,255,0.07);
-          border-color: rgba(168,85,247,0.4);
+          border-color: rgba(34,211,238,0.4);
         }
         .news-search-input::placeholder { color: rgba(255,255,255,0.22); }
 
@@ -459,9 +459,9 @@ export default function NewsSection({
           border-color: rgba(255,255,255,0.15);
         }
         .news-cat-active {
-          background: rgba(168,85,247,0.15) !important;
-          border-color: rgba(168,85,247,0.4) !important;
-          color: #d8b4fe !important;
+          background: rgba(34,211,238,0.15) !important;
+          border-color: rgba(34,211,238,0.4) !important;
+          color: #67e8f9 !important;
         }
 
         .news-refresh-wrap {
@@ -533,8 +533,8 @@ export default function NewsSection({
           cursor: pointer;
         }
         .news-hero-card:hover {
-          border-color: rgba(168,85,247,0.3);
-          box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(168,85,247,0.15);
+          border-color: rgba(34,211,238,0.3);
+          box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(34,211,238,0.15);
           transform: translateY(-2px);
         }
         .news-hero-img-wrap {
@@ -560,7 +560,7 @@ export default function NewsSection({
         }
         .news-hero-img-placeholder {
           aspect-ratio: 16/9;
-          background: linear-gradient(135deg, rgba(168,85,247,0.08), rgba(99,102,241,0.05));
+          background: linear-gradient(135deg, rgba(34,211,238,0.08), rgba(8,145,178,0.05));
           display: flex;
           align-items: center;
           justify-content: center;
@@ -575,7 +575,7 @@ export default function NewsSection({
           letter-spacing: -0.3px;
           transition: color 0.15s ease;
         }
-        .news-hero-card:hover .news-hero-title { color: #d8b4fe; }
+        .news-hero-card:hover .news-hero-title { color: #67e8f9; }
         .news-hero-desc {
           font-size: 13px;
           color: rgba(255,255,255,0.5);
@@ -599,10 +599,10 @@ export default function NewsSection({
           gap: 4px;
           font-size: 11px;
           font-weight: 600;
-          color: #a855f7;
+          color: #22d3ee;
           transition: color 0.15s;
         }
-        .news-hero-card:hover .news-read-link { color: #c084fc; }
+        .news-hero-card:hover .news-read-link { color: #22d3ee; }
 
         /* Side column */
         .news-side-col {
@@ -633,7 +633,7 @@ export default function NewsSection({
         }
         .news-side-card:hover {
           background: rgba(255,255,255,0.05);
-          border-color: rgba(168,85,247,0.25);
+          border-color: rgba(34,211,238,0.25);
         }
         .news-side-content { flex: 1; min-width: 0; }
         .news-side-meta {
@@ -744,7 +744,7 @@ export default function NewsSection({
         }
         .news-card:hover {
           background: rgba(255,255,255,0.04);
-          border-color: rgba(168,85,247,0.2);
+          border-color: rgba(34,211,238,0.2);
           transform: translateY(-2px);
           box-shadow: 0 6px 24px rgba(0,0,0,0.3);
         }
@@ -801,7 +801,7 @@ export default function NewsSection({
           color: rgba(255,255,255,0.2);
           transition: color 0.15s;
         }
-        .news-card:hover .news-card-ext { color: #a855f7; }
+        .news-card:hover .news-card-ext { color: #22d3ee; }
 
         /* ── EMPTY STATE ── */
         .news-empty {
@@ -820,8 +820,8 @@ export default function NewsSection({
           width: 56px;
           height: 56px;
           border-radius: 16px;
-          background: rgba(168,85,247,0.08);
-          border: 1px solid rgba(168,85,247,0.2);
+          background: rgba(34,211,238,0.08);
+          border: 1px solid rgba(34,211,238,0.2);
           display: flex;
           align-items: center;
           justify-content: center;

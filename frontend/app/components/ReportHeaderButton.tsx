@@ -92,26 +92,26 @@ export default function ReportHeaderButton() {
         style={{
           color: "#ffffff",
           background: loading
-            ? "rgba(168,85,247,0.3)"
-            : "rgba(168,85,247,0.18)",
-          border: "1px solid rgba(168,85,247,0.5)",
+            ? "rgba(34,211,238,0.3)"
+            : "rgba(34,211,238,0.18)",
+          border: "1px solid rgba(34,211,238,0.5)",
           borderRight: "none",
           backdropFilter: "blur(8px)",
-          boxShadow: "0 0 16px rgba(168,85,247,0.1)",
+          boxShadow: "0 0 16px rgba(34,211,238,0.1)",
           cursor: loading ? "not-allowed" : "pointer",
         }}
         onMouseEnter={(e) => {
           if (!loading) {
             const b = e.currentTarget as HTMLButtonElement;
-            b.style.background = "rgba(168,85,247,0.25)";
-            b.style.borderColor = "rgba(168,85,247,0.7)";
+            b.style.background = "rgba(34,211,238,0.25)";
+            b.style.borderColor = "rgba(34,211,238,0.7)";
           }
         }}
         onMouseLeave={(e) => {
           if (!loading) {
             const b = e.currentTarget as HTMLButtonElement;
-            b.style.background = "rgba(168,85,247,0.18)";
-            b.style.borderColor = "rgba(168,85,247,0.5)";
+            b.style.background = "rgba(34,211,238,0.18)";
+            b.style.borderColor = "rgba(34,211,238,0.5)";
           }
         }}
       >
@@ -134,20 +134,20 @@ export default function ReportHeaderButton() {
         style={{
           height: "38px", // Align height with the main button
           color: "#ffffff",
-          background: "rgba(168,85,247,0.18)",
-          border: "1px solid rgba(168,85,247,0.5)",
+          background: "rgba(34,211,238,0.18)",
+          border: "1px solid rgba(34,211,238,0.5)",
           backdropFilter: "blur(8px)",
           cursor: "pointer",
         }}
         onMouseEnter={(e) => {
           const b = e.currentTarget as HTMLButtonElement;
-          b.style.background = "rgba(168,85,247,0.25)";
-          b.style.borderColor = "rgba(168,85,247,0.7)";
+          b.style.background = "rgba(34,211,238,0.25)";
+          b.style.borderColor = "rgba(34,211,238,0.7)";
         }}
         onMouseLeave={(e) => {
           const b = e.currentTarget as HTMLButtonElement;
-          b.style.background = "rgba(168,85,247,0.18)";
-          b.style.borderColor = "rgba(168,85,247,0.5)";
+          b.style.background = "rgba(34,211,238,0.18)";
+          b.style.borderColor = "rgba(34,211,238,0.5)";
         }}
       >
         <ChevronDown
@@ -162,12 +162,12 @@ export default function ReportHeaderButton() {
           style={{
             background: "rgba(15,15,22,0.96)",
             backdropFilter: "blur(25px)",
-            border: "1px solid rgba(168,85,247,0.3)",
+            border: "1px solid rgba(34,211,238,0.3)",
             animation: "slideDownFade 0.2s ease",
           }}
         >
           <div className="flex items-center justify-between pb-3 border-bottom border-white/10 mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-purple-300">
+            <span className="text-xs font-bold uppercase tracking-wider text-cyan-300">
               Report History
             </span>
             <span className="text-[10px] text-white/40">
@@ -185,7 +185,7 @@ export default function ReportHeaderButton() {
                 <div
                   key={idx}
                   onClick={() => window.open(rep.url, "_blank")}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 cursor-pointer transition-all duration-150"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-cyan-500/30 cursor-pointer transition-all duration-150"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center flex-shrink-0 border border-red-500/20">
@@ -204,7 +204,7 @@ export default function ReportHeaderButton() {
                       </p>
                     </div>
                   </div>
-                  <Download className="w-3.5 h-3.5 text-purple-400 hover:text-white flex-shrink-0" />
+                  <Download className="w-3.5 h-3.5 text-cyan-400 hover:text-white flex-shrink-0" />
                 </div>
               ))}
             </div>

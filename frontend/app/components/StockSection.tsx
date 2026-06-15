@@ -90,7 +90,7 @@ const SECTOR_COLORS: Record<string, { color: string; bg: string }> = {
   "Healthcare": { color: "#f472b6", bg: "rgba(244,114,182,0.12)" },
   "Energy": { color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
   "Consumer": { color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-  "Index": { color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
+  "Index": { color: "#22d3ee", bg: "rgba(34,211,238,0.1)" },
   default: { color: "#94a3b8", bg: "rgba(148,163,184,0.1)" },
 };
 
@@ -196,8 +196,8 @@ export default function StockSection({ compact = false }: { compact?: boolean })
       {/* ── MARKET OVERVIEW BAR ── */}
       <div className="stocks-overview">
         <div className="stocks-overview-stat">
-          <div className="stocks-overview-icon" style={{ background: "rgba(168,85,247,0.15)", borderColor: "rgba(168,85,247,0.3)" }}>
-            <Activity className="w-4 h-4" style={{ color: "#a855f7" }} />
+          <div className="stocks-overview-icon" style={{ background: "rgba(34,211,238,0.12)", borderColor: "rgba(34,211,238,0.25)" }}>
+            <Activity className="w-4 h-4" style={{ color: "#22d3ee" }} />
           </div>
           <div>
             <div className="stocks-overview-label">Market Sentiment</div>

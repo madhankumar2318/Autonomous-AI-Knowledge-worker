@@ -205,7 +205,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     fontSize: "14px",
                   }}
                   onFocus={(e) =>
-                    (e.target.style.borderColor = "rgba(168,85,247,0.5)")
+                    (e.target.style.borderColor = "rgba(34,211,238,0.5)")
                   }
                   onBlur={(e) =>
                     (e.target.style.borderColor = "rgba(255,255,255,0.05)")
@@ -245,7 +245,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   fontSize: "14px",
                 }}
                 onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(168,85,247,0.5)")
+                  (e.target.style.borderColor = "rgba(34,211,238,0.5)")
                 }
                 onBlur={(e) =>
                   (e.target.style.borderColor = "rgba(255,255,255,0.05)")
@@ -284,7 +284,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     fontSize: "14px",
                   }}
                   onFocus={(e) =>
-                    (e.target.style.borderColor = "rgba(168,85,247,0.5)")
+                    (e.target.style.borderColor = "rgba(34,211,238,0.5)")
                   }
                   onBlur={(e) =>
                     (e.target.style.borderColor = "rgba(255,255,255,0.05)")
@@ -324,7 +324,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     fontSize: "14px",
                   }}
                   onFocus={(e) =>
-                    (e.target.style.borderColor = "rgba(168,85,247,0.5)")
+                    (e.target.style.borderColor = "rgba(34,211,238,0.5)")
                   }
                   onBlur={(e) =>
                     (e.target.style.borderColor = "rgba(255,255,255,0.05)")
@@ -368,7 +368,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   letterSpacing: showPassword ? "normal" : "2px",
                 }}
                 onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(168,85,247,0.5)")
+                  (e.target.style.borderColor = "rgba(34,211,238,0.5)")
                 }
                 onBlur={(e) =>
                   (e.target.style.borderColor = "rgba(255,255,255,0.05)")
@@ -426,11 +426,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           disabled={loading}
           className="w-full flex items-center justify-center gap-2 mt-8 h-[54px] font-bold text-[15px] transition-all"
           style={{
-            background: "linear-gradient(to right, #8b5cf6, #3b82f6)",
+            background: "linear-gradient(to right, #22d3ee, #0891b2)",
             border: "none",
-            color: "white",
+            color: "#030f1a",
             borderRadius: "14px",
-            boxShadow: "0 8px 24px rgba(139, 92, 246, 0.3)",
+            boxShadow: "0 8px 24px rgba(34, 211, 238, 0.3)",
             cursor: loading ? "wait" : "pointer",
             transform: "translateY(0)",
           }}
@@ -464,7 +464,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="h-4 w-4 rounded cursor-pointer"
                   style={{
-                    accentColor: "#8b5cf6",
+                    accentColor: "#22d3ee",
                     backgroundColor: "rgba(0,0,0,0.3)",
                     border: "1px solid rgba(255,255,255,0.1)",
                   }}
@@ -475,13 +475,13 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 type="button"
                 className="text-[13px] font-bold tracking-wide transition-colors"
                 style={{
-                  color: "#a78bfa",
+                  color: "#22d3ee",
                   background: "transparent",
                   border: "none",
                   cursor: "pointer",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#c4b5fd")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#a78bfa")}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#22d3ee")}
                 onClick={() => setIsRegistering(true)}
               >
                 Create new account

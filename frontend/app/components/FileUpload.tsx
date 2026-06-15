@@ -27,7 +27,7 @@ function FileIcon({ filename }: { filename: string }) {
     return <FileJson className="w-5 h-5" style={{ color: "#fbbf24" }} />;
   if (ext === "csv")
     return <FileText className="w-5 h-5" style={{ color: "#34d399" }} />;
-  return <File className="w-5 h-5" style={{ color: "#a855f7" }} />;
+  return <File className="w-5 h-5" style={{ color: "#22d3ee" }} />;
 }
 
 function formatSize(bytes: number) {
@@ -163,7 +163,7 @@ export default function FileUpload() {
             <div className="fw-dropzone-icon">
               <CloudUpload
                 className="w-8 h-8"
-                style={{ color: isDragging ? "#a855f7" : file ? "#34d399" : "rgba(255,255,255,0.25)" }}
+                style={{ color: isDragging ? "#22d3ee" : file ? "#34d399" : "rgba(255,255,255,0.25)" }}
               />
             </div>
 
@@ -296,7 +296,7 @@ export default function FileUpload() {
           {uploads.length > 0 && (
             <div className="fw-ai-hint">
               <div className="fw-ai-hint-icon">
-                <Zap className="w-3.5 h-3.5" style={{ color: "#a855f7" }} />
+                <Zap className="w-3.5 h-3.5" style={{ color: "#22d3ee" }} />
               </div>
               <div className="fw-ai-hint-text">
                 <span className="fw-ai-hint-title">AI Analysis Ready</span>
@@ -304,7 +304,7 @@ export default function FileUpload() {
                   Open the AI Chat Agent and ask it to analyze, merge, or calculate data from your uploaded files.
                 </span>
               </div>
-              <MessageSquare className="w-4 h-4" style={{ color: "rgba(168,85,247,0.4)", flexShrink: 0 }} />
+              <MessageSquare className="w-4 h-4" style={{ color: "rgba(34,211,238,0.4)", flexShrink: 0 }} />
             </div>
           )}
         </div>
@@ -403,9 +403,9 @@ export default function FileUpload() {
           position: relative;
         }
         .fw-dropzone-dragging {
-          border-color: rgba(168,85,247,0.6) !important;
-          background: rgba(168,85,247,0.07) !important;
-          box-shadow: 0 0 0 3px rgba(168,85,247,0.1), inset 0 0 40px rgba(168,85,247,0.05);
+          border-color: rgba(34,211,238,0.6) !important;
+          background: rgba(34,211,238,0.07) !important;
+          box-shadow: 0 0 0 3px rgba(34,211,238,0.1), inset 0 0 40px rgba(34,211,238,0.05);
         }
         .fw-dropzone-ready {
           border-color: rgba(52,211,153,0.4) !important;
@@ -427,7 +427,7 @@ export default function FileUpload() {
           color: rgba(255,255,255,0.55);
         }
         .fw-dropzone-link {
-          color: #a855f7;
+          color: #22d3ee;
           font-weight: 600;
           cursor: pointer;
           text-decoration: underline;
@@ -491,13 +491,13 @@ export default function FileUpload() {
         .fw-progress-bar {
           height: 100%;
           border-radius: 99px;
-          background: linear-gradient(90deg, #a855f7, #6366f1);
+          background: linear-gradient(90deg, #22d3ee, #0891b2);
           transition: width 0.2s ease;
-          box-shadow: 0 0 8px rgba(168,85,247,0.5);
+          box-shadow: 0 0 8px rgba(34,211,238,0.5);
         }
         .fw-progress-label {
           font-size: 11px;
-          color: #a855f7;
+          color: #22d3ee;
           font-weight: 700;
           font-variant-numeric: tabular-nums;
           min-width: 30px;
@@ -512,17 +512,17 @@ export default function FileUpload() {
           width: 100%;
           padding: 11px;
           border-radius: 12px;
-          background: linear-gradient(135deg, #a855f7, #6366f1);
+          background: linear-gradient(135deg, #22d3ee, #0891b2);
           border: none;
           font-size: 13px;
           font-weight: 700;
-          color: #fff;
+          color: #030f1a;
           cursor: pointer;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 16px rgba(168,85,247,0.35);
+          box-shadow: 0 4px 16px rgba(34,211,238,0.3);
         }
         .fw-upload-btn:hover {
-          box-shadow: 0 6px 24px rgba(168,85,247,0.55);
+          box-shadow: 0 6px 24px rgba(34,211,238,0.5);
           transform: translateY(-1px);
         }
 
@@ -627,9 +627,9 @@ export default function FileUpload() {
           font-weight: 800;
           padding: 1px 5px;
           border-radius: 4px;
-          background: rgba(168,85,247,0.15);
-          color: #d8b4fe;
-          border: 1px solid rgba(168,85,247,0.25);
+          background: rgba(34,211,238,0.15);
+          color: #67e8f9;
+          border: 1px solid rgba(34,211,238,0.25);
           letter-spacing: 0.5px;
         }
         .fw-file-size { font-size: 10px; color: rgba(255,255,255,0.3); }
@@ -648,7 +648,7 @@ export default function FileUpload() {
           transition: all 0.15s ease;
           text-decoration: none;
         }
-        .fw-file-action-btn:hover { background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.35); color: #a855f7; }
+        .fw-file-action-btn:hover { background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.3); color: #22d3ee; }
 
         /* ── AI HINT ── */
         .fw-ai-hint {
@@ -657,22 +657,22 @@ export default function FileUpload() {
           gap: 10px;
           padding: 12px 14px;
           border-radius: 12px;
-          background: rgba(168,85,247,0.06);
-          border: 1px solid rgba(168,85,247,0.15);
+          background: rgba(34,211,238,0.06);
+          border: 1px solid rgba(34,211,238,0.15);
         }
         .fw-ai-hint-icon {
           width: 28px;
           height: 28px;
           border-radius: 8px;
-          background: rgba(168,85,247,0.12);
-          border: 1px solid rgba(168,85,247,0.25);
+          background: rgba(34,211,238,0.12);
+          border: 1px solid rgba(34,211,238,0.25);
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
         }
         .fw-ai-hint-text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-        .fw-ai-hint-title { font-size: 11px; font-weight: 700; color: #d8b4fe; }
+        .fw-ai-hint-title { font-size: 11px; font-weight: 700; color: #67e8f9; }
         .fw-ai-hint-sub { font-size: 10px; color: rgba(255,255,255,0.35); line-height: 1.5; }
       `}</style>
     </div>
