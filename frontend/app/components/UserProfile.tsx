@@ -205,7 +205,7 @@ export default function UserProfile({
           style={{
             margin: "0 0 5px",
             color: "#475569",
-            fontSize: "11px",
+            fontSize: "13px",
             fontWeight: 700,
             letterSpacing: "1.5px",
             textTransform: "uppercase",
@@ -225,7 +225,7 @@ export default function UserProfile({
               borderRadius: "10px",
               padding: "10px 14px",
               color: "white",
-              fontSize: "14px",
+              fontSize: "16px",
               fontWeight: 500,
               outline: "none",
               boxSizing: "border-box",
@@ -238,7 +238,7 @@ export default function UserProfile({
             style={{
               margin: 0,
               color: value ? "#e2e8f0" : "#334155",
-              fontSize: "15px",
+              fontSize: "17px",
               fontWeight: value ? 600 : 400,
               fontStyle: value ? "normal" : "italic",
               overflow: "hidden",
@@ -317,7 +317,7 @@ export default function UserProfile({
             >
               <User size={15} style={{ color: "#60a5fa" }} />
             </div>
-            <span style={{ color: "white", fontWeight: 800, fontSize: "15px" }}>
+            <span style={{ color: "white", fontWeight: 800, fontSize: "17px" }}>
               My Profile
             </span>
           </div>
@@ -455,7 +455,7 @@ export default function UserProfile({
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "30px",
+                    fontSize: "34px",
                     fontWeight: 900,
                     color: "white",
                     letterSpacing: "-1px",
@@ -472,7 +472,7 @@ export default function UserProfile({
                 style={{
                   margin: "0 0 6px",
                   color: "white",
-                  fontSize: "22px",
+                  fontSize: "24px",
                   fontWeight: 800,
                   letterSpacing: "-0.5px",
                 }}
@@ -483,7 +483,7 @@ export default function UserProfile({
                 style={{
                   margin: "0 0 16px",
                   color: "#475569",
-                  fontSize: "14px",
+                  fontSize: "16px",
                   fontWeight: 500,
                 }}
               >
@@ -513,7 +513,7 @@ export default function UserProfile({
                 <span
                   style={{
                     color: isAdmin ? "#fde68a" : "#93c5fd",
-                    fontSize: "12px",
+                    fontSize: "14px",
                     fontWeight: 800,
                     letterSpacing: "0.5px",
                   }}
@@ -556,7 +556,7 @@ export default function UserProfile({
                       style={{
                         margin: "0 0 4px",
                         color: "#334155",
-                        fontSize: "10px",
+                        fontSize: "12px",
                         fontWeight: 700,
                         letterSpacing: "1px",
                         textTransform: "uppercase",
@@ -568,7 +568,7 @@ export default function UserProfile({
                       style={{
                         margin: 0,
                         color: value === "Active" ? "#34d399" : "white",
-                        fontSize: "14px",
+                        fontSize: "16px",
                         fontWeight: 800,
                       }}
                     >
@@ -619,14 +619,14 @@ export default function UserProfile({
                       style={{
                         margin: "0 0 3px",
                         color: "#e2e8f0",
-                        fontSize: "14px",
+                        fontSize: "16px",
                         fontWeight: 700,
                       }}
                     >
                       {sessionDate}
                     </p>
                     <p
-                      style={{ margin: 0, color: "#475569", fontSize: "13px" }}
+                      style={{ margin: 0, color: "#475569", fontSize: "15px" }}
                     >
                       Logged in at {sessionTime}
                     </p>
@@ -657,7 +657,7 @@ export default function UserProfile({
                     <span
                       style={{
                         color: "#34d399",
-                        fontSize: "12px",
+                        fontSize: "14px",
                         fontWeight: 700,
                       }}
                     >
@@ -695,7 +695,7 @@ export default function UserProfile({
                   <span
                     style={{
                       color: toast.type === "ok" ? "#34d399" : "#f87171",
-                      fontSize: "14px",
+                      fontSize: "16px",
                       fontWeight: 600,
                     }}
                   >
@@ -735,7 +735,7 @@ export default function UserProfile({
                     <span
                       style={{
                         color: "#475569",
-                        fontSize: "11px",
+                        fontSize: "13px",
                         fontWeight: 700,
                         letterSpacing: "1.5px",
                         textTransform: "uppercase",
@@ -756,7 +756,7 @@ export default function UserProfile({
                         background: "rgba(37,99,235,0.12)",
                         border: "1px solid rgba(37,99,235,0.25)",
                         color: "#60a5fa",
-                        fontSize: "13px",
+                        fontSize: "15px",
                         fontWeight: 700,
                         cursor: "pointer",
                       }}
@@ -776,7 +776,7 @@ export default function UserProfile({
                           background: "rgba(255,255,255,0.05)",
                           border: "1px solid rgba(255,255,255,0.08)",
                           color: "#64748b",
-                          fontSize: "13px",
+                          fontSize: "15px",
                           fontWeight: 600,
                           cursor: "pointer",
                         }}
@@ -795,7 +795,7 @@ export default function UserProfile({
                           background: "linear-gradient(135deg,#2563eb,#0d9488)",
                           border: "none",
                           color: "white",
-                          fontSize: "13px",
+                          fontSize: "15px",
                           fontWeight: 700,
                           cursor: saving ? "wait" : "pointer",
                           boxShadow: "0 4px 12px rgba(37,99,235,0.35)",
@@ -837,7 +837,7 @@ export default function UserProfile({
                       style={{
                         margin: "0 0 4px",
                         color: "#334155",
-                        fontSize: "11px",
+                        fontSize: "13px",
                         fontWeight: 700,
                         letterSpacing: "1.5px",
                         textTransform: "uppercase",
@@ -849,7 +849,7 @@ export default function UserProfile({
                       style={{
                         margin: 0,
                         color: "#94a3b8",
-                        fontSize: "15px",
+                        fontSize: "17px",
                         fontWeight: 600,
                       }}
                     >
@@ -858,7 +858,7 @@ export default function UserProfile({
                   </div>
                   <span
                     style={{
-                      fontSize: "10px",
+                      fontSize: "12px",
                       fontWeight: 700,
                       padding: "4px 9px",
                       borderRadius: "6px",
@@ -952,7 +952,7 @@ export default function UserProfile({
                     <span
                       style={{
                         color: "#e2e8f0",
-                        fontSize: "14px",
+                        fontSize: "16px",
                         fontWeight: 700,
                       }}
                     >
@@ -962,7 +962,7 @@ export default function UserProfile({
                   <span
                     style={{
                       color: "#475569",
-                      fontSize: "13px",
+                      fontSize: "15px",
                       transform: showPwForm ? "rotate(180deg)" : "none",
                       transition: "transform 0.2s",
                     }}
@@ -988,7 +988,7 @@ export default function UserProfile({
                         style={{
                           margin: "0 0 6px",
                           color: "#475569",
-                          fontSize: "11px",
+                          fontSize: "13px",
                           fontWeight: 700,
                           letterSpacing: "1.2px",
                           textTransform: "uppercase",
@@ -1009,7 +1009,7 @@ export default function UserProfile({
                             borderRadius: "10px",
                             padding: "10px 42px 10px 14px",
                             color: "white",
-                            fontSize: "14px",
+                            fontSize: "16px",
                             outline: "none",
                             boxSizing: "border-box",
                           }}
@@ -1048,7 +1048,7 @@ export default function UserProfile({
                         style={{
                           margin: "0 0 6px",
                           color: "#475569",
-                          fontSize: "11px",
+                          fontSize: "13px",
                           fontWeight: 700,
                           letterSpacing: "1.2px",
                           textTransform: "uppercase",
@@ -1069,7 +1069,7 @@ export default function UserProfile({
                             borderRadius: "10px",
                             padding: "10px 42px 10px 14px",
                             color: "white",
-                            fontSize: "14px",
+                            fontSize: "16px",
                             outline: "none",
                             boxSizing: "border-box",
                           }}
@@ -1108,7 +1108,7 @@ export default function UserProfile({
                         style={{
                           margin: "0 0 6px",
                           color: "#475569",
-                          fontSize: "11px",
+                          fontSize: "13px",
                           fontWeight: 700,
                           letterSpacing: "1.2px",
                           textTransform: "uppercase",
@@ -1131,7 +1131,7 @@ export default function UserProfile({
                           borderRadius: "10px",
                           padding: "10px 14px",
                           color: "white",
-                          fontSize: "14px",
+                          fontSize: "16px",
                           outline: "none",
                           boxSizing: "border-box",
                         }}
@@ -1153,7 +1153,7 @@ export default function UserProfile({
                           style={{
                             margin: "5px 0 0",
                             color: "#f87171",
-                            fontSize: "12px",
+                            fontSize: "14px",
                           }}
                         >
                           Passwords do not match
@@ -1175,7 +1175,7 @@ export default function UserProfile({
                           style={{
                             margin: 0,
                             color: "#f87171",
-                            fontSize: "13px",
+                            fontSize: "15px",
                             fontWeight: 600,
                           }}
                         >
@@ -1202,7 +1202,7 @@ export default function UserProfile({
                           background: "rgba(255,255,255,0.05)",
                           border: "1px solid rgba(255,255,255,0.08)",
                           color: "#64748b",
-                          fontSize: "13px",
+                          fontSize: "15px",
                           fontWeight: 600,
                           cursor: "pointer",
                         }}
@@ -1221,7 +1221,7 @@ export default function UserProfile({
                             "linear-gradient(135deg, #0891b2, #22d3ee)",
                           border: "none",
                           color: "white",
-                          fontSize: "13px",
+                          fontSize: "15px",
                           fontWeight: 700,
                           cursor: pwSaving ? "wait" : "pointer",
                           boxShadow: "0 4px 12px rgba(34,211,238,0.35)",
@@ -1279,13 +1279,13 @@ export default function UserProfile({
                     style={{
                       margin: "0 0 3px",
                       color: "#f87171",
-                      fontSize: "15px",
+                      fontSize: "17px",
                       fontWeight: 800,
                     }}
                   >
                     Sign Out
                   </p>
-                  <p style={{ margin: 0, color: "#475569", fontSize: "13px" }}>
+                  <p style={{ margin: 0, color: "#475569", fontSize: "15px" }}>
                     End your current session securely
                   </p>
                 </div>
@@ -1305,7 +1305,7 @@ export default function UserProfile({
                 style={{
                   margin: 0,
                   color: "#1e293b",
-                  fontSize: "10px",
+                  fontSize: "12px",
                   fontWeight: 800,
                   letterSpacing: "2px",
                   textTransform: "uppercase",

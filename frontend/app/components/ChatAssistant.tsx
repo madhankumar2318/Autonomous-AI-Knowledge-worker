@@ -304,7 +304,7 @@ export default function ChatAssistant({
             box-shadow: 0 4px 16px rgba(34,211,238,0.15);
           }
           .chat-inline-title {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 700;
             color: #fff;
             line-height: 1;
@@ -313,7 +313,7 @@ export default function ChatAssistant({
             display: flex;
             align-items: center;
             gap: 5px;
-            font-size: 11px;
+            font-size: 13px;
             color: rgba(255,255,255,0.35);
             margin-top: 3px;
           }
@@ -335,7 +335,7 @@ export default function ChatAssistant({
             border-radius: 8px;
             background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.07);
-            font-size: 11px;
+            font-size: 13px;
             color: rgba(255,255,255,0.4);
             cursor: pointer;
             transition: all 0.15s ease;
@@ -383,7 +383,7 @@ export default function ChatAssistant({
             padding: 12px 16px;
             border-radius: 16px;
             max-width: 72%;
-            font-size: 13.5px;
+            font-size: 15px;
             line-height: 1.6;
           }
           .chat-bubble-user {
@@ -432,7 +432,7 @@ export default function ChatAssistant({
             border-radius: 10px;
             background: rgba(34,211,238,0.06);
             border: 1px solid rgba(34,211,238,0.18);
-            font-size: 12px;
+            font-size: 14px;
             color: rgba(103,232,249,0.85);
             cursor: pointer;
             transition: all 0.15s ease;
@@ -465,7 +465,7 @@ export default function ChatAssistant({
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 14px;
             padding: 11px 16px;
-            font-size: 13px;
+            font-size: 15px;
             color: #fff;
             outline: none;
             transition: all 0.2s ease;
@@ -506,7 +506,7 @@ export default function ChatAssistant({
             display: flex;
             align-items: center;
             gap: 5px;
-            font-size: 10px;
+            font-size: 12px;
             color: rgba(255,255,255,0.2);
           }
           @keyframes pulse {
@@ -548,8 +548,8 @@ export default function ChatAssistant({
                 <Sparkles size={15} color="#67e8f9" />
               </div>
               <div>
-                <p style={{ color: "#fff", fontWeight: 700, fontSize: "0.9rem", margin: 0, lineHeight: 1 }}>AI Assistant</p>
-                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.68rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
+                <p style={{ color: "#fff", fontWeight: 700, fontSize: "1.05rem", margin: 0, lineHeight: 1 }}>AI Assistant</p>
+                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.8rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
                   <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80", display: "inline-block", boxShadow: "0 0 5px #4ade80" }} />
                   Online · Gemini AI
                 </p>
@@ -567,7 +567,7 @@ export default function ChatAssistant({
                 <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: msg.role === "user" ? "rgba(255,255,255,0.08)" : "rgba(34,211,238,0.12)", border: msg.role === "user" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {msg.role === "user" ? <User size={13} color="#fff" /> : <Bot size={13} color="#67e8f9" />}
                 </div>
-                <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid rgba(255,255,255,0.07)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "#e2e8f0", fontSize: "0.83rem", lineHeight: "1.55", maxWidth: "80%" }}>
+                <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid rgba(255,255,255,0.07)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "#e2e8f0", fontSize: "0.95rem", lineHeight: "1.55", maxWidth: "80%" }}>
                   {formatMessage(msg.content)}
                 </div>
               </div>
@@ -595,7 +595,7 @@ export default function ChatAssistant({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me anything…"
-                style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "9px 13px", color: "#fff", fontSize: "0.83rem", outline: "none" }}
+                style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "9px 13px", color: "#fff", fontSize: "0.95rem", outline: "none" }}
                 onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
                 onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
               />

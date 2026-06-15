@@ -424,7 +424,7 @@ export default function NewsSection({
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 10px;
           padding: 8px 12px 8px 32px;
-          font-size: 12px;
+          font-size: 14px;
           color: #fff;
           outline: none;
           transition: all 0.2s ease;
@@ -444,7 +444,7 @@ export default function NewsSection({
         .news-cat-pill {
           padding: 5px 12px;
           border-radius: 8px;
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 600;
           border: 1px solid rgba(255,255,255,0.08);
           background: rgba(255,255,255,0.03);
@@ -472,7 +472,7 @@ export default function NewsSection({
           margin-left: auto;
         }
         .news-count {
-          font-size: 11px;
+          font-size: 13px;
           color: rgba(255,255,255,0.28);
         }
         .news-refresh-btn {
@@ -483,7 +483,7 @@ export default function NewsSection({
           border-radius: 8px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.08);
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.4);
           cursor: pointer;
           transition: all 0.15s ease;
@@ -568,7 +568,7 @@ export default function NewsSection({
         .news-hero-body { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
         .news-hero-meta { display: flex; align-items: center; gap: 8px; }
         .news-hero-title {
-          font-size: 19px;
+          font-size: 22px;
           font-weight: 700;
           color: #fff;
           line-height: 1.3;
@@ -577,7 +577,7 @@ export default function NewsSection({
         }
         .news-hero-card:hover .news-hero-title { color: #67e8f9; }
         .news-hero-desc {
-          font-size: 13px;
+          font-size: 15px;
           color: rgba(255,255,255,0.5);
           line-height: 1.6;
           display: -webkit-box;
@@ -597,7 +597,7 @@ export default function NewsSection({
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 600;
           color: #22d3ee;
           transition: color 0.15s;
@@ -611,7 +611,7 @@ export default function NewsSection({
           gap: 8px;
         }
         .news-side-label {
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 800;
           letter-spacing: 1.5px;
           text-transform: uppercase;
@@ -649,20 +649,20 @@ export default function NewsSection({
           flex-shrink: 0;
         }
         .news-side-source {
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 700;
           color: rgba(255,255,255,0.4);
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
         .news-side-time {
-          font-size: 9px;
+          font-size: 11px;
           color: rgba(255,255,255,0.25);
           margin-left: auto;
           white-space: nowrap;
         }
         .news-side-title {
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 600;
           color: rgba(255,255,255,0.85);
           line-height: 1.4;
@@ -685,7 +685,7 @@ export default function NewsSection({
 
         /* ── BADGES ── */
         .news-source-badge {
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 700;
           padding: 2px 7px;
           border-radius: 5px;
@@ -697,7 +697,7 @@ export default function NewsSection({
           display: inline-flex;
           align-items: center;
           gap: 3px;
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 800;
           padding: 2px 6px;
           border-radius: 5px;
@@ -708,7 +708,7 @@ export default function NewsSection({
           text-transform: uppercase;
         }
         .news-new-badge {
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 800;
           padding: 2px 6px;
           border-radius: 5px;
@@ -721,7 +721,7 @@ export default function NewsSection({
           display: flex;
           align-items: center;
           gap: 4px;
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.3);
         }
 
@@ -769,7 +769,7 @@ export default function NewsSection({
         }
         .news-card-meta { display: flex; align-items: center; gap: 6px; }
         .news-card-title {
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 700;
           color: rgba(255,255,255,0.9);
           line-height: 1.4;
@@ -781,7 +781,7 @@ export default function NewsSection({
         }
         .news-card:hover .news-card-title { color: #fff; }
         .news-card-desc {
-          font-size: 11px;
+          font-size: 13px;
           color: rgba(255,255,255,0.4);
           line-height: 1.55;
           display: -webkit-box;
@@ -826,8 +826,8 @@ export default function NewsSection({
           align-items: center;
           justify-content: center;
         }
-        .news-empty-title { font-size: 15px; font-weight: 700; color: #fff; }
-        .news-empty-sub { font-size: 12px; color: rgba(255,255,255,0.35); }
+        .news-empty-title { font-size: 17px; font-weight: 700; color: #fff; }
+        .news-empty-sub { font-size: 14px; color: rgba(255,255,255,0.35); }
 
         /* ── LOADING MORE ── */
         .news-loading-more {
@@ -836,7 +836,7 @@ export default function NewsSection({
           justify-content: center;
           gap: 10px;
           padding: 20px;
-          font-size: 12px;
+          font-size: 14px;
           color: rgba(255,255,255,0.3);
         }
         .news-load-more-wrap {

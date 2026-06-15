@@ -387,7 +387,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           flex-shrink: 0;
         }
         .stocks-overview-label {
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.35);
           font-weight: 500;
           text-transform: uppercase;
@@ -396,7 +396,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           margin-bottom: 3px;
         }
         .stocks-overview-value {
-          font-size: 16px;
+          font-size: 18px;
           font-weight: 700;
           line-height: 1;
         }
@@ -416,7 +416,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           display: flex;
           align-items: center;
           gap: 5px;
-          font-size: 10px;
+          font-size: 12px;
           font-weight: 700;
           color: #34d399;
         }
@@ -433,7 +433,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           50% { opacity: 0.5; box-shadow: 0 0 2px #4ade80; }
         }
         .stocks-last-updated {
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.25);
           font-variant-numeric: tabular-nums;
         }
@@ -445,7 +445,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           border-radius: 8px;
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.08);
-          font-size: 11px;
+          font-size: 13px;
           color: rgba(255,255,255,0.45);
           cursor: pointer;
           transition: all 0.15s ease;
@@ -463,7 +463,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         .stocks-sector-pill {
           padding: 5px 14px;
           border-radius: 8px;
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 600;
           border: 1px solid rgba(255,255,255,0.08);
           background: rgba(255,255,255,0.03);
@@ -488,7 +488,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           gap: 10px;
         }
         .stocks-sector-tag {
-          font-size: 10px;
+          font-size: 12px;
           font-weight: 800;
           padding: 3px 10px;
           border-radius: 6px;
@@ -498,7 +498,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           white-space: nowrap;
         }
         .stocks-sector-count {
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.25);
         }
         .stocks-sector-line {
@@ -553,14 +553,14 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           gap: 6px;
         }
         .stocks-card-symbol {
-          font-size: 14px;
+          font-size: 16px;
           font-weight: 800;
           color: #fff;
           letter-spacing: 0.3px;
           line-height: 1;
         }
         .stocks-card-name {
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.3);
           margin-top: 2px;
           white-space: nowrap;
@@ -572,7 +572,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           display: flex;
           align-items: center;
           gap: 3px;
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 700;
           padding: 3px 7px;
           border-radius: 6px;
@@ -590,20 +590,20 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           gap: 6px;
         }
         .stocks-card-price {
-          font-size: 18px;
+          font-size: 20px;
           font-weight: 800;
           line-height: 1;
           letter-spacing: -0.3px;
         }
         .stocks-card-vol {
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.3);
           display: flex;
           align-items: center;
           gap: 4px;
         }
         .stocks-card-vol-label {
-          font-size: 8px;
+          font-size: 10px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
           color: rgba(255,255,255,0.2);
@@ -628,7 +628,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           padding: 64px 24px;
           text-align: center;
           color: rgba(255,255,255,0.35);
-          font-size: 13px;
+          font-size: 15px;
         }
       `}</style>
     </div>

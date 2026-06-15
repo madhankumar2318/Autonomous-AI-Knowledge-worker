@@ -410,8 +410,8 @@ export default function Home_Page() {
           flex-shrink: 0;
         }
         .brand-text { display: flex; flex-direction: column; gap: 1px; }
-        .brand-name { font-size: 13px; font-weight: 700; color: #fff; line-height: 1; }
-        .brand-sub { font-size: 9px; color: rgba(255,255,255,0.3); font-weight: 500; letter-spacing: 0.3px; }
+        .brand-name { font-size: 15px; font-weight: 700; color: #fff; line-height: 1; }
+        .brand-sub { font-size: 11px; color: rgba(255,255,255,0.3); font-weight: 500; letter-spacing: 0.3px; }
 
         .header-search {
           flex: 1;
@@ -436,7 +436,7 @@ export default function Home_Page() {
           border: 1px solid rgba(255,255,255,0.08);
           border-radius: 12px;
           padding: 8px 60px 8px 36px;
-          font-size: 13px;
+          font-size: 15px;
           color: #fff;
           outline: none;
           transition: all 0.2s ease;
@@ -450,7 +450,7 @@ export default function Home_Page() {
         .search-kbd {
           position: absolute;
           right: 10px;
-          font-size: 10px;
+          font-size: 12px;
           color: rgba(255,255,255,0.2);
           background: rgba(255,255,255,0.05);
           border: 1px solid rgba(255,255,255,0.08);
@@ -523,14 +523,14 @@ export default function Home_Page() {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 900;
           color: #d8b4fe;
           letter-spacing: 0.5px;
         }
         .avatar-info { display: flex; flex-direction: column; gap: 1px; text-align: left; }
-        .avatar-name { font-size: 11px; font-weight: 700; color: #fff; line-height: 1; }
-        .avatar-role { font-size: 9px; color: rgba(255,255,255,0.3); }
+        .avatar-name { font-size: 13px; font-weight: 700; color: #fff; line-height: 1; }
+        .avatar-role { font-size: 11px; color: rgba(255,255,255,0.3); }
 
         .header-logout-btn {
           width: 34px;
@@ -653,19 +653,19 @@ export default function Home_Page() {
         }
         .sidebar-collapsed .sidebar-nav-text { opacity: 0; pointer-events: none; }
         .sidebar-nav-label {
-          font-size: 12px;
+          font-size: 14px;
           font-weight: 600;
           line-height: 1;
           color: inherit;
         }
         .sidebar-nav-desc {
-          font-size: 9px;
+          font-size: 11px;
           color: rgba(255,255,255,0.28);
           line-height: 1;
           white-space: nowrap;
         }
         .sidebar-badge {
-          font-size: 8px;
+          font-size: 10px;
           font-weight: 800;
           padding: 2px 5px;
           border-radius: 4px;
@@ -742,7 +742,7 @@ export default function Home_Page() {
           flex-shrink: 0;
         }
         .content-title {
-          font-size: 16px;
+          font-size: 18px;
           font-weight: 700;
           color: #fff;
           display: flex;
@@ -751,7 +751,7 @@ export default function Home_Page() {
           line-height: 1.2;
         }
         .content-subtitle {
-          font-size: 11px;
+          font-size: 13px;
           color: rgba(255,255,255,0.3);
           margin-top: 1px;
         }
@@ -759,7 +759,7 @@ export default function Home_Page() {
           display: inline-flex;
           align-items: center;
           gap: 3px;
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 800;
           letter-spacing: 0.8px;
           padding: 2px 6px;

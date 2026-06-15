@@ -338,8 +338,8 @@ export default function FileUpload() {
           justify-content: center;
           flex-shrink: 0;
         }
-        .fw-title { font-size: 15px; font-weight: 700; color: #fff; }
-        .fw-subtitle { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+        .fw-title { font-size: 17px; font-weight: 700; color: #fff; }
+        .fw-subtitle { font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 2px; }
         .fw-refresh-btn {
           margin-left: auto;
           width: 34px;
@@ -370,7 +370,7 @@ export default function FileUpload() {
 
         /* ── PANELS ── */
         .fw-panel-title {
-          font-size: 11px;
+          font-size: 13px;
           font-weight: 700;
           color: rgba(255,255,255,0.4);
           text-transform: uppercase;
@@ -423,7 +423,7 @@ export default function FileUpload() {
           margin-bottom: 4px;
         }
         .fw-dropzone-text {
-          font-size: 13px;
+          font-size: 15px;
           color: rgba(255,255,255,0.55);
         }
         .fw-dropzone-link {
@@ -434,7 +434,7 @@ export default function FileUpload() {
           text-underline-offset: 2px;
         }
         .fw-dropzone-hint {
-          font-size: 11px;
+          font-size: 13px;
           color: rgba(255,255,255,0.22);
         }
 
@@ -450,14 +450,14 @@ export default function FileUpload() {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 600;
           color: #fff;
           word-break: break-all;
           text-align: center;
         }
         .fw-file-preview-size {
-          font-size: 11px;
+          font-size: 13px;
           color: rgba(255,255,255,0.35);
         }
         .fw-file-clear {
@@ -496,7 +496,7 @@ export default function FileUpload() {
           box-shadow: 0 0 8px rgba(34,211,238,0.5);
         }
         .fw-progress-label {
-          font-size: 11px;
+          font-size: 13px;
           color: #22d3ee;
           font-weight: 700;
           font-variant-numeric: tabular-nums;
@@ -514,7 +514,7 @@ export default function FileUpload() {
           border-radius: 12px;
           background: linear-gradient(135deg, #22d3ee, #0891b2);
           border: none;
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 700;
           color: #030f1a;
           cursor: pointer;
@@ -536,7 +536,7 @@ export default function FileUpload() {
           display: flex;
           align-items: center;
           gap: 5px;
-          font-size: 10px;
+          font-size: 12px;
           font-weight: 700;
           padding: 4px 10px;
           border-radius: 7px;
@@ -553,7 +553,7 @@ export default function FileUpload() {
           margin-bottom: 0;
         }
         .fw-file-count {
-          font-size: 11px;
+          font-size: 13px;
           color: rgba(255,255,255,0.25);
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.07);
@@ -583,8 +583,8 @@ export default function FileUpload() {
           align-items: center;
           justify-content: center;
         }
-        .fw-files-empty-text { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.4); }
-        .fw-files-empty-sub { font-size: 11px; color: rgba(255,255,255,0.2); }
+        .fw-files-empty-text { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.4); }
+        .fw-files-empty-sub { font-size: 13px; color: rgba(255,255,255,0.2); }
 
         .fw-files-list { display: flex; flex-direction: column; gap: 8px; }
         .fw-file-item {
@@ -614,7 +614,7 @@ export default function FileUpload() {
         }
         .fw-file-info { flex: 1; min-width: 0; }
         .fw-file-name {
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 600;
           color: rgba(255,255,255,0.85);
           white-space: nowrap;
@@ -623,7 +623,7 @@ export default function FileUpload() {
         }
         .fw-file-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
         .fw-file-ext-badge {
-          font-size: 9px;
+          font-size: 11px;
           font-weight: 800;
           padding: 1px 5px;
           border-radius: 4px;
@@ -632,7 +632,7 @@ export default function FileUpload() {
           border: 1px solid rgba(34,211,238,0.25);
           letter-spacing: 0.5px;
         }
-        .fw-file-size { font-size: 10px; color: rgba(255,255,255,0.3); }
+        .fw-file-size { font-size: 12px; color: rgba(255,255,255,0.3); }
         .fw-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .fw-file-action-btn {
           width: 30px;
@@ -672,7 +672,7 @@ export default function FileUpload() {
           flex-shrink: 0;
         }
         .fw-ai-hint-text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-        .fw-ai-hint-title { font-size: 11px; font-weight: 700; color: #67e8f9; }
+        .fw-ai-hint-title { font-size: 13px; font-weight: 700; color: #67e8f9; }
         .fw-ai-hint-sub { font-size: 10px; color: rgba(255,255,255,0.35); line-height: 1.5; }
       `}</style>
     </div>
