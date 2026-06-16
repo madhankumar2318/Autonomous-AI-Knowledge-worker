@@ -8,9 +8,10 @@ from db import insert_history
 router = APIRouter(prefix="/news", tags=["News"])
 
 # ── Currents API config ────────────────────────────────────────────────
-PAGE_SIZE    = 50    # fetch max articles per API call (Currents API max for Free tier is 50)
-PER_PAGE     = 20    # articles served per page to the frontend
-CACHE_TTL    = 1800  # 30 minutes
+API_PAGE_SIZE = 50    # articles per API call (Free tier max = 50)
+MAX_PAGES     = 4     # number of API pages to fetch (4 × 50 = 200 articles max)
+PER_PAGE      = 100   # articles served per page to the frontend
+CACHE_TTL     = 1800  # 30 minutes
 
 # ── Multi-key cache: {cache_key: {"data": [...], "timestamp": float}} ──
 _cache: dict[str, dict] = {}
@@ -20,69 +21,93 @@ def _make_cache_key(category: str, topic: str) -> str:
     return f"{category.strip().lower()}|{topic.strip().lower()}"
 
 
+def _clean_articles(articles: list[dict]) -> list[dict]:
+    """Normalize raw API articles into a consistent format."""
+    seen_urls: set[str] = set()
+    clean: list[dict] = []
+    for a in articles:
+        url = a.get("url", "")
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+
+        # Validate image URL — reject "None", empty strings, and known placeholder URLs
+        image = a.get("image") or a.get("urlToImage") or ""
+        if not image or image == "None" or image.startswith("data:") or len(image) < 10:
+            image = ""
+
+        clean.append({
+            "title":       a.get("title") or "Untitled",
+            "description": a.get("description") or "",
+            "url":         url,
+            "urlToImage":  image,
+            "publishedAt": a.get("published") or a.get("publishedAt") or "",
+            "source":      a.get("author") or a.get("source") or "",
+        })
+    return clean
+
+
 def _fetch_from_api(category: str, topic: str) -> list[dict]:
     """
-    Fetch articles from Currents News API:
-      - If topic (keywords) is provided, query /v1/search
-      - Otherwise, query /v1/latest-news
+    Fetch articles from Currents News API.
+    Makes up to MAX_PAGES requests to accumulate a large pool of articles.
     """
     api_key = os.getenv("CURRENTS_API_KEY")
     if not api_key or api_key == "your_currents_api_key_here":
         print("⚠️ Currents API Key is not set or is still the placeholder. Please set CURRENTS_API_KEY in your .env file.")
         return []
 
+    all_articles: list[dict] = []
+
+    for page_num in range(1, MAX_PAGES + 1):
+        try:
+            headers = {"Authorization": api_key}
+            params = {
+                "language": "en",
+                "page_size": API_PAGE_SIZE,
+                "page_number": page_num,
+            }
+
+            if topic.strip():
+                url = "https://api.currentsapi.services/v1/search"
+                params["keywords"] = topic.strip()
+            else:
+                url = "https://api.currentsapi.services/v1/latest-news"
+                params["country"] = "us"
+
+            if category.strip():
+                params["category"] = category.strip().lower()
+
+            response = requests.get(url, headers=headers, params=params, timeout=15)
+
+            if response.status_code != 200:
+                print(f"Currents API error (page {page_num}): {response.status_code} | {response.text}")
+                break
+
+            data = response.json()
+
+            if data.get("status") == "ok":
+                articles = data.get("news", [])
+                all_articles.extend(articles)
+                # Stop paginating if we got fewer than requested
+                if len(articles) < API_PAGE_SIZE:
+                    break
+            else:
+                print(f"Currents API status error (page {page_num}): {data}")
+                break
+        except Exception as e:
+            print(f"News fetch exception (page {page_num}): {e}")
+            break
+
+    clean = _clean_articles(all_articles)
+
+    # Log to history — don't let a DB error kill the fetch
     try:
-        headers = {
-            "Authorization": api_key
-        }
-        params = {
-            "language": "en",
-            "page_size": PAGE_SIZE,
-        }
+        insert_history("system", "news_fetch", f"Fetched {len(clean)} articles (category={category}, topic={topic})")
+    except Exception as log_err:
+        print(f"History log error (non-fatal): {log_err}")
 
-        if topic.strip():
-            url = "https://api.currentsapi.services/v1/search"
-            params["keywords"] = topic.strip()
-        else:
-            url = "https://api.currentsapi.services/v1/latest-news"
-            params["country"] = "us"  # default to US latest news
-
-        if category.strip():
-            params["category"] = category.strip().lower()
-
-        response = requests.get(url, headers=headers, params=params, timeout=10)
-        
-        if response.status_code != 200:
-            print(f"Currents API error response code: {response.status_code} | text: {response.text}")
-            return []
-
-        data = response.json()
-
-        if data.get("status") == "ok":
-            articles = data.get("news", [])
-            clean = [
-                {
-                    "title":       a.get("title"),
-                    "description": a.get("description") or "",
-                    "url":         a.get("url"),
-                    "urlToImage":  a.get("image"),
-                    "publishedAt": a.get("published"),
-                    "source":      a.get("author") or a.get("source") or "",
-                }
-                for a in articles
-            ]
-            # Log to history separately — don't let a DB error kill the fetch
-            try:
-                insert_history("system", "news_fetch", f"Fetched {len(clean)} articles (category={category}, topic={topic})")
-            except Exception as log_err:
-                print(f"History log error (non-fatal): {log_err}")
-            return clean
-        else:
-            print(f"Currents API status error: {data}")
-            return []
-    except Exception as e:
-        print(f"News fetch exception: {e}")
-        return []
+    return clean
 
 
 @router.get("/")

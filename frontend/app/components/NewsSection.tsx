@@ -1,5 +1,5 @@
 "use client";
-import { Clock, ExternalLink, RefreshCw, Search, SearchX, Zap } from "lucide-react";
+import { Clock, ExternalLink, Newspaper, RefreshCw, Search, SearchX, Zap } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { showToast } from "./Toast";
@@ -59,6 +59,34 @@ function isRecent(iso?: string): boolean {
   return Date.now() - new Date(iso).getTime() < 3600000 * 3; // within 3h
 }
 
+// Generate a unique gradient for articles without images based on title hash
+const GRADIENT_PALETTES = [
+  ["#0891b2", "#06b6d4", "#22d3ee"],   // cyan
+  ["#0d9488", "#14b8a6", "#2dd4bf"],   // teal
+  ["#0284c7", "#0ea5e9", "#38bdf8"],   // sky
+  ["#2563eb", "#3b82f6", "#60a5fa"],   // blue
+  ["#7c3aed", "#8b5cf6", "#a78bfa"],   // violet
+  ["#db2777", "#ec4899", "#f472b6"],   // pink
+  ["#dc2626", "#ef4444", "#f87171"],   // red
+  ["#ea580c", "#f97316", "#fb923c"],   // orange
+  ["#d97706", "#f59e0b", "#fbbf24"],   // amber
+  ["#059669", "#10b981", "#34d399"],   // emerald
+  ["#4f46e5", "#6366f1", "#818cf8"],   // indigo
+  ["#9333ea", "#a855f7", "#c084fc"],   // purple
+];
+
+function getPlaceholderGradient(title?: string): string {
+  if (!title) return `linear-gradient(135deg, ${GRADIENT_PALETTES[0][0]}33, ${GRADIENT_PALETTES[0][2]}22)`;
+  // Simple hash from title
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) {
+    hash = ((hash << 5) - hash + title.charCodeAt(i)) | 0;
+  }
+  const idx = Math.abs(hash) % GRADIENT_PALETTES.length;
+  const p = GRADIENT_PALETTES[idx];
+  return `linear-gradient(135deg, ${p[0]}35, ${p[1]}20, ${p[2]}10)`;
+}
+
 export default function NewsSection({
   infiniteScroll = false,
 }: {
@@ -88,7 +116,7 @@ export default function NewsSection({
           } else {
             setArticles(data.news);
           }
-          setHasMore(data.has_more ?? data.news.length >= 20);
+          setHasMore(data.has_more ?? data.news.length >= 100);
           setTotal(data.total ?? 0);
         }
       } catch (err) {
@@ -215,12 +243,27 @@ export default function NewsSection({
                         alt={featuredArticle.title}
                         className="news-hero-img"
                         loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          const parent = img.parentElement!;
+                          parent.classList.add('news-img-fallback');
+                          parent.style.background = getPlaceholderGradient(featuredArticle.title);
+                          img.style.display = 'none';
+                          // Insert icon if not already there
+                          if (!parent.querySelector('.news-placeholder-icon')) {
+                            const icon = document.createElement('div');
+                            icon.className = 'news-placeholder-icon';
+                            icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
+                            parent.appendChild(icon);
+                          }
+                        }}
                       />
                       <div className="news-hero-img-overlay" />
                     </div>
                   ) : (
-                    <div className="news-hero-img-placeholder" />
+                    <div className="news-hero-img-placeholder" style={{ background: getPlaceholderGradient(featuredArticle.title) }}>
+                      <Newspaper className="w-12 h-12" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                    </div>
                   )}
                   <div className="news-hero-body">
                     <div className="news-hero-meta">
@@ -277,17 +320,27 @@ export default function NewsSection({
                       </div>
                       <h4 className="news-side-title">{art.title}</h4>
                     </div>
-                    {art.urlToImage && (
-                      <div className="news-side-thumb-wrap">
-                        <img
-                          src={art.urlToImage}
-                          alt=""
-                          className="news-side-thumb"
-                          loading="lazy"
-                          onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
-                        />
-                      </div>
+                    <div className="news-side-thumb-wrap" style={!art.urlToImage ? { background: getPlaceholderGradient(art.title), display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}>
+                    {art.urlToImage ? (
+                      <img
+                        src={art.urlToImage}
+                        alt=""
+                        className="news-side-thumb"
+                        loading="lazy"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          const parent = img.parentElement!;
+                          parent.style.background = getPlaceholderGradient(art.title);
+                          parent.style.display = 'flex';
+                          parent.style.alignItems = 'center';
+                          parent.style.justifyContent = 'center';
+                          img.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <Newspaper className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.2)' }} />
                     )}
+                  </div>
                   </a>
                 ))}
               </div>
@@ -305,17 +358,33 @@ export default function NewsSection({
                   rel="noopener noreferrer"
                   className="news-card"
                 >
-                  {article.urlToImage && (
-                    <div className="news-card-img-wrap">
+                  <div className="news-card-img-wrap" style={!article.urlToImage ? { background: getPlaceholderGradient(article.title), display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}>
+                    {article.urlToImage ? (
                       <img
                         src={article.urlToImage}
                         alt={article.title}
                         className="news-card-img"
                         loading="lazy"
-                        onError={(e) => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          const parent = img.parentElement!;
+                          parent.style.background = getPlaceholderGradient(article.title);
+                          parent.style.display = 'flex';
+                          parent.style.alignItems = 'center';
+                          parent.style.justifyContent = 'center';
+                          img.style.display = 'none';
+                          if (!parent.querySelector('.news-placeholder-icon')) {
+                            const icon = document.createElement('div');
+                            icon.className = 'news-placeholder-icon';
+                            icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
+                            parent.appendChild(icon);
+                          }
+                        }}
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <Newspaper className="w-8 h-8" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                    )}
+                  </div>
                   <div className="news-card-body">
                     <div className="news-card-meta">
                       <span
@@ -560,7 +629,18 @@ export default function NewsSection({
         }
         .news-hero-img-placeholder {
           aspect-ratio: 16/9;
-          background: linear-gradient(135deg, rgba(34,211,238,0.08), rgba(8,145,178,0.05));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .news-img-fallback {
+          display: flex !important;
+          align-items: center;
+          justify-content: center;
+        }
+        .news-placeholder-icon {
+          color: rgba(255,255,255,0.12);
           display: flex;
           align-items: center;
           justify-content: center;
