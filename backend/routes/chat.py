@@ -64,11 +64,15 @@ You have access to these live system tools. Use them proactively — don't just 
    - USE WHEN: User asks about something outside your training data, recent events, specific facts, or anything you're not 100% sure about.
    - SMART BEHAVIOR: ALWAYS search rather than guessing. Accuracy > speed.
 
-4. **read_uploaded_file(filename)** — Read and analyze files from the user's workspace.
-   - USE WHEN: User mentions "my file", "uploaded", "the CSV", "the document", or references any file.
-   - SMART BEHAVIOR: If unsure which file, list available files first, then ask which one to analyze.
+4. **read_uploaded_file(filename)** — Read and analyze specific file's content from the workspace uploads folder.
+   - USE WHEN: You know the exact filename and need to read its content (CSV structure, full JSON data, exact lines).
+   - SMART BEHAVIOR: Use this when the user points to a specific small file, or you need precise structures.
 
-5. **generate_pdf_report(news_query, stock_symbols, custom_insights)** — Generate a professional PDF report.
+5. **search_knowledge_base(query)** — Semantically search all uploaded documents (PDFs, CSVs, TXT, JSON, MD) in the workspace.
+   - USE WHEN: User asks questions about "my files", "uploaded documents", general questions about report data, or searches for topics inside their documents.
+   - SMART BEHAVIOR: Proactively use this search tool first to find matching sections across all files.
+
+6. **generate_pdf_report(news_query, stock_symbols, custom_insights)** — Generate a professional PDF report.
    - USE WHEN: User says "report", "PDF", "generate", "create a summary", "document this".
    - SMART BEHAVIOR: Gather relevant data first, then generate the report with meaningful insights.
 
@@ -94,6 +98,10 @@ Before responding to any query, follow this mental framework:
 - **Tables** when comparing data (stocks, news sources, file data)
 - **Emojis** strategically: 📊 for data, 📈 for growth, 📉 for decline, ⚠️ for warnings, ✅ for positive, 💡 for insights, 🔍 for analysis
 - **Code blocks** for technical data, file contents, or formulas
+
+## Source Citations:
+- **IMPORTANT**: When you use facts, statistics, or information retrieved from the knowledge base using `search_knowledge_base`, you **must** cite the source file.
+- Citation format: Add `[Source: filename.ext] (Relevancy: X%)` inline or at the bottom of the section. E.g., *"Our APAC sales grew by 18% [Source: APAC_Sales.csv] (Relevancy: 95%)."*
 
 ## Response structure for data queries:
 ```
@@ -132,7 +140,8 @@ Before responding to any query, follow this mental framework:
 - Highlight breaking/urgent news with ⚠️
 - Always mention the source for credibility
 
-## File Analysis:
+## File & Knowledge Base Analysis:
+- Always use `search_knowledge_base` first for any query referring to user's files/data.
 - For CSV: Show row count, columns, key statistics, patterns
 - For JSON: Identify structure, key fields, notable data points
 - Always offer follow-up analysis: "Would you like me to analyze a specific column?" or "I can create a report from this data."
@@ -318,12 +327,35 @@ def generate_pdf_report(news_query: str = "", stock_symbols: str = "", custom_in
     except Exception as e:
         return f"Failed to generate report: {str(e)}"
 
+def search_knowledge_base(query: str) -> str:
+    """
+    Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD) for relevant information matching the query.
+    Use this when the user asks questions about their files, data, uploads, reports, or documents.
+    """
+    try:
+        from rag import search_knowledge
+        results = search_knowledge(query, top_k=5)
+        if not results:
+            return "No relevant information found in the knowledge base."
+        
+        formatted = []
+        for i, res in enumerate(results):
+            formatted.append(
+                f"Result {i+1} (Source File: {res['filename']}, Chunk Index: {res['chunk_index']}, Relevancy: {res['similarity_score']}%):\n"
+                f"Content:\n{res['content']}\n"
+                f"----------------------------------------"
+            )
+        return "\n\n".join(formatted)
+    except Exception as e:
+        return f"Error searching knowledge base: {str(e)}"
+
 # Define Python tool registry for the Gemini SDK
 agent_tools = [
     get_stock_price,
     get_latest_news,
     web_search,
     read_uploaded_file,
+    search_knowledge_base,
     generate_pdf_report
 ]
 

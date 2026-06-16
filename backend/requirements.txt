@@ -8,3 +8,5 @@ python-dotenv
 yfinance
 google-genai
 bcrypt
+chromadb
+pypdf

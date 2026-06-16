@@ -23,6 +23,13 @@ async def lifespan(app: FastAPI):
     """Modern FastAPI lifespan handler — replaces deprecated @app.on_event('startup')."""
     # --- Startup ---
     init_db()
+    # Initialize RAG vector store
+    try:
+        from rag import init_rag
+        init_rag()
+    except Exception as e:
+        print(f"Failed to initialize RAG: {e}")
+        
     try:
         scheduler_module.start_scheduler()
     except Exception as e:

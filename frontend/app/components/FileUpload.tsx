@@ -11,6 +11,7 @@ import {
   Trash2,
   X,
   Zap,
+  Brain,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
@@ -19,6 +20,9 @@ interface UploadedFile {
   id: number;
   filename: string;
   size: number;
+  uploaded_at?: string;
+  rag_indexed?: boolean;
+  chunks?: number;
 }
 
 function FileIcon({ filename }: { filename: string }) {
@@ -27,6 +31,10 @@ function FileIcon({ filename }: { filename: string }) {
     return <FileJson className="w-5 h-5" style={{ color: "#fbbf24" }} />;
   if (ext === "csv")
     return <FileText className="w-5 h-5" style={{ color: "#34d399" }} />;
+  if (ext === "pdf")
+    return <FileText className="w-5 h-5" style={{ color: "#f87171" }} />;
+  if (ext === "txt" || ext === "md")
+    return <FileText className="w-5 h-5" style={{ color: "#c084fc" }} />;
   return <File className="w-5 h-5" style={{ color: "#22d3ee" }} />;
 }
 
@@ -70,6 +78,7 @@ export default function FileUpload() {
     if (dragCounter.current === 0) setIsDragging(false);
   };
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -77,10 +86,10 @@ export default function FileUpload() {
     const dropped = e.dataTransfer.files[0];
     if (dropped) {
       const ext = dropped.name.split(".").pop()?.toLowerCase();
-      if (ext === "csv" || ext === "json") {
+      if (ext && ["csv", "json", "pdf", "txt", "md"].includes(ext)) {
         setFile(dropped);
       } else {
-        showToast("error", "Only CSV or JSON files are allowed.");
+        showToast("error", "Supported formats: CSV, JSON, PDF, TXT, MD.");
       }
     }
   };
@@ -92,7 +101,7 @@ export default function FileUpload() {
 
     // Simulate progress
     const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => Math.min(prev + 15, 85));
+      setUploadProgress((prev) => Math.min(prev + 10, 90));
     }, 150);
 
     const formData = new FormData();
@@ -105,15 +114,25 @@ export default function FileUpload() {
       });
       clearInterval(progressInterval);
       setUploadProgress(100);
+      
       if (res.ok) {
+        const data = await res.json();
         setTimeout(() => {
           setFile(null);
           setUploadProgress(0);
-          showToast("success", `"${file.name}" uploaded successfully!`);
+          
+          if (data.rag_status === "success") {
+            showToast("success", `"${file.name}" uploaded & RAG indexed successfully!`);
+          } else if (data.rag_status === "failed") {
+            showToast("warning", `Uploaded "${file.name}", but RAG indexing failed: ${data.error || "Gemini key not configured."}`);
+          } else {
+            showToast("success", `"${file.name}" uploaded successfully!`);
+          }
           fetchUploads();
         }, 500);
       } else {
-        showToast("error", "Upload failed. Please try again.");
+        const errorData = await res.json().catch(() => ({}));
+        showToast("error", errorData.error || "Upload failed. Please try again.");
         setUploadProgress(0);
       }
     } catch (_err) {
@@ -122,6 +141,23 @@ export default function FileUpload() {
       setUploadProgress(0);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDelete = async (filename: string) => {
+    if (!confirm(`Are you sure you want to delete "${filename}"? This removes it permanently.`)) return;
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/upload/${encodeURIComponent(filename)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        showToast("success", `"${filename}" removed.`);
+        fetchUploads();
+      } else {
+        showToast("error", "Failed to delete file.");
+      }
+    } catch (_err) {
+      showToast("error", "Connection error during file deletion.");
     }
   };
 
@@ -134,7 +170,7 @@ export default function FileUpload() {
         </div>
         <div>
           <h2 className="fw-title">File Workspace</h2>
-          <p className="fw-subtitle">Upload CSV or JSON files to analyze with the AI Agent</p>
+          <p className="fw-subtitle">Upload CSV, JSON, PDF, TXT, or MD files to index with AI Knowledge Worker</p>
         </div>
         <button
           type="button"
@@ -197,16 +233,26 @@ export default function FileUpload() {
                     </>
                   )}
                 </p>
-                <p className="fw-dropzone-hint">CSV or JSON files · Max 50MB</p>
+                <p className="fw-dropzone-hint">CSV, JSON, PDF, TXT, MD · Max 50MB</p>
               </>
             )}
 
             <input
               type="file"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                const selected = e.target.files?.[0] || null;
+                if (selected) {
+                  const ext = selected.name.split(".").pop()?.toLowerCase();
+                  if (ext && ["csv", "json", "pdf", "txt", "md"].includes(ext)) {
+                    setFile(selected);
+                  } else {
+                    showToast("error", "Only CSV, JSON, PDF, TXT, and MD formats are supported.");
+                  }
+                }
+              }}
               className="hidden"
               id="file-upload"
-              accept=".csv,.json"
+              accept=".csv,.json,.pdf,.txt,.md"
             />
           </div>
 
@@ -219,7 +265,9 @@ export default function FileUpload() {
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
-              <span className="fw-progress-label">{uploadProgress}%</span>
+              <span className="fw-progress-label">
+                {uploadProgress < 100 ? "Indexing..." : "Done!"}
+              </span>
             </div>
           )}
 
@@ -231,7 +279,7 @@ export default function FileUpload() {
               className="fw-upload-btn"
             >
               <CloudUpload className="w-4 h-4" />
-              Upload to Workspace
+              Upload & Index RAG
             </button>
           )}
 
@@ -242,6 +290,12 @@ export default function FileUpload() {
             </div>
             <div className="fw-format-badge" style={{ borderColor: "rgba(251,191,36,0.3)", color: "#fbbf24", background: "rgba(251,191,36,0.08)" }}>
               <FileJson className="w-3 h-3" /> JSON
+            </div>
+            <div className="fw-format-badge" style={{ borderColor: "rgba(248,113,113,0.3)", color: "#f87171", background: "rgba(248,113,113,0.08)" }}>
+              <FileText className="w-3 h-3" /> PDF
+            </div>
+            <div className="fw-format-badge" style={{ borderColor: "rgba(192,132,252,0.3)", color: "#c084fc", background: "rgba(192,132,252,0.08)" }}>
+              <FileText className="w-3 h-3" /> TXT/MD
             </div>
           </div>
         </div>
@@ -259,7 +313,7 @@ export default function FileUpload() {
                 <FolderOpen className="w-6 h-6" style={{ color: "rgba(255,255,255,0.2)" }} />
               </div>
               <p className="fw-files-empty-text">No files uploaded yet</p>
-              <p className="fw-files-empty-sub">Upload a CSV or JSON file to get started</p>
+              <p className="fw-files-empty-sub">Upload a CSV, JSON, PDF, TXT, or MD file to index it for semantic search</p>
             </div>
           ) : (
             <div className="fw-files-list">
@@ -275,17 +329,34 @@ export default function FileUpload() {
                         {u.filename.split(".").pop()?.toUpperCase()}
                       </span>
                       <span className="fw-file-size">{formatSize(u.size)}</span>
+                      {u.rag_indexed ? (
+                        <span className="fw-file-rag-badge" title={`Indexed in AI memory with ${u.chunks || 0} chunks`}>
+                          <Brain className="w-3 h-3" style={{ marginRight: '4px', flexShrink: 0 }} />
+                          RAG Indexed ({u.chunks || 0} chunks)
+                        </span>
+                      ) : (
+                        <span className="fw-file-rag-badge-pending" title="AI indexing pending or failed">
+                          RAG Pending
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="fw-file-actions">
                     <a
-                      href={`http://127.0.0.1:8000/uploads/${u.filename}`}
-                      download
+                      href={`http://127.0.0.1:8000/upload/download/${u.filename}`}
                       className="fw-file-action-btn"
-                      title="Download"
+                      title="Download File"
                     >
                       <Download className="w-3.5 h-3.5" />
                     </a>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(u.filename)}
+                      className="fw-file-action-btn fw-delete-btn"
+                      title="Delete from workspace"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -299,9 +370,9 @@ export default function FileUpload() {
                 <Zap className="w-3.5 h-3.5" style={{ color: "#22d3ee" }} />
               </div>
               <div className="fw-ai-hint-text">
-                <span className="fw-ai-hint-title">AI Analysis Ready</span>
+                <span className="fw-ai-hint-title">AI Knowledge Base Active</span>
                 <span className="fw-ai-hint-sub">
-                  Open the AI Chat Agent and ask it to analyze, merge, or calculate data from your uploaded files.
+                  Ask the AI Chat widget a question like: "what was in the report I uploaded?" or "search my documents for APC results".
                 </span>
               </div>
               <MessageSquare className="w-4 h-4" style={{ color: "rgba(34,211,238,0.4)", flexShrink: 0 }} />
@@ -500,7 +571,8 @@ export default function FileUpload() {
           color: #22d3ee;
           font-weight: 700;
           font-variant-numeric: tabular-nums;
-          min-width: 30px;
+          min-width: 60px;
+          text-align: right;
         }
 
         /* ── UPLOAD BTN ── */
@@ -529,16 +601,17 @@ export default function FileUpload() {
         /* ── FORMAT BADGES ── */
         .fw-format-badges {
           display: flex;
-          gap: 8px;
+          gap: 6px;
           justify-content: center;
+          flex-wrap: wrap;
         }
         .fw-format-badge {
           display: flex;
           align-items: center;
           gap: 5px;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 700;
-          padding: 4px 10px;
+          padding: 4px 8px;
           border-radius: 7px;
           border: 1px solid;
           letter-spacing: 0.3px;
@@ -621,18 +694,40 @@ export default function FileUpload() {
           overflow: hidden;
           text-overflow: ellipsis;
         }
-        .fw-file-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+        .fw-file-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; flex-wrap: wrap; }
         .fw-file-ext-badge {
           font-size: 11px;
           font-weight: 800;
           padding: 1px 5px;
           border-radius: 4px;
-          background: rgba(34,211,238,0.15);
-          color: #67e8f9;
-          border: 1px solid rgba(34,211,238,0.25);
+          background: rgba(255,255,255,0.05);
+          color: rgba(255,255,255,0.6);
+          border: 1px solid rgba(255,255,255,0.1);
           letter-spacing: 0.5px;
         }
         .fw-file-size { font-size: 12px; color: rgba(255,255,255,0.3); }
+        
+        .fw-file-rag-badge {
+          display: flex;
+          align-items: center;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 1px 6px;
+          border-radius: 4px;
+          background: rgba(34,211,238,0.12);
+          color: #22d3ee;
+          border: 1px solid rgba(34,211,238,0.25);
+        }
+        .fw-file-rag-badge-pending {
+          font-size: 11px;
+          font-weight: 700;
+          padding: 1px 6px;
+          border-radius: 4px;
+          background: rgba(255,255,255,0.05);
+          color: rgba(255,255,255,0.35);
+          border: 1px solid rgba(255,255,255,0.08);
+        }
+
         .fw-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
         .fw-file-action-btn {
           width: 30px;
@@ -647,8 +742,14 @@ export default function FileUpload() {
           cursor: pointer;
           transition: all 0.15s ease;
           text-decoration: none;
+          padding: 0;
         }
         .fw-file-action-btn:hover { background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.3); color: #22d3ee; }
+        .fw-delete-btn:hover {
+          background: rgba(239,68,68,0.15) !important;
+          border-color: rgba(239,68,68,0.3) !important;
+          color: #ef4444 !important;
+        }
 
         /* ── AI HINT ── */
         .fw-ai-hint {
