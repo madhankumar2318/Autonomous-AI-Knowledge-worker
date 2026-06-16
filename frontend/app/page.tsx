@@ -3,7 +3,6 @@ import {
   Brain,
   FolderOpen,
   LogOut,
-  MessageSquare,
   Newspaper,
   Search,
   TrendingUp,
@@ -46,16 +45,7 @@ const NAV_TABS = [
     description: "Live market data",
     badge: null,
   },
-  {
-    id: "chat",
-    label: "AI Chat Agent",
-    shortLabel: "AI Chat",
-    icon: MessageSquare,
-    accent: "#38bdf8",
-    accentRgb: "56,189,248",
-    description: "Ask me anything",
-    badge: null,
-  },
+
   {
     id: "files",
     label: "File Workspace",
@@ -328,11 +318,7 @@ export default function Home_Page() {
               </div>
             )}
 
-            {activeTab === "chat" && (
-              <div className="animate-fade-in chat-tab-wrapper">
-                <ChatAssistant username={loggedInUser} inline={true} />
-              </div>
-            )}
+
 
             {activeTab === "files" && (
               <div className="animate-fade-in">
@@ -349,11 +335,8 @@ export default function Home_Page() {
         </main>
       </div>
 
-      {/* Floating AI Chat (only shown when NOT on chat tab) */}
-      {activeTab !== "chat" && (
-        <ChatAssistant username={loggedInUser} inline={false} />
-      )}
-
+      {/* Floating AI Chat */}
+      <ChatAssistant username={loggedInUser} inline={false} />
       {/* User Profile Panel */}
       {showProfile && (
         <UserProfile
