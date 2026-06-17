@@ -16,11 +16,19 @@ def summarize(text: str, max_sentences: int = 2) -> str:
         try:
             client = genai.Client(api_key=api_key.strip())
             prompt = f"Summarize the following text concisely. Keep the summary under {max_sentences * 15} words:\n\n{text}"
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt
-            )
-            if response.text:
+            response = None
+            for model_name in ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash"]:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    if response and response.text:
+                        break
+                except Exception as ex:
+                    print(f"Failed to summarize using {model_name}: {ex}")
+            
+            if response and response.text:
                 return response.text.strip()
         except Exception as e:
             print(f"Gemini summarizer exception: {e}")

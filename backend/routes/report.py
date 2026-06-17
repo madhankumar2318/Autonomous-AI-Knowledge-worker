@@ -68,11 +68,19 @@ def generate_report(
                     f"{stock_summary}\n\nNews:\n{news_summary}"
                 )
                 
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt
-                )
-                if response.text:
+                response = None
+                for model_name in ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash"]:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt
+                        )
+                        if response and response.text:
+                            break
+                    except Exception as ex:
+                        print(f"Failed to generate insights using {model_name}: {ex}")
+                
+                if response and response.text:
                     insights = [line.strip().lstrip("•-* ") for line in response.text.strip().split("\n") if line.strip()]
             except Exception as e:
                 print(f"Auto-report insights generation error: {e}")

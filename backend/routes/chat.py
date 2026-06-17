@@ -7,6 +7,7 @@ import re
 import random
 import datetime
 import asyncio
+import time
 import yfinance as yf
 import requests
 from google import genai
@@ -37,6 +38,18 @@ def get_gemini_client():
         return genai.Client(api_key=api_key.strip())
     except Exception as e:
         print(f"Error initializing Gemini client: {e}")
+        return None
+
+# ── Helper: Initialize Groq Client ────────────────────────────────────────────
+def get_groq_client():
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key or api_key.startswith("your_") or len(api_key.strip()) < 10:
+        return None
+    try:
+        from groq import Groq
+        return Groq(api_key=api_key.strip())
+    except Exception as e:
+        print(f"Error initializing Groq client: {e}")
         return None
 
 # ── Agent System Instructions ─────────────────────────────────────────────────
@@ -225,6 +238,7 @@ def web_search(query: str) -> str:
     """
     Search Google for general information, current events, or questions you don't know the answer to.
     """
+    print(f"🤖 AI Tool Executing: web_search(query='{query}')")
     try:
         params = {
             "engine": "google",
@@ -332,6 +346,7 @@ def search_knowledge_base(query: str) -> str:
     Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD) for relevant information matching the query.
     Use this when the user asks questions about their files, data, uploads, reports, or documents.
     """
+    print(f"🤖 AI Tool Executing: search_knowledge_base(query='{query}')")
     try:
         from rag import search_knowledge
         results = search_knowledge(query, top_k=5)
@@ -358,6 +373,131 @@ agent_tools = [
     search_knowledge_base,
     generate_pdf_report
 ]
+
+# ── Groq Tools definition and function map ─────────────────────────────────────
+GROQ_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_stock_price",
+            "description": "Get the current stock price and key details for a given ticker symbol (e.g. AAPL, GOOGL, TSLA).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "The stock ticker symbol (e.g., AAPL)."
+                    }
+                },
+                "required": ["symbol"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_latest_news",
+            "description": "Fetch the latest news articles with optional filters.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "description": "Optional news category (e.g., business, technology, science)."
+                    },
+                    "topic": {
+                        "type": "string",
+                        "description": "Optional search topic keyword (e.g., 'AI', 'inflation')."
+                    }
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Search Google for general information, current events, or questions you don't know the answer to.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query string."
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_uploaded_file",
+            "description": "Read the content of a file that has been uploaded to the workspace uploads directory.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "description": "The exact name of the file to read (e.g., data.csv)."
+                    }
+                },
+                "required": ["filename"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_knowledge_base",
+            "description": "Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD) for relevant information matching the query.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to match against document contents."
+                    }
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_pdf_report",
+            "description": "Generate a professional PDF report containing news summary, stock quotes, and custom analysis highlights.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "news_query": {
+                        "type": "string",
+                        "description": "News topic search query."
+                    },
+                    "stock_symbols": {
+                        "type": "string",
+                        "description": "Comma-separated stock symbols (e.g., AAPL,MSFT)."
+                    },
+                    "custom_insights": {
+                        "type": "string",
+                        "description": "Custom analysis or notes to include in the report."
+                    }
+                }
+            }
+        }
+    }
+]
+
+FUNCTIONS_MAP = {
+    "get_stock_price": get_stock_price,
+    "get_latest_news": get_latest_news,
+    "web_search": web_search,
+    "read_uploaded_file": read_uploaded_file,
+    "search_knowledge_base": search_knowledge_base,
+    "generate_pdf_report": generate_pdf_report
+}
 
 # ── Intent Fallback when Gemini API key is missing ───────────────────────────
 async def handle_mock_fallback(msg: str):
@@ -391,7 +531,92 @@ async def chat(req: ChatRequest):
     except Exception as err:
         print(f"Failed to log chat query: {err}")
 
-    # Check for Gemini Client
+    # 1. Try Groq first if available
+    groq_client = get_groq_client()
+    if groq_client:
+        try:
+            print("🚀 Executing Chat Agent using Groq...")
+            # Prepare messages in OpenAI/Groq format
+            messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+            for msg in req.history:
+                role = "user" if msg.role == "user" else "assistant"
+                messages.append({"role": role, "content": msg.content})
+            messages.append({"role": "user", "content": req.message})
+
+            reply = None
+            # Tool calling loop for Groq (up to 5 loops)
+            for loop_idx in range(5):
+                groq_response = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=messages,
+                    tools=GROQ_TOOLS,
+                    tool_choice="auto",
+                    temperature=0.7,
+                )
+                
+                response_message = groq_response.choices[0].message
+                
+                # Convert response message to dict to append to history safely
+                msg_dict = {
+                    "role": "assistant",
+                    "content": response_message.content,
+                }
+                if response_message.tool_calls:
+                    msg_dict["tool_calls"] = [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments
+                            }
+                        } for tc in response_message.tool_calls
+                    ]
+                messages.append(msg_dict)
+                
+                tool_calls = response_message.tool_calls
+                if not tool_calls:
+                    # No more tools called, this is the final response
+                    reply = response_message.content or ""
+                    break
+                    
+                # Execute tool calls
+                for tool_call in tool_calls:
+                    func_name = tool_call.function.name
+                    func_to_call = FUNCTIONS_MAP.get(func_name)
+                    if not func_to_call:
+                        tool_output = f"Error: Tool {func_name} not found."
+                    else:
+                        try:
+                            import json
+                            func_args = json.loads(tool_call.function.arguments)
+                            # Call function with arguments
+                            tool_output = func_to_call(**func_args)
+                        except Exception as e:
+                            tool_output = f"Error executing {func_name}: {str(e)}"
+                    
+                    # Append tool result to messages
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "name": func_name,
+                        "content": str(tool_output)
+                    })
+            else:
+                reply = "I completed execution but reached maximum reasoning loops."
+
+            if reply:
+                # Log response
+                try:
+                    insert_history(req.username, "chat_response", reply)
+                except Exception as err:
+                    print(f"Failed to log Groq chat response: {err}")
+                return {"reply": reply}
+
+        except Exception as groq_err:
+            print(f"Groq API execution error: {groq_err}. Falling back to Gemini...")
+
+    # 2. Fall back to Gemini Client
     client = get_gemini_client()
     if not client:
         reply = await handle_mock_fallback(req.message)
@@ -421,16 +646,56 @@ async def chat(req: ChatRequest):
             )
         )
         
-        # Invoke Gemini Flash with system instruction and tools
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=contents,
-            config=types.GenerateContentConfig(
-                tools=agent_tools,
-                system_instruction=SYSTEM_INSTRUCTION,
-            )
-        )
-        
+        # Invoke Gemini Flash with retry on 503 / quota errors
+        MODELS_TO_TRY = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash"]
+        response = None
+        last_error = None
+
+        for model_name in MODELS_TO_TRY:
+            for attempt in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            tools=agent_tools,
+                            system_instruction=SYSTEM_INSTRUCTION,
+                        )
+                    )
+                    last_error = None
+                    break  # success — exit retry loop
+                except Exception as e:
+                    last_error = e
+                    err_str = str(e)
+                    # Retry on transient 503 / UNAVAILABLE / rate-limit errors
+                    if any(code in err_str for code in ["503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED"]):
+                        wait = 2 ** attempt  # 1s, 2s, 4s
+                        print(f"[{model_name}] attempt {attempt+1} failed ({err_str[:60]}). Retrying in {wait}s...")
+                        time.sleep(wait)
+                    else:
+                        break  # Non-retryable error — don't retry
+            if response is not None:
+                break  # Got a good response — skip remaining models
+
+        if response is None:
+            err_msg = str(last_error) if last_error else "Unknown error"
+            print(f"All Gemini model attempts failed: {err_msg}")
+            # Return a friendly message instead of raw API error
+            if "503" in err_msg or "UNAVAILABLE" in err_msg:
+                reply = (
+                    "⚠️ **Gemini AI is temporarily overloaded** (high demand right now).\n\n"
+                    "Please try again in 30–60 seconds. I'll be fully back online shortly!"
+                )
+            elif "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                reply = (
+                    "⚠️ **API quota reached** for your current Gemini plan.\n\n"
+                    "Please wait a minute and try again, or upgrade your Gemini API plan at "
+                    "[ai.dev/rate-limit](https://ai.dev/rate-limit)."
+                )
+            else:
+                reply = f"⚠️ **Error processing your request.**\n\nDetails: `{err_msg[:200]}`"
+            return {"reply": reply}
+
         reply = response.text or "I processed your request, but did not generate a text response."
         
         # Log response
@@ -443,5 +708,17 @@ async def chat(req: ChatRequest):
 
     except Exception as e:
         print(f"Gemini API invocation error: {e}")
-        reply = f"Error processing request: {str(e)}"
+        err_str = str(e)
+        if "503" in err_str or "UNAVAILABLE" in err_str:
+            reply = (
+                "⚠️ **Gemini AI is temporarily overloaded** (high demand right now).\n\n"
+                "Please try again in 30–60 seconds. I'll be fully back online shortly!"
+            )
+        elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+            reply = (
+                "⚠️ **API quota reached.** Please wait a minute and retry, or check your "
+                "[Gemini rate limits](https://ai.dev/rate-limit)."
+            )
+        else:
+            reply = f"⚠️ **Error:** `{err_str[:300]}`"
         return {"reply": reply}
