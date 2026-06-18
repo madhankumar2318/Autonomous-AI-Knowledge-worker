@@ -226,75 +226,73 @@ export default function NewsSection({
         <div className="news-content">
 
           {/* ── HERO + SIDEBAR ── */}
-          {page === 1 && (
+          {featuredArticle && (
             <div className="news-hero-row">
               {/* Featured Hero */}
-              {featuredArticle && (
-                <a
-                  href={featuredArticle.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="news-hero-card"
-                >
-                  {featuredArticle.urlToImage ? (
-                    <div className="news-hero-img-wrap">
-                      <img
-                        src={featuredArticle.urlToImage}
-                        alt={featuredArticle.title}
-                        className="news-hero-img"
-                        loading="lazy"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          const parent = img.parentElement!;
-                          parent.classList.add('news-img-fallback');
-                          parent.style.background = getPlaceholderGradient(featuredArticle.title);
-                          img.style.display = 'none';
-                          // Insert icon if not already there
-                          if (!parent.querySelector('.news-placeholder-icon')) {
-                            const icon = document.createElement('div');
-                            icon.className = 'news-placeholder-icon';
-                            icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
-                            parent.appendChild(icon);
-                          }
-                        }}
-                      />
-                      <div className="news-hero-img-overlay" />
-                    </div>
-                  ) : (
-                    <div className="news-hero-img-placeholder" style={{ background: getPlaceholderGradient(featuredArticle.title) }}>
-                      <Newspaper className="w-12 h-12" style={{ color: 'rgba(255,255,255,0.15)' }} />
-                    </div>
-                  )}
-                  <div className="news-hero-body">
-                    <div className="news-hero-meta">
-                      {featuredArticle.source && (
-                        <span
-                          className="news-source-badge"
-                          style={{ background: `${getSourceColor(featuredArticle.source)}22`, borderColor: `${getSourceColor(featuredArticle.source)}55`, color: getSourceColor(featuredArticle.source) }}
-                        >
-                          {featuredArticle.source}
-                        </span>
-                      )}
-                      {isRecent(featuredArticle.publishedAt) && (
-                        <span className="news-breaking-badge">
-                          <Zap className="w-2.5 h-2.5" /> Breaking
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="news-hero-title">{featuredArticle.title}</h3>
-                    <p className="news-hero-desc">{featuredArticle.description}</p>
-                    <div className="news-hero-footer">
-                      <span className="news-time">
-                        <Clock className="w-3 h-3" />
-                        {timeAgo(featuredArticle.publishedAt)}
-                      </span>
-                      <span className="news-read-link">
-                        Read full story <ExternalLink className="w-3 h-3" />
-                      </span>
-                    </div>
+              <a
+                href={featuredArticle.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="news-hero-card"
+              >
+                {featuredArticle.urlToImage ? (
+                  <div className="news-hero-img-wrap">
+                    <img
+                      src={featuredArticle.urlToImage}
+                      alt={featuredArticle.title}
+                      className="news-hero-img"
+                      loading="lazy"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        const parent = img.parentElement!;
+                        parent.classList.add('news-img-fallback');
+                        parent.style.background = getPlaceholderGradient(featuredArticle.title);
+                        img.style.display = 'none';
+                        // Insert icon if not already there
+                        if (!parent.querySelector('.news-placeholder-icon')) {
+                          const icon = document.createElement('div');
+                          icon.className = 'news-placeholder-icon';
+                          icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
+                          parent.appendChild(icon);
+                        }
+                      }}
+                    />
+                    <div className="news-hero-img-overlay" />
                   </div>
-                </a>
-              )}
+                ) : (
+                  <div className="news-hero-img-placeholder" style={{ background: getPlaceholderGradient(featuredArticle.title) }}>
+                    <Newspaper className="w-12 h-12" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                  </div>
+                )}
+                <div className="news-hero-body">
+                  <div className="news-hero-meta">
+                    {featuredArticle.source && (
+                      <span
+                        className="news-source-badge"
+                        style={{ background: `${getSourceColor(featuredArticle.source)}22`, borderColor: `${getSourceColor(featuredArticle.source)}55`, color: getSourceColor(featuredArticle.source) }}
+                      >
+                        {featuredArticle.source}
+                      </span>
+                    )}
+                    {isRecent(featuredArticle.publishedAt) && (
+                      <span className="news-breaking-badge">
+                        <Zap className="w-2.5 h-2.5" /> Breaking
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="news-hero-title">{featuredArticle.title}</h3>
+                  <p className="news-hero-desc">{featuredArticle.description}</p>
+                  <div className="news-hero-footer">
+                    <span className="news-time">
+                      <Clock className="w-3 h-3" />
+                      {timeAgo(featuredArticle.publishedAt)}
+                    </span>
+                    <span className="news-read-link">
+                      Read full story <ExternalLink className="w-3 h-3" />
+                    </span>
+                  </div>
+                </div>
+              </a>
 
               {/* Side Stories */}
               <div className="news-side-col">
@@ -348,9 +346,9 @@ export default function NewsSection({
           )}
 
           {/* ── MORE ARTICLES GRID ── */}
-          {(page === 1 ? remainingArticles : articles).length > 0 && (
+          {remainingArticles.length > 0 && (
             <div className="news-grid">
-              {(page === 1 ? remainingArticles : articles).map((article, i) => (
+              {remainingArticles.map((article, i) => (
                 <a
                   key={i}
                   href={article.url}
