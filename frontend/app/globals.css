@@ -155,6 +155,8 @@ button {
 html {
   scroll-behavior: smooth;
   color-scheme: dark;
+  height: 100vh;
+  overflow: hidden;
 }
 
 body {
@@ -163,7 +165,8 @@ body {
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.6;
-  overflow-x: hidden;
+  height: 100vh;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

@@ -59,6 +59,7 @@ def get_gemini_client():
 def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
     """
     Generate text-embedding-004 embeddings for a batch of texts using Gemini API.
+    Provides automatic fallback to individual queries if batch results are incomplete or fail.
     """
     if not texts:
         return []
@@ -67,25 +68,39 @@ def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
     if not client:
         raise ValueError("Gemini API key is not configured or is invalid. Cannot generate embeddings.")
 
-    batch_size = 50
     all_embeddings = []
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i : i + batch_size]
-        try:
-            response = client.models.embed_content(
-                model="gemini-embedding-2",
-                contents=batch
-            )
-            if hasattr(response, 'embeddings'):
-                for emb in response.embeddings:
-                    all_embeddings.append(emb.values)
-            elif hasattr(response, 'embedding') and hasattr(response.embedding, 'values'):
-                all_embeddings.append(response.embedding.values)
-            else:
-                raise ValueError("Could not extract embeddings from Gemini response.")
-        except Exception as e:
-            print(f"Error calling Gemini Embedding API: {e}")
-            raise e
+    
+    # 1. Try batch embedding first (efficient, 1 API call)
+    try:
+        response = client.models.embed_content(
+            model="gemini-embedding-2",
+            contents=texts
+        )
+        if hasattr(response, 'embeddings') and response.embeddings:
+            for emb in response.embeddings:
+                all_embeddings.append(emb.values)
+    except Exception as e:
+        print(f"Batch embedding failed: {e}. Falling back to individual embedding...")
+
+    # 2. If batching returned incorrect length or failed, fallback to individual text queries
+    if len(all_embeddings) != len(texts):
+        all_embeddings = []
+        print(f"Embedding count mismatch (got {len(all_embeddings)}, expected {len(texts)}). Embedding items individually...")
+        for text in texts:
+            try:
+                response = client.models.embed_content(
+                    model="gemini-embedding-2",
+                    contents=text
+                )
+                if hasattr(response, 'embedding') and hasattr(response.embedding, 'values'):
+                    all_embeddings.append(response.embedding.values)
+                elif hasattr(response, 'embeddings') and response.embeddings:
+                    all_embeddings.append(response.embeddings[0].values)
+                else:
+                    raise ValueError("Could not extract embedding values.")
+            except Exception as e:
+                print(f"Individual embedding failed for text '{text[:30]}...': {e}")
+                raise e
             
     return all_embeddings
 

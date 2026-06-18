@@ -10,3 +10,4 @@ google-genai
 bcrypt
 chromadb
 pypdf
+groq

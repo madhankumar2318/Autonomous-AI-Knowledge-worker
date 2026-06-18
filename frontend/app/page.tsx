@@ -45,7 +45,6 @@ const NAV_TABS = [
     description: "Live market data",
     badge: null,
   },
-
   {
     id: "files",
     label: "File Workspace",
@@ -56,6 +55,26 @@ const NAV_TABS = [
     description: "Manage documents",
     badge: null,
   },
+  {
+    id: "search",
+    label: "Global Search",
+    shortLabel: "Search",
+    icon: Search,
+    accent: "#3b82f6",
+    accentRgb: "59,130,246",
+    description: "Search everything",
+    badge: null,
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    shortLabel: "Settings",
+    icon: Settings,
+    accent: "#94a3b8",
+    accentRgb: "148,163,184",
+    description: "Profile & Preferences",
+    badge: null,
+  }
 ];
 
 export default function Home_Page() {
@@ -208,7 +227,7 @@ export default function Home_Page() {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => tab.id === "settings" ? setShowProfile(true) : setActiveTab(tab.id)}
                     className={`sidebar-nav-item ${isActive ? "sidebar-nav-active" : ""}`}
                     style={{
                       "--tab-accent": tab.accent,
@@ -231,39 +250,6 @@ export default function Home_Page() {
                 );
               })}
             </nav>
-
-            {/* Bottom sidebar items */}
-            <div className="sidebar-bottom">
-              <div className="sidebar-section-label">TOOLS</div>
-              <button
-                type="button"
-                onClick={() => setActiveTab("search")}
-                className={`sidebar-nav-item ${activeTab === "search" ? "sidebar-nav-active" : ""}`}
-                style={{ "--tab-accent": "#3b82f6", "--tab-accent-rgb": "59,130,246" } as React.CSSProperties}
-              >
-                <div className="sidebar-nav-icon-wrap">
-                  <Search className="sidebar-nav-icon" />
-                </div>
-                <div className="sidebar-nav-text">
-                  <span className="sidebar-nav-label">Global Search</span>
-                  <span className="sidebar-nav-desc">Search everything</span>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowProfile(true)}
-                className="sidebar-nav-item"
-                style={{ "--tab-accent": "#94a3b8", "--tab-accent-rgb": "148,163,184" } as React.CSSProperties}
-              >
-                <div className="sidebar-nav-icon-wrap">
-                  <Settings className="sidebar-nav-icon" />
-                </div>
-                <div className="sidebar-nav-text">
-                  <span className="sidebar-nav-label">Settings</span>
-                  <span className="sidebar-nav-desc">Profile & Preferences</span>
-                </div>
-              </button>
-            </div>
           </div>
 
           {/* Collapse Toggle */}
@@ -307,13 +293,13 @@ export default function Home_Page() {
           {/* ── TAB CONTENT ── */}
           <div className="content-body">
             {activeTab === "news" && (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in tab-content-wrapper">
                 <NewsSection infiniteScroll={true} />
               </div>
             )}
 
             {activeTab === "stocks" && (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in tab-content-wrapper">
                 <StockSection compact={false} />
               </div>
             )}
@@ -321,13 +307,13 @@ export default function Home_Page() {
 
 
             {activeTab === "files" && (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in tab-content-wrapper">
                 <FileUpload />
               </div>
             )}
 
             {activeTab === "search" && (
-              <div className="animate-fade-in search-tab-wrapper">
+              <div className="animate-fade-in tab-content-wrapper">
                 <SearchSection infiniteScroll={true} initialQuery={globalSearchTrigger} />
               </div>
             )}
@@ -349,11 +335,13 @@ export default function Home_Page() {
       <style>{`
         /* ── APP SHELL ── */
         .app-shell {
+          height: 100dvh;
           min-height: 100vh;
           display: flex;
           flex-direction: column;
-          background: #060610;
+          background: var(--bg-primary);
           color: var(--text-primary);
+          overflow: hidden;
         }
 
         /* ── HEADER ── */
@@ -535,7 +523,8 @@ export default function Home_Page() {
           display: flex;
           flex: 1;
           overflow: hidden;
-          height: calc(100vh - 58px);
+          height: auto;
+          min-height: 0;
         }
 
         /* ── SIDEBAR ── */
@@ -574,7 +563,6 @@ export default function Home_Page() {
         .sidebar-collapsed .sidebar-section-label { opacity: 0; }
 
         .sidebar-nav { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
-        .sidebar-bottom { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; margin-top: auto; }
 
         .sidebar-nav-item {
           position: relative;
@@ -699,6 +687,7 @@ export default function Home_Page() {
           flex-direction: column;
           overflow: hidden;
           min-width: 0;
+          min-height: 0;
         }
 
         .content-topbar {
@@ -755,9 +744,26 @@ export default function Home_Page() {
 
         .content-body {
           flex: 1;
-          overflow-y: auto;
+          overflow: hidden;
           padding: 24px;
           position: relative;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .tab-content-wrapper {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          height: 100%;
+          overflow: hidden;
+          max-height: 100%;
+        }
+        .tab-content-no-scroll {
+          overflow: hidden !important;
+          display: flex;
+          flex-direction: column;
         }
 
         .chat-tab-wrapper {
@@ -798,6 +804,8 @@ export default function Home_Page() {
           .header-search { display: none; }
           .avatar-info { display: none; }
           .brand-text { display: none; }
+          .app-body { height: auto; }
+          .content-body { padding: 16px; }
         }
       `}</style>
     </div>

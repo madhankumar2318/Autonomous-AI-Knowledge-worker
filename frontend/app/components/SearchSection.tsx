@@ -1,6 +1,6 @@
 "use client";
 import { AlertCircle, ExternalLink, Search } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface SearchResult {
   title: string;
@@ -95,7 +95,7 @@ export default function SearchSection({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="search-root">
       {/* Search Form */}
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="flex-1 relative">
@@ -154,10 +154,7 @@ export default function SearchSection({
 
       {/* Results — max height so they don't push other cards away */}
       {results.length > 0 && (
-        <div
-          className="space-y-2 overflow-y-auto max-h-[320px] pr-1"
-          onScroll={handleScroll}
-        >
+        <div className="space-y-2 pr-1" onScroll={handleScroll}>
           {results.map((r, _i) => (
             <div
               key={`${r.link}-${_i}`}
@@ -183,6 +180,25 @@ export default function SearchSection({
           ))}
         </div>
       )}
+
+      <style>{`
+        .search-root {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          flex: 1;
+          min-height: 0;
+          height: 100%;
+          max-height: 100%;
+          overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          padding-right: 4px;
+          padding-bottom: 24px;
+          scrollbar-gutter: stable;
+        }
+      `}</style>
     </div>
   );
 }

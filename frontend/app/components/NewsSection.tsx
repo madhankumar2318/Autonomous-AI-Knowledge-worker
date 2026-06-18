@@ -461,8 +461,17 @@ export default function NewsSection({
           display: flex;
           flex-direction: column;
           gap: 20px;
+          flex: 1;
+          min-height: 0;
           height: 100%;
+          max-height: 100%;
           overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          padding-right: 4px;
+          padding-bottom: 24px;
+          scrollbar-gutter: stable;
         }
 
         /* ── TOOLBAR ── */
@@ -472,6 +481,12 @@ export default function NewsSection({
           gap: 12px;
           flex-wrap: wrap;
           flex-shrink: 0;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+          background: var(--bg-primary, #060610);
+          padding-top: 4px;
+          padding-bottom: 12px;
         }
         .news-search-form {
           position: relative;

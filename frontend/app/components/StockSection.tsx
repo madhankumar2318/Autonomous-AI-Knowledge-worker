@@ -355,6 +355,17 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           display: flex;
           flex-direction: column;
           gap: 20px;
+          flex: 1;
+          min-height: 0;
+          height: 100%;
+          max-height: 100%;
+          overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          padding-right: 4px;
+          padding-bottom: 24px;
+          scrollbar-gutter: stable;
         }
 
         /* ── OVERVIEW BAR ── */
