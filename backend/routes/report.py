@@ -69,7 +69,7 @@ def generate_report(
                 )
                 
                 response = None
-                for model_name in ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash"]:
+                for model_name in ["gemini-2.5-flash", "gemini-2.0-flash"]:
                     try:
                         response = client.models.generate_content(
                             model=model_name,

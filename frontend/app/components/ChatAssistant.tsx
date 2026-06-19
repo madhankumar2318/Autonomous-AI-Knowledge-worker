@@ -266,8 +266,8 @@ export default function ChatAssistant({
             display: flex;
             flex-direction: column;
             height: 100%;
-            background: rgba(8,8,24,0.6);
-            border: 1px solid rgba(34,211,238,0.12);
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border-medium);
             border-radius: 20px;
             overflow: hidden;
             position: relative;
@@ -287,7 +287,7 @@ export default function ChatAssistant({
             align-items: center;
             gap: 12px;
             padding: 16px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid var(--border-light);
             background: linear-gradient(to right, rgba(34,211,238,0.06), transparent);
             flex-shrink: 0;
           }
@@ -306,7 +306,7 @@ export default function ChatAssistant({
           .chat-inline-title {
             font-size: 16px;
             font-weight: 700;
-            color: #fff;
+            color: var(--text-primary);
             line-height: 1;
           }
           .chat-inline-status {
@@ -314,7 +314,7 @@ export default function ChatAssistant({
             align-items: center;
             gap: 5px;
             font-size: 13px;
-            color: rgba(255,255,255,0.35);
+            color: var(--text-secondary);
             margin-top: 3px;
           }
           .chat-status-dot {
@@ -333,14 +333,14 @@ export default function ChatAssistant({
             gap: 5px;
             padding: 6px 12px;
             border-radius: 8px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.07);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
             font-size: 13px;
-            color: rgba(255,255,255,0.4);
+            color: var(--text-secondary);
             cursor: pointer;
             transition: all 0.15s ease;
           }
-          .chat-clear-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+          .chat-clear-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
           .chat-inline-messages {
             flex: 1;
@@ -371,8 +371,8 @@ export default function ChatAssistant({
             margin-top: 2px;
           }
           .chat-msg-user .chat-msg-avatar {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: var(--bg-hover);
+            border: 1px solid var(--border-light);
           }
           .chat-msg-ai .chat-msg-avatar {
             background: rgba(34,211,238,0.1);
@@ -393,10 +393,10 @@ export default function ChatAssistant({
             color: #ecfeff;
           }
           .chat-bubble-ai {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
             border-top-left-radius: 4px;
-            color: rgba(255,255,255,0.85);
+            color: var(--text-primary);
           }
           .chat-bubble-content { display: flex; flex-direction: column; gap: 4px; }
           .chat-line { margin-bottom: 2px; min-height: 1em; }
@@ -447,8 +447,8 @@ export default function ChatAssistant({
           /* ── INPUT ── */
           .chat-inline-input {
             padding: 16px 20px;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            background: rgba(0,0,0,0.2);
+            border-top: 1px solid var(--border-light);
+            background: var(--bg-secondary);
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -461,34 +461,34 @@ export default function ChatAssistant({
           }
           .chat-input-field {
             flex: 1;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
             border-radius: 14px;
             padding: 11px 16px;
             font-size: 15px;
-            color: #fff;
+            color: var(--text-primary);
             outline: none;
             transition: all 0.2s ease;
           }
           .chat-input-field:focus {
-            background: rgba(255,255,255,0.07);
+            background: var(--bg-hover);
             border-color: rgba(34,211,238,0.5);
             box-shadow: 0 0 0 3px rgba(34,211,238,0.1);
           }
-          .chat-input-field::placeholder { color: rgba(255,255,255,0.25); }
+          .chat-input-field::placeholder { color: var(--text-muted); }
           .chat-input-field:disabled { opacity: 0.5; }
           .chat-send-btn {
             width: 44px;
             height: 44px;
             border-radius: 14px;
             flex-shrink: 0;
-            background: rgba(255,255,255,0.07);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: not-allowed;
-            color: rgba(255,255,255,0.3);
+            color: var(--text-muted);
             transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
           }
           .chat-send-active {
@@ -507,7 +507,7 @@ export default function ChatAssistant({
             align-items: center;
             gap: 5px;
             font-size: 12px;
-            color: rgba(255,255,255,0.2);
+            color: var(--text-muted);
           }
           @keyframes pulse {
             0%, 100% { opacity: 1; box-shadow: 0 0 6px #4ade80; }
@@ -529,10 +529,10 @@ export default function ChatAssistant({
             right: "0",
             width: "380px",
             height: "530px",
-            background: "rgba(8,8,20,0.97)",
+            background: "var(--bg-sidebar)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid rgba(34,211,238,0.2)",
+            border: "1px solid var(--border-medium)",
             borderRadius: "20px",
             boxShadow: "0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(34,211,238,0.08)",
             animation: "slideUpFade 0.22s ease",
@@ -542,20 +542,20 @@ export default function ChatAssistant({
           }}
         >
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "linear-gradient(135deg, rgba(34,211,238,0.25), rgba(14,165,233,0.15))", border: "1px solid rgba(34,211,238,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Sparkles size={15} color="#67e8f9" />
               </div>
               <div>
-                <p style={{ color: "#fff", fontWeight: 700, fontSize: "1.05rem", margin: 0, lineHeight: 1 }}>AI Assistant</p>
-                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.8rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
+                <p style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "1.05rem", margin: 0, lineHeight: 1 }}>AI Assistant</p>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
                   <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80", display: "inline-block", boxShadow: "0 0 5px #4ade80" }} />
                   Online · Gemini AI
                 </p>
               </div>
             </div>
-            <button type="button" onClick={() => setIsOpen(false)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.45)" }}>
+            <button type="button" onClick={() => setIsOpen(false)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-secondary)" }}>
               <X size={14} />
             </button>
           </div>
@@ -564,10 +564,10 @@ export default function ChatAssistant({
           <div style={{ flex: 1, overflowY: "auto", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
             {messages.map((msg, idx) => (
               <div key={idx} style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: msg.role === "user" ? "rgba(255,255,255,0.08)" : "rgba(34,211,238,0.12)", border: msg.role === "user" ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: msg.role === "user" ? "var(--bg-hover)" : "rgba(34,211,238,0.12)", border: msg.role === "user" ? "1px solid var(--border-light)" : "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {msg.role === "user" ? <User size={13} color="#fff" /> : <Bot size={13} color="#67e8f9" />}
                 </div>
-                <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.04)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid rgba(255,255,255,0.07)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "#e2e8f0", fontSize: "0.95rem", lineHeight: "1.55", maxWidth: "80%" }}>
+                <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "var(--bg-surface)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid var(--border-light)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "var(--text-primary)", fontSize: "0.95rem", lineHeight: "1.55", maxWidth: "80%" }}>
                   {formatMessage(msg.content)}
                 </div>
               </div>
@@ -577,7 +577,7 @@ export default function ChatAssistant({
                 <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Bot size={13} color="#67e8f9" />
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", padding: "12px 14px", borderRadius: "14px", borderTopLeftRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
+                <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-light)", padding: "12px 14px", borderRadius: "14px", borderTopLeftRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
                   <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
                   <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
                   <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
@@ -588,21 +588,21 @@ export default function ChatAssistant({
           </div>
 
           {/* Input */}
-          <div style={{ padding: "14px 16px", borderTop: "1px solid rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.25)" }}>
+          <div style={{ padding: "14px 16px", borderTop: "1px solid var(--border-light)", background: "var(--bg-secondary)" }}>
             <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} style={{ display: "flex", gap: "10px" }}>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me anything…"
-                style={{ flex: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", padding: "9px 13px", color: "#fff", fontSize: "0.95rem", outline: "none" }}
+                style={{ flex: 1, background: "var(--bg-surface)", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "9px 13px", color: "var(--text-primary)", fontSize: "0.95rem", outline: "none" }}
                 onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
-                onBlur={(e) => (e.target.style.borderColor = "rgba(255,255,255,0.1)")}
+                onBlur={(e) => (e.target.style.borderColor = "var(--border-light)")}
               />
               <button
                 type="submit"
                 disabled={!input.trim() || loading}
-                style={{ width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0, background: input.trim() && !loading ? "linear-gradient(135deg, #22d3ee, #0891b2)" : "rgba(255,255,255,0.07)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: input.trim() && !loading ? "pointer" : "not-allowed", color: input.trim() && !loading ? "#030f1a" : "rgba(255,255,255,0.3)", transition: "all 0.2s ease" }}
+                style={{ width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0, background: input.trim() && !loading ? "linear-gradient(135deg, #22d3ee, #0891b2)" : "var(--bg-surface)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: input.trim() && !loading ? "pointer" : "not-allowed", color: input.trim() && !loading ? "#030f1a" : "var(--text-muted)", transition: "all 0.2s ease" }}
               >
                 <Send size={15} />
               </button>

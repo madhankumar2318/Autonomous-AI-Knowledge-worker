@@ -178,7 +178,7 @@ export default function UserProfile({
     <div
       style={{
         padding: "20px 24px",
-        borderBottom: "1px solid rgba(255,255,255,0.04)",
+        borderBottom: "1px solid var(--border-light)",
         display: "flex",
         alignItems: editing ? "flex-start" : "center",
         gap: "16px",
@@ -204,7 +204,7 @@ export default function UserProfile({
         <p
           style={{
             margin: "0 0 5px",
-            color: "#475569",
+            color: "var(--text-secondary)",
             fontSize: "13px",
             fontWeight: 700,
             letterSpacing: "1.5px",
@@ -220,11 +220,11 @@ export default function UserProfile({
             placeholder={placeholder}
             style={{
               width: "100%",
-              background: "rgba(255,255,255,0.04)",
+              background: "var(--bg-surface)",
               border: `1px solid ${color}55`,
               borderRadius: "10px",
               padding: "10px 14px",
-              color: "white",
+              color: "var(--text-primary)",
               fontSize: "16px",
               fontWeight: 500,
               outline: "none",
@@ -237,7 +237,7 @@ export default function UserProfile({
           <p
             style={{
               margin: 0,
-              color: value ? "#e2e8f0" : "#334155",
+              color: value ? "var(--text-primary)" : "var(--text-muted)",
               fontSize: "17px",
               fontWeight: value ? 600 : 400,
               fontStyle: value ? "normal" : "italic",
@@ -280,8 +280,8 @@ export default function UserProfile({
           display: "flex",
           flexDirection: "column",
           overflowY: "auto",
-          background: "#070d1a",
-          borderLeft: "1px solid rgba(59,130,246,0.18)",
+          background: "var(--bg-sidebar)",
+          borderLeft: "1px solid var(--border-medium)",
           boxShadow: "-40px 0 100px rgba(0,0,0,0.9)",
           animation: "panelIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards",
         }}
@@ -296,9 +296,9 @@ export default function UserProfile({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "20px 24px",
-            background: "rgba(7,13,26,0.85)",
+            background: "var(--bg-header)",
             backdropFilter: "blur(24px)",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            borderBottom: "1px solid var(--border-light)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -317,7 +317,7 @@ export default function UserProfile({
             >
               <User size={15} style={{ color: "#60a5fa" }} />
             </div>
-            <span style={{ color: "white", fontWeight: 800, fontSize: "17px" }}>
+            <span style={{ color: "var(--text-primary)", fontWeight: 800, fontSize: "17px" }}>
               My Profile
             </span>
           </div>
@@ -327,21 +327,21 @@ export default function UserProfile({
               width: "32px",
               height: "32px",
               borderRadius: "9px",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border-light)",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#64748b",
+              color: "var(--text-secondary)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
-              e.currentTarget.style.color = "white";
+              e.currentTarget.style.background = "var(--bg-hover)";
+              e.currentTarget.style.color = "var(--text-primary)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-              e.currentTarget.style.color = "#64748b";
+              e.currentTarget.style.background = "var(--bg-surface)";
+              e.currentTarget.style.color = "var(--text-secondary)";
             }}
           >
             <X size={15} />
@@ -979,7 +979,7 @@ export default function UserProfile({
                       display: "flex",
                       flexDirection: "column",
                       gap: "14px",
-                      borderTop: "1px solid rgba(255,255,255,0.05)",
+                      borderTop: "1px solid var(--border-light)",
                     }}
                   >
                     {/* Current Password */}
@@ -987,7 +987,7 @@ export default function UserProfile({
                       <p
                         style={{
                           margin: "0 0 6px",
-                          color: "#475569",
+                          color: "var(--text-secondary)",
                           fontSize: "13px",
                           fontWeight: 700,
                           letterSpacing: "1.2px",
@@ -1004,11 +1004,11 @@ export default function UserProfile({
                           placeholder="Enter current password"
                           style={{
                             width: "100%",
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.1)",
+                            background: "var(--bg-surface)",
+                            border: "1px solid var(--border-light)",
                             borderRadius: "10px",
                             padding: "10px 42px 10px 14px",
-                            color: "white",
+                            color: "var(--text-primary)",
                             fontSize: "16px",
                             outline: "none",
                             boxSizing: "border-box",
@@ -1019,7 +1019,7 @@ export default function UserProfile({
                           }
                           onBlur={(e) =>
                             (e.target.style.borderColor =
-                              "rgba(255,255,255,0.1)")
+                              "var(--border-light)")
                           }
                         />
                         <button
@@ -1033,7 +1033,7 @@ export default function UserProfile({
                             background: "none",
                             border: "none",
                             cursor: "pointer",
-                            color: "#475569",
+                            color: "var(--text-secondary)",
                             padding: 0,
                           }}
                         >
@@ -1047,7 +1047,7 @@ export default function UserProfile({
                       <p
                         style={{
                           margin: "0 0 6px",
-                          color: "#475569",
+                          color: "var(--text-secondary)",
                           fontSize: "13px",
                           fontWeight: 700,
                           letterSpacing: "1.2px",
@@ -1064,11 +1064,11 @@ export default function UserProfile({
                           placeholder="Min. 4 characters"
                           style={{
                             width: "100%",
-                            background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(255,255,255,0.1)",
+                            background: "var(--bg-surface)",
+                            border: "1px solid var(--border-light)",
                             borderRadius: "10px",
                             padding: "10px 42px 10px 14px",
-                            color: "white",
+                            color: "var(--text-primary)",
                             fontSize: "16px",
                             outline: "none",
                             boxSizing: "border-box",
@@ -1079,7 +1079,7 @@ export default function UserProfile({
                           }
                           onBlur={(e) =>
                             (e.target.style.borderColor =
-                              "rgba(255,255,255,0.1)")
+                              "var(--border-light)")
                           }
                         />
                         <button
@@ -1093,7 +1093,7 @@ export default function UserProfile({
                             background: "none",
                             border: "none",
                             cursor: "pointer",
-                            color: "#475569",
+                            color: "var(--text-secondary)",
                             padding: 0,
                           }}
                         >
@@ -1107,7 +1107,7 @@ export default function UserProfile({
                       <p
                         style={{
                           margin: "0 0 6px",
-                          color: "#475569",
+                          color: "var(--text-secondary)",
                           fontSize: "13px",
                           fontWeight: 700,
                           letterSpacing: "1.2px",
@@ -1126,11 +1126,11 @@ export default function UserProfile({
                         }
                         style={{
                           width: "100%",
-                          background: "rgba(255,255,255,0.04)",
-                          border: `1px solid ${confirmPw && confirmPw !== newPw ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`,
+                          background: "var(--bg-surface)",
+                          border: `1px solid ${confirmPw && confirmPw !== newPw ? "rgba(239,68,68,0.5)" : "var(--border-light)"}`,
                           borderRadius: "10px",
                           padding: "10px 14px",
-                          color: "white",
+                          color: "var(--text-primary)",
                           fontSize: "16px",
                           outline: "none",
                           boxSizing: "border-box",
@@ -1145,7 +1145,7 @@ export default function UserProfile({
                           (e.target.style.borderColor =
                             confirmPw && confirmPw !== newPw
                               ? "rgba(239,68,68,0.5)"
-                              : "rgba(255,255,255,0.1)")
+                              : "var(--border-light)")
                         }
                       />
                       {confirmPw && confirmPw !== newPw && (
@@ -1199,9 +1199,9 @@ export default function UserProfile({
                           flex: 1,
                           padding: "10px",
                           borderRadius: "10px",
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,255,255,0.08)",
-                          color: "#64748b",
+                          background: "var(--bg-surface)",
+                          border: "1px solid var(--border-light)",
+                          color: "var(--text-secondary)",
                           fontSize: "15px",
                           fontWeight: 600,
                           cursor: "pointer",
@@ -1285,7 +1285,7 @@ export default function UserProfile({
                   >
                     Sign Out
                   </p>
-                  <p style={{ margin: 0, color: "#475569", fontSize: "15px" }}>
+                  <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "15px" }}>
                     End your current session securely
                   </p>
                 </div>
@@ -1296,7 +1296,7 @@ export default function UserProfile({
             <div
               style={{
                 padding: "18px 24px",
-                borderTop: "1px solid rgba(255,255,255,0.04)",
+                borderTop: "1px solid var(--border-light)",
                 textAlign: "center",
                 flexShrink: 0,
               }}
@@ -1304,7 +1304,7 @@ export default function UserProfile({
               <p
                 style={{
                   margin: 0,
-                  color: "#1e293b",
+                  color: "var(--text-muted)",
                   fontSize: "12px",
                   fontWeight: 800,
                   letterSpacing: "2px",

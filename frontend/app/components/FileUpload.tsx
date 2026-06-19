@@ -199,7 +199,7 @@ export default function FileUpload() {
             <div className="fw-dropzone-icon">
               <CloudUpload
                 className="w-8 h-8"
-                style={{ color: isDragging ? "#22d3ee" : file ? "#34d399" : "rgba(255,255,255,0.25)" }}
+                style={{ color: isDragging ? "#22d3ee" : file ? "#34d399" : "var(--text-muted)" }}
               />
             </div>
 
@@ -310,7 +310,7 @@ export default function FileUpload() {
           {uploads.length === 0 ? (
             <div className="fw-files-empty">
               <div className="fw-files-empty-icon">
-                <FolderOpen className="w-6 h-6" style={{ color: "rgba(255,255,255,0.2)" }} />
+                <FolderOpen className="w-6 h-6" style={{ color: "var(--text-muted)" }} />
               </div>
               <p className="fw-files-empty-text">No files uploaded yet</p>
               <p className="fw-files-empty-sub">Upload a CSV, JSON, PDF, TXT, or MD file to index it for semantic search</p>
@@ -405,8 +405,8 @@ export default function FileUpload() {
           align-items: center;
           gap: 12px;
           padding: 16px 20px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-light);
           border-radius: 16px;
         }
         .fw-header-icon {
@@ -420,24 +420,24 @@ export default function FileUpload() {
           justify-content: center;
           flex-shrink: 0;
         }
-        .fw-title { font-size: 17px; font-weight: 700; color: #fff; }
-        .fw-subtitle { font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+        .fw-title { font-size: 17px; font-weight: 700; color: var(--text-primary); }
+        .fw-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
         .fw-refresh-btn {
           margin-left: auto;
           width: 34px;
           height: 34px;
           border-radius: 10px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: rgba(255,255,255,0.35);
+          color: var(--text-secondary);
           cursor: pointer;
           transition: all 0.15s ease;
           flex-shrink: 0;
         }
-        .fw-refresh-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+        .fw-refresh-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 
         /* ── LAYOUT ── */
         .fw-layout {
@@ -454,14 +454,14 @@ export default function FileUpload() {
         .fw-panel-title {
           font-size: 13px;
           font-weight: 700;
-          color: rgba(255,255,255,0.4);
+          color: var(--text-secondary);
           text-transform: uppercase;
           letter-spacing: 1px;
           margin-bottom: 12px;
         }
         .fw-upload-panel, .fw-files-panel {
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-light);
           border-radius: 18px;
           padding: 20px;
           display: flex;
@@ -471,7 +471,7 @@ export default function FileUpload() {
 
         /* ── DROP ZONE ── */
         .fw-dropzone {
-          border: 2px dashed rgba(255,255,255,0.12);
+          border: 2px dashed var(--border-medium);
           border-radius: 14px;
           padding: 32px 20px;
           display: flex;
@@ -479,7 +479,7 @@ export default function FileUpload() {
           align-items: center;
           gap: 10px;
           text-align: center;
-          background: rgba(255,255,255,0.015);
+          background: var(--bg-surface);
           transition: all 0.22s ease;
           cursor: pointer;
           position: relative;
@@ -497,8 +497,8 @@ export default function FileUpload() {
           width: 54px;
           height: 54px;
           border-radius: 14px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -506,7 +506,7 @@ export default function FileUpload() {
         }
         .fw-dropzone-text {
           font-size: 15px;
-          color: rgba(255,255,255,0.55);
+          color: var(--text-secondary);
         }
         .fw-dropzone-link {
           color: #22d3ee;
@@ -517,7 +517,7 @@ export default function FileUpload() {
         }
         .fw-dropzone-hint {
           font-size: 13px;
-          color: rgba(255,255,255,0.22);
+          color: var(--text-muted);
         }
 
         /* ── FILE PREVIEW ── */
@@ -534,13 +534,13 @@ export default function FileUpload() {
           gap: 8px;
           font-size: 15px;
           font-weight: 600;
-          color: #fff;
+          color: var(--text-primary);
           word-break: break-all;
           text-align: center;
         }
         .fw-file-preview-size {
           font-size: 13px;
-          color: rgba(255,255,255,0.35);
+          color: var(--text-secondary);
         }
         .fw-file-clear {
           display: flex;
@@ -567,7 +567,7 @@ export default function FileUpload() {
           flex: 1;
           height: 5px;
           border-radius: 99px;
-          background: rgba(255,255,255,0.07);
+          background: var(--bg-surface);
           overflow: hidden;
         }
         .fw-progress-bar {
@@ -638,9 +638,9 @@ export default function FileUpload() {
         }
         .fw-file-count {
           font-size: 13px;
-          color: rgba(255,255,255,0.25);
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
+          color: var(--text-secondary);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-light);
           padding: 2px 8px;
           border-radius: 6px;
         }
@@ -653,22 +653,22 @@ export default function FileUpload() {
           padding: 40px 20px;
           gap: 8px;
           text-align: center;
-          border: 1px dashed rgba(255,255,255,0.07);
+          border: 1px dashed var(--border-light);
           border-radius: 12px;
-          background: rgba(255,255,255,0.01);
+          background: var(--bg-surface);
         }
         .fw-files-empty-icon {
           width: 48px;
           height: 48px;
           border-radius: 14px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.06);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: center;
         }
-        .fw-files-empty-text { font-size: 15px; font-weight: 600; color: rgba(255,255,255,0.4); }
-        .fw-files-empty-sub { font-size: 13px; color: rgba(255,255,255,0.2); }
+        .fw-files-empty-text { font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+        .fw-files-empty-sub { font-size: 13px; color: var(--text-muted); }
 
         .fw-files-list { display: flex; flex-direction: column; gap: 8px; }
         .fw-file-item {
@@ -677,20 +677,20 @@ export default function FileUpload() {
           gap: 12px;
           padding: 12px 14px;
           border-radius: 12px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.06);
+          background: var(--bg-card);
+          border: 1px solid var(--border-light);
           transition: all 0.15s ease;
         }
         .fw-file-item:hover {
-          background: rgba(255,255,255,0.05);
-          border-color: rgba(255,255,255,0.1);
+          background: var(--bg-hover);
+          border-color: var(--border-medium);
         }
         .fw-file-icon-wrap {
           width: 38px;
           height: 38px;
           border-radius: 10px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -700,7 +700,7 @@ export default function FileUpload() {
         .fw-file-name {
           font-size: 15px;
           font-weight: 600;
-          color: rgba(255,255,255,0.85);
+          color: var(--text-primary);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -711,12 +711,12 @@ export default function FileUpload() {
           font-weight: 800;
           padding: 1px 5px;
           border-radius: 4px;
-          background: rgba(255,255,255,0.05);
-          color: rgba(255,255,255,0.6);
-          border: 1px solid rgba(255,255,255,0.1);
+          background: var(--bg-surface);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-light);
           letter-spacing: 0.5px;
         }
-        .fw-file-size { font-size: 12px; color: rgba(255,255,255,0.3); }
+        .fw-file-size { font-size: 12px; color: var(--text-secondary); }
         
         .fw-file-rag-badge {
           display: flex;
@@ -734,9 +734,9 @@ export default function FileUpload() {
           font-weight: 700;
           padding: 1px 6px;
           border-radius: 4px;
-          background: rgba(255,255,255,0.05);
-          color: rgba(255,255,255,0.35);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: var(--bg-surface);
+          color: var(--text-secondary);
+          border: 1px solid var(--border-light);
         }
 
         .fw-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
@@ -744,12 +744,12 @@ export default function FileUpload() {
           width: 30px;
           height: 30px;
           border-radius: 8px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-light);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: rgba(255,255,255,0.4);
+          color: var(--text-secondary);
           cursor: pointer;
           transition: all 0.15s ease;
           text-decoration: none;
@@ -785,7 +785,7 @@ export default function FileUpload() {
         }
         .fw-ai-hint-text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
         .fw-ai-hint-title { font-size: 13px; font-weight: 700; color: #67e8f9; }
-        .fw-ai-hint-sub { font-size: 10px; color: rgba(255,255,255,0.35); line-height: 1.5; }
+        .fw-ai-hint-sub { font-size: 10px; color: var(--text-secondary); line-height: 1.5; }
       `}</style>
     </div>
   );

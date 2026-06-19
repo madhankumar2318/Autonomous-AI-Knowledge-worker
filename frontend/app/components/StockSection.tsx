@@ -143,11 +143,11 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         {data.stocks.slice(0, 6).filter(s => !s.error).map((s) => {
           const isPos = (s.change_percent ?? 0) >= 0;
           return (
-            <div key={s.symbol} style={{ display: "grid", gridTemplateColumns: "48px 1fr 50px 50px", gap: "6px", padding: "6px 8px", borderRadius: "8px", alignItems: "center", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "#fff" }}>{s.symbol}</span>
+            <div key={s.symbol} style={{ display: "grid", gridTemplateColumns: "48px 1fr 50px 50px", gap: "6px", padding: "6px 8px", borderRadius: "8px", alignItems: "center", background: "var(--bg-secondary)", border: "1px solid var(--border-light)" }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)" }}>{s.symbol}</span>
               <Sparkline data={s.history} isPos={isPos} width={50} height={18} />
               <span style={{ fontSize: "10px", fontWeight: 700, color: isPos ? "#34d399" : "#f87171", textAlign: "right" }}>{formatChange(s.change_percent)}</span>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "#fff", textAlign: "right" }}>{formatPrice(s.price)}</span>
+              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", textAlign: "right" }}>{formatPrice(s.price)}</span>
             </div>
           );
         })}
@@ -373,8 +373,8 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           display: flex;
           align-items: center;
           gap: 0;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid rgba(255,255,255,0.07);
+          background: var(--bg-secondary);
+          border: 1px solid var(--border-light);
           border-radius: 16px;
           padding: 14px 20px;
           flex-wrap: wrap;
@@ -399,7 +399,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         }
         .stocks-overview-label {
           font-size: 12px;
-          color: rgba(255,255,255,0.35);
+          color: var(--text-secondary);
           font-weight: 500;
           text-transform: uppercase;
           letter-spacing: 0.5px;
@@ -414,7 +414,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         .stocks-overview-divider {
           width: 1px;
           height: 36px;
-          background: rgba(255,255,255,0.06);
+          background: var(--border-light);
         }
         .stocks-overview-right {
           display: flex;
@@ -445,7 +445,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         }
         .stocks-last-updated {
           font-size: 12px;
-          color: rgba(255,255,255,0.25);
+          color: var(--text-muted);
           font-variant-numeric: tabular-nums;
         }
         .stocks-refresh-btn {
@@ -454,15 +454,15 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           gap: 5px;
           padding: 6px 12px;
           border-radius: 8px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-light);
           font-size: 13px;
-          color: rgba(255,255,255,0.45);
+          color: var(--text-secondary);
           cursor: pointer;
           transition: all 0.15s ease;
           font-variant-numeric: tabular-nums;
         }
-        .stocks-refresh-btn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+        .stocks-refresh-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
         .stocks-refresh-btn:disabled { opacity: 0.5; cursor: wait; }
 
         /* ── SECTOR PILLS ── */
@@ -476,16 +476,16 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           border-radius: 8px;
           font-size: 13px;
           font-weight: 600;
-          border: 1px solid rgba(255,255,255,0.08);
-          background: rgba(255,255,255,0.03);
-          color: rgba(255,255,255,0.4);
+          border: 1px solid var(--border-light);
+          background: var(--bg-secondary);
+          color: var(--text-secondary);
           cursor: pointer;
           transition: all 0.15s ease;
           white-space: nowrap;
         }
         .stocks-sector-pill:hover {
-          background: rgba(255,255,255,0.06);
-          color: rgba(255,255,255,0.75);
+          background: var(--bg-hover);
+          color: var(--text-primary);
         }
         .stocks-sector-active {
           font-weight: 700;
@@ -510,12 +510,12 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         }
         .stocks-sector-count {
           font-size: 12px;
-          color: rgba(255,255,255,0.25);
+          color: var(--text-muted);
         }
         .stocks-sector-line {
           flex: 1;
           height: 1px;
-          background: rgba(255,255,255,0.04);
+          background: var(--border-light);
         }
 
         /* ── BENTO GRID ── */
@@ -532,8 +532,8 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           gap: 10px;
           padding: 14px;
           border-radius: 14px;
-          background: rgba(255,255,255,0.025);
-          border: 1px solid rgba(255,255,255,0.06);
+          background: var(--bg-card);
+          border: 1px solid var(--border-light);
           transition: all 0.18s ease;
           position: relative;
           overflow: hidden;
@@ -550,8 +550,8 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           border-radius: 0 0 14px 14px;
         }
         .stocks-card:hover {
-          background: rgba(255,255,255,0.04);
-          border-color: rgba(255,255,255,0.1);
+          background: var(--bg-hover);
+          border-color: var(--border-medium);
           transform: translateY(-2px);
           box-shadow: 0 6px 24px rgba(0,0,0,0.3);
         }
@@ -566,13 +566,13 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         .stocks-card-symbol {
           font-size: 16px;
           font-weight: 800;
-          color: #fff;
+          color: var(--text-primary);
           letter-spacing: 0.3px;
           line-height: 1;
         }
         .stocks-card-name {
           font-size: 12px;
-          color: rgba(255,255,255,0.3);
+          color: var(--text-secondary);
           margin-top: 2px;
           white-space: nowrap;
           overflow: hidden;
@@ -608,7 +608,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         }
         .stocks-card-vol {
           font-size: 12px;
-          color: rgba(255,255,255,0.3);
+          color: var(--text-secondary);
           display: flex;
           align-items: center;
           gap: 4px;
@@ -617,7 +617,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           font-size: 10px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          color: rgba(255,255,255,0.2);
+          color: var(--text-muted);
         }
 
         /* ── SKELETON ── */
@@ -638,7 +638,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           gap: 12px;
           padding: 64px 24px;
           text-align: center;
-          color: rgba(255,255,255,0.35);
+          color: var(--text-muted);
           font-size: 15px;
         }
       `}</style>

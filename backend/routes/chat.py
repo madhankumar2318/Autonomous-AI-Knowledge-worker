@@ -627,7 +627,7 @@ async def chat(req: ChatRequest):
         return {"reply": reply}
 
     try:
-        # Construct Gemini request contents with history
+        # Construct Gemini request contents with history (excluding latest message)
         contents = []
         for msg in req.history:
             role = "user" if msg.role == "user" else "model"
@@ -637,31 +637,25 @@ async def chat(req: ChatRequest):
                     parts=[types.Part.from_text(text=msg.content)]
                 )
             )
-            
-        # Append latest message
-        contents.append(
-            types.Content(
-                role="user",
-                parts=[types.Part.from_text(text=req.message)]
-            )
-        )
         
         # Invoke Gemini Flash with retry on 503 / quota errors
-        MODELS_TO_TRY = ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash"]
+        MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
         response = None
         last_error = None
 
         for model_name in MODELS_TO_TRY:
             for attempt in range(3):
                 try:
-                    response = client.models.generate_content(
+                    # Use client.chats.create to automatically manage function tool execution loops
+                    chat_session = client.chats.create(
                         model=model_name,
-                        contents=contents,
+                        history=contents,
                         config=types.GenerateContentConfig(
                             tools=agent_tools,
                             system_instruction=SYSTEM_INSTRUCTION,
                         )
                     )
+                    response = chat_session.send_message(req.message)
                     last_error = None
                     break  # success — exit retry loop
                 except Exception as e:
