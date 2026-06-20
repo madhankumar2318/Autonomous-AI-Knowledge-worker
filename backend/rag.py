@@ -11,9 +11,9 @@ from google import genai
 CHROMA_DB_PATH = os.path.join(os.path.dirname(__file__), "data", "chromadb")
 COLLECTION_NAME = "knowledge_worker_rag"
 
-_collection = None
+_collection: Any = None
 
-def get_chroma_collection():
+def get_chroma_collection() -> Any:
     """
     Get or initialize the ChromaDB persistent collection.
     """
@@ -72,16 +72,18 @@ def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
     
     # 1. Try batch embedding first (efficient, 1 API call)
     try:
+        texts_any: Any = texts
         response = client.models.embed_content(
             model="gemini-embedding-2",
-            contents=texts
+            contents=texts_any
         )
-        if hasattr(response, 'embeddings') and response.embeddings:
-            for emb in response.embeddings:
+        response_any: Any = response
+        if hasattr(response_any, 'embeddings') and response_any.embeddings:
+            for emb in response_any.embeddings:
                 all_embeddings.append(emb.values)
     except Exception as e:
         print(f"Batch embedding failed: {e}. Falling back to individual embedding...")
-
+ 
     # 2. If batching returned incorrect length or failed, fallback to individual text queries
     if len(all_embeddings) != len(texts):
         all_embeddings = []
@@ -92,10 +94,13 @@ def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
                     model="gemini-embedding-2",
                     contents=text
                 )
-                if hasattr(response, 'embedding') and hasattr(response.embedding, 'values'):
-                    all_embeddings.append(response.embedding.values)
-                elif hasattr(response, 'embeddings') and response.embeddings:
-                    all_embeddings.append(response.embeddings[0].values)
+                response_any: Any = response
+                if hasattr(response_any, 'embedding') and response_any.embedding is not None:
+                    emb: Any = response_any.embedding
+                    if hasattr(emb, 'values') and emb.values is not None:
+                        all_embeddings.append(list(emb.values))
+                elif hasattr(response_any, 'embeddings') and response_any.embeddings:
+                    all_embeddings.append(list(response_any.embeddings[0].values))
                 else:
                     raise ValueError("Could not extract embedding values.")
             except Exception as e:
@@ -222,10 +227,12 @@ def index_file(filepath: str, filename: str) -> Dict[str, Any]:
     ids = [f"{filename}_chunk_{i}" for i in range(len(chunks))]
     metadatas = [{"filename": filename, "chunk_index": i, "total_chunks": len(chunks)} for i in range(len(chunks))]
 
+    embeddings_any: Any = embeddings
+    metadatas_any: Any = metadatas
     collection.add(
-        embeddings=embeddings,
+        embeddings=embeddings_any,
         documents=chunks,
-        metadatas=metadatas,
+        metadatas=metadatas_any,
         ids=ids
     )
 
@@ -252,20 +259,24 @@ def get_indexed_files() -> List[Dict[str, Any]]:
     Get a list of all indexed files and their chunk counts.
     """
     collection = get_chroma_collection()
-    if None is collection:
+    if collection is None:
         return []
 
     try:
         # Fetch metadata for all documents in the collection
         results = collection.get(include=["metadatas"])
-        metadatas = results.get("metadatas", [])
+        if results is None:
+            return []
+        metadatas = results.get("metadatas") or []
         
         # Group and count
         file_counts = {}
-        for meta in metadatas:
-            filename = meta.get("filename")
-            if filename:
-                file_counts[filename] = file_counts.get(filename, 0) + 1
+        for meta_raw in metadatas:
+            meta: Any = meta_raw
+            if meta and isinstance(meta, dict):
+                filename = meta.get("filename")
+                if filename:
+                    file_counts[filename] = file_counts.get(filename, 0) + 1
         
         return [{"filename": fname, "chunks": count} for fname, count in file_counts.items()]
     except Exception as e:
@@ -295,23 +306,31 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
             n_results=top_k,
             include=["documents", "metadatas", "distances"]
         )
+        if results is None:
+            return []
 
         formatted_results = []
-        documents = results.get("documents", [[]])[0]
-        metadatas = results.get("metadatas", [[]])[0]
-        distances = results.get("distances", [[]])[0]
+        documents = results.get("documents")
+        metadatas = results.get("metadatas")
+        distances = results.get("distances")
 
-        for doc, meta, dist in zip(documents, metadatas, distances):
-            # Calculate a similarity score. For L2 distance (Chroma default), lower distance is more similar.
-            # Convert to a simple percentage-like confidence score.
-            similarity = round(max(0.0, 1.0 - (dist / 2.0)) * 100, 2)
-            formatted_results.append({
-                "content": doc,
-                "filename": meta.get("filename", "unknown"),
-                "chunk_index": meta.get("chunk_index", 0),
-                "total_chunks": meta.get("total_chunks", 0),
-                "similarity_score": similarity
-            })
+        docs_list = documents[0] if documents and len(documents) > 0 else []
+        metas_list = metadatas[0] if metadatas and len(metadatas) > 0 else []
+        dists_list = distances[0] if distances and len(distances) > 0 else []
+
+        for doc, meta_raw, dist in zip(docs_list, metas_list, dists_list):
+            meta: Any = meta_raw
+            if doc is not None and meta is not None and dist is not None:
+                # Calculate a similarity score. For L2 distance (Chroma default), lower distance is more similar.
+                # Convert to a simple percentage-like confidence score.
+                similarity = round(max(0.0, 1.0 - (float(dist) / 2.0)) * 100, 2)
+                formatted_results.append({
+                    "content": str(doc),
+                    "filename": meta.get("filename", "unknown") if hasattr(meta, "get") else "unknown",
+                    "chunk_index": meta.get("chunk_index", 0) if hasattr(meta, "get") else 0,
+                    "total_chunks": meta.get("total_chunks", 0) if hasattr(meta, "get") else 0,
+                    "similarity_score": similarity
+                })
 
         return formatted_results
     except Exception as e:
