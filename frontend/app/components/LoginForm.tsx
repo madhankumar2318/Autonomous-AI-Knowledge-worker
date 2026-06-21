@@ -124,398 +124,502 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   }, [isRegistering]);
 
   return (
-    <div
-      className="animate-fade-in w-full mx-auto"
-      style={{
-        transition: "max-width 0.5s ease, padding 0.5s ease",
-        maxWidth: isRegistering ? "640px" : "420px",
-        padding: "48px 40px",
-        borderRadius: "32px",
-        border: "1px solid rgba(59,130,246,0.2)",
-        background:
-          "linear-gradient(160deg, rgba(8,14,30,0.92) 0%, rgba(4,8,20,0.97) 100%)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
-        boxShadow:
-          "0 0 0 1px rgba(59,130,246,0.08), 0 32px 64px -16px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.05)",
-      }}
-    >
-      <div className="text-center mb-8">
-        <div
-          className="w-16 h-16 rounded-[22px] flex items-center justify-center mx-auto mb-5"
-          style={{
-            background:
-              "linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(13,148,136,0.2) 100%)",
-            border: "1px solid rgba(59,130,246,0.3)",
-            boxShadow:
-              "0 0 20px rgba(59,130,246,0.15), inset 0 1px 0 rgba(255,255,255,0.05)",
-            transition: "all 0.3s ease",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          {isRegistering ? (
-            <UserPlus className="w-7 h-7 text-white animate-fade-in" />
-          ) : (
-            <Lock className="w-7 h-7 text-white animate-fade-in" />
-          )}
-        </div>
-        <h1 className="text-[26px] font-extrabold text-white tracking-tight mb-2">
-          {isRegistering ? "Create Account" : "Welcome Back"}
-        </h1>
-        <p className="text-[14px] text-zinc-400 font-medium">
-          {isRegistering
-            ? "Join the AI Knowledge Dashboard"
-            : "Sign in to your AI Knowledge Dashboard"}
-        </p>
-      </div>
-
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-5"
-        aria-describedby={error ? "auth-error" : undefined}
+    <>
+      <div
+        className="animate-fade-in w-full mx-auto auth-card"
+        style={{
+          transition: "max-width 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s ease",
+          maxWidth: isRegistering ? "600px" : "420px",
+          padding: "48px 40px",
+          borderRadius: "28px",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          background: "linear-gradient(160deg, rgba(10,12,24,0.94) 0%, rgba(5,6,12,0.98) 100%)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
+          boxShadow: "0 24px 60px -12px rgba(0,0,0,0.85), 0 0 40px rgba(34, 211, 238, 0.03), inset 0 1px 0 rgba(255,255,255,0.06)",
+        }}
       >
-        <div className={isRegistering ? "grid grid-cols-2 gap-5" : "space-y-5"}>
-          {/* Name Field (Register Only) */}
-          {isRegistering && (
-            <div className="animate-fade-in col-span-1">
-              <label
-                className="block text-[13px] font-semibold text-zinc-300 mb-2 pl-1"
-                htmlFor="auth-name"
-              >
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 pointer-events-none" />
-                <input
-                  id="auth-name"
-                  ref={firstInputRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Full name"
-                  style={{
-                    width: "100%",
-                    height: "50px",
-                    paddingLeft: "44px",
-                    borderRadius: "14px",
-                    background: "rgba(0,0,0,0.2)",
-                    border: "1px solid rgba(255,255,255,0.05)",
-                    transition: "all 0.2s ease",
-                    color: "white",
-                    fontSize: "14px",
-                  }}
-                  onFocus={(e) =>
-                    (e.target.style.borderColor = "rgba(34,211,238,0.5)")
-                  }
-                  onBlur={(e) =>
-                    (e.target.style.borderColor = "rgba(255,255,255,0.05)")
-                  }
-                  required={isRegistering}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Username Field */}
-          <div className={isRegistering ? "col-span-1" : ""}>
-            <label
-              className="block text-[13px] font-semibold text-zinc-300 mb-2 pl-1"
-              htmlFor="auth-username"
-            >
-              Username
-            </label>
-            <div className="relative">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 pointer-events-none" />
-              <input
-                id="auth-username"
-                ref={!isRegistering ? firstInputRef : null}
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Choose a username"
-                style={{
-                  width: "100%",
-                  height: "50px",
-                  paddingLeft: "44px",
-                  borderRadius: "14px",
-                  background: "rgba(0,0,0,0.2)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  transition: "all 0.2s ease",
-                  color: "white",
-                  fontSize: "14px",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(34,211,238,0.5)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "rgba(255,255,255,0.05)")
-                }
-                required
-              />
-            </div>
-          </div>
-
-          {/* Email Field (Register Only) */}
-          {isRegistering && (
-            <div className="animate-fade-in col-span-1">
-              <label
-                className="block text-[13px] font-semibold text-zinc-300 mb-2 pl-1"
-                htmlFor="auth-email"
-              >
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 pointer-events-none" />
-                <input
-                  id="auth-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@email.com"
-                  style={{
-                    width: "100%",
-                    height: "50px",
-                    paddingLeft: "44px",
-                    borderRadius: "14px",
-                    background: "rgba(0,0,0,0.2)",
-                    border: "1px solid rgba(255,255,255,0.05)",
-                    transition: "all 0.2s ease",
-                    color: "white",
-                    fontSize: "14px",
-                  }}
-                  onFocus={(e) =>
-                    (e.target.style.borderColor = "rgba(34,211,238,0.5)")
-                  }
-                  onBlur={(e) =>
-                    (e.target.style.borderColor = "rgba(255,255,255,0.05)")
-                  }
-                  required={isRegistering}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Mobile Field (Register Only) */}
-          {isRegistering && (
-            <div className="animate-fade-in col-span-1">
-              <label
-                className="block text-[13px] font-semibold text-zinc-300 mb-2 pl-1"
-                htmlFor="auth-mobile"
-              >
-                Mobile Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 pointer-events-none" />
-                <input
-                  id="auth-mobile"
-                  type="tel"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
-                  style={{
-                    width: "100%",
-                    height: "50px",
-                    paddingLeft: "44px",
-                    borderRadius: "14px",
-                    background: "rgba(0,0,0,0.2)",
-                    border: "1px solid rgba(255,255,255,0.05)",
-                    transition: "all 0.2s ease",
-                    color: "white",
-                    fontSize: "14px",
-                  }}
-                  onFocus={(e) =>
-                    (e.target.style.borderColor = "rgba(34,211,238,0.5)")
-                  }
-                  onBlur={(e) =>
-                    (e.target.style.borderColor = "rgba(255,255,255,0.05)")
-                  }
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Password Field (Full Width in both modes) */}
-          <div className={isRegistering ? "col-span-2" : ""}>
-            <label
-              className="block text-[13px] font-semibold text-zinc-300 mb-2 pl-1"
-              htmlFor="auth-password"
-            >
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-zinc-500 pointer-events-none" />
-              <input
-                id="auth-password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={
-                  isRegistering
-                    ? "Create a secure password"
-                    : "Enter your password"
-                }
-                style={{
-                  width: "100%",
-                  height: "50px",
-                  paddingLeft: "44px",
-                  paddingRight: "44px",
-                  borderRadius: "14px",
-                  background: "rgba(0,0,0,0.2)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                  transition: "all 0.2s ease",
-                  color: "white",
-                  fontSize: "14px",
-                  letterSpacing: showPassword ? "normal" : "2px",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(34,211,238,0.5)")
-                }
-                onBlur={(e) =>
-                  (e.target.style.borderColor = "rgba(255,255,255,0.05)")
-                }
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors"
-                style={{ background: "transparent", border: "none" }}
-              >
-                {showPassword ? (
-                  <EyeOff className="w-[18px] h-[18px]" />
-                ) : (
-                  <Eye className="w-[18px] h-[18px]" />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {error && (
+        {/* Header Icon */}
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <div
-            className="alert alert-error animate-fade-in mt-6"
-            id="auth-error"
-            role="alert"
-            style={{ borderRadius: "12px", padding: "12px", fontSize: "13px" }}
-          >
-            {error}
-          </div>
-        )}
-
-        {successMsg && (
-          <div
-            className="alert alert-success animate-fade-in mt-6"
-            role="alert"
+            className="header-icon-badge"
             style={{
-              background: "rgba(16,185,129,0.15)",
-              color: "#34d399",
-              border: "1px solid rgba(16,185,129,0.3)",
-              padding: "12px",
-              borderRadius: "12px",
-              fontSize: "13px",
+              width: "60px",
+              height: "60px",
+              borderRadius: "18px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 20px",
+              background: "linear-gradient(135deg, rgba(34,211,238,0.15) 0%, rgba(59,130,246,0.1) 100%)",
+              border: "1px solid rgba(34,211,238,0.25)",
+              boxShadow: "0 0 24px rgba(34,211,238,0.12), inset 0 1px 0 rgba(255,255,255,0.1)",
+              backdropFilter: "blur(8px)",
             }}
           >
-            {successMsg}
+            {isRegistering ? (
+              <UserPlus className="w-6 h-6 text-cyan-400 animate-fade-in" />
+            ) : (
+              <Lock className="w-6 h-6 text-cyan-400 animate-fade-in" />
+            )}
           </div>
-        )}
+          <h1
+            style={{
+              margin: "0 0 8px",
+              fontSize: "28px",
+              fontWeight: 800,
+              letterSpacing: "-0.5px",
+              background: "linear-gradient(135deg, #ffffff 40%, #c8f5ff 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            {isRegistering ? "Create Account" : "Welcome Back"}
+          </h1>
+          <p style={{ margin: 0, fontSize: "14px", color: "var(--text-secondary)", fontWeight: 500 }}>
+            {isRegistering
+              ? "Join the AI Knowledge Dashboard"
+              : "Sign in to your AI Knowledge Dashboard"}
+          </p>
+        </div>
 
-        {/* Action Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full flex items-center justify-center gap-2 mt-8 h-[54px] font-bold text-[15px] transition-all"
-          style={{
-            background: "linear-gradient(to right, #22d3ee, #0891b2)",
-            border: "none",
-            color: "#030f1a",
-            borderRadius: "14px",
-            boxShadow: "0 8px 24px rgba(34, 211, 238, 0.3)",
-            cursor: loading ? "wait" : "pointer",
-            transform: "translateY(0)",
-          }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = "translateY(-1px)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.transform = "translateY(0)")
-          }
-        >
-          {loading ? (
-            <>
-              <div className="spinner"></div>
-              {isRegistering ? "Registering..." : "Authenticating..."}
-            </>
-          ) : isRegistering ? (
-            <>Create Account</>
-          ) : (
-            <>Secure Login</>
-          )}
-        </button>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div className={isRegistering ? "register-grid" : "login-stack"} style={isRegistering ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" } : { display: "flex", flexDirection: "column", gap: "20px" }}>
+            
+            {/* Full Name Field (Register Only) */}
+            {isRegistering && (
+              <div className="animate-fade-in">
+                <label className="auth-label" htmlFor="auth-name">
+                  Full Name
+                </label>
+                <div className="input-wrapper">
+                  <User size={18} className="input-icon" />
+                  <input
+                    id="auth-name"
+                    ref={firstInputRef}
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Full name"
+                    className="auth-input"
+                    required={isRegistering}
+                  />
+                </div>
+              </div>
+            )}
 
-        {/* Toggles and Links */}
-        <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-4 gap-4 px-1">
-          {!isRegistering ? (
-            <>
-              <label className="inline-flex items-center gap-2 text-[13px] cursor-pointer select-none text-zinc-400 hover:text-zinc-300 transition-colors">
+            {/* Username Field */}
+            <div>
+              <label className="auth-label" htmlFor="auth-username">
+                Username
+              </label>
+              <div className="input-wrapper">
+                <User size={18} className="input-icon" />
                 <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded cursor-pointer"
+                  id="auth-username"
+                  ref={!isRegistering ? firstInputRef : null}
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder={isRegistering ? "Choose username" : "Username"}
+                  className="auth-input"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Email Field (Register Only) */}
+            {isRegistering && (
+              <div className="animate-fade-in">
+                <label className="auth-label" htmlFor="auth-email">
+                  Email Address
+                </label>
+                <div className="input-wrapper">
+                  <Mail size={18} className="input-icon" />
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="name@email.com"
+                    className="auth-input"
+                    required={isRegistering}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Mobile Field (Register Only) */}
+            {isRegistering && (
+              <div className="animate-fade-in">
+                <label className="auth-label" htmlFor="auth-mobile">
+                  Mobile Number
+                </label>
+                <div className="input-wrapper">
+                  <Phone size={18} className="input-icon" />
+                  <input
+                    id="auth-mobile"
+                    type="tel"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    placeholder="+1 (555) 000-0000"
+                    className="auth-input"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Password Field (Full Width) */}
+            <div className={isRegistering ? "col-span-full" : ""}>
+              <label className="auth-label" htmlFor="auth-password">
+                Password
+              </label>
+              <div className="input-wrapper">
+                <Lock size={18} className="input-icon" />
+                <input
+                  id="auth-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={
+                    isRegistering
+                      ? "Create a secure password"
+                      : "Enter your password"
+                  }
+                  className="auth-input"
                   style={{
-                    accentColor: "#22d3ee",
-                    backgroundColor: "rgba(0,0,0,0.3)",
-                    border: "1px solid rgba(255,255,255,0.1)",
+                    paddingRight: "46px",
+                    letterSpacing: showPassword ? "normal" : "2px",
+                  }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="input-action-btn"
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Messages */}
+          {error && (
+            <div
+              className="animate-fade-in"
+              id="auth-error"
+              role="alert"
+              style={{
+                background: "rgba(239,68,68,0.1)",
+                color: "#f87171",
+                border: "1px solid rgba(239,68,68,0.25)",
+                padding: "12px 16px",
+                borderRadius: "12px",
+                fontSize: "14px",
+                fontWeight: 600,
+                marginTop: "10px",
+              }}
+            >
+              ⚠ {error}
+            </div>
+          )}
+
+          {successMsg && (
+            <div
+              className="animate-fade-in"
+              role="alert"
+              style={{
+                background: "rgba(16,185,129,0.1)",
+                color: "#34d399",
+                border: "1px solid rgba(16,185,129,0.25)",
+                padding: "12px 16px",
+                borderRadius: "12px",
+                fontSize: "14px",
+                fontWeight: 600,
+                marginTop: "10px",
+              }}
+            >
+              ✓ {successMsg}
+            </div>
+          )}
+
+          {/* Submit Action Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="auth-submit-btn"
+            style={{
+              width: "100%",
+              height: "52px",
+              borderRadius: "14px",
+              border: "none",
+              background: "linear-gradient(135deg, #22d3ee 0%, #0891b2 100%)",
+              color: "#030f1a",
+              fontSize: "15px",
+              fontWeight: 800,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              cursor: loading ? "wait" : "pointer",
+              boxShadow: "0 8px 24px rgba(34, 211, 238, 0.25)",
+              marginTop: "12px",
+            }}
+          >
+            {loading ? (
+              <>
+                <div
+                  className="auth-spinner"
+                  style={{
+                    width: "18px",
+                    height: "18px",
+                    borderRadius: "50%",
+                    border: "2px solid rgba(3,15,26,0.25)",
+                    borderTopColor: "#030f1a",
+                    animation: "spin 0.6s linear infinite",
                   }}
                 />
-                Remember my device
-              </label>
+                {isRegistering ? "Creating Account..." : "Securing Connection..."}
+              </>
+            ) : isRegistering ? (
+              <>
+                <UserPlus size={16} /> Create Account
+              </>
+            ) : (
+              <>
+                <LogIn size={16} /> Secure Login
+              </>
+            )}
+          </button>
+
+          {/* Footer Action Links */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginTop: "16px",
+              padding: "0 4px",
+              gap: "16px",
+            }}
+          >
+            {!isRegistering ? (
+              <>
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    color: "var(--text-secondary)",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    style={{
+                      width: "15px",
+                      height: "15px",
+                      accentColor: "#22d3ee",
+                      cursor: "pointer",
+                    }}
+                  />
+                  Remember device
+                </label>
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() => setIsRegistering(true)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#22d3ee",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  Create new account
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
-                className="text-[13px] font-bold tracking-wide transition-colors"
+                className="back-btn"
+                onClick={() => setIsRegistering(false)}
                 style={{
-                  color: "#22d3ee",
-                  background: "transparent",
-                  border: "none",
+                  width: "100%",
+                  height: "42px",
+                  borderRadius: "20px",
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border-light)",
+                  color: "var(--text-primary)",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
                   cursor: "pointer",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#67e8f9")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#22d3ee")}
-                onClick={() => setIsRegistering(true)}
               >
-                Create new account
+                <ArrowLeft size={14} /> Return to Login screen
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="text-[13px] font-semibold flex items-center justify-center gap-2 mx-auto py-2.5 px-6 rounded-full text-zinc-300 hover:text-white transition-all shadow-sm"
-              style={{
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.05)",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(255,255,255,0.1)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "rgba(255,255,255,0.05)")
-              }
-              onClick={() => setIsRegistering(false)}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Return to Login screen
-            </button>
-          )}
-        </div>
-      </form>
+            )}
+          </div>
+        </form>
 
-      <div className="text-center mt-8 pt-6">
-        <p className="text-[11px] font-bold text-zinc-600/60 uppercase tracking-[0.2em]">
-          Autonomous Knowledge Worker
-        </p>
+        <div style={{ textAlign: "center", marginTop: "32px", borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: "20px" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "11px",
+              fontWeight: 800,
+              color: "var(--text-muted)",
+              letterSpacing: "3px",
+              textTransform: "uppercase",
+            }}
+          >
+            Autonomous Knowledge Worker
+          </p>
+        </div>
       </div>
-    </div>
+
+      <style>{`
+        .auth-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--text-secondary);
+          margin-bottom: 8px;
+          padding-left: 4px;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+        }
+
+        .input-wrapper {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
+
+        .input-icon {
+          position: absolute;
+          left: 15px;
+          color: var(--text-muted);
+          pointer-events: none;
+          transition: color 0.25s ease, filter 0.25s ease;
+        }
+
+        .auth-input {
+          width: 100%;
+          height: 50px;
+          padding-left: 46px;
+          padding-right: 16px;
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.35);
+          border: 1px solid var(--border-light);
+          color: var(--text-primary);
+          font-size: 14px;
+          font-weight: 500;
+          outline: none;
+          box-sizing: border-box;
+          transition: border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .auth-input::placeholder {
+          color: var(--text-muted);
+          font-weight: 400;
+        }
+
+        .auth-input:hover {
+          border-color: rgba(34, 211, 238, 0.25);
+        }
+
+        .auth-input:focus {
+          border-color: var(--accent-primary);
+          background: rgba(0, 0, 0, 0.5);
+          box-shadow: 0 0 16px rgba(34, 211, 238, 0.15);
+        }
+
+        .input-wrapper:focus-within .input-icon {
+          color: var(--accent-primary);
+          filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.4));
+        }
+
+        .input-action-btn {
+          position: absolute;
+          right: 15px;
+          background: none;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+        }
+
+        .input-action-btn:hover {
+          color: var(--text-primary);
+        }
+
+        .auth-submit-btn {
+          transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease, filter 0.2s ease;
+        }
+
+        .auth-submit-btn:hover:not(:disabled) {
+          transform: translateY(-1.5px);
+          filter: brightness(1.05);
+          box-shadow: 0 10px 25px rgba(34, 211, 238, 0.35);
+        }
+
+        .auth-submit-btn:active:not(:disabled) {
+          transform: translateY(0.5px) scale(0.985);
+        }
+
+        .link-btn:hover {
+          color: #67e8f9 !important;
+          text-decoration: underline;
+        }
+
+        .back-btn {
+          transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        .back-btn:hover {
+          background: var(--bg-hover) !important;
+          color: var(--text-primary) !important;
+          border-color: var(--border-medium) !important;
+        }
+
+        .col-span-full {
+          grid-column: 1 / -1;
+        }
+
+        @media (max-width: 640px) {
+          .register-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .auth-card {
+            padding: 36px 24px !important;
+            margin: 10px !important;
+          }
+        }
+      `}</style>
+    </>
   );
 }
