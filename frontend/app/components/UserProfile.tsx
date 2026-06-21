@@ -276,7 +276,8 @@ export default function UserProfile({
           right: 0,
           bottom: 0,
           zIndex: 50,
-          width: "480px",
+          width: "100%",
+          maxWidth: "480px",
           display: "flex",
           flexDirection: "column",
           overflowY: "auto",
@@ -299,6 +300,7 @@ export default function UserProfile({
             background: "var(--bg-header)",
             backdropFilter: "blur(24px)",
             borderBottom: "1px solid var(--border-light)",
+            flexShrink: 0,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -377,8 +379,9 @@ export default function UserProfile({
                 overflow: "hidden",
                 padding: "48px 24px 36px",
                 textAlign: "center",
-                background: "linear-gradient(180deg, #0d1629 0%, #070d1a 100%)",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                background: "linear-gradient(180deg, var(--bg-header) 0%, var(--bg-sidebar) 100%)",
+                borderBottom: "1px solid var(--border-light)",
+                flexShrink: 0,
               }}
             >
               {/* Aurora glow blobs behind avatar */}
@@ -391,7 +394,7 @@ export default function UserProfile({
                   height: "240px",
                   borderRadius: "50%",
                   background:
-                    "radial-gradient(circle, rgba(37,99,235,0.22) 0%, transparent 70%)",
+                    "radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%)",
                   filter: "blur(40px)",
                   pointerEvents: "none",
                 }}
@@ -405,7 +408,7 @@ export default function UserProfile({
                   height: "200px",
                   borderRadius: "50%",
                   background:
-                    "radial-gradient(circle, rgba(13,148,136,0.18) 0%, transparent 70%)",
+                    "radial-gradient(circle, rgba(13,148,136,0.12) 0%, transparent 70%)",
                   filter: "blur(35px)",
                   pointerEvents: "none",
                 }}
@@ -415,9 +418,9 @@ export default function UserProfile({
                 style={{
                   position: "absolute",
                   inset: 0,
-                  opacity: 0.12,
+                  opacity: 0.08,
                   backgroundImage:
-                    "radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)",
+                    "radial-gradient(var(--text-primary) 1px, transparent 1px)",
                   backgroundSize: "24px 24px",
                   pointerEvents: "none",
                 }}
@@ -471,7 +474,7 @@ export default function UserProfile({
               <h2
                 style={{
                   margin: "0 0 6px",
-                  color: "white",
+                  color: "var(--text-primary)",
                   fontSize: "24px",
                   fontWeight: 800,
                   letterSpacing: "-0.5px",
@@ -482,7 +485,7 @@ export default function UserProfile({
               <p
                 style={{
                   margin: "0 0 16px",
-                  color: "#475569",
+                  color: "var(--text-secondary)",
                   fontSize: "16px",
                   fontWeight: 500,
                 }}
@@ -530,7 +533,7 @@ export default function UserProfile({
                   marginTop: "28px",
                   borderRadius: "14px",
                   overflow: "hidden",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid var(--border-light)",
                 }}
               >
                 {[
@@ -546,16 +549,16 @@ export default function UserProfile({
                     style={{
                       flex: 1,
                       padding: "14px 10px",
-                      background: "rgba(255,255,255,0.025)",
+                      background: "var(--bg-secondary)",
                       textAlign: "center",
                       borderRight:
-                        i < 2 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                        i < 2 ? "1px solid var(--border-light)" : "none",
                     }}
                   >
                     <p
                       style={{
                         margin: "0 0 4px",
-                        color: "#334155",
+                        color: "var(--text-secondary)",
                         fontSize: "12px",
                         fontWeight: 700,
                         letterSpacing: "1px",
@@ -567,7 +570,7 @@ export default function UserProfile({
                     <p
                       style={{
                         margin: 0,
-                        color: value === "Active" ? "#34d399" : "white",
+                        color: value === "Active" ? "#34d399" : "var(--text-primary)",
                         fontSize: "16px",
                         fontWeight: 800,
                       }}
@@ -586,7 +589,7 @@ export default function UserProfile({
                 style={{
                   borderRadius: "16px",
                   overflow: "hidden",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid var(--border-light)",
                   marginBottom: "20px",
                 }}
               >
@@ -596,7 +599,7 @@ export default function UserProfile({
                     alignItems: "center",
                     gap: "14px",
                     padding: "18px 20px",
-                    background: "rgba(255,255,255,0.02)",
+                    background: "var(--bg-secondary)",
                   }}
                 >
                   <div
@@ -618,7 +621,7 @@ export default function UserProfile({
                     <p
                       style={{
                         margin: "0 0 3px",
-                        color: "#e2e8f0",
+                        color: "var(--text-primary)",
                         fontSize: "16px",
                         fontWeight: 700,
                       }}
@@ -626,7 +629,7 @@ export default function UserProfile({
                       {sessionDate}
                     </p>
                     <p
-                      style={{ margin: 0, color: "#475569", fontSize: "15px" }}
+                      style={{ margin: 0, color: "var(--text-secondary)", fontSize: "15px" }}
                     >
                       Logged in at {sessionTime}
                     </p>
@@ -709,7 +712,7 @@ export default function UserProfile({
                 style={{
                   borderRadius: "16px",
                   overflow: "hidden",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid var(--border-light)",
                   marginBottom: "20px",
                 }}
               >
@@ -720,8 +723,8 @@ export default function UserProfile({
                     alignItems: "center",
                     justifyContent: "space-between",
                     padding: "16px 20px",
-                    background: "rgba(255,255,255,0.025)",
-                    borderBottom: "1px solid rgba(255,255,255,0.05)",
+                    background: "var(--bg-secondary)",
+                    borderBottom: "1px solid var(--border-light)",
                   }}
                 >
                   <div
@@ -734,7 +737,7 @@ export default function UserProfile({
                     <Sparkles size={13} style={{ color: "#60a5fa" }} />
                     <span
                       style={{
-                        color: "#475569",
+                        color: "var(--text-secondary)",
                         fontSize: "13px",
                         fontWeight: 700,
                         letterSpacing: "1.5px",
@@ -814,7 +817,7 @@ export default function UserProfile({
                     alignItems: "center",
                     gap: "16px",
                     padding: "20px 24px",
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    borderBottom: "1px solid var(--border-light)",
                   }}
                 >
                   <div
@@ -822,21 +825,21 @@ export default function UserProfile({
                       width: "40px",
                       height: "40px",
                       borderRadius: "12px",
-                      background: "rgba(255,255,255,0.04)",
-                      border: "1px solid rgba(255,255,255,0.07)",
+                      background: "rgba(234,179,8,0.12)",
+                      border: "1px solid rgba(234,179,8,0.25)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       flexShrink: 0,
                     }}
                   >
-                    <KeyRound size={16} style={{ color: "#334155" }} />
+                    <KeyRound size={16} style={{ color: "#eab308" }} />
                   </div>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <p
                       style={{
-                        margin: "0 0 4px",
-                        color: "#334155",
+                        margin: "0 0 5px",
+                        color: "var(--text-secondary)",
                         fontSize: "13px",
                         fontWeight: 700,
                         letterSpacing: "1.5px",
@@ -848,9 +851,12 @@ export default function UserProfile({
                     <p
                       style={{
                         margin: 0,
-                        color: "#94a3b8",
+                        color: "var(--text-primary)",
                         fontSize: "17px",
                         fontWeight: 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       @{username}
@@ -858,13 +864,14 @@ export default function UserProfile({
                   </div>
                   <span
                     style={{
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      padding: "4px 9px",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      letterSpacing: "0.5px",
+                      padding: "4px 8px",
                       borderRadius: "6px",
-                      background: "rgba(255,255,255,0.03)",
-                      border: "1px solid rgba(255,255,255,0.06)",
-                      color: "#1e293b",
+                      background: "rgba(234,179,8,0.1)",
+                      border: "1px solid rgba(234,179,8,0.25)",
+                      color: "#f59e0b",
                       flexShrink: 0,
                     }}
                   >
@@ -906,7 +913,7 @@ export default function UserProfile({
                 style={{
                   borderRadius: "16px",
                   overflow: "hidden",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  border: "1px solid var(--border-light)",
                   marginBottom: "20px",
                 }}
               >
@@ -923,7 +930,7 @@ export default function UserProfile({
                     alignItems: "center",
                     justifyContent: "space-between",
                     padding: "16px 20px",
-                    background: "rgba(255,255,255,0.025)",
+                    background: "var(--bg-secondary)",
                     border: "none",
                     cursor: "pointer",
                   }}
@@ -961,7 +968,7 @@ export default function UserProfile({
                   </div>
                   <span
                     style={{
-                      color: "#475569",
+                      color: "var(--text-secondary)",
                       fontSize: "15px",
                       transform: showPwForm ? "rotate(180deg)" : "none",
                       transition: "transform 0.2s",
