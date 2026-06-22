@@ -47,10 +47,10 @@ def _clean_articles(articles: list[dict]) -> list[dict]:
     return clean
 
 
-def _fetch_from_api(category: str, topic: str) -> list[dict]:
+def _fetch_from_api(category: str, topic: str, max_pages: int = MAX_PAGES) -> list[dict]:
     """
     Fetch articles from Currents News API.
-    Makes up to MAX_PAGES requests to accumulate a large pool of articles.
+    Makes up to max_pages requests to accumulate a large pool of articles.
     """
     api_key = os.getenv("CURRENTS_API_KEY")
     if not api_key or api_key == "your_currents_api_key_here":
@@ -59,7 +59,7 @@ def _fetch_from_api(category: str, topic: str) -> list[dict]:
 
     all_articles: list[dict] = []
 
-    for page_num in range(1, MAX_PAGES + 1):
+    for page_num in range(1, max_pages + 1):
         try:
             headers = {"Authorization": api_key}
             params = {

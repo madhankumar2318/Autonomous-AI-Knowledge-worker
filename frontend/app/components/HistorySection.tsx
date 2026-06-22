@@ -63,8 +63,9 @@ export default function HistorySection({ limit, compact }: Props) {
             setIsOpen(!isOpen);
             if (!isOpen) fetchHistory();
           }}
-          className="flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all duration-200"
+          className="flex items-center gap-2 text-sm font-semibold px-4 rounded-xl transition-all duration-200"
           style={{
+            height: "38px", // Align height with other header buttons
             color: isOpen ? "#67e8f9" : "#22d3ee",
             background: isOpen
               ? "rgba(34,211,238,0.18)"

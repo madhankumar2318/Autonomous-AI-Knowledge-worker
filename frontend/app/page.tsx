@@ -14,10 +14,8 @@ import {
 import React, { useEffect, useState } from "react";
 import ChatAssistant from "./components/ChatAssistant";
 import FileUpload from "./components/FileUpload";
-import HistorySection from "./components/HistorySection";
 import LoginForm from "./components/LoginForm";
 import NewsSection from "./components/NewsSection";
-import ReportHeaderButton from "./components/ReportHeaderButton";
 import SearchSection from "./components/SearchSection";
 import StockSection from "./components/StockSection";
 import ThemeToggle from "./components/ThemeToggle";
@@ -173,8 +171,6 @@ export default function Home_Page() {
           {/* Actions */}
           <div className="header-actions">
             <ThemeToggle />
-            <ReportHeaderButton />
-            <HistorySection compact={true} limit={5} />
             <div className="header-divider" />
             <button
               type="button"

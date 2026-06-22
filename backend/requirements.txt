@@ -2,7 +2,6 @@ fastapi
 uvicorn[standard]
 requests
 python-multipart
-apscheduler
 reportlab
 python-dotenv
 yfinance

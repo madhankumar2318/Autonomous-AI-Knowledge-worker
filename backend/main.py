@@ -10,12 +10,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Routers
-from routes import news, stock, search, auth, report, summarizer, upload, chat
+from routes import news, stock, search, auth, upload, chat
 from routes import history as history_router
-from routes import scheduler_report as scheduler_report_router
 
 from db import init_db
-import scheduler as scheduler_module
 
 
 @asynccontextmanager
@@ -30,10 +28,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Failed to initialize RAG: {e}")
         
-    try:
-        scheduler_module.start_scheduler()
-    except Exception as e:
-        print(f"Failed to start scheduler: {e}")
+    # Scheduler disabled as report generation features were removed.
     yield
     # --- Shutdown (add cleanup here if needed) ---
 
@@ -54,11 +49,8 @@ app.include_router(news.router)
 app.include_router(stock.router)
 app.include_router(search.router)
 app.include_router(auth.router)
-app.include_router(report.router)
-app.include_router(summarizer.router)
 app.include_router(upload.router)
 app.include_router(history_router.router)
-app.include_router(scheduler_report_router.router)
 app.include_router(chat.router)
 
 # Ensure folders exist
@@ -79,5 +71,5 @@ app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
 @app.get("/")
 def root():
     return {
-        "message": "Backend running ✅. Use /news, /stock, /search, /auth, /report, /summarize, /upload, /history, /report/build"
+        "message": "Backend running ✅. Use /news, /stock, /search, /auth, /upload, /history"
     }
