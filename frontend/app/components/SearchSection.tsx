@@ -1,6 +1,7 @@
 "use client";
 import { AlertCircle, ExternalLink, Search } from "lucide-react";
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../config";
 
 interface SearchResult {
   title: string;
@@ -41,7 +42,7 @@ export default function SearchSection({
 
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/search?query=${encodeURIComponent(q)}&page=${pageNum}`,
+        `${API_BASE_URL}/search?query=${encodeURIComponent(q)}&page=${pageNum}`,
       );
       const data = await res.json();
 

@@ -1,6 +1,7 @@
 "use client";
 import { Activity, Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { API_BASE_URL } from "../config";
 
 interface HistoryItem {
   id: number;
@@ -20,7 +21,7 @@ export default function HistorySection({ limit, compact }: Props) {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/history/list");
+      const res = await fetch(`${API_BASE_URL}/history/list`);
       const data = await res.json();
       if (data.history) {
         let items = data.history as HistoryItem[];

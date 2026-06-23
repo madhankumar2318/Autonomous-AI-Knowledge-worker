@@ -1,6 +1,7 @@
 "use client";
 import { Clock, ExternalLink, Newspaper, RefreshCw, Search, SearchX, Zap } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
+import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { showToast } from "./Toast";
 
@@ -104,7 +105,7 @@ export default function NewsSection({
   const fetchNews = useCallback(
     async (pageNum: number, searchTopic = topic, searchCategory = category, append = false) => {
       setLoading(true);
-      let url = `http://127.0.0.1:8000/news?page=${pageNum}`;
+      let url = `${API_BASE_URL}/news?page=${pageNum}`;
       if (searchTopic) url += `&topic=${encodeURIComponent(searchTopic)}`;
       if (searchCategory) url += `&category=${encodeURIComponent(searchCategory)}`;
       try {

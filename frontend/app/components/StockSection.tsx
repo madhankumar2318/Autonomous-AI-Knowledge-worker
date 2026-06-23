@@ -1,6 +1,7 @@
 "use client";
 import { Activity, BarChart2, RefreshCw, TrendingDown, TrendingUp, Zap } from "lucide-react";
 import { useState } from "react";
+import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { showToast } from "./Toast";
 
@@ -106,7 +107,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
 
   const fetchStocks = () => {
     setLoading(true);
-    return fetch("http://127.0.0.1:8000/stock/multiple")
+    return fetch(`${API_BASE_URL}/stock/multiple`)
       .then((r) => r.json())
       .then((d: StockResponse) => {
         setData(d);

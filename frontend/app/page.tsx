@@ -21,6 +21,7 @@ import StockSection from "./components/StockSection";
 import ThemeToggle from "./components/ThemeToggle";
 import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
+import { API_BASE_URL } from "./config";
 
 const NAV_TABS = [
   {
@@ -90,7 +91,7 @@ export default function Home_Page() {
     document.documentElement.setAttribute("data-theme", savedTheme);
     const saved = localStorage.getItem("ak_session");
     if (!saved) { setSessionChecked(true); return; }
-    fetch(`http://127.0.0.1:8000/auth/verify?username=${encodeURIComponent(saved)}`)
+    fetch(`${API_BASE_URL}/auth/verify?username=${encodeURIComponent(saved)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => { setLoggedInUser(data.username); setIsLoggedIn(true); })
       .catch(() => localStorage.removeItem("ak_session"))

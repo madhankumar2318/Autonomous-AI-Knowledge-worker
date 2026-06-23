@@ -17,6 +17,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../config";
 
 interface UserProfileProps {
   username: string;
@@ -87,7 +88,7 @@ export default function UserProfile({
     setLoading(true);
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/auth/profile?username=${encodeURIComponent(username)}`,
+        `${API_BASE_URL}/auth/profile?username=${encodeURIComponent(username)}`,
       );
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -111,7 +112,7 @@ export default function UserProfile({
       fd.append("name", editName);
       fd.append("email", editEmail);
       fd.append("mobile", editMobile);
-      const res = await fetch("http://127.0.0.1:8000/auth/profile", {
+      const res = await fetch(`${API_BASE_URL}/auth/profile`, {
         method: "PUT",
         body: fd,
       });
@@ -145,7 +146,7 @@ export default function UserProfile({
       fd.append("username", username);
       fd.append("old_password", oldPw);
       fd.append("new_password", newPw);
-      const res = await fetch("http://127.0.0.1:8000/auth/password", {
+      const res = await fetch(`${API_BASE_URL}/auth/password`, {
         method: "PUT",
         body: fd,
       });

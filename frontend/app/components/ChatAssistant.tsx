@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
+import { API_BASE_URL } from "../config";
 
 interface ChatMessage {
   role: "user" | "ai";
@@ -129,7 +130,7 @@ export default function ChatAssistant({
         role: msg.role === "ai" ? "ai" : "user",
         content: msg.content,
       }));
-      const res = await fetch("http://127.0.0.1:8000/chat/", {
+      const res = await fetch(`${API_BASE_URL}/chat/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userMessage, username, history: chatHistory }),

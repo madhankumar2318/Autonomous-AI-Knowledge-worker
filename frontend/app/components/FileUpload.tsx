@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
+import { API_BASE_URL } from "../config";
 
 interface UploadedFile {
   id: number;
@@ -54,7 +55,7 @@ export default function FileUpload() {
 
   const fetchUploads = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/upload/list");
+      const res = await fetch(`${API_BASE_URL}/upload/list`);
       const data = await res.json();
       setUploads(data.uploads || []);
     } catch (_err) {
@@ -108,7 +109,7 @@ export default function FileUpload() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/upload/", {
+      const res = await fetch(`${API_BASE_URL}/upload/`, {
         method: "POST",
         body: formData,
       });
@@ -147,7 +148,7 @@ export default function FileUpload() {
   const handleDelete = async (filename: string) => {
     if (!confirm(`Are you sure you want to delete "${filename}"? This removes it permanently.`)) return;
     try {
-      const res = await fetch(`http://127.0.0.1:8000/upload/${encodeURIComponent(filename)}`, {
+      const res = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -343,7 +344,7 @@ export default function FileUpload() {
                   </div>
                   <div className="fw-file-actions">
                     <a
-                      href={`http://127.0.0.1:8000/upload/download/${u.filename}`}
+                      href={`${API_BASE_URL}/upload/download/${u.filename}`}
                       className="fw-file-action-btn"
                       title="Download File"
                     >

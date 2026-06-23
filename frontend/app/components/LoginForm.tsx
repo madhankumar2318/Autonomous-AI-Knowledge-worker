@@ -11,6 +11,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { API_BASE_URL } from "../config";
 
 interface LoginFormProps {
   onLoginSuccess: (username: string) => void;
@@ -56,8 +57,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       formData.append("password", password);
 
       const endpoint = isRegistering
-        ? "http://127.0.0.1:8000/auth/register"
-        : "http://127.0.0.1:8000/auth/login";
+        ? `${API_BASE_URL}/auth/register`
+        : `${API_BASE_URL}/auth/login`;
 
       if (isRegistering) {
         if (name) formData.append("name", name);
