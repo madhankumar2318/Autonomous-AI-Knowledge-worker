@@ -1,10 +1,16 @@
-from fastapi import APIRouter, Form, HTTPException
+# backend/routes/auth.py
+from fastapi import APIRouter, Form, HTTPException, Header, Query
 from typing import Optional
 import bcrypt
+import os
+import datetime
+import jwt
 from db import get_conn
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_session_key_1234567890!")
+ALGORITHM = "HS256"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,6 +34,44 @@ def _is_plain_text(stored: str) -> bool:
     return not stored.startswith("$2b$") and not stored.startswith("$2a$")
 
 
+def _create_access_token(username: str) -> str:
+    """Create a signed JWT token that expires in 24 hours."""
+    payload = {
+        "sub": username,
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24)
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+
+
+def _decode_access_token(token: str) -> str:
+    """Decode and verify access token. Returns verified username."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return username
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token signature")
+
+
+def _get_username_from_auth_header(authorization: Optional[str] = Header(None)) -> str:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    try:
+        parts = authorization.split(" ")
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Invalid authorization header format")
+        token = parts[1]
+        return _decode_access_token(token)
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
+
 # ── Endpoints ────────────────────────────────────────────────────────────────
 
 @router.post("/register")
@@ -40,6 +84,7 @@ def register(
 ):
     """
     Register a new user. Password is bcrypt-hashed before storage.
+    Returns username and a signed JWT access token.
     """
     if not username.strip() or not password.strip():
         raise HTTPException(status_code=400, detail="Username and password are required")
@@ -59,7 +104,13 @@ def register(
         raise HTTPException(status_code=400, detail="Username already exists")
     conn.close()
 
-    return {"status": "success", "message": f"User '{username}' registered successfully"}
+    token = _create_access_token(username.strip())
+    return {
+        "status": "success",
+        "message": f"User '{username}' registered successfully",
+        "username": username.strip(),
+        "token": token
+    }
 
 
 @router.post("/login")
@@ -67,6 +118,7 @@ def login(username: str = Form(...), password: str = Form(...)):
     """
     Authenticate user. Supports both bcrypt-hashed passwords and legacy
     plain-text passwords (auto-migrates to bcrypt on first successful login).
+    Returns username and a signed JWT access token.
     """
     conn = get_conn()
     cur  = conn.cursor()
@@ -78,33 +130,52 @@ def login(username: str = Form(...), password: str = Form(...)):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     stored = row["password"]
+    authenticated = False
 
     # ── Legacy migration: plain-text password stored (old account) ──────────
     if _is_plain_text(stored):
-        if stored != password:
-            conn.close()
-            raise HTTPException(status_code=401, detail="Invalid username or password")
-        # ✅ Correct password — silently upgrade to bcrypt hash
-        new_hash = _hash_password(password)
-        cur.execute("UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
-        conn.commit()
+        if stored == password:
+            # Silently upgrade to bcrypt hash
+            new_hash = _hash_password(password)
+            cur.execute("UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
+            conn.commit()
+            authenticated = True
         conn.close()
-        return {"status": "success", "message": "Login successful", "username": username}
+    else:
+        # ── Normal bcrypt verification ───────────────────────────────────────────
+        conn.close()
+        if _verify_password(password, stored):
+            authenticated = True
 
-    # ── Normal bcrypt verification ───────────────────────────────────────────
-    conn.close()
-    if not _verify_password(password, stored):
+    if not authenticated:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    return {"status": "success", "message": "Login successful", "username": username}
+    token = _create_access_token(username)
+    return {
+        "status": "success",
+        "message": "Login successful",
+        "username": username,
+        "token": token
+    }
 
 
 @router.get("/verify")
-def verify_session(username: str):
+def verify_session(token: Optional[str] = Query(None), authorization: Optional[str] = Header(None)):
     """
-    Verify that a username session is still valid (user exists in DB).
-    Used by the frontend to restore a persisted login on page load.
+    Verify that a JWT token is valid and the user exists in DB.
+    Reads from query param `token` or Header `Authorization`.
     """
+    access_token = token
+    if not access_token and authorization:
+        parts = authorization.split(" ")
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            access_token = parts[1]
+
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Token required")
+
+    username = _decode_access_token(access_token)
+
     conn = get_conn()
     cur  = conn.cursor()
     cur.execute("SELECT username FROM users WHERE username = ?", (username,))
@@ -118,8 +189,10 @@ def verify_session(username: str):
 
 
 @router.get("/profile")
-def get_profile(username: str):
-    """Fetch the full profile for a given username."""
+def get_profile(authorization: Optional[str] = Header(None)):
+    """Fetch the full profile for the authenticated user."""
+    username = _get_username_from_auth_header(authorization)
+    
     conn = get_conn()
     cur  = conn.cursor()
     cur.execute("SELECT id, username, name, email, mobile FROM users WHERE username = ?", (username,))
@@ -140,12 +213,14 @@ def get_profile(username: str):
 
 @router.put("/profile")
 def update_profile(
-    username: str           = Form(...),
     name:     Optional[str] = Form(None),
     email:    Optional[str] = Form(None),
     mobile:   Optional[str] = Form(None),
+    authorization: Optional[str] = Header(None)
 ):
-    """Update user profile fields (name, email, mobile)."""
+    """Update profile fields for the authenticated user."""
+    username = _get_username_from_auth_header(authorization)
+    
     conn = get_conn()
     cur  = conn.cursor()
     cur.execute(
@@ -164,14 +239,13 @@ def update_profile(
 
 @router.put("/password")
 def change_password(
-    username:     str = Form(...),
     old_password: str = Form(...),
     new_password: str = Form(...),
+    authorization: Optional[str] = Header(None)
 ):
-    """
-    Change a user's password. Verifies the current password first,
-    then hashes and saves the new one using bcrypt.
-    """
+    """Change password for the authenticated user."""
+    username = _get_username_from_auth_header(authorization)
+    
     if len(new_password) < 4:
         raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
 

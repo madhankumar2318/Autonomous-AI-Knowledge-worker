@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../config";
 
 interface LoginFormProps {
-  onLoginSuccess: (username: string) => void;
+  onLoginSuccess: (username: string, token: string) => void;
 }
 
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
@@ -95,7 +95,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           /* ignore */
         }
 
-        onLoginSuccess(username);
+        onLoginSuccess(username, data.token || "");
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

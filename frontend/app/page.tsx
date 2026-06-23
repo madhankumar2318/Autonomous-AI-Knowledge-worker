@@ -89,12 +89,15 @@ export default function Home_Page() {
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     document.documentElement.setAttribute("data-theme", savedTheme);
-    const saved = localStorage.getItem("ak_session");
-    if (!saved) { setSessionChecked(true); return; }
-    fetch(`${API_BASE_URL}/auth/verify?username=${encodeURIComponent(saved)}`)
+    const token = localStorage.getItem("ak_token");
+    if (!token) { setSessionChecked(true); return; }
+    fetch(`${API_BASE_URL}/auth/verify?token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => { setLoggedInUser(data.username); setIsLoggedIn(true); })
-      .catch(() => localStorage.removeItem("ak_session"))
+      .catch(() => {
+        localStorage.removeItem("ak_session");
+        localStorage.removeItem("ak_token");
+      })
       .finally(() => setSessionChecked(true));
   }, []);
 
@@ -130,7 +133,12 @@ export default function Home_Page() {
           <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0e7490] opacity-35" />
         </div>
         <div className="w-full relative z-10 flex justify-center">
-          <LoginForm onLoginSuccess={(username) => { setIsLoggedIn(true); setLoggedInUser(username); localStorage.setItem("ak_session", username); }} />
+          <LoginForm onLoginSuccess={(username, token) => {
+            setIsLoggedIn(true);
+            setLoggedInUser(username);
+            localStorage.setItem("ak_session", username);
+            localStorage.setItem("ak_token", token);
+          }} />
         </div>
         <ToastContainer />
       </div>
@@ -199,7 +207,12 @@ export default function Home_Page() {
             </button>
             <button
               type="button"
-              onClick={() => { localStorage.removeItem("ak_session"); setIsLoggedIn(false); setLoggedInUser(""); }}
+              onClick={() => {
+                localStorage.removeItem("ak_session");
+                localStorage.removeItem("ak_token");
+                setIsLoggedIn(false);
+                setLoggedInUser("");
+              }}
               className="header-logout-btn"
               title="Logout"
             >
@@ -325,7 +338,13 @@ export default function Home_Page() {
         <UserProfile
           username={loggedInUser}
           onClose={() => setShowProfile(false)}
-          onLogout={() => { localStorage.removeItem("ak_session"); setShowProfile(false); setIsLoggedIn(false); setLoggedInUser(""); }}
+          onLogout={() => {
+            localStorage.removeItem("ak_session");
+            localStorage.removeItem("ak_token");
+            setShowProfile(false);
+            setIsLoggedIn(false);
+            setLoggedInUser("");
+          }}
         />
       )}
 
