@@ -5,7 +5,7 @@ import bcrypt
 import os
 import datetime
 import jwt
-from db import get_conn
+from db import get_conn, get_cursor, execute_sql
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -92,9 +92,10 @@ def register(
     hashed = _hash_password(password)
 
     conn = get_conn()
-    cur  = conn.cursor()
+    cur  = get_cursor(conn)
     try:
-        cur.execute(
+        execute_sql(
+            cur,
             "INSERT INTO users (username, password, name, email, mobile) VALUES (?, ?, ?, ?, ?)",
             (username.strip(), hashed, name, email, mobile)
         )
@@ -121,8 +122,8 @@ def login(username: str = Form(...), password: str = Form(...)):
     Returns username and a signed JWT access token.
     """
     conn = get_conn()
-    cur  = conn.cursor()
-    cur.execute("SELECT password FROM users WHERE username = ?", (username,))
+    cur  = get_cursor(conn)
+    execute_sql(cur, "SELECT password FROM users WHERE username = ?", (username,))
     row = cur.fetchone()
 
     if not row:
@@ -137,7 +138,7 @@ def login(username: str = Form(...), password: str = Form(...)):
         if stored == password:
             # Silently upgrade to bcrypt hash
             new_hash = _hash_password(password)
-            cur.execute("UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
+            execute_sql(cur, "UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
             conn.commit()
             authenticated = True
         conn.close()
@@ -177,8 +178,8 @@ def verify_session(token: Optional[str] = Query(None), authorization: Optional[s
     username = _decode_access_token(access_token)
 
     conn = get_conn()
-    cur  = conn.cursor()
-    cur.execute("SELECT username FROM users WHERE username = ?", (username,))
+    cur  = get_cursor(conn)
+    execute_sql(cur, "SELECT username FROM users WHERE username = ?", (username,))
     user = cur.fetchone()
     conn.close()
 
@@ -194,8 +195,8 @@ def get_profile(authorization: Optional[str] = Header(None)):
     username = _get_username_from_auth_header(authorization)
     
     conn = get_conn()
-    cur  = conn.cursor()
-    cur.execute("SELECT id, username, name, email, mobile FROM users WHERE username = ?", (username,))
+    cur  = get_cursor(conn)
+    execute_sql(cur, "SELECT id, username, name, email, mobile FROM users WHERE username = ?", (username,))
     user = cur.fetchone()
     conn.close()
 
@@ -222,8 +223,9 @@ def update_profile(
     username = _get_username_from_auth_header(authorization)
     
     conn = get_conn()
-    cur  = conn.cursor()
-    cur.execute(
+    cur  = get_cursor(conn)
+    execute_sql(
+        cur,
         "UPDATE users SET name = ?, email = ?, mobile = ? WHERE username = ?",
         (name, email, mobile, username)
     )
@@ -250,8 +252,8 @@ def change_password(
         raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
 
     conn = get_conn()
-    cur  = conn.cursor()
-    cur.execute("SELECT password FROM users WHERE username = ?", (username,))
+    cur  = get_cursor(conn)
+    execute_sql(cur, "SELECT password FROM users WHERE username = ?", (username,))
     row = cur.fetchone()
 
     if not row:
@@ -272,7 +274,7 @@ def change_password(
 
     # Save new bcrypt hash
     new_hash = _hash_password(new_password)
-    cur.execute("UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
+    execute_sql(cur, "UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
     conn.commit()
     conn.close()
 

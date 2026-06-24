@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query, Body
-from db import get_conn, insert_history
+from db import get_conn, get_cursor, execute_sql, insert_history
 import json
 from typing import Optional
 
@@ -24,7 +24,7 @@ def log_event(event: dict = Body(...)):
 @router.get("/list")
 def get_history(q: Optional[str] = Query(None), type: Optional[str] = Query(None), limit: int = Query(100)):
     conn = get_conn()
-    cur = conn.cursor()
+    cur = get_cursor(conn)
     sql = "SELECT id, username, action, details, timestamp AS created_at FROM history"
     params = []
     
@@ -41,7 +41,8 @@ def get_history(q: Optional[str] = Query(None), type: Optional[str] = Query(None
     sql += " ORDER BY timestamp DESC LIMIT ?"
     params.append(limit)
     
-    rows = cur.execute(sql, params).fetchall()
+    execute_sql(cur, sql, params)
+    rows = cur.fetchall()
     history = [dict(r) for r in rows]
     conn.close()
     

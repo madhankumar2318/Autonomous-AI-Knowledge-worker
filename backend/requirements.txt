@@ -11,3 +11,5 @@ chromadb
 pypdf
 groq
 pyjwt
+psycopg2-binary
+boto3

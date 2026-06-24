@@ -1,7 +1,10 @@
+# backend/routes/upload.py
 import csv, json, io, os
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
-from db import get_conn, insert_history
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from db import get_conn, get_cursor, execute_sql, insert_history
+import boto3
+from botocore.client import Config
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -10,6 +13,32 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # List of allowed file extensions
 ALLOWED_EXTENSIONS = {".csv", ".json", ".pdf", ".txt", ".md"}
+
+# S3 Cloud Storage Configurations
+S3_BUCKET = os.getenv("S3_BUCKET")
+S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
+S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL")
+S3_REGION_NAME = os.getenv("S3_REGION_NAME", "us-east-1")
+
+IS_S3 = S3_BUCKET is not None and S3_ACCESS_KEY is not None and S3_SECRET_KEY is not None
+_s3_client = None
+
+def get_s3_client():
+    global _s3_client
+    if not IS_S3:
+        return None
+    if _s3_client is None:
+        kwargs = {
+            "aws_access_key_id": S3_ACCESS_KEY,
+            "aws_secret_access_key": S3_SECRET_KEY,
+            "region_name": S3_REGION_NAME,
+        }
+        if S3_ENDPOINT_URL:
+            kwargs["endpoint_url"] = S3_ENDPOINT_URL
+            kwargs["config"] = Config(signature_version="s3v4")
+        _s3_client = boto3.client("s3", **kwargs)
+    return _s3_client
 
 @router.post("/")
 async def upload_file(file: UploadFile = File(...)):
@@ -28,13 +57,25 @@ async def upload_file(file: UploadFile = File(...)):
         with open(file_path, "wb") as f:
             f.write(content)
 
-        size = os.path.getsize(file_path)
-        
+        size = len(content)
+
+        # Upload to S3 if configured
+        if IS_S3:
+            s3_client = get_s3_client()
+            s3_client.put_object(
+                Bucket=S3_BUCKET,
+                Key=filename,
+                Body=content
+            )
+
         # Save to database
+        db_filepath = f"s3://{S3_BUCKET}/{filename}" if IS_S3 else file_path
         conn = get_conn()
-        conn.execute(
+        cur = get_cursor(conn)
+        execute_sql(
+            cur,
             "INSERT INTO uploads (filename, filepath, size) VALUES (?, ?, ?)",
-            (filename, file_path, size),
+            (filename, db_filepath, size),
         )
         conn.commit()
         conn.close()
@@ -82,7 +123,7 @@ async def upload_file(file: UploadFile = File(...)):
 
         return {
             "message": f"File '{filename}' uploaded successfully",
-            "file_path": file_path,
+            "file_path": db_filepath,
             "data_preview": data_preview,
             "rag_status": rag_status,
             "chunks": chunks_count,
@@ -94,7 +135,9 @@ async def upload_file(file: UploadFile = File(...)):
 @router.get("/list")
 def list_uploads():
     conn = get_conn()
-    rows = conn.execute("SELECT id, filename, filepath, size, uploaded_at FROM uploads ORDER BY uploaded_at DESC").fetchall()
+    cur = get_cursor(conn)
+    execute_sql(cur, "SELECT id, filename, filepath, size, uploaded_at FROM uploads ORDER BY uploaded_at DESC")
+    rows = cur.fetchall()
     uploads = [dict(r) for r in rows]
     conn.close()
     
@@ -118,24 +161,33 @@ def delete_file(filename: str):
     try:
         file_path = os.path.join(UPLOAD_DIR, filename)
         
-        # 1. Delete physical file
+        # 1. Delete physical file locally if it exists
         if os.path.exists(file_path):
             os.remove(file_path)
             
-        # 2. Delete database entry
+        # 2. Delete from S3 if configured
+        if IS_S3:
+            s3_client = get_s3_client()
+            try:
+                s3_client.delete_object(Bucket=S3_BUCKET, Key=filename)
+            except Exception as e:
+                print(f"Failed to delete {filename} from S3: {e}")
+
+        # 3. Delete database entry
         conn = get_conn()
-        conn.execute("DELETE FROM uploads WHERE filename = ?", (filename,))
+        cur = get_cursor(conn)
+        execute_sql(cur, "DELETE FROM uploads WHERE filename = ?", (filename,))
         conn.commit()
         conn.close()
         
-        # 3. Clean up from ChromaDB
+        # 4. Clean up from ChromaDB
         try:
             from rag import delete_file_index
             delete_file_index(filename)
         except Exception as e:
             print(f"Failed to delete RAG index for {filename}: {e}")
             
-        # 4. Log to history
+        # 5. Log to history
         insert_history("system", "file_delete", f"filename={filename}")
         
         return {"message": f"File '{filename}' deleted successfully"}
@@ -145,10 +197,28 @@ def delete_file(filename: str):
 @router.get("/download/{filename}")
 def download_file(filename: str):
     file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    # Log to history
+    insert_history("system", "file_download", f"filename={filename}")
+
+    # If S3 is active, try to stream from S3
+    if IS_S3:
+        try:
+            s3_client = get_s3_client()
+            response = s3_client.get_object(Bucket=S3_BUCKET, Key=filename)
+            return StreamingResponse(
+                response['Body'].iter_chunks(),
+                media_type="application/octet-stream",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        except Exception as e:
+            print(f"S3 download failed/missing for {filename}: {e}. Falling back to local disk.")
+            if not os.path.exists(file_path):
+                raise HTTPException(status_code=404, detail="File not found in S3 or local storage")
+
+    # Local fallback
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-
-    insert_history("system", "file_download", f"filename={filename}")
 
     return FileResponse(
         path=file_path,
