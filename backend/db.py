@@ -79,7 +79,8 @@ def init_db():
             filename TEXT,
             filepath TEXT,
             size BIGINT,
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id INTEGER
         )
         """)
         cur.execute("""
@@ -117,7 +118,8 @@ def init_db():
             filename TEXT,
             filepath TEXT,
             size INTEGER,
-            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            user_id INTEGER
         )
         """)
         cur.execute("""
@@ -129,6 +131,15 @@ def init_db():
             timestamp TEXT DEFAULT CURRENT_TIMESTAMP
         )
         """)
+
+    # Run migration to add user_id column if not exists
+    try:
+        if IS_POSTGRES:
+            cur.execute("ALTER TABLE uploads ADD COLUMN IF NOT EXISTS user_id INTEGER")
+        else:
+            cur.execute("ALTER TABLE uploads ADD COLUMN user_id INTEGER")
+    except Exception:
+        pass
 
     conn.commit()
 
@@ -181,3 +192,17 @@ def log_action(action: str):
     execute_sql(cur, "INSERT INTO history (action) VALUES (?)", (action,))
     conn.commit()
     conn.close()
+
+def get_user_id(username: str):
+    """Retrieve database ID for a given username."""
+    conn = get_conn()
+    cur = get_cursor(conn)
+    execute_sql(cur, "SELECT id FROM users WHERE username = ?", (username,))
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        try:
+            return row["id"]
+        except Exception:
+            return row[0]
+    return None

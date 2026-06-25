@@ -130,9 +130,14 @@ export default function ChatAssistant({
         role: msg.role === "ai" ? "ai" : "user",
         content: msg.content,
       }));
+      const token = localStorage.getItem("ak_token");
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const res = await fetch(`${API_BASE_URL}/chat/`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ message: userMessage, username, history: chatHistory }),
       });
       const data = await res.json();

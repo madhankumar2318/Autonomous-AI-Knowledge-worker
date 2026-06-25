@@ -1,5 +1,5 @@
 # backend/routes/chat.py
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from pydantic import BaseModel
 from typing import Optional, List
 import os
@@ -264,6 +264,21 @@ def read_uploaded_file(filename: str) -> str:
     Read the content of a file that has been uploaded to the workspace uploads directory.
     Supports CSV, JSON, and standard text/markdown files.
     """
+    # Secure ownership check
+    from rag import active_user_context
+    username = active_user_context.get()
+    if username and username != "guest":
+        from db import get_user_id, get_conn, get_cursor, execute_sql
+        user_id = get_user_id(username)
+        if user_id:
+            conn = get_conn()
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT id FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            row = cur.fetchone()
+            conn.close()
+            if not row:
+                return f"Error: Access Denied. You do not own the file '{filename}'."
+
     file_path = os.path.join(UPLOAD_DIR, filename)
     if not os.path.exists(file_path):
         # Try to find file by matching name in directory
@@ -524,195 +539,219 @@ async def handle_mock_fallback(msg: str):
 
 # ── API Route handler ─────────────────────────────────────────────────────────
 @router.post("/")
-async def chat(req: ChatRequest):
-    # Log the incoming query
-    try:
-        insert_history(req.username, "chat_query", req.message)
-    except Exception as err:
-        print(f"Failed to log chat query: {err}")
-
-    # 1. Try Groq first if available
-    groq_client = get_groq_client()
-    if groq_client:
+async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
+    # Extract verified username from token if present, otherwise fallback
+    username = "guest"
+    if authorization:
         try:
-            print("🚀 Executing Chat Agent using Groq...")
-            # Prepare messages in OpenAI/Groq format
-            messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+            parts = authorization.split(" ")
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                from routes.auth import _decode_access_token
+                username = _decode_access_token(parts[1])
+        except Exception as e:
+            print(f"Token decoding failed in chat endpoint: {e}")
+            
+    if username == "guest" and req.username:
+        username = req.username
+
+    # Set the ContextVar for RAG queries inside this request execution context
+    from rag import active_user_context
+    token_ctx = active_user_context.set(username)
+
+    async def run_chat():
+        # Log the incoming query
+        try:
+            insert_history(username, "chat_query", req.message)
+        except Exception as err:
+            print(f"Failed to log chat query: {err}")
+
+        # 1. Try Groq first if available
+        groq_client = get_groq_client()
+        if groq_client:
+            try:
+                print("🚀 Executing Chat Agent using Groq...")
+                # Prepare messages in OpenAI/Groq format
+                messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+                for msg in req.history:
+                    role = "user" if msg.role == "user" else "assistant"
+                    messages.append({"role": role, "content": msg.content})
+                messages.append({"role": "user", "content": req.message})
+
+                reply = None
+                # Tool calling loop for Groq (up to 5 loops)
+                for loop_idx in range(5):
+                    groq_response = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=messages,
+                        tools=GROQ_TOOLS,
+                        tool_choice="auto",
+                        temperature=0.7,
+                    )
+                    
+                    response_message = groq_response.choices[0].message
+                    
+                    # Convert response message to dict to append to history safely
+                    msg_dict = {
+                        "role": "assistant",
+                        "content": response_message.content,
+                    }
+                    if response_message.tool_calls:
+                        msg_dict["tool_calls"] = [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments
+                                }
+                            } for tc in response_message.tool_calls
+                        ]
+                    messages.append(msg_dict)
+                    
+                    tool_calls = response_message.tool_calls
+                    if not tool_calls:
+                        # No more tools called, this is the final response
+                        reply = response_message.content or ""
+                        break
+                        
+                    # Execute tool calls
+                    for tool_call in tool_calls:
+                        func_name = tool_call.function.name
+                        func_to_call = FUNCTIONS_MAP.get(func_name)
+                        if not func_to_call:
+                            tool_output = f"Error: Tool {func_name} not found."
+                        else:
+                            try:
+                                import json
+                                func_args = json.loads(tool_call.function.arguments)
+                                # Call function with arguments
+                                tool_output = func_to_call(**func_args)
+                            except Exception as e:
+                                tool_output = f"Error executing {func_name}: {str(e)}"
+                        
+                        # Append tool result to messages
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_call.id,
+                            "name": func_name,
+                            "content": str(tool_output)
+                        })
+                else:
+                    reply = "I completed execution but reached maximum reasoning loops."
+
+                if reply:
+                    # Log response
+                    try:
+                        insert_history(username, "chat_response", reply)
+                    except Exception as err:
+                        print(f"Failed to log Groq chat response: {err}")
+                    return {"reply": reply}
+
+            except Exception as groq_err:
+                print(f"Groq API execution error: {groq_err}. Falling back to Gemini...")
+
+        # 2. Fall back to Gemini Client
+        client = get_gemini_client()
+        if not client:
+            reply = await handle_mock_fallback(req.message)
+            try:
+                insert_history(username, "chat_response", reply)
+            except:
+                pass
+            return {"reply": reply}
+
+        try:
+            # Construct Gemini request contents with history (excluding latest message)
+            contents = []
             for msg in req.history:
-                role = "user" if msg.role == "user" else "assistant"
-                messages.append({"role": role, "content": msg.content})
-            messages.append({"role": "user", "content": req.message})
-
-            reply = None
-            # Tool calling loop for Groq (up to 5 loops)
-            for loop_idx in range(5):
-                groq_response = groq_client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=messages,
-                    tools=GROQ_TOOLS,
-                    tool_choice="auto",
-                    temperature=0.7,
+                role = "user" if msg.role == "user" else "model"
+                contents.append(
+                    types.Content(
+                        role=role,
+                        parts=[types.Part.from_text(text=msg.content)]
+                    )
                 )
-                
-                response_message = groq_response.choices[0].message
-                
-                # Convert response message to dict to append to history safely
-                msg_dict = {
-                    "role": "assistant",
-                    "content": response_message.content,
-                }
-                if response_message.tool_calls:
-                    msg_dict["tool_calls"] = [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments
-                            }
-                        } for tc in response_message.tool_calls
-                    ]
-                messages.append(msg_dict)
-                
-                tool_calls = response_message.tool_calls
-                if not tool_calls:
-                    # No more tools called, this is the final response
-                    reply = response_message.content or ""
-                    break
-                    
-                # Execute tool calls
-                for tool_call in tool_calls:
-                    func_name = tool_call.function.name
-                    func_to_call = FUNCTIONS_MAP.get(func_name)
-                    if not func_to_call:
-                        tool_output = f"Error: Tool {func_name} not found."
-                    else:
-                        try:
-                            import json
-                            func_args = json.loads(tool_call.function.arguments)
-                            # Call function with arguments
-                            tool_output = func_to_call(**func_args)
-                        except Exception as e:
-                            tool_output = f"Error executing {func_name}: {str(e)}"
-                    
-                    # Append tool result to messages
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": func_name,
-                        "content": str(tool_output)
-                    })
-            else:
-                reply = "I completed execution but reached maximum reasoning loops."
+            
+            # Invoke Gemini Flash with retry on 503 / quota errors
+            MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
+            response = None
+            last_error = None
 
-            if reply:
-                # Log response
-                try:
-                    insert_history(req.username, "chat_response", reply)
-                except Exception as err:
-                    print(f"Failed to log Groq chat response: {err}")
+            for model_name in MODELS_TO_TRY:
+                for attempt in range(3):
+                    try:
+                        # Use client.chats.create to automatically manage function tool execution loops
+                        chat_session = client.chats.create(
+                            model=model_name,
+                            history=contents,
+                            config=types.GenerateContentConfig(
+                                tools=agent_tools,
+                                system_instruction=SYSTEM_INSTRUCTION,
+                            )
+                        )
+                        response = chat_session.send_message(req.message)
+                        last_error = None
+                        break  # success — exit retry loop
+                    except Exception as e:
+                        last_error = e
+                        err_str = str(e)
+                        # Retry on transient 503 / UNAVAILABLE / rate-limit errors
+                        if any(code in err_str for code in ["503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED"]):
+                            wait = 2 ** attempt  # 1s, 2s, 4s
+                            print(f"[{model_name}] attempt {attempt+1} failed ({err_str[:60]}). Retrying in {wait}s...")
+                            time.sleep(wait)
+                        else:
+                            break  # Non-retryable error — don't retry
+                if response is not None:
+                    break  # Got a good response — skip remaining models
+
+            if response is None:
+                err_msg = str(last_error) if last_error else "Unknown error"
+                print(f"All Gemini model attempts failed: {err_msg}")
+                # Return a friendly message instead of raw API error
+                if "503" in err_msg or "UNAVAILABLE" in err_msg:
+                    reply = (
+                        "⚠️ **Gemini AI is temporarily overloaded** (high demand right now).\n\n"
+                        "Please try again in 30–60 seconds. I'll be fully back online shortly!"
+                    )
+                elif "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+                    reply = (
+                        "⚠️ **API quota reached** for your current Gemini plan.\n\n"
+                        "Please wait a minute and try again, or upgrade your Gemini API plan at "
+                        "[ai.dev/rate-limit](https://ai.dev/rate-limit)."
+                    )
+                else:
+                    reply = f"⚠️ **Error processing your request.**\n\nDetails: `{err_msg[:200]}`"
                 return {"reply": reply}
 
-        except Exception as groq_err:
-            print(f"Groq API execution error: {groq_err}. Falling back to Gemini...")
+            reply = response.text or "I processed your request, but did not generate a text response."
+            
+            # Log response
+            try:
+                insert_history(username, "chat_response", reply)
+            except Exception as err:
+                print(f"Failed to log chat response: {err}")
+                
+            return {"reply": reply}
 
-    # 2. Fall back to Gemini Client
-    client = get_gemini_client()
-    if not client:
-        reply = await handle_mock_fallback(req.message)
-        try:
-            insert_history(req.username, "chat_response", reply)
-        except:
-            pass
-        return {"reply": reply}
-
-    try:
-        # Construct Gemini request contents with history (excluding latest message)
-        contents = []
-        for msg in req.history:
-            role = "user" if msg.role == "user" else "model"
-            contents.append(
-                types.Content(
-                    role=role,
-                    parts=[types.Part.from_text(text=msg.content)]
-                )
-            )
-        
-        # Invoke Gemini Flash with retry on 503 / quota errors
-        MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
-        response = None
-        last_error = None
-
-        for model_name in MODELS_TO_TRY:
-            for attempt in range(3):
-                try:
-                    # Use client.chats.create to automatically manage function tool execution loops
-                    chat_session = client.chats.create(
-                        model=model_name,
-                        history=contents,
-                        config=types.GenerateContentConfig(
-                            tools=agent_tools,
-                            system_instruction=SYSTEM_INSTRUCTION,
-                        )
-                    )
-                    response = chat_session.send_message(req.message)
-                    last_error = None
-                    break  # success — exit retry loop
-                except Exception as e:
-                    last_error = e
-                    err_str = str(e)
-                    # Retry on transient 503 / UNAVAILABLE / rate-limit errors
-                    if any(code in err_str for code in ["503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED"]):
-                        wait = 2 ** attempt  # 1s, 2s, 4s
-                        print(f"[{model_name}] attempt {attempt+1} failed ({err_str[:60]}). Retrying in {wait}s...")
-                        time.sleep(wait)
-                    else:
-                        break  # Non-retryable error — don't retry
-            if response is not None:
-                break  # Got a good response — skip remaining models
-
-        if response is None:
-            err_msg = str(last_error) if last_error else "Unknown error"
-            print(f"All Gemini model attempts failed: {err_msg}")
-            # Return a friendly message instead of raw API error
-            if "503" in err_msg or "UNAVAILABLE" in err_msg:
+        except Exception as e:
+            print(f"Gemini API invocation error: {e}")
+            err_str = str(e)
+            if "503" in err_str or "UNAVAILABLE" in err_str:
                 reply = (
                     "⚠️ **Gemini AI is temporarily overloaded** (high demand right now).\n\n"
                     "Please try again in 30–60 seconds. I'll be fully back online shortly!"
                 )
-            elif "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+            elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                 reply = (
-                    "⚠️ **API quota reached** for your current Gemini plan.\n\n"
-                    "Please wait a minute and try again, or upgrade your Gemini API plan at "
-                    "[ai.dev/rate-limit](https://ai.dev/rate-limit)."
+                    "⚠️ **API quota reached.** Please wait a minute and retry, or check your "
+                    "[Gemini rate limits](https://ai.dev/rate-limit)."
                 )
             else:
-                reply = f"⚠️ **Error processing your request.**\n\nDetails: `{err_msg[:200]}`"
+                reply = f"⚠️ **Error:** `{err_str[:300]}`"
             return {"reply": reply}
 
-        reply = response.text or "I processed your request, but did not generate a text response."
-        
-        # Log response
-        try:
-            insert_history(req.username, "chat_response", reply)
-        except Exception as err:
-            print(f"Failed to log chat response: {err}")
-            
-        return {"reply": reply}
-
-    except Exception as e:
-        print(f"Gemini API invocation error: {e}")
-        err_str = str(e)
-        if "503" in err_str or "UNAVAILABLE" in err_str:
-            reply = (
-                "⚠️ **Gemini AI is temporarily overloaded** (high demand right now).\n\n"
-                "Please try again in 30–60 seconds. I'll be fully back online shortly!"
-            )
-        elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
-            reply = (
-                "⚠️ **API quota reached.** Please wait a minute and retry, or check your "
-                "[Gemini rate limits](https://ai.dev/rate-limit)."
-            )
-        else:
-            reply = f"⚠️ **Error:** `{err_str[:300]}`"
-        return {"reply": reply}
+    try:
+        return await run_chat()
+    finally:
+        active_user_context.reset(token_ctx)

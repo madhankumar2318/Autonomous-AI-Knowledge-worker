@@ -6,6 +6,10 @@ import traceback
 from typing import List, Dict, Any, Optional
 import chromadb
 from google import genai
+import contextvars
+
+# Context variable to store active user context during RAG search
+active_user_context = contextvars.ContextVar("active_user_context", default=None)
 
 # Database path (relative to backend folder)
 CHROMA_DB_PATH = os.path.join(os.path.dirname(__file__), "data", "chromadb")
@@ -196,7 +200,7 @@ def extract_file_content(filepath: str, filename: str) -> str:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
 
-def index_file(filepath: str, filename: str) -> Dict[str, Any]:
+def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, Any]:
     """
     Extract file content, generate chunk embeddings, and index into ChromaDB.
     """
@@ -204,11 +208,14 @@ def index_file(filepath: str, filename: str) -> Dict[str, Any]:
     if collection is None:
         raise RuntimeError("ChromaDB collection is not initialized.")
 
+    if username is None:
+        username = active_user_context.get()
+
     # 1. Clean up any existing index for this filename
-    delete_file_index(filename)
+    delete_file_index(filename, username=username)
 
     # 2. Extract content
-    print(f"Indexing file: {filename}...")
+    print(f"Indexing file: {filename} for user: {username}...")
     content = extract_file_content(filepath, filename)
     if not content.strip():
         return {"filename": filename, "status": "empty", "chunks": 0}
@@ -225,7 +232,12 @@ def index_file(filepath: str, filename: str) -> Dict[str, Any]:
 
     # 5. Insert into vector store
     ids = [f"{filename}_chunk_{i}" for i in range(len(chunks))]
-    metadatas = [{"filename": filename, "chunk_index": i, "total_chunks": len(chunks)} for i in range(len(chunks))]
+    metadatas = []
+    for i in range(len(chunks)):
+        meta = {"filename": filename, "chunk_index": i, "total_chunks": len(chunks)}
+        if username:
+            meta["username"] = username
+        metadatas.append(meta)
 
     embeddings_any: Any = embeddings
     metadatas_any: Any = metadatas
@@ -239,7 +251,7 @@ def index_file(filepath: str, filename: str) -> Dict[str, Any]:
     print(f"Successfully indexed '{filename}' with {len(chunks)} chunks.")
     return {"filename": filename, "status": "success", "chunks": len(chunks)}
 
-def delete_file_index(filename: str):
+def delete_file_index(filename: str, username: str = None):
     """
     Remove all document chunks for a specific file from ChromaDB.
     """
@@ -247,14 +259,27 @@ def delete_file_index(filename: str):
     if collection is None:
         return
     
+    if username is None:
+        username = active_user_context.get()
+    
     try:
         # ChromaDB allows deleting by metadata matches
-        collection.delete(where={"filename": filename})
-        print(f"Deleted index for file: {filename}")
+        if username and username != "guest":
+            where_clause = {
+                "$and": [
+                    {"filename": filename},
+                    {"username": username}
+                ]
+            }
+        else:
+            where_clause = {"filename": filename}
+            
+        collection.delete(where=where_clause)
+        print(f"Deleted index for file: {filename} under user: {username}")
     except Exception as e:
         print(f"Error deleting index for file {filename}: {e}")
 
-def get_indexed_files() -> List[Dict[str, Any]]:
+def get_indexed_files(username: str = None) -> List[Dict[str, Any]]:
     """
     Get a list of all indexed files and their chunk counts.
     """
@@ -262,9 +287,16 @@ def get_indexed_files() -> List[Dict[str, Any]]:
     if collection is None:
         return []
 
+    if username is None:
+        username = active_user_context.get()
+
     try:
-        # Fetch metadata for all documents in the collection
-        results = collection.get(include=["metadatas"])
+        # Fetch metadata for all documents in the collection, filtered by active user
+        where_clause = {}
+        if username and username != "guest":
+            where_clause = {"username": username}
+            
+        results = collection.get(where=where_clause, include=["metadatas"])
         if results is None:
             return []
         metadatas = results.get("metadatas") or []
@@ -292,6 +324,8 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         print("Warning: ChromaDB collection not initialized. Returning empty search results.")
         return []
 
+    username = active_user_context.get()
+
     # Get query embedding
     try:
         query_embedding = get_gemini_embeddings_batch([query])[0]
@@ -300,12 +334,16 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         return []
 
     try:
-        # Query database
-        results = collection.query(
-            query_embeddings=[query_embedding],
-            n_results=top_k,
-            include=["documents", "metadatas", "distances"]
-        )
+        # Query database with metadata filters
+        query_kwargs = {
+            "query_embeddings": [query_embedding],
+            "n_results": top_k,
+            "include": ["documents", "metadatas", "distances"]
+        }
+        if username and username != "guest":
+            query_kwargs["where"] = {"username": username}
+            
+        results = collection.query(**query_kwargs)
         if results is None:
             return []
 
