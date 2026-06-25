@@ -1,5 +1,6 @@
 # backend/rag.py
 import os
+import re
 import csv
 import json
 import traceback
@@ -28,9 +29,7 @@ def get_chroma_collection() -> Any:
 
     os.makedirs(CHROMA_DB_PATH, exist_ok=True)
     try:
-        # Initialize PersistentClient
         client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-        # Get or create the collection
         _collection = client.get_or_create_collection(name=COLLECTION_NAME)
         return _collection
     except Exception as e:
@@ -68,13 +67,13 @@ def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
     """
     if not texts:
         return []
-    
+
     client = get_gemini_client()
     if not client:
         raise ValueError("Gemini API key is not configured or is invalid. Cannot generate embeddings.")
 
     all_embeddings = []
-    
+
     # 1. Try batch embedding first (efficient, 1 API call)
     try:
         texts_any: Any = texts
@@ -88,11 +87,11 @@ def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
                 all_embeddings.append(emb.values)
     except Exception as e:
         print(f"Batch embedding failed: {e}. Falling back to individual embedding...")
- 
+
     # 2. If batching returned incorrect length or failed, fallback to individual text queries
     if len(all_embeddings) != len(texts):
         all_embeddings = []
-        print(f"Embedding count mismatch (got {len(all_embeddings)}, expected {len(texts)}). Embedding items individually...")
+        print(f"Embedding count mismatch. Embedding items individually...")
         for text in texts:
             try:
                 response = client.models.embed_content(
@@ -111,24 +110,120 @@ def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
             except Exception as e:
                 print(f"Individual embedding failed for text '{text[:30]}...': {e}")
                 raise e
-            
+
     return all_embeddings
 
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
+
+# ── Advanced Chunking ──────────────────────────────────────────────────────────
+
+def _split_sentences(text: str) -> List[str]:
     """
-    Split text into overlapping chunks of a target character length.
+    Split text into sentences using punctuation boundaries and paragraph breaks.
+    Handles common abbreviations to avoid false splits (e.g. 'Mr.', 'U.S.').
+    """
+    # Protect common abbreviations
+    abbrev_pattern = re.compile(
+        r'\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|vs|etc|i\.e|e\.g|U\.S|U\.K|Fig|No)\.',
+        re.IGNORECASE
+    )
+    protected = abbrev_pattern.sub(lambda m: m.group(0).replace('.', '<PERIOD>'), text)
+
+    # Split on sentence-ending punctuation followed by whitespace + capital letter
+    raw_sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z"])', protected)
+
+    # Restore protected periods
+    sentences = [s.replace('<PERIOD>', '.').strip() for s in raw_sentences if s.strip()]
+    return sentences
+
+
+def chunk_text_smart(
+    text: str,
+    chunk_size: int = 800,
+    overlap_sentences: int = 1,
+    chunk_type: str = "text",
+    page_num: int = 0
+) -> List[Dict[str, Any]]:
+    """
+    Sentence-aware, paragraph-respecting text chunker.
+
+    Improvements over naive character splitter:
+    - Splits at sentence boundaries (never mid-sentence)
+    - Respects paragraph breaks (\\n\\n) as hard split points
+    - Overlaps by `overlap_sentences` sentences across chunk boundaries for context continuity
+    - Returns enriched chunk dicts: {text, chunk_type, page_num}
+
+    Args:
+        text: Raw text to chunk.
+        chunk_size: Target maximum character length per chunk.
+        overlap_sentences: Number of sentences to repeat at the start of the next chunk.
+        chunk_type: Label for this chunk ('text', 'table', 'header').
+        page_num: PDF page number (0 for non-PDF sources).
+
+    Returns:
+        List of chunk dicts with keys: text, chunk_type, page_num
     """
     if not text or not text.strip():
         return []
-    
+
+    chunks: List[Dict[str, Any]] = []
+
+    # Split into paragraphs first (double newline is a hard boundary)
+    paragraphs = [p.strip() for p in re.split(r'\n\s*\n', text) if p.strip()]
+
+    for paragraph in paragraphs:
+        sentences = _split_sentences(paragraph)
+        if not sentences:
+            continue
+
+        current_sentences: List[str] = []
+        current_len = 0
+
+        for sentence in sentences:
+            sentence_len = len(sentence)
+
+            # If adding this sentence exceeds chunk_size and we have content, flush
+            if current_len + sentence_len > chunk_size and current_sentences:
+                chunk_text_str = ' '.join(current_sentences).strip()
+                if chunk_text_str:
+                    chunks.append({
+                        "text": chunk_text_str,
+                        "chunk_type": chunk_type,
+                        "page_num": page_num
+                    })
+                # Keep last `overlap_sentences` sentences as context for next chunk
+                current_sentences = current_sentences[-overlap_sentences:] if overlap_sentences > 0 else []
+                current_len = sum(len(s) for s in current_sentences)
+
+            current_sentences.append(sentence)
+            current_len += sentence_len + 1  # +1 for the space
+
+        # Flush remaining sentences
+        if current_sentences:
+            chunk_text_str = ' '.join(current_sentences).strip()
+            if chunk_text_str:
+                chunks.append({
+                    "text": chunk_text_str,
+                    "chunk_type": chunk_type,
+                    "page_num": page_num
+                })
+
+    return chunks
+
+
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
+    """
+    Legacy character-based chunker — kept for backward compatibility.
+    New code should prefer chunk_text_smart().
+    """
+    if not text or not text.strip():
+        return []
+
     chunks = []
     text = text.strip()
     start = 0
     while start < len(text):
         end = start + chunk_size
-        # Try to slice at word boundary if possible within the overlap budget
         if end < len(text):
-            # Scan backwards up to 'overlap' characters for a whitespace or newline
             boundary = -1
             for offset in range(overlap):
                 pos = end - offset
@@ -136,107 +231,403 @@ def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]
                     boundary = pos
                     break
             if boundary != -1:
-                end = boundary + 1 # Include the space
-        
+                end = boundary + 1
         chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
-            
         start = end - overlap
         if start >= len(text) or chunk_size <= overlap:
             break
-            
+
     return chunks
 
-def extract_file_content(filepath: str, filename: str) -> str:
+
+# ── PDF Table Extraction ──────────────────────────────────────────────────────
+
+def _table_to_markdown(table: List[List[Any]]) -> str:
     """
-    Parse CSV, JSON, PDF, TXT, or MD files and return their text content.
+    Convert a pdfplumber table (list of rows, each a list of cell values)
+    to GitHub-flavored Markdown table format.
+
+    Example output:
+    | Name | Revenue | Growth |
+    |------|---------|--------|
+    | AAPL | $394B   | 8%     |
+    """
+    if not table:
+        return ""
+
+    # Clean cells: replace None with empty string, strip whitespace
+    cleaned = []
+    for row in table:
+        cleaned_row = [str(cell).strip() if cell is not None else "" for cell in row]
+        cleaned.append(cleaned_row)
+
+    if not cleaned:
+        return ""
+
+    # Determine column widths for alignment
+    num_cols = max(len(row) for row in cleaned)
+
+    # Pad all rows to same column count
+    padded = [row + [""] * (num_cols - len(row)) for row in cleaned]
+
+    lines = []
+    # Header row (first row)
+    header = padded[0]
+    lines.append("| " + " | ".join(header) + " |")
+    # Separator
+    lines.append("| " + " | ".join(["---"] * num_cols) + " |")
+    # Data rows
+    for row in padded[1:]:
+        lines.append("| " + " | ".join(row) + " |")
+
+    return "\n".join(lines)
+
+
+def extract_pdf_content(filepath: str) -> List[Dict[str, Any]]:
+    """
+    Extract text and tables from a PDF using pdfplumber.
+
+    Returns a list of content blocks, each with:
+        - text: The string content (plain text or Markdown table)
+        - chunk_type: 'text' | 'table' | 'header'
+        - page_num: 1-based page number
+
+    Strategy per page:
+    1. Extract all tables first using pdfplumber's bounding-box detection
+    2. Extract remaining text (excluding table bounding boxes) as plain text
+    3. Detect section headers (lines that are ALL CAPS or end with ':' with short length)
+    """
+    try:
+        import pdfplumber
+    except ImportError:
+        # Graceful fallback to pypdf if pdfplumber not installed
+        print("[RAG] pdfplumber not available. Falling back to pypdf text-only extraction.")
+        from pypdf import PdfReader
+        reader = PdfReader(filepath)
+        blocks = []
+        for i, page in enumerate(reader.pages):
+            page_text = page.extract_text()
+            if page_text and page_text.strip():
+                blocks.append({
+                    "text": f"[Page {i+1}]\n{page_text.strip()}",
+                    "chunk_type": "text",
+                    "page_num": i + 1
+                })
+        return blocks
+
+    content_blocks: List[Dict[str, Any]] = []
+
+    with pdfplumber.open(filepath) as pdf:
+        for page_num, page in enumerate(pdf.pages, start=1):
+            page_label = f"[Page {page_num}]"
+
+            # ── Step 1: Extract Tables ────────────────────────────────────────
+            tables = page.extract_tables()
+            table_bboxes = []
+            for table_obj in page.find_tables():
+                table_bboxes.append(table_obj.bbox)
+
+            for table in tables:
+                if not table:
+                    continue
+                markdown_table = _table_to_markdown(table)
+                if markdown_table.strip():
+                    content_blocks.append({
+                        "text": f"{page_label} [TABLE]\n{markdown_table}",
+                        "chunk_type": "table",
+                        "page_num": page_num
+                    })
+
+            # ── Step 2: Extract Plain Text (excluding table regions) ──────────
+            # Crop out table bounding boxes and extract remaining words
+            remaining_page = page
+            for bbox in table_bboxes:
+                try:
+                    # pdfplumber uses (x0, top, x1, bottom) bbox format
+                    # outside_bbox returns text regions outside the given bounding box
+                    remaining_page = remaining_page.outside_bbox(bbox)
+                except Exception:
+                    pass  # If bbox cropping fails, keep original page text
+
+            page_text = remaining_page.extract_text()
+            if not page_text or not page_text.strip():
+                continue
+
+            # ── Step 3: Identify Headers vs Body Text ─────────────────────────
+            lines = page_text.strip().split('\n')
+            text_lines = []
+
+            for line in lines:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+
+                # Heuristic: a header is a short line that is either:
+                # - ALL CAPS with at least 3 chars
+                # - Ends with ':' and has fewer than 80 chars
+                # - Looks like a numbered section: "1. Introduction" or "CHAPTER 2:"
+                is_header = (
+                    (stripped.isupper() and len(stripped) >= 3 and len(stripped) <= 120)
+                    or (stripped.endswith(':') and len(stripped) <= 80)
+                    or bool(re.match(r'^(\d+\.?\s+|[A-Z]{2,}\s+\d+|\bCHAPTER\b|\bSECTION\b)', stripped))
+                )
+
+                if is_header:
+                    # Flush any pending body text first
+                    if text_lines:
+                        body_text = f"{page_label}\n" + '\n'.join(text_lines)
+                        content_blocks.append({
+                            "text": body_text.strip(),
+                            "chunk_type": "text",
+                            "page_num": page_num
+                        })
+                        text_lines = []
+                    # Add the header as its own block
+                    content_blocks.append({
+                        "text": f"{page_label} [HEADER] {stripped}",
+                        "chunk_type": "header",
+                        "page_num": page_num
+                    })
+                else:
+                    text_lines.append(stripped)
+
+            # Flush remaining body text
+            if text_lines:
+                body_text = f"{page_label}\n" + '\n'.join(text_lines)
+                content_blocks.append({
+                    "text": body_text.strip(),
+                    "chunk_type": "text",
+                    "page_num": page_num
+                })
+
+    return content_blocks
+
+
+# ── File Content Extraction ────────────────────────────────────────────────────
+
+def extract_file_content_blocks(filepath: str, filename: str) -> List[Dict[str, Any]]:
+    """
+    Parse files and return a list of enriched content blocks:
+        [{text, chunk_type, page_num}, ...]
+
+    Supported formats:
+        - PDF  → pdfplumber (text + table extraction), with pypdf fallback
+        - CSV  → each row as a structured text block
+        - JSON → pretty-printed items
+        - TXT/MD → plain text (paragraph-split chunking)
     """
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"File not found at path: {filepath}")
 
     ext = filename.split(".")[-1].lower()
 
-    if ext == "csv":
+    # ── PDF ────────────────────────────────────────────────────────────────────
+    if ext == "pdf":
+        return extract_pdf_content(filepath)
+
+    # ── CSV ────────────────────────────────────────────────────────────────────
+    elif ext == "csv":
         rows_text = []
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             reader = csv.reader(f)
             rows = list(reader)
-            
+
         if not rows:
-            return ""
-            
-        # Treat first row as header
+            return []
+
         headers = [h.strip() for h in rows[0]]
+
+        # Build a Markdown table for a preview header block
+        preview_rows = rows[:6]  # Header + up to 5 preview rows
+        markdown_preview = _table_to_markdown(preview_rows)
+        blocks: List[Dict[str, Any]] = []
+
+        if markdown_preview:
+            blocks.append({
+                "text": f"CSV File: {filename}\nPreview (first 5 rows):\n{markdown_preview}",
+                "chunk_type": "table",
+                "page_num": 0
+            })
+
+        # Index each row as a searchable text block
         for i, row in enumerate(rows[1:]):
             row_vals = []
             for j, val in enumerate(row):
                 header = headers[j] if j < len(headers) else f"Column {j+1}"
                 row_vals.append(f"{header}={val.strip()}")
-            rows_text.append(f"Row {i+1}: {', '.join(row_vals)}")
-        return "\n".join(rows_text)
+            row_text = f"Row {i+1}: {', '.join(row_vals)}"
+            rows_text.append(row_text)
 
+        # Group rows into chunks of 20 for efficient indexing
+        ROWS_PER_CHUNK = 20
+        for start in range(0, len(rows_text), ROWS_PER_CHUNK):
+            group = rows_text[start:start + ROWS_PER_CHUNK]
+            blocks.append({
+                "text": '\n'.join(group),
+                "chunk_type": "text",
+                "page_num": 0
+            })
+
+        return blocks
+
+    # ── JSON ───────────────────────────────────────────────────────────────────
     elif ext == "json":
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             data = json.load(f)
+
+        blocks = []
         if isinstance(data, list):
-            objects_text = []
-            for i, obj in enumerate(data):
-                objects_text.append(f"Item {i+1}: {json.dumps(obj)}")
-            return "\n".join(objects_text)
-        return json.dumps(data, indent=2)
+            ITEMS_PER_CHUNK = 10
+            for start in range(0, len(data), ITEMS_PER_CHUNK):
+                group = data[start:start + ITEMS_PER_CHUNK]
+                text_items = [f"Item {start+i+1}: {json.dumps(obj)}" for i, obj in enumerate(group)]
+                blocks.append({
+                    "text": '\n'.join(text_items),
+                    "chunk_type": "text",
+                    "page_num": 0
+                })
+        else:
+            blocks.append({
+                "text": json.dumps(data, indent=2),
+                "chunk_type": "text",
+                "page_num": 0
+            })
+        return blocks
 
-    elif ext == "pdf":
-        from pypdf import PdfReader
-        reader = PdfReader(filepath)
-        text_list = []
-        for i, page in enumerate(reader.pages):
-            page_text = page.extract_text()
-            if page_text and page_text.strip():
-                text_list.append(f"[Page {i+1}]\n{page_text.strip()}")
-        return "\n\n".join(text_list)
-
+    # ── TXT / MD / Other ──────────────────────────────────────────────────────
     else:
-        # Fallback to plain text for txt, md, etc.
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-            return f.read()
+            raw = f.read()
+        # For Markdown, detect headers
+        blocks = []
+        lines = raw.split('\n')
+        text_lines = []
+
+        for line in lines:
+            stripped = line.strip()
+            # Detect Markdown headers (#, ##, ###)
+            if re.match(r'^#{1,6}\s+\S', stripped):
+                if text_lines:
+                    blocks.append({
+                        "text": '\n'.join(text_lines).strip(),
+                        "chunk_type": "text",
+                        "page_num": 0
+                    })
+                    text_lines = []
+                blocks.append({
+                    "text": stripped,
+                    "chunk_type": "header",
+                    "page_num": 0
+                })
+            else:
+                text_lines.append(line)
+
+        if text_lines:
+            remaining = '\n'.join(text_lines).strip()
+            if remaining:
+                blocks.append({
+                    "text": remaining,
+                    "chunk_type": "text",
+                    "page_num": 0
+                })
+
+        return blocks
+
+
+def extract_file_content(filepath: str, filename: str) -> str:
+    """
+    Legacy flat-text extractor — kept for backward compatibility.
+    Prefer extract_file_content_blocks() for new code.
+    """
+    blocks = extract_file_content_blocks(filepath, filename)
+    return '\n\n'.join(b["text"] for b in blocks)
+
+
+# ── Indexing ───────────────────────────────────────────────────────────────────
 
 def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, Any]:
     """
-    Extract file content, generate chunk embeddings, and index into ChromaDB or pgvector.
+    Extract file content into enriched blocks, apply smart chunking,
+    generate embeddings, and index into ChromaDB or pgvector.
+
+    Each indexed chunk carries metadata:
+        filename, chunk_index, total_chunks, username, chunk_type, page_num
     """
     if username is None:
         username = active_user_context.get()
 
-    # 1. Clean up any existing index for this filename
+    # 1. Clean up any existing index for this file
     delete_file_index(filename, username=username)
 
-    # 2. Extract content
-    print(f"Indexing file: {filename} for user: {username}...")
-    content = extract_file_content(filepath, filename)
-    if not content.strip():
+    # 2. Extract content blocks
+    print(f"[RAG] Indexing file: {filename} for user: {username}...")
+    content_blocks = extract_file_content_blocks(filepath, filename)
+    if not content_blocks:
         return {"filename": filename, "status": "empty", "chunks": 0}
 
-    # 3. Create chunks
-    chunks = chunk_text(content, chunk_size=500, overlap=50)
-    if not chunks:
+    # 3. Apply smart chunking to each block
+    all_chunks: List[Dict[str, Any]] = []
+    for block in content_blocks:
+        block_text = block["text"]
+        block_type = block.get("chunk_type", "text")
+        block_page = block.get("page_num", 0)
+
+        if block_type == "table":
+            # Tables are kept as single chunks (don't split tables mid-row)
+            if block_text.strip():
+                all_chunks.append({
+                    "text": block_text.strip(),
+                    "chunk_type": "table",
+                    "page_num": block_page
+                })
+        elif block_type == "header":
+            # Headers are always their own chunk
+            if block_text.strip():
+                all_chunks.append({
+                    "text": block_text.strip(),
+                    "chunk_type": "header",
+                    "page_num": block_page
+                })
+        else:
+            # Text blocks get sentence-aware chunking
+            sub_chunks = chunk_text_smart(
+                block_text,
+                chunk_size=800,
+                overlap_sentences=1,
+                chunk_type=block_type,
+                page_num=block_page
+            )
+            all_chunks.extend(sub_chunks)
+
+    if not all_chunks:
         return {"filename": filename, "status": "empty", "chunks": 0}
 
-    print(f"Created {len(chunks)} chunks for {filename}. Generating embeddings...")
+    chunk_texts = [c["text"] for c in all_chunks]
+    total = len(chunk_texts)
+    print(f"[RAG] Created {total} smart chunks for '{filename}'. Generating embeddings...")
 
     # 4. Generate embeddings
-    embeddings = get_gemini_embeddings_batch(chunks)
+    embeddings = get_gemini_embeddings_batch(chunk_texts)
 
-    # 5. Insert into vector store
+    # 5. Insert into vector store with enriched metadata
     if IS_POSTGRES:
         conn = get_conn()
         cur = get_cursor(conn)
         try:
-            for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+            for i, (chunk, emb) in enumerate(zip(all_chunks, embeddings)):
                 execute_sql(
                     cur,
-                    "INSERT INTO document_embeddings (filename, chunk_index, total_chunks, username, content, embedding) VALUES (?, ?, ?, ?, ?, ?)",
-                    (filename, i, len(chunks), username, chunk, str(emb))
+                    """INSERT INTO document_embeddings
+                       (filename, chunk_index, total_chunks, username, content, embedding, chunk_type, page_num)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        filename, i, total, username,
+                        chunk["text"], str(emb),
+                        chunk.get("chunk_type", "text"),
+                        chunk.get("page_num", 0)
+                    )
                 )
             conn.commit()
         except Exception as e:
@@ -248,10 +639,16 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
         collection = get_chroma_collection()
         if collection is None:
             raise RuntimeError("ChromaDB collection is not initialized.")
-        ids = [f"{filename}_chunk_{i}" for i in range(len(chunks))]
+        ids = [f"{filename}_chunk_{i}" for i in range(total)]
         metadatas = []
-        for i in range(len(chunks)):
-            meta = {"filename": filename, "chunk_index": i, "total_chunks": len(chunks)}
+        for i, chunk in enumerate(all_chunks):
+            meta: Dict[str, Any] = {
+                "filename": filename,
+                "chunk_index": i,
+                "total_chunks": total,
+                "chunk_type": chunk.get("chunk_type", "text"),
+                "page_num": chunk.get("page_num", 0)
+            }
             if username:
                 meta["username"] = username
             metadatas.append(meta)
@@ -260,13 +657,16 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
         metadatas_any: Any = metadatas
         collection.add(
             embeddings=embeddings_any,
-            documents=chunks,
+            documents=chunk_texts,
             metadatas=metadatas_any,
             ids=ids
         )
 
-    print(f"Successfully indexed '{filename}' with {len(chunks)} chunks.")
-    return {"filename": filename, "status": "success", "chunks": len(chunks)}
+    print(f"[RAG] Successfully indexed '{filename}' with {total} chunks ({sum(1 for c in all_chunks if c.get('chunk_type')=='table')} table chunks, {sum(1 for c in all_chunks if c.get('chunk_type')=='header')} header chunks).")
+    return {"filename": filename, "status": "success", "chunks": total}
+
+
+# ── Deletion ───────────────────────────────────────────────────────────────────
 
 def delete_file_index(filename: str, username: str = None):
     """
@@ -274,7 +674,7 @@ def delete_file_index(filename: str, username: str = None):
     """
     if username is None:
         username = active_user_context.get()
-        
+
     if IS_POSTGRES:
         conn = get_conn()
         cur = get_cursor(conn)
@@ -292,10 +692,10 @@ def delete_file_index(filename: str, username: str = None):
                     (filename,)
                 )
             conn.commit()
-            print(f"Deleted pgvector index for file: {filename} under user: {username}")
+            print(f"[RAG] Deleted pgvector index for file: {filename} under user: {username}")
         except Exception as e:
             conn.rollback()
-            print(f"Error deleting pgvector index for file {filename}: {e}")
+            print(f"[RAG] Error deleting pgvector index for file {filename}: {e}")
         finally:
             conn.close()
     else:
@@ -303,7 +703,6 @@ def delete_file_index(filename: str, username: str = None):
         if collection is None:
             return
         try:
-            # ChromaDB allows deleting by metadata matches
             if username and username != "guest":
                 where_clause = {
                     "$and": [
@@ -313,11 +712,13 @@ def delete_file_index(filename: str, username: str = None):
                 }
             else:
                 where_clause = {"filename": filename}
-                
             collection.delete(where=where_clause)
-            print(f"Deleted index for file: {filename} under user: {username}")
+            print(f"[RAG] Deleted index for file: {filename} under user: {username}")
         except Exception as e:
-            print(f"Error deleting index for file {filename}: {e}")
+            print(f"[RAG] Error deleting index for file {filename}: {e}")
+
+
+# ── Listing ────────────────────────────────────────────────────────────────────
 
 def get_indexed_files(username: str = None) -> List[Dict[str, Any]]:
     """
@@ -342,19 +743,18 @@ def get_indexed_files(username: str = None) -> List[Dict[str, Any]]:
                     "SELECT filename, COUNT(*) as chunks FROM document_embeddings GROUP BY filename"
                 )
             rows = cur.fetchall()
-            
             res = []
             for row in rows:
                 try:
-                    filename = row["filename"]
+                    fname = row["filename"]
                     chunks = row["chunks"]
                 except Exception:
-                    filename = row[0]
+                    fname = row[0]
                     chunks = row[1]
-                res.append({"filename": filename, "chunks": chunks})
+                res.append({"filename": fname, "chunks": chunks})
             return res
         except Exception as e:
-            print(f"Error listing pgvector indexed files: {e}")
+            print(f"[RAG] Error listing pgvector indexed files: {e}")
             return []
         finally:
             conn.close()
@@ -363,33 +763,35 @@ def get_indexed_files(username: str = None) -> List[Dict[str, Any]]:
         if collection is None:
             return []
         try:
-            # Fetch metadata for all documents in the collection, filtered by active user
             where_clause = {}
             if username and username != "guest":
                 where_clause = {"username": username}
-                
             results = collection.get(where=where_clause, include=["metadatas"])
             if results is None:
                 return []
             metadatas = results.get("metadatas") or []
-            
-            # Group and count
-            file_counts = {}
+            file_counts: Dict[str, int] = {}
             for meta_raw in metadatas:
                 meta: Any = meta_raw
                 if meta and isinstance(meta, dict):
-                    filename = meta.get("filename")
-                    if filename:
-                        file_counts[filename] = file_counts.get(filename, 0) + 1
-            
+                    fname = meta.get("filename")
+                    if fname:
+                        file_counts[fname] = file_counts.get(fname, 0) + 1
             return [{"filename": fname, "chunks": count} for fname, count in file_counts.items()]
         except Exception as e:
-            print(f"Error listing indexed files: {e}")
+            print(f"[RAG] Error listing indexed files: {e}")
             return []
+
+
+# ── Search ─────────────────────────────────────────────────────────────────────
 
 def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     """
-    Embed user query and query ChromaDB or pgvector for top_k most similar document chunks.
+    Embed the user query and retrieve the top_k most semantically similar
+    document chunks from ChromaDB or pgvector.
+
+    Returns enriched result dicts:
+        {content, filename, chunk_index, total_chunks, similarity_score, chunk_type, page_num}
     """
     username = active_user_context.get()
 
@@ -397,20 +799,20 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     try:
         query_embedding = get_gemini_embeddings_batch([query])[0]
     except Exception as e:
-        print(f"Error embedding query '{query}': {e}")
+        print(f"[RAG] Error embedding query '{query}': {e}")
         return []
 
     if IS_POSTGRES:
         conn = get_conn()
         cur = get_cursor(conn)
         try:
-            # Query similarity using Cosine distance operator <=>
             if username and username != "guest":
                 execute_sql(
                     cur,
                     """
                     SELECT filename, chunk_index, total_chunks, content,
-                           (1 - (embedding <=> ?::vector)) * 100 AS similarity
+                           (1 - (embedding <=> ?::vector)) * 100 AS similarity,
+                           chunk_type, page_num
                     FROM document_embeddings
                     WHERE username = ?
                     ORDER BY embedding <=> ?::vector
@@ -423,7 +825,8 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                     cur,
                     """
                     SELECT filename, chunk_index, total_chunks, content,
-                           (1 - (embedding <=> ?::vector)) * 100 AS similarity
+                           (1 - (embedding <=> ?::vector)) * 100 AS similarity,
+                           chunk_type, page_num
                     FROM document_embeddings
                     ORDER BY embedding <=> ?::vector
                     LIMIT ?
@@ -431,50 +834,48 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                     (str(query_embedding), str(query_embedding), top_k)
                 )
             rows = cur.fetchall()
-            
             formatted_results = []
             for row in rows:
                 try:
-                    filename = row["filename"]
-                    chunk_index = row["chunk_index"]
-                    total_chunks = row["total_chunks"]
-                    content = row["content"]
-                    similarity = row["similarity"]
+                    formatted_results.append({
+                        "content": str(row["content"]),
+                        "filename": str(row["filename"]),
+                        "chunk_index": int(row["chunk_index"]),
+                        "total_chunks": int(row["total_chunks"]) if row["total_chunks"] is not None else 0,
+                        "similarity_score": round(float(row["similarity"]), 2),
+                        "chunk_type": str(row["chunk_type"]) if row["chunk_type"] is not None else "text",
+                        "page_num": int(row["page_num"]) if row["page_num"] is not None else 0
+                    })
                 except Exception:
-                    filename = row[0]
-                    chunk_index = row[1]
-                    total_chunks = row[2]
-                    content = row[3]
-                    similarity = row[4]
-                
-                formatted_results.append({
-                    "content": str(content),
-                    "filename": str(filename),
-                    "chunk_index": int(chunk_index),
-                    "total_chunks": int(total_chunks) if total_chunks is not None else 0,
-                    "similarity_score": round(float(similarity), 2)
-                })
+                    formatted_results.append({
+                        "content": str(row[3]),
+                        "filename": str(row[0]),
+                        "chunk_index": int(row[1]),
+                        "total_chunks": int(row[2]) if row[2] is not None else 0,
+                        "similarity_score": round(float(row[4]), 2),
+                        "chunk_type": str(row[5]) if row[5] is not None else "text",
+                        "page_num": int(row[6]) if row[6] is not None else 0
+                    })
             return formatted_results
         except Exception as e:
-            print(f"Error searching pgvector: {e}")
+            print(f"[RAG] Error searching pgvector: {e}")
             return []
         finally:
             conn.close()
     else:
         collection = get_chroma_collection()
         if collection is None:
-            print("Warning: ChromaDB collection not initialized. Returning empty search results.")
+            print("[RAG] Warning: ChromaDB collection not initialized.")
             return []
         try:
-            # Query database with metadata filters
-            query_kwargs = {
+            query_kwargs: Dict[str, Any] = {
                 "query_embeddings": [query_embedding],
                 "n_results": top_k,
                 "include": ["documents", "metadatas", "distances"]
             }
             if username and username != "guest":
                 query_kwargs["where"] = {"username": username}
-                
+
             results = collection.query(**query_kwargs)
             if results is None:
                 return []
@@ -491,18 +892,18 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
             for doc, meta_raw, dist in zip(docs_list, metas_list, dists_list):
                 meta: Any = meta_raw
                 if doc is not None and meta is not None and dist is not None:
-                    # Calculate a similarity score. For L2 distance (Chroma default), lower distance is more similar.
-                    # Convert to a simple percentage-like confidence score.
                     similarity = round(max(0.0, 1.0 - (float(dist) / 2.0)) * 100, 2)
                     formatted_results.append({
                         "content": str(doc),
                         "filename": meta.get("filename", "unknown") if hasattr(meta, "get") else "unknown",
                         "chunk_index": meta.get("chunk_index", 0) if hasattr(meta, "get") else 0,
                         "total_chunks": meta.get("total_chunks", 0) if hasattr(meta, "get") else 0,
-                        "similarity_score": similarity
+                        "similarity_score": similarity,
+                        "chunk_type": meta.get("chunk_type", "text") if hasattr(meta, "get") else "text",
+                        "page_num": meta.get("page_num", 0) if hasattr(meta, "get") else 0
                     })
 
             return formatted_results
         except Exception as e:
-            print(f"Error searching ChromaDB: {e}")
+            print(f"[RAG] Error searching ChromaDB: {e}")
             return []

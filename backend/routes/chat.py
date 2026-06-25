@@ -403,11 +403,22 @@ def search_knowledge_base(query: str) -> str:
         results = search_knowledge(query, top_k=5)
         if not results:
             return "No relevant information found in the knowledge base."
-        
+
         formatted = []
         for i, res in enumerate(results):
+            chunk_type = res.get("chunk_type", "text")
+            page_num = res.get("page_num", 0)
+
+            # Build a rich source citation
+            source_info = f"Source File: {res['filename']}"
+            if page_num and page_num > 0:
+                source_info += f", Page: {page_num}"
+            source_info += f", Chunk: {res['chunk_index']}"
+            source_info += f", Type: {chunk_type.upper()}"
+            source_info += f", Relevancy: {res['similarity_score']}%"
+
             formatted.append(
-                f"Result {i+1} (Source File: {res['filename']}, Chunk Index: {res['chunk_index']}, Relevancy: {res['similarity_score']}%):\n"
+                f"Result {i+1} ({source_info}):\n"
                 f"Content:\n{res['content']}\n"
                 f"----------------------------------------"
             )

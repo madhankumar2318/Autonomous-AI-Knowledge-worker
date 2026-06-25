@@ -103,7 +103,9 @@ def init_db():
             total_chunks INTEGER,
             username TEXT,
             content TEXT,
-            embedding VECTOR(3072)
+            embedding VECTOR(3072),
+            chunk_type TEXT DEFAULT 'text',
+            page_num INTEGER DEFAULT 0
         )
         """)
         cur.execute("""
@@ -150,12 +152,31 @@ def init_db():
         )
         """)
 
-    # Run migration to add user_id column if not exists
+    # ── Migrations ────────────────────────────────────────────────────────────
+    # Add user_id column to uploads table if not exists
     try:
         if IS_POSTGRES:
             cur.execute("ALTER TABLE uploads ADD COLUMN IF NOT EXISTS user_id INTEGER")
         else:
             cur.execute("ALTER TABLE uploads ADD COLUMN user_id INTEGER")
+    except Exception:
+        pass
+
+    # Add chunk_type column to document_embeddings (pgvector) for advanced chunking
+    try:
+        if IS_POSTGRES:
+            cur.execute("ALTER TABLE document_embeddings ADD COLUMN IF NOT EXISTS chunk_type TEXT DEFAULT 'text'")
+        else:
+            pass  # ChromaDB stores chunk_type in metadata dict; no SQL migration needed
+    except Exception:
+        pass
+
+    # Add page_num column to document_embeddings (pgvector) for PDF page tracking
+    try:
+        if IS_POSTGRES:
+            cur.execute("ALTER TABLE document_embeddings ADD COLUMN IF NOT EXISTS page_num INTEGER DEFAULT 0")
+        else:
+            pass  # ChromaDB stores page_num in metadata dict; no SQL migration needed
     except Exception:
         pass
 
