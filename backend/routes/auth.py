@@ -1,5 +1,5 @@
 # backend/routes/auth.py
-from fastapi import APIRouter, Form, HTTPException, Header, Query
+from fastapi import APIRouter, Form, HTTPException, Header, Query, Cookie, Response
 from typing import Optional
 import bcrypt
 import os
@@ -57,9 +57,20 @@ def _decode_access_token(token: str) -> str:
         raise HTTPException(status_code=401, detail="Invalid token signature")
 
 
-def _get_username_from_auth_header(authorization: Optional[str] = Header(None)) -> str:
+def _get_username_from_auth_header(
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+) -> str:
+    # 1. Try cookie first (HttpOnly secure method)
+    if access_token:
+        try:
+            return _decode_access_token(access_token)
+        except Exception:
+            pass  # Fall through to header verify if cookie is expired/invalid
+            
+    # 2. Try authorization header (Bearer token)
     if not authorization:
-        raise HTTPException(status_code=401, detail="Authorization header missing")
+        raise HTTPException(status_code=401, detail="Authentication token or cookie missing")
     try:
         parts = authorization.split(" ")
         if len(parts) != 2 or parts[0].lower() != "bearer":
@@ -76,6 +87,7 @@ def _get_username_from_auth_header(authorization: Optional[str] = Header(None)) 
 
 @router.post("/register")
 def register(
+    response: Response,
     username: str           = Form(...),
     password: str           = Form(...),
     name:     Optional[str] = Form(None),
@@ -84,7 +96,7 @@ def register(
 ):
     """
     Register a new user. Password is bcrypt-hashed before storage.
-    Returns username and a signed JWT access token.
+    Returns username and a signed JWT access token in response + cookie.
     """
     if not username.strip() or not password.strip():
         raise HTTPException(status_code=400, detail="Username and password are required")
@@ -106,6 +118,15 @@ def register(
     conn.close()
 
     token = _create_access_token(username.strip())
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400,
+        path="/"
+    )
     return {
         "status": "success",
         "message": f"User '{username}' registered successfully",
@@ -115,11 +136,15 @@ def register(
 
 
 @router.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
+def login(
+    response: Response,
+    username: str = Form(...),
+    password: str = Form(...)
+):
     """
     Authenticate user. Supports both bcrypt-hashed passwords and legacy
     plain-text passwords (auto-migrates to bcrypt on first successful login).
-    Returns username and a signed JWT access token.
+    Returns username and a signed JWT access token in response + cookie.
     """
     conn = get_conn()
     cur  = get_cursor(conn)
@@ -152,6 +177,15 @@ def login(username: str = Form(...), password: str = Form(...)):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     token = _create_access_token(username)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400,
+        path="/"
+    )
     return {
         "status": "success",
         "message": "Login successful",
@@ -160,22 +194,33 @@ def login(username: str = Form(...), password: str = Form(...)):
     }
 
 
+@router.post("/logout")
+def logout(response: Response):
+    """Clear the access_token HttpOnly cookie."""
+    response.delete_cookie(key="access_token", path="/")
+    return {"status": "success", "message": "Logged out successfully"}
+
+
 @router.get("/verify")
-def verify_session(token: Optional[str] = Query(None), authorization: Optional[str] = Header(None)):
+def verify_session(
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     """
     Verify that a JWT token is valid and the user exists in DB.
-    Reads from query param `token` or Header `Authorization`.
+    Reads from Cookie, Query param `token`, or Header `Authorization`.
     """
-    access_token = token
-    if not access_token and authorization:
+    token_to_decode = access_token or token
+    if not token_to_decode and authorization:
         parts = authorization.split(" ")
         if len(parts) == 2 and parts[0].lower() == "bearer":
-            access_token = parts[1]
+            token_to_decode = parts[1]
 
-    if not access_token:
+    if not token_to_decode:
         raise HTTPException(status_code=401, detail="Token required")
 
-    username = _decode_access_token(access_token)
+    username = _decode_access_token(token_to_decode)
 
     conn = get_conn()
     cur  = get_cursor(conn)
@@ -190,9 +235,12 @@ def verify_session(token: Optional[str] = Query(None), authorization: Optional[s
 
 
 @router.get("/profile")
-def get_profile(authorization: Optional[str] = Header(None)):
+def get_profile(
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     """Fetch the full profile for the authenticated user."""
-    username = _get_username_from_auth_header(authorization)
+    username = _get_username_from_auth_header(authorization, access_token)
     
     conn = get_conn()
     cur  = get_cursor(conn)
@@ -217,10 +265,11 @@ def update_profile(
     name:     Optional[str] = Form(None),
     email:    Optional[str] = Form(None),
     mobile:   Optional[str] = Form(None),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
 ):
     """Update profile fields for the authenticated user."""
-    username = _get_username_from_auth_header(authorization)
+    username = _get_username_from_auth_header(authorization, access_token)
     
     conn = get_conn()
     cur  = get_cursor(conn)
@@ -243,10 +292,11 @@ def update_profile(
 def change_password(
     old_password: str = Form(...),
     new_password: str = Form(...),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
 ):
     """Change password for the authenticated user."""
-    username = _get_username_from_auth_header(authorization)
+    username = _get_username_from_auth_header(authorization, access_token)
     
     if len(new_password) < 4:
         raise HTTPException(status_code=400, detail="New password must be at least 4 characters")

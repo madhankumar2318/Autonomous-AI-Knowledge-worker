@@ -1,6 +1,6 @@
 # backend/routes/upload.py
 import csv, json, io, os
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Query, Cookie
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from typing import Optional
 from db import get_conn, get_cursor, execute_sql, insert_history, get_user_id
@@ -45,11 +45,12 @@ def get_s3_client():
 @router.post("/")
 async def upload_file(
     file: UploadFile = File(...),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
 ):
     try:
         # Verify authenticated user uploader
-        username = _get_username_from_auth_header(authorization)
+        username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
@@ -151,9 +152,12 @@ async def upload_file(
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 @router.get("/list")
-def list_uploads(authorization: Optional[str] = Header(None)):
+def list_uploads(
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     try:
-        username = _get_username_from_auth_header(authorization)
+        username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
@@ -189,9 +193,13 @@ def list_uploads(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{filename}")
-def delete_file(filename: str, authorization: Optional[str] = Header(None)):
+def delete_file(
+    filename: str,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     try:
-        username = _get_username_from_auth_header(authorization)
+        username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
@@ -248,20 +256,21 @@ def delete_file(filename: str, authorization: Optional[str] = Header(None)):
 def download_file(
     filename: str,
     token: Optional[str] = Query(None),
-    authorization: Optional[str] = Header(None)
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
 ):
     try:
-        # Extract JWT session token from Query parameters or Headers
-        access_token = token
-        if not access_token and authorization:
+        # Extract JWT session token from Cookie, Query parameters or Headers
+        token_to_decode = access_token or token
+        if not token_to_decode and authorization:
             parts = authorization.split(" ")
             if len(parts) == 2 and parts[0].lower() == "bearer":
-                access_token = parts[1]
+                token_to_decode = parts[1]
 
-        if not access_token:
+        if not token_to_decode:
             raise HTTPException(status_code=401, detail="Authentication token required to download files")
 
-        username = _decode_access_token(access_token)
+        username = _decode_access_token(token_to_decode)
         user_id = get_user_id(username)
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")

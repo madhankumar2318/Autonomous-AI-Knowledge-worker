@@ -69,6 +69,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       const res = await fetch(endpoint, {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (!res.ok) {

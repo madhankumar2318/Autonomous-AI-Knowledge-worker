@@ -89,14 +89,12 @@ export default function Home_Page() {
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     document.documentElement.setAttribute("data-theme", savedTheme);
-    const token = localStorage.getItem("ak_token");
-    if (!token) { setSessionChecked(true); return; }
-    fetch(`${API_BASE_URL}/auth/verify?token=${encodeURIComponent(token)}`)
+    fetch(`${API_BASE_URL}/auth/verify`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => { setLoggedInUser(data.username); setIsLoggedIn(true); })
       .catch(() => {
         localStorage.removeItem("ak_session");
-        localStorage.removeItem("ak_token");
+        fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => {});
       })
       .finally(() => setSessionChecked(true));
   }, []);
@@ -133,11 +131,10 @@ export default function Home_Page() {
           <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0e7490] opacity-35" />
         </div>
         <div className="w-full relative z-10 flex justify-center">
-          <LoginForm onLoginSuccess={(username, token) => {
+          <LoginForm onLoginSuccess={(username, _token) => {
             setIsLoggedIn(true);
             setLoggedInUser(username);
             localStorage.setItem("ak_session", username);
-            localStorage.setItem("ak_token", token);
           }} />
         </div>
         <ToastContainer />
@@ -207,9 +204,13 @@ export default function Home_Page() {
             </button>
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
+                try {
+                  await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+                } catch (err) {
+                  console.error("Logout failed on server:", err);
+                }
                 localStorage.removeItem("ak_session");
-                localStorage.removeItem("ak_token");
                 setIsLoggedIn(false);
                 setLoggedInUser("");
               }}
@@ -338,9 +339,13 @@ export default function Home_Page() {
         <UserProfile
           username={loggedInUser}
           onClose={() => setShowProfile(false)}
-          onLogout={() => {
+          onLogout={async () => {
+            try {
+              await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+            } catch (err) {
+              console.error("Logout failed on server:", err);
+            }
             localStorage.removeItem("ak_session");
-            localStorage.removeItem("ak_token");
             setShowProfile(false);
             setIsLoggedIn(false);
             setLoggedInUser("");

@@ -1,5 +1,5 @@
 # backend/routes/chat.py
-from fastapi import APIRouter, Header
+from fastapi import APIRouter, Header, Cookie
 from pydantic import BaseModel
 from typing import Optional, List
 import os
@@ -397,7 +397,7 @@ def search_knowledge_base(query: str) -> str:
     Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD) for relevant information matching the query.
     Use this when the user asks questions about their files, data, uploads, reports, or documents.
     """
-    print(f"🤖 AI Tool Executing: search_knowledge_base(query='{query}')")
+    print(f"[AI Tool] search_knowledge_base(query='{query}')")
     try:
         from rag import search_knowledge
         results = search_knowledge(query, top_k=5)
@@ -575,15 +575,26 @@ async def handle_mock_fallback(msg: str):
 
 # ── API Route handler ─────────────────────────────────────────────────────────
 @router.post("/")
-async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
-    # Extract verified username from token if present, otherwise fallback
+async def chat(
+    req: ChatRequest,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
+    # Extract verified username from token/cookie if present, otherwise fallback
     username = "guest"
-    if authorization:
+    token_to_decode = access_token
+    if not token_to_decode and authorization:
         try:
             parts = authorization.split(" ")
             if len(parts) == 2 and parts[0].lower() == "bearer":
-                from routes.auth import _decode_access_token
-                username = _decode_access_token(parts[1])
+                token_to_decode = parts[1]
+        except Exception as e:
+            print(f"Token parsing failed in chat endpoint: {e}")
+
+    if token_to_decode:
+        try:
+            from routes.auth import _decode_access_token
+            username = _decode_access_token(token_to_decode)
         except Exception as e:
             print(f"Token decoding failed in chat endpoint: {e}")
             
@@ -605,7 +616,7 @@ async def chat(req: ChatRequest, authorization: Optional[str] = Header(None)):
         groq_client = get_groq_client()
         if groq_client:
             try:
-                print("🚀 Executing Chat Agent using Groq...")
+                print("[INFO] Executing Chat Agent using Groq...")
                 # Prepare messages in OpenAI/Groq format
                 messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
                 for msg in req.history:

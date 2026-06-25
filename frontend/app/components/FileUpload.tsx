@@ -55,13 +55,8 @@ export default function FileUpload() {
 
   const fetchUploads = async () => {
     try {
-      const token = localStorage.getItem("ak_token");
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
       const res = await fetch(`${API_BASE_URL}/upload/list`, {
-        headers,
+        credentials: "include",
       });
       const data = await res.json();
       setUploads(data.uploads || []);
@@ -116,14 +111,9 @@ export default function FileUpload() {
     formData.append("file", file);
 
     try {
-      const token = localStorage.getItem("ak_token");
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
       const res = await fetch(`${API_BASE_URL}/upload/`, {
         method: "POST",
-        headers,
+        credentials: "include",
         body: formData,
       });
       clearInterval(progressInterval);
@@ -161,14 +151,9 @@ export default function FileUpload() {
   const handleDelete = async (filename: string) => {
     if (!confirm(`Are you sure you want to delete "${filename}"? This removes it permanently.`)) return;
     try {
-      const token = localStorage.getItem("ak_token");
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
       const res = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
         method: "DELETE",
-        headers,
+        credentials: "include",
       });
       if (res.ok) {
         showToast("success", `"${filename}" removed.`);
@@ -363,7 +348,7 @@ export default function FileUpload() {
                   </div>
                   <div className="fw-file-actions">
                     <a
-                      href={`${API_BASE_URL}/upload/download/${u.filename}?token=${encodeURIComponent(localStorage.getItem("ak_token") || "")}`}
+                      href={`${API_BASE_URL}/upload/download/${u.filename}`}
                       className="fw-file-action-btn"
                       title="Download File"
                     >

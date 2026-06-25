@@ -87,13 +87,10 @@ export default function UserProfile({
   async function fetchProfile() {
     setLoading(true);
     try {
-      const token = localStorage.getItem("ak_token");
       const res = await fetch(
         `${API_BASE_URL}/auth/profile`,
         {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
+          credentials: "include"
         }
       );
       if (!res.ok) throw new Error();
@@ -113,16 +110,13 @@ export default function UserProfile({
   async function handleSave() {
     setSaving(true);
     try {
-      const token = localStorage.getItem("ak_token");
       const fd = new FormData();
       fd.append("name", editName);
       fd.append("email", editEmail);
       fd.append("mobile", editMobile);
       const res = await fetch(`${API_BASE_URL}/auth/profile`, {
         method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
+        credentials: "include",
         body: fd,
       });
       if (!res.ok) throw new Error();
@@ -151,15 +145,12 @@ export default function UserProfile({
     if (newPw !== confirmPw) return setPwError("New passwords do not match.");
     setPwSaving(true);
     try {
-      const token = localStorage.getItem("ak_token");
       const fd = new FormData();
       fd.append("old_password", oldPw);
       fd.append("new_password", newPw);
       const res = await fetch(`${API_BASE_URL}/auth/password`, {
         method: "PUT",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
+        credentials: "include",
         body: fd,
       });
       const data = await res.json();
