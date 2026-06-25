@@ -1,9 +1,11 @@
 # backend/routes/chat.py
-from fastapi import APIRouter, Header, Cookie
+from fastapi import APIRouter, Header, Cookie, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import os
 import re
+import json
 import random
 import datetime
 import asyncio
@@ -61,33 +63,8 @@ Your users are professionals who need fast, accurate, data-driven answers. Treat
 
 ---
 
-# YOUR CAPABILITIES (TOOLS)
-You have access to these live system tools. Use them proactively — don't just talk about data, GO GET IT:
-
-1. **get_stock_price(symbol)** — Fetch real-time stock price, day high/low for any ticker.
-   - USE WHEN: User mentions any company name, stock symbol, or asks about market performance.
-   - SMART BEHAVIOR: If user says "Apple" → call with "AAPL". If they say "Google" → call with "GOOGL". Map company names to tickers automatically.
-
-2. **get_latest_news(category, topic)** — Pull the latest news articles with optional category/topic filters.
-   - USE WHEN: User asks about current events, industry trends, or wants a news briefing.
-   - CATEGORIES: business, entertainment, health, science, sports, technology.
-   - SMART BEHAVIOR: If user asks "What's happening in AI?", use topic="artificial intelligence".
-
-3. **web_search(query)** — Search Google for any information you don't have.
-   - USE WHEN: User asks about something outside your training data, recent events, specific facts, or anything you're not 100% sure about.
-   - SMART BEHAVIOR: ALWAYS search rather than guessing. Accuracy > speed.
-
-4. **read_uploaded_file(filename)** — Read and analyze specific file's content from the workspace uploads folder.
-   - USE WHEN: You know the exact filename and need to read its content (CSV structure, full JSON data, exact lines).
-   - SMART BEHAVIOR: Use this when the user points to a specific small file, or you need precise structures.
-
-5. **search_knowledge_base(query)** — Semantically search all uploaded documents (PDFs, CSVs, TXT, JSON, MD) in the workspace.
-   - USE WHEN: User asks questions about "my files", "uploaded documents", general questions about report data, or searches for topics inside their documents.
-   - SMART BEHAVIOR: Proactively use this search tool first to find matching sections across all files.
-
-6. **generate_pdf_report(news_query, stock_symbols, custom_insights)** — Generate a professional PDF report.
-   - USE WHEN: User says "report", "PDF", "generate", "create a summary", "document this".
-   - SMART BEHAVIOR: Gather relevant data first, then generate the report with meaningful insights.
+# TOOLS & CAPABILITIES
+You have access to live system tools (such as stock prices, news, web search, and knowledge base search). Proactively use these tools to fetch real-time data whenever the user asks for information requiring live lookups or document queries. The system automatically handles tool execution.
 
 ---
 
@@ -643,7 +620,7 @@ async def chat(
                         messages=messages,
                         tools=GROQ_TOOLS,
                         tool_choice="auto",
-                        temperature=0.7,
+                        temperature=0.1,
                     )
                     
                     response_message = groq_response.choices[0].message
@@ -813,3 +790,338 @@ async def chat(
         return await run_chat()
     finally:
         active_user_context.reset(token_ctx)
+
+
+# ── SSE Helper ────────────────────────────────────────────────────────────────
+def _sse_event(event_type: str, content: str) -> str:
+    """Format a Server-Sent Event JSON data frame."""
+    return f"data: {json.dumps({'type': event_type, 'content': content})}\n\n"
+
+
+def _sse_done() -> str:
+    """Final SSE sentinel frame."""
+    return "data: [DONE]\n\n"
+
+
+def _sse_error(message: str) -> str:
+    """SSE error frame."""
+    return f"data: {json.dumps({'type': 'error', 'content': message})}\n\n"
+
+
+# ── Streaming Chat Endpoint ───────────────────────────────────────────────────
+@router.post("/stream")
+async def chat_stream(
+    req: ChatRequest,
+    request: Request,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None),
+):
+    """
+    Streaming chat endpoint using Server-Sent Events (SSE).
+    Returns tokens incrementally as the AI generates them.
+    Format: data: {"type": "token"|"status"|"error", "content": "..."}\n\n
+    Terminates with: data: [DONE]\n\n
+    """
+    # ── Resolve authenticated username ────────────────────────────────────────
+    username = "guest"
+    token_to_decode = access_token
+    if not token_to_decode and authorization:
+        try:
+            parts = authorization.split(" ")
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token_to_decode = parts[1]
+        except Exception as e:
+            print(f"[WARN] Token parsing failed in stream endpoint: {e}")
+
+    if token_to_decode:
+        try:
+            from routes.auth import _decode_access_token
+            username = _decode_access_token(token_to_decode)
+        except Exception as e:
+            print(f"[WARN] Token decoding failed in stream endpoint: {e}")
+
+    if username == "guest" and req.username:
+        username = req.username
+
+    # Capture context values now (before generator runs in background thread)
+    resolved_username = username
+    resolved_message = req.message
+    resolved_history = req.history
+
+    async def event_generator():
+        # Set tenant context for RAG isolation within this generator
+        from rag import active_user_context
+        token_ctx = active_user_context.set(resolved_username)
+
+        accumulated_reply = ""
+
+        try:
+            # Log query to history
+            try:
+                insert_history(resolved_username, "chat_query", resolved_message)
+            except Exception as err:
+                print(f"[WARN] Failed to log stream chat query: {err}")
+
+            # ── 1. Try Groq streaming ─────────────────────────────────────
+            groq_client = get_groq_client()
+            if groq_client:
+                try:
+                    print("[INFO] Executing Streaming Chat Agent using Groq...")
+                    # Build messages
+                    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+                    for msg in resolved_history:
+                        role = "user" if msg.role == "user" else "assistant"
+                        messages.append({"role": role, "content": msg.content})
+                    messages.append({"role": "user", "content": resolved_message})
+
+                    groq_final_text = None
+
+                    # Tool-calling loop (non-streaming) up to 5 iterations
+                    for loop_idx in range(5):
+                        # Check if client has disconnected
+                        if await request.is_disconnected():
+                            print("[INFO] Client disconnected, stopping Groq stream.")
+                            return
+
+                        # Run tool-use pass without streaming first
+                        tool_response = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=messages,
+                            tools=GROQ_TOOLS,
+                            tool_choice="auto",
+                            temperature=0.1,
+                        )
+                        response_message = tool_response.choices[0].message
+                        tool_calls = response_message.tool_calls
+
+                        if not tool_calls:
+                            if loop_idx == 0:
+                                # No tools used at all. Break and let native streaming handle the stream.
+                                break
+                            else:
+                                # We already used tools, and this is the final text response.
+                                final_text = response_message.content or ""
+                                accumulated_reply = final_text
+                                
+                                # Simulate token streaming to the client
+                                words = final_text.split(" ")
+                                for i, word in enumerate(words):
+                                    if await request.is_disconnected():
+                                        return
+                                    token = word + (" " if i < len(words) - 1 else "")
+                                    yield _sse_event("token", token)
+                                    await asyncio.sleep(0.02)
+                                
+                                if accumulated_reply:
+                                    try:
+                                        insert_history(resolved_username, "chat_response", accumulated_reply)
+                                    except Exception as err:
+                                        print(f"[WARN] Failed to log Groq stream response: {err}")
+                                yield _sse_done()
+                                return
+
+                        # Build assistant message dict to append to history (since we have tool_calls)
+                        msg_dict = {
+                            "role": "assistant",
+                            "content": response_message.content,
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments
+                                    }
+                                } for tc in tool_calls
+                            ]
+                        }
+                        messages.append(msg_dict)
+
+                        # Execute tools and yield status notifications
+                        for tool_call in tool_calls:
+                            func_name = tool_call.function.name
+                            yield _sse_event("status", f"Calling tool: {func_name}...")
+                            func_to_call = FUNCTIONS_MAP.get(func_name)
+                            if not func_to_call:
+                                tool_output = f"Error: Tool {func_name} not found."
+                            else:
+                                try:
+                                    func_args = json.loads(tool_call.function.arguments)
+                                    # Run blocking tool in executor to avoid blocking event loop
+                                    tool_output = await asyncio.get_event_loop().run_in_executor(
+                                        None, lambda f=func_to_call, a=func_args: f(**a)
+                                    )
+                                except Exception as e:
+                                    tool_output = f"Error executing {func_name}: {str(e)}"
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": str(tool_output)
+                            })
+
+                    # Now stream the final textual response using Groq streaming
+                    if await request.is_disconnected():
+                        return
+
+                    stream = groq_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=messages,
+                        temperature=0.1,
+                        stream=True,
+                    )
+                    for chunk in stream:
+                        if await request.is_disconnected():
+                            print("[INFO] Client disconnected mid-stream (Groq).")
+                            return
+                        delta = chunk.choices[0].delta
+                        token = delta.content or ""
+                        if token:
+                            accumulated_reply += token
+                            yield _sse_event("token", token)
+                            await asyncio.sleep(0)
+
+                    groq_final_text = accumulated_reply
+
+                    # Log response
+                    if groq_final_text:
+                        try:
+                            insert_history(resolved_username, "chat_response", groq_final_text)
+                        except Exception as err:
+                            print(f"[WARN] Failed to log Groq stream response: {err}")
+                        yield _sse_done()
+                        return
+
+                except Exception as groq_err:
+                    print(f"[WARN] Groq streaming error: {groq_err}. Falling back to Gemini...")
+                    accumulated_reply = ""  # Reset for Gemini fallback
+
+            # ── 2. Try Gemini streaming ───────────────────────────────────
+            client = get_gemini_client()
+
+            if not client:
+                # ── 3. Mock word-by-word fallback ─────────────────────────
+                mock_reply = await handle_mock_fallback(resolved_message)
+                words = mock_reply.split(" ")
+                for word in words:
+                    if await request.is_disconnected():
+                        return
+                    token = word + " "
+                    accumulated_reply += token
+                    yield _sse_event("token", token)
+                    await asyncio.sleep(0.04)
+                try:
+                    insert_history(resolved_username, "chat_response", accumulated_reply.strip())
+                except Exception:
+                    pass
+                yield _sse_done()
+                return
+
+            # Gemini streaming path
+            try:
+                contents = []
+                for msg in resolved_history:
+                    role = "user" if msg.role == "user" else "model"
+                    contents.append(
+                        types.Content(
+                            role=role,
+                            parts=[types.Part.from_text(text=msg.content)]
+                        )
+                    )
+
+                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
+                last_error = None
+                streamed = False
+
+                for model_name in MODELS_TO_TRY:
+                    if streamed:
+                        break
+                    for attempt in range(3):
+                        if await request.is_disconnected():
+                            return
+                        try:
+                            chat_session = client.chats.create(
+                                model=model_name,
+                                history=contents,
+                                config=types.GenerateContentConfig(
+                                    tools=agent_tools,
+                                    system_instruction=SYSTEM_INSTRUCTION,
+                                )
+                            )
+                            # send_message_stream handles the full tool-calling loop internally
+                            # and streams only the final textual response
+                            for chunk in chat_session.send_message_stream(resolved_message):
+                                if await request.is_disconnected():
+                                    print("[INFO] Client disconnected mid-stream (Gemini).")
+                                    return
+                                token = chunk.text or ""
+                                if token:
+                                    accumulated_reply += token
+                                    yield _sse_event("token", token)
+                                    await asyncio.sleep(0)
+
+                            streamed = True
+                            last_error = None
+                            break  # Success
+
+                        except Exception as e:
+                            last_error = e
+                            err_str = str(e)
+                            if any(code in err_str for code in ["503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED"]):
+                                wait = 2 ** attempt
+                                print(f"[{model_name}] attempt {attempt+1} failed ({err_str[:60]}). Retrying in {wait}s...")
+                                await asyncio.sleep(wait)
+                            else:
+                                break  # Non-retryable
+
+                if not streamed:
+                    # All models failed — stream error message
+                    err_str = str(last_error) if last_error else "Unknown error"
+                    if "503" in err_str or "UNAVAILABLE" in err_str:
+                        error_reply = (
+                            "**Gemini AI is temporarily overloaded** (high demand right now). "
+                            "Please try again in 30-60 seconds. I'll be fully back online shortly!"
+                        )
+                    elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                        error_reply = (
+                            "**API quota reached** for your current Gemini plan. "
+                            "Please wait a minute and try again."
+                        )
+                    else:
+                        error_reply = f"Error processing your request: {err_str[:200]}"
+                    yield _sse_error(error_reply)
+                    yield _sse_done()
+                    return
+
+                # Log accumulated reply
+                if accumulated_reply:
+                    try:
+                        insert_history(resolved_username, "chat_response", accumulated_reply)
+                    except Exception as err:
+                        print(f"[WARN] Failed to log Gemini stream response: {err}")
+                yield _sse_done()
+
+            except Exception as e:
+                print(f"[ERROR] Gemini stream error: {e}")
+                yield _sse_error(f"Streaming error: {str(e)[:200]}")
+                yield _sse_done()
+
+        except Exception as outer_e:
+            print(f"[ERROR] Stream generator outer error: {outer_e}")
+            try:
+                yield _sse_error(f"Internal server error: {str(outer_e)[:150]}")
+                yield _sse_done()
+            except Exception:
+                pass
+        finally:
+            active_user_context.reset(token_ctx)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

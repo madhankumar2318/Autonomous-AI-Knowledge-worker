@@ -1,10 +1,10 @@
 "use client";
 import {
   Bot,
-  Loader2,
   MessageSquare,
   Send,
   Sparkles,
+  Square,
   User,
   X,
   Zap,
@@ -44,9 +44,11 @@ export default function ChatAssistant({
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [streamingStatus, setStreamingStatus] = useState<string>("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -113,40 +115,129 @@ export default function ChatAssistant({
     });
   };
 
+  const stopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  };
+
   const sendMessage = async (text?: string) => {
     const userMessage = (text ?? input).trim();
     if (!userMessage || loading) return;
     setInput("");
+    setStreamingStatus("");
 
-    const updatedMessages = [
-      ...messages,
+    // Append user message + empty AI placeholder
+    const chatHistory = messages.map((msg) => ({
+      role: msg.role === "ai" ? "ai" : "user",
+      content: msg.content,
+    }));
+
+    setMessages((prev) => [
+      ...prev,
       { role: "user", content: userMessage } as ChatMessage,
-    ];
-    setMessages(updatedMessages);
+      { role: "ai", content: "" } as ChatMessage,
+    ]);
     setLoading(true);
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
-      const chatHistory = messages.map((msg) => ({
-        role: msg.role === "ai" ? "ai" : "user",
-        content: msg.content,
-      }));
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      const res = await fetch(`${API_BASE_URL}/chat/`, {
+      const res = await fetch(`${API_BASE_URL}/chat/stream`, {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
+        signal: controller.signal,
         body: JSON.stringify({ message: userMessage, username, history: chatHistory }),
       });
-      const data = await res.json();
-      setMessages((prev) => [...prev, { role: "ai", content: data.reply }]);
-    } catch {
-      showToast("error", "Failed to connect to AI server.");
-      setMessages((prev) => [
-        ...prev,
-        { role: "ai", content: "Sorry, I'm currently offline. Please check if the backend server is running." },
-      ]);
+
+      if (!res.ok || !res.body) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process all complete SSE lines in the buffer
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? ""; // keep the last (possibly incomplete) line
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed.startsWith("data:")) continue;
+
+          const payload = trimmed.slice(5).trim();
+          if (payload === "[DONE]") {
+            // Stream complete
+            setStreamingStatus("");
+            break;
+          }
+
+          try {
+            const event = JSON.parse(payload) as { type: string; content: string };
+            if (event.type === "token") {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last && last.role === "ai") {
+                  updated[updated.length - 1] = {
+                    ...last,
+                    content: last.content + event.content,
+                  };
+                }
+                return updated;
+              });
+            } else if (event.type === "status") {
+              setStreamingStatus(event.content);
+            } else if (event.type === "error") {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last && last.role === "ai") {
+                  updated[updated.length - 1] = {
+                    ...last,
+                    content: event.content,
+                  };
+                }
+                return updated;
+              });
+            }
+          } catch {
+            // Skip malformed SSE frames
+          }
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        // User stopped generation — finalize the partial message as-is
+        setStreamingStatus("");
+      } else {
+        showToast("error", "Failed to connect to AI server.");
+        setMessages((prev) => {
+          const updated = [...prev];
+          const last = updated[updated.length - 1];
+          if (last && last.role === "ai" && last.content === "") {
+            updated[updated.length - 1] = {
+              ...last,
+              content: "Sorry, I'm currently offline. Please check if the backend server is running.",
+            };
+          }
+          return updated;
+        });
+      }
     } finally {
       setLoading(false);
+      setStreamingStatus("");
+      abortControllerRef.current = null;
     }
   };
 
@@ -181,38 +272,43 @@ export default function ChatAssistant({
 
         {/* Messages */}
         <div className="chat-inline-messages">
-          {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`chat-msg-row ${msg.role === "user" ? "chat-msg-user" : "chat-msg-ai"}`}
-            >
-              <div className="chat-msg-avatar">
-                {msg.role === "user" ? (
-                  <User className="w-3.5 h-3.5" style={{ color: "#fff" }} />
-                ) : (
-                  <Bot className="w-3.5 h-3.5" style={{ color: "#67e8f9" }} />
-                )}
-              </div>
-              <div className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}>
-                <div className="chat-bubble-content">
-                  {formatMessage(msg.content)}
+          {messages.map((msg, idx) => {
+            const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
+            return (
+              <div
+                key={idx}
+                className={`chat-msg-row ${msg.role === "user" ? "chat-msg-user" : "chat-msg-ai"}`}
+              >
+                <div className="chat-msg-avatar">
+                  {msg.role === "user" ? (
+                    <User className="w-3.5 h-3.5" style={{ color: "#fff" }} />
+                  ) : (
+                    <Bot className="w-3.5 h-3.5" style={{ color: "#67e8f9" }} />
+                  )}
+                </div>
+                <div className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}>
+                  <div className="chat-bubble-content">
+                    {msg.content === "" && isLastAi ? (
+                      <span className="chat-typing">
+                        <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
+                        <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
+                        <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
+                      </span>
+                    ) : (
+                      <>
+                        {formatMessage(msg.content)}
+                        {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-
-          {loading && (
-            <div className="chat-msg-row chat-msg-ai">
-              <div className="chat-msg-avatar">
-                <Bot className="w-3.5 h-3.5" style={{ color: "#67e8f9" }} />
-              </div>
-              <div className="chat-bubble chat-bubble-ai">
-                <div className="chat-typing">
-                  <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                  <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                  <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
-                </div>
-              </div>
+            );
+          })}
+          {loading && streamingStatus && (
+            <div className="chat-status-pill">
+              <span className="chat-status-pill-dot" />
+              {streamingStatus}
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -237,7 +333,7 @@ export default function ChatAssistant({
         {/* Input */}
         <div className="chat-inline-input">
           <form
-            onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
+            onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }}
             className="chat-input-form"
           >
             <input
@@ -250,13 +346,24 @@ export default function ChatAssistant({
               disabled={loading}
               id="chat-inline-input"
             />
-            <button
-              type="submit"
-              disabled={!input.trim() || loading}
-              className={`chat-send-btn ${input.trim() && !loading ? "chat-send-active" : ""}`}
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </button>
+            {loading ? (
+              <button
+                type="button"
+                onClick={stopGeneration}
+                className="chat-send-btn chat-stop-active"
+                title="Stop generation"
+              >
+                <Square className="w-4 h-4" fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!input.trim()}
+                className={`chat-send-btn ${input.trim() ? "chat-send-active" : ""}`}
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            )}
           </form>
           <div className="chat-input-hint">
             <Zap className="w-3 h-3" />
@@ -505,6 +612,56 @@ export default function ChatAssistant({
             transform: scale(1.08);
             box-shadow: 0 6px 20px rgba(34,211,238,0.55);
           }
+          .chat-stop-active {
+            background: rgba(239,68,68,0.18) !important;
+            border-color: rgba(239,68,68,0.45) !important;
+            color: #f87171 !important;
+            cursor: pointer !important;
+            box-shadow: 0 4px 16px rgba(239,68,68,0.2);
+          }
+          .chat-stop-active:hover {
+            background: rgba(239,68,68,0.28) !important;
+            transform: scale(1.08);
+          }
+          /* Streaming pulsing cursor */
+          .chat-stream-cursor {
+            display: inline-block;
+            color: #22d3ee;
+            font-weight: 300;
+            animation: cursorBlink 0.9s step-end infinite;
+            margin-left: 1px;
+            vertical-align: baseline;
+          }
+          @keyframes cursorBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+          }
+          /* Tool status pill */
+          .chat-status-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            align-self: flex-start;
+            background: rgba(34,211,238,0.08);
+            border: 1px solid rgba(34,211,238,0.2);
+            border-radius: 20px;
+            padding: 5px 12px;
+            font-size: 13px;
+            color: rgba(103,232,249,0.85);
+            animation: fadeInSlide 0.2s ease;
+          }
+          @keyframes fadeInSlide {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          .chat-status-pill-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #22d3ee;
+            animation: pulse 1.2s ease-in-out infinite;
+            flex-shrink: 0;
+          }
           .chat-input-hint {
             display: flex;
             align-items: center;
@@ -565,26 +722,34 @@ export default function ChatAssistant({
 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: "auto", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
-            {messages.map((msg, idx) => (
-              <div key={idx} style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: msg.role === "user" ? "var(--bg-hover)" : "rgba(34,211,238,0.12)", border: msg.role === "user" ? "1px solid var(--border-light)" : "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {msg.role === "user" ? <User size={13} color="#fff" /> : <Bot size={13} color="#67e8f9" />}
+            {messages.map((msg, idx) => {
+              const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
+              return (
+                <div key={idx} style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: msg.role === "user" ? "var(--bg-hover)" : "rgba(34,211,238,0.12)", border: msg.role === "user" ? "1px solid var(--border-light)" : "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {msg.role === "user" ? <User size={13} color="#fff" /> : <Bot size={13} color="#67e8f9" />}
+                  </div>
+                  <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "var(--bg-surface)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid var(--border-light)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "var(--text-primary)", fontSize: "0.95rem", lineHeight: "1.55", maxWidth: "80%" }}>
+                    {msg.content === "" && isLastAi ? (
+                      <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
+                        <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
+                        <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
+                      </span>
+                    ) : (
+                      <>
+                        {formatMessage(msg.content)}
+                        {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "var(--bg-surface)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid var(--border-light)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "var(--text-primary)", fontSize: "0.95rem", lineHeight: "1.55", maxWidth: "80%" }}>
-                  {formatMessage(msg.content)}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: "rgba(34,211,238,0.12)", border: "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Bot size={13} color="#67e8f9" />
-                </div>
-                <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border-light)", padding: "12px 14px", borderRadius: "14px", borderTopLeftRadius: "4px", display: "flex", alignItems: "center", gap: "4px" }}>
-                  <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                  <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                  <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
-                </div>
+              );
+            })}
+            {loading && streamingStatus && (
+              <div style={{ display: "flex", alignItems: "center", gap: "7px", alignSelf: "flex-start", background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.2)", borderRadius: "20px", padding: "5px 12px", fontSize: "12px", color: "rgba(103,232,249,0.85)" }}>
+                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#22d3ee", flexShrink: 0, animation: "pulse 1.2s ease-in-out infinite" }} />
+                {streamingStatus}
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -592,23 +757,35 @@ export default function ChatAssistant({
 
           {/* Input */}
           <div style={{ padding: "14px 16px", borderTop: "1px solid var(--border-light)", background: "var(--bg-secondary)" }}>
-            <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} style={{ display: "flex", gap: "10px" }}>
+            <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }} style={{ display: "flex", gap: "10px" }}>
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me anything…"
-                style={{ flex: 1, background: "var(--bg-surface)", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "9px 13px", color: "var(--text-primary)", fontSize: "0.95rem", outline: "none" }}
+                disabled={loading}
+                style={{ flex: 1, background: "var(--bg-surface)", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "9px 13px", color: "var(--text-primary)", fontSize: "0.95rem", outline: "none", opacity: loading ? 0.6 : 1 }}
                 onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
                 onBlur={(e) => (e.target.style.borderColor = "var(--border-light)")}
               />
-              <button
-                type="submit"
-                disabled={!input.trim() || loading}
-                style={{ width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0, background: input.trim() && !loading ? "linear-gradient(135deg, #22d3ee, #0891b2)" : "var(--bg-surface)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: input.trim() && !loading ? "pointer" : "not-allowed", color: input.trim() && !loading ? "#030f1a" : "var(--text-muted)", transition: "all 0.2s ease" }}
-              >
-                <Send size={15} />
-              </button>
+              {loading ? (
+                <button
+                  type="button"
+                  onClick={stopGeneration}
+                  style={{ width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0, background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.45)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#f87171", transition: "all 0.2s ease" }}
+                  title="Stop generation"
+                >
+                  <Square size={14} fill="currentColor" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  style={{ width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0, background: input.trim() ? "linear-gradient(135deg, #22d3ee, #0891b2)" : "var(--bg-surface)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: input.trim() ? "pointer" : "not-allowed", color: input.trim() ? "#030f1a" : "var(--text-muted)", transition: "all 0.2s ease" }}
+                >
+                  <Send size={15} />
+                </button>
+              )}
             </form>
           </div>
         </div>
