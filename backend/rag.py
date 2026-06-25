@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 import chromadb
 from google import genai
 import contextvars
+from db import IS_POSTGRES, get_conn, get_cursor, execute_sql
 
 # Context variable to store active user context during RAG search
 active_user_context = contextvars.ContextVar("active_user_context", default=None)
@@ -202,12 +203,8 @@ def extract_file_content(filepath: str, filename: str) -> str:
 
 def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, Any]:
     """
-    Extract file content, generate chunk embeddings, and index into ChromaDB.
+    Extract file content, generate chunk embeddings, and index into ChromaDB or pgvector.
     """
-    collection = get_chroma_collection()
-    if collection is None:
-        raise RuntimeError("ChromaDB collection is not initialized.")
-
     if username is None:
         username = active_user_context.get()
 
@@ -231,99 +228,169 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
     embeddings = get_gemini_embeddings_batch(chunks)
 
     # 5. Insert into vector store
-    ids = [f"{filename}_chunk_{i}" for i in range(len(chunks))]
-    metadatas = []
-    for i in range(len(chunks)):
-        meta = {"filename": filename, "chunk_index": i, "total_chunks": len(chunks)}
-        if username:
-            meta["username"] = username
-        metadatas.append(meta)
+    if IS_POSTGRES:
+        conn = get_conn()
+        cur = get_cursor(conn)
+        try:
+            for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+                execute_sql(
+                    cur,
+                    "INSERT INTO document_embeddings (filename, chunk_index, total_chunks, username, content, embedding) VALUES (?, ?, ?, ?, ?, ?)",
+                    (filename, i, len(chunks), username, chunk, str(emb))
+                )
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+    else:
+        collection = get_chroma_collection()
+        if collection is None:
+            raise RuntimeError("ChromaDB collection is not initialized.")
+        ids = [f"{filename}_chunk_{i}" for i in range(len(chunks))]
+        metadatas = []
+        for i in range(len(chunks)):
+            meta = {"filename": filename, "chunk_index": i, "total_chunks": len(chunks)}
+            if username:
+                meta["username"] = username
+            metadatas.append(meta)
 
-    embeddings_any: Any = embeddings
-    metadatas_any: Any = metadatas
-    collection.add(
-        embeddings=embeddings_any,
-        documents=chunks,
-        metadatas=metadatas_any,
-        ids=ids
-    )
+        embeddings_any: Any = embeddings
+        metadatas_any: Any = metadatas
+        collection.add(
+            embeddings=embeddings_any,
+            documents=chunks,
+            metadatas=metadatas_any,
+            ids=ids
+        )
 
     print(f"Successfully indexed '{filename}' with {len(chunks)} chunks.")
     return {"filename": filename, "status": "success", "chunks": len(chunks)}
 
 def delete_file_index(filename: str, username: str = None):
     """
-    Remove all document chunks for a specific file from ChromaDB.
+    Remove all document chunks for a specific file from ChromaDB or pgvector.
     """
-    collection = get_chroma_collection()
-    if collection is None:
-        return
-    
     if username is None:
         username = active_user_context.get()
-    
-    try:
-        # ChromaDB allows deleting by metadata matches
-        if username and username != "guest":
-            where_clause = {
-                "$and": [
-                    {"filename": filename},
-                    {"username": username}
-                ]
-            }
-        else:
-            where_clause = {"filename": filename}
-            
-        collection.delete(where=where_clause)
-        print(f"Deleted index for file: {filename} under user: {username}")
-    except Exception as e:
-        print(f"Error deleting index for file {filename}: {e}")
+        
+    if IS_POSTGRES:
+        conn = get_conn()
+        cur = get_cursor(conn)
+        try:
+            if username and username != "guest":
+                execute_sql(
+                    cur,
+                    "DELETE FROM document_embeddings WHERE filename = ? AND username = ?",
+                    (filename, username)
+                )
+            else:
+                execute_sql(
+                    cur,
+                    "DELETE FROM document_embeddings WHERE filename = ?",
+                    (filename,)
+                )
+            conn.commit()
+            print(f"Deleted pgvector index for file: {filename} under user: {username}")
+        except Exception as e:
+            conn.rollback()
+            print(f"Error deleting pgvector index for file {filename}: {e}")
+        finally:
+            conn.close()
+    else:
+        collection = get_chroma_collection()
+        if collection is None:
+            return
+        try:
+            # ChromaDB allows deleting by metadata matches
+            if username and username != "guest":
+                where_clause = {
+                    "$and": [
+                        {"filename": filename},
+                        {"username": username}
+                    ]
+                }
+            else:
+                where_clause = {"filename": filename}
+                
+            collection.delete(where=where_clause)
+            print(f"Deleted index for file: {filename} under user: {username}")
+        except Exception as e:
+            print(f"Error deleting index for file {filename}: {e}")
 
 def get_indexed_files(username: str = None) -> List[Dict[str, Any]]:
     """
     Get a list of all indexed files and their chunk counts.
     """
-    collection = get_chroma_collection()
-    if collection is None:
-        return []
-
     if username is None:
         username = active_user_context.get()
 
-    try:
-        # Fetch metadata for all documents in the collection, filtered by active user
-        where_clause = {}
-        if username and username != "guest":
-            where_clause = {"username": username}
+    if IS_POSTGRES:
+        conn = get_conn()
+        cur = get_cursor(conn)
+        try:
+            if username and username != "guest":
+                execute_sql(
+                    cur,
+                    "SELECT filename, COUNT(*) as chunks FROM document_embeddings WHERE username = ? GROUP BY filename",
+                    (username,)
+                )
+            else:
+                execute_sql(
+                    cur,
+                    "SELECT filename, COUNT(*) as chunks FROM document_embeddings GROUP BY filename"
+                )
+            rows = cur.fetchall()
             
-        results = collection.get(where=where_clause, include=["metadatas"])
-        if results is None:
+            res = []
+            for row in rows:
+                try:
+                    filename = row["filename"]
+                    chunks = row["chunks"]
+                except Exception:
+                    filename = row[0]
+                    chunks = row[1]
+                res.append({"filename": filename, "chunks": chunks})
+            return res
+        except Exception as e:
+            print(f"Error listing pgvector indexed files: {e}")
             return []
-        metadatas = results.get("metadatas") or []
-        
-        # Group and count
-        file_counts = {}
-        for meta_raw in metadatas:
-            meta: Any = meta_raw
-            if meta and isinstance(meta, dict):
-                filename = meta.get("filename")
-                if filename:
-                    file_counts[filename] = file_counts.get(filename, 0) + 1
-        
-        return [{"filename": fname, "chunks": count} for fname, count in file_counts.items()]
-    except Exception as e:
-        print(f"Error listing indexed files: {e}")
-        return []
+        finally:
+            conn.close()
+    else:
+        collection = get_chroma_collection()
+        if collection is None:
+            return []
+        try:
+            # Fetch metadata for all documents in the collection, filtered by active user
+            where_clause = {}
+            if username and username != "guest":
+                where_clause = {"username": username}
+                
+            results = collection.get(where=where_clause, include=["metadatas"])
+            if results is None:
+                return []
+            metadatas = results.get("metadatas") or []
+            
+            # Group and count
+            file_counts = {}
+            for meta_raw in metadatas:
+                meta: Any = meta_raw
+                if meta and isinstance(meta, dict):
+                    filename = meta.get("filename")
+                    if filename:
+                        file_counts[filename] = file_counts.get(filename, 0) + 1
+            
+            return [{"filename": fname, "chunks": count} for fname, count in file_counts.items()]
+        except Exception as e:
+            print(f"Error listing indexed files: {e}")
+            return []
 
 def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     """
-    Embed user query and query ChromaDB for top_k most similar document chunks.
+    Embed user query and query ChromaDB or pgvector for top_k most similar document chunks.
     """
-    collection = get_chroma_collection()
-    if collection is None:
-        print("Warning: ChromaDB collection not initialized. Returning empty search results.")
-        return []
-
     username = active_user_context.get()
 
     # Get query embedding
@@ -333,44 +400,109 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         print(f"Error embedding query '{query}': {e}")
         return []
 
-    try:
-        # Query database with metadata filters
-        query_kwargs = {
-            "query_embeddings": [query_embedding],
-            "n_results": top_k,
-            "include": ["documents", "metadatas", "distances"]
-        }
-        if username and username != "guest":
-            query_kwargs["where"] = {"username": username}
+    if IS_POSTGRES:
+        conn = get_conn()
+        cur = get_cursor(conn)
+        try:
+            # Query similarity using Cosine distance operator <=>
+            if username and username != "guest":
+                execute_sql(
+                    cur,
+                    """
+                    SELECT filename, chunk_index, total_chunks, content,
+                           (1 - (embedding <=> ?::vector)) * 100 AS similarity
+                    FROM document_embeddings
+                    WHERE username = ?
+                    ORDER BY embedding <=> ?::vector
+                    LIMIT ?
+                    """,
+                    (str(query_embedding), username, str(query_embedding), top_k)
+                )
+            else:
+                execute_sql(
+                    cur,
+                    """
+                    SELECT filename, chunk_index, total_chunks, content,
+                           (1 - (embedding <=> ?::vector)) * 100 AS similarity
+                    FROM document_embeddings
+                    ORDER BY embedding <=> ?::vector
+                    LIMIT ?
+                    """,
+                    (str(query_embedding), str(query_embedding), top_k)
+                )
+            rows = cur.fetchall()
             
-        results = collection.query(**query_kwargs)
-        if results is None:
-            return []
-
-        formatted_results = []
-        documents = results.get("documents")
-        metadatas = results.get("metadatas")
-        distances = results.get("distances")
-
-        docs_list = documents[0] if documents and len(documents) > 0 else []
-        metas_list = metadatas[0] if metadatas and len(metadatas) > 0 else []
-        dists_list = distances[0] if distances and len(distances) > 0 else []
-
-        for doc, meta_raw, dist in zip(docs_list, metas_list, dists_list):
-            meta: Any = meta_raw
-            if doc is not None and meta is not None and dist is not None:
-                # Calculate a similarity score. For L2 distance (Chroma default), lower distance is more similar.
-                # Convert to a simple percentage-like confidence score.
-                similarity = round(max(0.0, 1.0 - (float(dist) / 2.0)) * 100, 2)
+            formatted_results = []
+            for row in rows:
+                try:
+                    filename = row["filename"]
+                    chunk_index = row["chunk_index"]
+                    total_chunks = row["total_chunks"]
+                    content = row["content"]
+                    similarity = row["similarity"]
+                except Exception:
+                    filename = row[0]
+                    chunk_index = row[1]
+                    total_chunks = row[2]
+                    content = row[3]
+                    similarity = row[4]
+                
                 formatted_results.append({
-                    "content": str(doc),
-                    "filename": meta.get("filename", "unknown") if hasattr(meta, "get") else "unknown",
-                    "chunk_index": meta.get("chunk_index", 0) if hasattr(meta, "get") else 0,
-                    "total_chunks": meta.get("total_chunks", 0) if hasattr(meta, "get") else 0,
-                    "similarity_score": similarity
+                    "content": str(content),
+                    "filename": str(filename),
+                    "chunk_index": int(chunk_index),
+                    "total_chunks": int(total_chunks) if total_chunks is not None else 0,
+                    "similarity_score": round(float(similarity), 2)
                 })
+            return formatted_results
+        except Exception as e:
+            print(f"Error searching pgvector: {e}")
+            return []
+        finally:
+            conn.close()
+    else:
+        collection = get_chroma_collection()
+        if collection is None:
+            print("Warning: ChromaDB collection not initialized. Returning empty search results.")
+            return []
+        try:
+            # Query database with metadata filters
+            query_kwargs = {
+                "query_embeddings": [query_embedding],
+                "n_results": top_k,
+                "include": ["documents", "metadatas", "distances"]
+            }
+            if username and username != "guest":
+                query_kwargs["where"] = {"username": username}
+                
+            results = collection.query(**query_kwargs)
+            if results is None:
+                return []
 
-        return formatted_results
-    except Exception as e:
-        print(f"Error searching ChromaDB: {e}")
-        return []
+            formatted_results = []
+            documents = results.get("documents")
+            metadatas = results.get("metadatas")
+            distances = results.get("distances")
+
+            docs_list = documents[0] if documents and len(documents) > 0 else []
+            metas_list = metadatas[0] if metadatas and len(metadatas) > 0 else []
+            dists_list = distances[0] if distances and len(distances) > 0 else []
+
+            for doc, meta_raw, dist in zip(docs_list, metas_list, dists_list):
+                meta: Any = meta_raw
+                if doc is not None and meta is not None and dist is not None:
+                    # Calculate a similarity score. For L2 distance (Chroma default), lower distance is more similar.
+                    # Convert to a simple percentage-like confidence score.
+                    similarity = round(max(0.0, 1.0 - (float(dist) / 2.0)) * 100, 2)
+                    formatted_results.append({
+                        "content": str(doc),
+                        "filename": meta.get("filename", "unknown") if hasattr(meta, "get") else "unknown",
+                        "chunk_index": meta.get("chunk_index", 0) if hasattr(meta, "get") else 0,
+                        "total_chunks": meta.get("total_chunks", 0) if hasattr(meta, "get") else 0,
+                        "similarity_score": similarity
+                    })
+
+            return formatted_results
+        except Exception as e:
+            print(f"Error searching ChromaDB: {e}")
+            return []

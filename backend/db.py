@@ -92,6 +92,24 @@ def init_db():
             timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
+        
+        # pgvector extension and document embeddings setup
+        cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS document_embeddings (
+            id SERIAL PRIMARY KEY,
+            filename TEXT NOT NULL,
+            chunk_index INTEGER NOT NULL,
+            total_chunks INTEGER,
+            username TEXT,
+            content TEXT,
+            embedding VECTOR(3072)
+        )
+        """)
+        cur.execute("""
+        CREATE INDEX IF NOT EXISTS document_embeddings_file_user_idx 
+        ON document_embeddings (filename, username);
+        """)
     else:
         cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
