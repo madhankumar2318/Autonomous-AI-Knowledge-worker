@@ -234,30 +234,66 @@ def get_latest_news(category: str = "", topic: str = "") -> str:
     except Exception as e:
         return f"Error fetching news feed: {str(e)}"
 
+def _serpapi_search(query: str) -> str:
+    """Attempt a Google search via SerpAPI. Returns formatted results or raises an exception."""
+    params = {
+        "engine": "google",
+        "q": query,
+        "api_key": SERPAPI_KEY,
+        "num": 5
+    }
+    response = requests.get("https://serpapi.com/search.json", params=params, timeout=10)
+    data = response.json()
+    if "error" in data:
+        raise RuntimeError(f"SerpAPI error: {data['error']}")
+    results = []
+    for item in data.get("organic_results", []):
+        results.append(f"- {item.get('title')}\n  URL: {item.get('link')}\n  Snippet: {item.get('snippet')}")
+    if not results:
+        raise RuntimeError("SerpAPI returned no results.")
+    return "\n\n".join(results)
+
+
+def _duckduckgo_search(query: str) -> str:
+    """Perform a free search using DuckDuckGo. Returns formatted results or raises an exception."""
+    from ddgs import DDGS
+    results = []
+    with DDGS() as ddgs:
+        for r in ddgs.text(query, max_results=5):
+            title = r.get("title", "No title")
+            url = r.get("href", "")
+            snippet = r.get("body", "No description available.")
+            results.append(f"- {title}\n  URL: {url}\n  Snippet: {snippet}")
+    if not results:
+        raise RuntimeError("DuckDuckGo returned no results.")
+    return "\n\n".join(results)
+
+
 def web_search(query: str) -> str:
     """
-    Search Google for general information, current events, or questions you don't know the answer to.
+    Search the web for general information, current events, or questions you don't know the answer to.
+    Tries SerpAPI (Google Search) first. If unavailable or quota exceeded, automatically falls back
+    to free DuckDuckGo search.
     """
-    print(f"🤖 AI Tool Executing: web_search(query='{query}')")
+    print(f"[AI Tool] web_search(query='{query}')")
+
+    # 1. Try SerpAPI if key is configured
+    if SERPAPI_KEY and len(SERPAPI_KEY.strip()) > 10:
+        try:
+            result = _serpapi_search(query)
+            print("[OK] web_search: Used SerpAPI (Google)")
+            return result
+        except Exception as e:
+            print(f"[WARN] SerpAPI failed: {e}. Falling back to DuckDuckGo...")
+
+    # 2. Fallback to free DuckDuckGo
     try:
-        params = {
-            "engine": "google",
-            "q": query,
-            "api_key": SERPAPI_KEY,
-            "num": 5
-        }
-        response = requests.get("https://serpapi.com/search.json", params=params, timeout=10)
-        data = response.json()
-        if "error" in data:
-            return f"Search provider error: {data['error']}"
-        results = []
-        for item in data.get("organic_results", []):
-            results.append(f"- {item.get('title')}\n  URL: {item.get('link')}\n  Snippet: {item.get('snippet')}")
-        if not results:
-            return "No search results returned."
-        return "\n\n".join(results)
+        result = _duckduckgo_search(query)
+        print("[OK] web_search: Used DuckDuckGo (free fallback)")
+        return result
     except Exception as e:
         return f"Error performing web search: {str(e)}"
+
 
 def read_uploaded_file(filename: str) -> str:
     """

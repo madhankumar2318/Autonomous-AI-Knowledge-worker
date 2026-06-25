@@ -13,3 +13,5 @@ groq
 pyjwt
 psycopg2-binary
 boto3
+duckduckgo-search
+ddgs
