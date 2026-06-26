@@ -16,6 +16,10 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # List of allowed file extensions
 ALLOWED_EXTENSIONS = {".csv", ".json", ".pdf", ".txt", ".md"}
 
+# File upload size limits configuration (default: 25MB)
+MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "25"))
+MAX_UPLOAD_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
 # S3 Cloud Storage Configurations
 S3_BUCKET = os.getenv("S3_BUCKET")
 S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
@@ -69,21 +73,44 @@ async def upload_file(
         os.makedirs(user_upload_dir, exist_ok=True)
         file_path = os.path.join(user_upload_dir, filename)
 
-        content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
+        # Stream-read and write to disk in chunks to avoid memory spikes (DoS Protection)
+        size = 0
+        chunk_size = 1024 * 1024  # 1MB
+        try:
+            with open(file_path, "wb") as f:
+                while True:
+                    chunk = await file.read(chunk_size)
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > MAX_UPLOAD_SIZE_BYTES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"File exceeds maximum size limit of {MAX_FILE_SIZE_MB}MB."
+                        )
+                    f.write(chunk)
+        except Exception as e:
+            # Clean up the partial file if it was created
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+            raise e
 
-        size = len(content)
-
-        # Upload to S3 if configured
+        # Upload to S3 if configured using the disk path (avoiding loading in memory)
         s3_key = f"{username}/{filename}"
         if IS_S3:
             s3_client = get_s3_client()
-            s3_client.put_object(
-                Bucket=S3_BUCKET,
-                Key=s3_key,
-                Body=content
-            )
+            try:
+                s3_client.upload_file(file_path, S3_BUCKET, s3_key)
+            except Exception as s3_err:
+                if os.path.exists(file_path):
+                    try:
+                        os.remove(file_path)
+                    except Exception:
+                        pass
+                raise HTTPException(status_code=500, detail=f"S3 cloud upload failed: {s3_err}")
 
         # Save to database (attaching the user_id)
         db_filepath = f"s3://{S3_BUCKET}/{s3_key}" if IS_S3 else file_path
@@ -119,25 +146,42 @@ async def upload_file(
         finally:
             active_user_context.reset(token_ctx)
 
-        # Get preview based on file type
+        # Get preview based on file type (read minimally from disk to avoid memory overhead)
         data_preview = None
         if ext == ".csv":
             try:
-                text = content.decode("utf-8", errors="ignore")
-                reader = csv.DictReader(io.StringIO(text))
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    preview_lines = []
+                    for _ in range(100):
+                        line = f.readline()
+                        if not line:
+                            break
+                        preview_lines.append(line)
+                    preview_text = "".join(preview_lines)
+                reader = csv.DictReader(io.StringIO(preview_text))
                 data_preview = [row for _, row in zip(range(5), reader)]
             except:
                 pass
         elif ext == ".json":
             try:
-                data = json.loads(content.decode("utf-8", errors="ignore"))
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    json_text = f.read(10 * 1024)
+                data = json.loads(json_text)
                 data_preview = data[:5] if isinstance(data, list) else data
             except:
-                pass
+                try:
+                    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                        data_preview = f.read(300)
+                    if size > 300:
+                        data_preview += "..."
+                except:
+                    pass
         elif ext in {".txt", ".md"}:
             try:
-                text_preview = content.decode("utf-8", errors="ignore")[:300]
-                data_preview = text_preview + ("..." if len(content) > 300 else "")
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    data_preview = f.read(300)
+                if size > 300:
+                    data_preview += "..."
             except:
                 pass
         elif ext == ".pdf":
