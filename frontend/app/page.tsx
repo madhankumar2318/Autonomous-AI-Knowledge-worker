@@ -95,6 +95,14 @@ export default function Home_Page() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [globalSearchTrigger, setGlobalSearchTrigger] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [dbStatus, setDbStatus] = useState("postgres");
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/db/status`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((data) => setDbStatus(data.database))
+      .catch(() => setDbStatus("sqlite"));
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
@@ -169,6 +177,13 @@ export default function Home_Page() {
               <span className="brand-sub">Autonomous Knowledge Worker</span>
             </div>
           </div>
+
+          {dbStatus === "sqlite" && (
+            <div className="db-status-badge">
+              <span className="status-dot-pulse" />
+              <span>Local Offline Mode</span>
+            </div>
+          )}
 
           {/* Global Search */}
           <form onSubmit={handleGlobalSearch} className="header-search">
@@ -420,6 +435,36 @@ export default function Home_Page() {
         .brand-text { display: flex; flex-direction: column; gap: 1px; }
         .brand-name { font-size: 15px; font-weight: 700; color: var(--text-primary); line-height: 1; }
         .brand-sub { font-size: 11px; color: var(--text-muted); font-weight: 500; letter-spacing: 0.3px; }
+
+        .db-status-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 4px 8px;
+          border-radius: 8px;
+          background: rgba(245, 158, 11, 0.1);
+          color: #fbbf24;
+          border: 1px solid rgba(245, 158, 11, 0.25);
+          flex-shrink: 0;
+          box-shadow: 0 0 10px rgba(245, 158, 11, 0.05);
+        }
+        .status-dot-pulse {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background-color: #fbbf24;
+          animation: statusPulse 1.5s infinite;
+        }
+        @keyframes statusPulse {
+          0% { transform: scale(0.9); opacity: 0.6; }
+          50% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(0.9); opacity: 0.6; }
+        }
+        @media (max-width: 768px) {
+          .db-status-badge { display: none; }
+        }
 
         .header-search {
           flex: 1;

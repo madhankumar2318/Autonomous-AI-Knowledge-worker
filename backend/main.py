@@ -13,7 +13,7 @@ load_dotenv()
 from routes import news, stock, search, auth, upload, chat
 from routes import history as history_router
 
-from db import init_db
+from db import init_db, is_postgres_active
 
 
 @asynccontextmanager
@@ -78,6 +78,14 @@ os.makedirs(REPORTS_DIR, exist_ok=True)
 # Mount static routes
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
+
+
+@app.get("/db/status")
+def db_status():
+    return {
+        "status": "healthy",
+        "database": "postgres" if is_postgres_active() else "sqlite"
+    }
 
 
 @app.get("/")
