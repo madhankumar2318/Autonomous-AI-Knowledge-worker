@@ -45,6 +45,16 @@ const NAV_TABS = [
     badge: null,
   },
   {
+    id: "chat",
+    label: "AI Workspace",
+    shortLabel: "AI Chat",
+    icon: Brain,
+    accent: "#ec4899",
+    accentRgb: "236,72,153",
+    description: "Chat with AI Assistant",
+    badge: "AI",
+  },
+  {
     id: "files",
     label: "File Workspace",
     shortLabel: "Files",
@@ -315,7 +325,11 @@ export default function Home_Page() {
               </div>
             )}
 
-
+            {activeTab === "chat" && (
+              <div className="animate-fade-in tab-content-wrapper" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <ChatAssistant username={loggedInUser} inline={true} />
+              </div>
+            )}
 
             {activeTab === "files" && (
               <div className="animate-fade-in tab-content-wrapper">
@@ -333,7 +347,9 @@ export default function Home_Page() {
       </div>
 
       {/* Floating AI Chat */}
-      <ChatAssistant username={loggedInUser} inline={false} />
+      {activeTab !== "chat" && (
+        <ChatAssistant username={loggedInUser} inline={false} />
+      )}
       {/* User Profile Panel */}
       {showProfile && (
         <UserProfile
