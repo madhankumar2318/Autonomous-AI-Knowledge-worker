@@ -36,9 +36,11 @@ def _is_plain_text(stored: str) -> bool:
 
 
 def _is_strong_password(password: str) -> tuple[bool, str]:
-    """Verify password strength: min 6 chars, uppercase, lowercase, number, special char."""
+    """Verify password strength: 6-15 chars, uppercase, lowercase, number, special char."""
     if len(password) < 6:
         return False, "Password must be at least 6 characters long."
+    if len(password) > 15:
+        return False, "Password must be at most 15 characters long."
     if not re.search(r"[A-Z]", password):
         return False, "Password must contain at least one uppercase letter."
     if not re.search(r"[a-z]", password):
