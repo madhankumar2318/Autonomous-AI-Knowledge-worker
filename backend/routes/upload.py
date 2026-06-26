@@ -64,7 +64,11 @@ async def upload_file(
                 status_code=400
             )
 
-        file_path = os.path.join(UPLOAD_DIR, filename)
+        # Create user-specific folder locally
+        user_upload_dir = os.path.join(UPLOAD_DIR, username)
+        os.makedirs(user_upload_dir, exist_ok=True)
+        file_path = os.path.join(user_upload_dir, filename)
+
         content = await file.read()
         with open(file_path, "wb") as f:
             f.write(content)
@@ -72,16 +76,17 @@ async def upload_file(
         size = len(content)
 
         # Upload to S3 if configured
+        s3_key = f"{username}/{filename}"
         if IS_S3:
             s3_client = get_s3_client()
             s3_client.put_object(
                 Bucket=S3_BUCKET,
-                Key=filename,
+                Key=s3_key,
                 Body=content
             )
 
         # Save to database (attaching the user_id)
-        db_filepath = f"s3://{S3_BUCKET}/{filename}" if IS_S3 else file_path
+        db_filepath = f"s3://{S3_BUCKET}/{s3_key}" if IS_S3 else file_path
         conn = get_conn()
         cur = get_cursor(conn)
         execute_sql(
@@ -216,7 +221,7 @@ def delete_file(
         file_path = row["filepath"]
         
         # 2. Delete physical local file if it exists
-        local_path = os.path.join(UPLOAD_DIR, filename)
+        local_path = os.path.join(UPLOAD_DIR, username, filename)
         if os.path.exists(local_path):
             os.remove(local_path)
             
@@ -224,7 +229,7 @@ def delete_file(
         if IS_S3:
             s3_client = get_s3_client()
             try:
-                s3_client.delete_object(Bucket=S3_BUCKET, Key=filename)
+                s3_client.delete_object(Bucket=S3_BUCKET, Key=f"{username}/{filename}")
             except Exception as e:
                 print(f"Failed to delete {filename} from S3: {e}")
 
@@ -286,7 +291,7 @@ def download_file(
             raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
 
         db_filepath = row["filepath"]
-        local_path = os.path.join(UPLOAD_DIR, filename)
+        local_path = os.path.join(UPLOAD_DIR, username, filename)
 
         # Log to history
         insert_history(username, "file_download", f"filename={filename}")
@@ -295,7 +300,7 @@ def download_file(
         if IS_S3 and db_filepath.startswith("s3://"):
             try:
                 s3_client = get_s3_client()
-                response = s3_client.get_object(Bucket=S3_BUCKET, Key=filename)
+                response = s3_client.get_object(Bucket=S3_BUCKET, Key=f"{username}/{filename}")
                 return StreamingResponse(
                     response['Body'].iter_chunks(),
                     media_type="application/octet-stream",
