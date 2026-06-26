@@ -14,17 +14,30 @@ os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 # ------------------------- CONNECTION HELPERS -------------------------
 def get_conn():
     """Open connection. Connects to PostgreSQL if DATABASE_URL is set, otherwise SQLite."""
+    global IS_POSTGRES
     if IS_POSTGRES:
-        # Handle Render postgres URL format if it contains "postgres://" instead of "postgresql://"
-        url = DATABASE_URL
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        conn = psycopg2.connect(url)
-        return conn
-    else:
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            # Handle Render postgres URL format if it contains "postgres://" instead of "postgresql://"
+            url = DATABASE_URL
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql://", 1)
+            conn = psycopg2.connect(url)
+            return conn
+        except (psycopg2.OperationalError, psycopg2.Error) as e:
+            print(f"[WARN] PostgreSQL connection failed: {e}")
+            print("[WARN] Automatically falling back to local SQLite database for this session.")
+            IS_POSTGRES = False
+            # Fall through to SQLite connection
+    
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def is_postgres_active() -> bool:
+    """Check if PostgreSQL is active and connected."""
+    global IS_POSTGRES
+    return IS_POSTGRES
 
 def get_cursor(conn):
     """Returns a dictionary cursor for PostgreSQL or standard cursor for SQLite."""

@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional
 import chromadb
 from google import genai
 import contextvars
-from db import IS_POSTGRES, get_conn, get_cursor, execute_sql
+from db import is_postgres_active, get_conn, get_cursor, execute_sql
 
 # Context variable to store active user context during RAG search
 active_user_context = contextvars.ContextVar("active_user_context", default=None)
@@ -612,7 +612,7 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
     embeddings = get_gemini_embeddings_batch(chunk_texts)
 
     # 5. Insert into vector store with enriched metadata
-    if IS_POSTGRES:
+    if is_postgres_active():
         conn = get_conn()
         cur = get_cursor(conn)
         try:
@@ -675,7 +675,7 @@ def delete_file_index(filename: str, username: str = None):
     if username is None:
         username = active_user_context.get()
 
-    if IS_POSTGRES:
+    if is_postgres_active():
         conn = get_conn()
         cur = get_cursor(conn)
         try:
@@ -727,7 +727,7 @@ def get_indexed_files(username: str = None) -> List[Dict[str, Any]]:
     if username is None:
         username = active_user_context.get()
 
-    if IS_POSTGRES:
+    if is_postgres_active():
         conn = get_conn()
         cur = get_cursor(conn)
         try:
@@ -802,7 +802,7 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         print(f"[RAG] Error embedding query '{query}': {e}")
         return []
 
-    if IS_POSTGRES:
+    if is_postgres_active():
         conn = get_conn()
         cur = get_cursor(conn)
         try:

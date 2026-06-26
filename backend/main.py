@@ -20,7 +20,11 @@ from db import init_db
 async def lifespan(app: FastAPI):
     """Modern FastAPI lifespan handler — replaces deprecated @app.on_event('startup')."""
     # --- Startup ---
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        print(f"[ERROR] Database initialization failed on startup: {e}")
+        print("[WARN] Application starting in degraded mode. DB features will not work.")
     # Initialize RAG vector store
     try:
         from rag import init_rag
