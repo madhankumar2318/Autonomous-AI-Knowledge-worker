@@ -5,6 +5,7 @@ import bcrypt
 import os
 import datetime
 import jwt
+import re
 from db import get_conn, get_cursor, execute_sql
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -32,6 +33,21 @@ def _verify_password(plain: str, hashed: str) -> bool:
 def _is_plain_text(stored: str) -> bool:
     """Returns True if the stored password is NOT a bcrypt hash (legacy plain text)."""
     return not stored.startswith("$2b$") and not stored.startswith("$2a$")
+
+
+def _is_strong_password(password: str) -> tuple[bool, str]:
+    """Verify password strength: min 6 chars, uppercase, lowercase, number, special char."""
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters long."
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter."
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter."
+    if not re.search(r"[0-9]", password):
+        return False, "Password must contain at least one number."
+    if not re.search(r"[^a-zA-Z0-9]", password):
+        return False, "Password must contain at least one special character."
+    return True, ""
 
 
 def _create_access_token(username: str) -> str:
@@ -100,6 +116,10 @@ def register(
     """
     if not username.strip() or not password.strip():
         raise HTTPException(status_code=400, detail="Username and password are required")
+
+    is_strong, msg = _is_strong_password(password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=msg)
 
     hashed = _hash_password(password)
 
@@ -298,8 +318,9 @@ def change_password(
     """Change password for the authenticated user."""
     username = _get_username_from_auth_header(authorization, access_token)
     
-    if len(new_password) < 4:
-        raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
+    is_strong, msg = _is_strong_password(new_password)
+    if not is_strong:
+        raise HTTPException(status_code=400, detail=msg)
 
     conn = get_conn()
     cur  = get_cursor(conn)

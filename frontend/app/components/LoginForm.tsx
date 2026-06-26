@@ -35,6 +35,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -43,6 +45,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setLoading(true);
     setError("");
     setSuccessMsg("");
+
+    if (isRegistering && password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
 
     if (username.trim().length < 3) {
       setError("Username must be at least 3 characters.");
@@ -87,6 +95,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setSuccessMsg("Account created successfully! You can now log in.");
         setIsRegistering(false);
         setPassword("");
+        setConfirmPassword("");
       } else {
         // Persist username if requested for Login
         try {
@@ -122,6 +131,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   useEffect(() => {
     setError("");
     setSuccessMsg("");
+    setConfirmPassword("");
     firstInputRef.current?.focus();
   }, [isRegistering]);
 
@@ -271,8 +281,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               </div>
             )}
 
-            {/* Password Field (Full Width) */}
-            <div className={isRegistering ? "col-span-full" : ""}>
+            {/* Password Field */}
+            <div>
               <label className="auth-label" htmlFor="auth-password">
                 Password
               </label>
@@ -309,6 +319,43 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 </button>
               </div>
             </div>
+
+            {/* Confirm Password Field (Register Only) */}
+            {isRegistering && (
+              <div className="animate-fade-in">
+                <label className="auth-label" htmlFor="auth-confirm-password">
+                  Confirm Password
+                </label>
+                <div className="input-wrapper">
+                  <Lock size={18} className="input-icon" />
+                  <input
+                    id="auth-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm your password"
+                    className="auth-input"
+                    style={{
+                      paddingRight: "46px",
+                      letterSpacing: showConfirmPassword ? "normal" : "2px",
+                    }}
+                    required={isRegistering}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((s) => !s)}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    className="input-action-btn"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Messages */}

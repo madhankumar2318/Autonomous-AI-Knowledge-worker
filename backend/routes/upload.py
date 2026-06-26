@@ -59,7 +59,9 @@ async def upload_file(
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
 
-        filename = file.filename
+        filename = os.path.basename(file.filename)
+        if not filename or filename in (".", ".."):
+            raise HTTPException(status_code=400, detail="Invalid filename")
         _, ext = os.path.splitext(filename.lower())
         
         if ext not in ALLOWED_EXTENSIONS:
