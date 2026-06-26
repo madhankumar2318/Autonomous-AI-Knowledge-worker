@@ -194,20 +194,6 @@ def init_db():
         pass
 
     conn.commit()
-
-    # Insert default admin user if not present
-    execute_sql(cur, "SELECT COUNT(*) FROM users WHERE username='admin'")
-    if cur.fetchone()[0] == 0:
-        import bcrypt
-        hashed = bcrypt.hashpw("1234".encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-        execute_sql(
-            cur,
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            ("admin", hashed)
-        )
-        print("[OK] Default admin user created (username: admin, password: bcrypt-hashed)")
-
-    conn.commit()
     conn.close()
 
 # ------------------------- HISTORY LOGGER -------------------------

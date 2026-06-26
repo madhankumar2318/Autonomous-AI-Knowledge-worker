@@ -9,9 +9,68 @@ import {
   Phone,
   UserPlus,
   ArrowLeft,
+  Globe,
+  ChevronDown,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../config";
+
+const COUNTRIES = [
+  { code: "AR", name: "Argentina", dialCode: "+54", placeholder: "+54 9 11 1234-5678" },
+  { code: "AU", name: "Australia", dialCode: "+61", placeholder: "+61 400 123 456" },
+  { code: "AT", name: "Austria", dialCode: "+43", placeholder: "+43 664 1234567" },
+  { code: "BD", name: "Bangladesh", dialCode: "+880", placeholder: "+880 1712-345678" },
+  { code: "BE", name: "Belgium", dialCode: "+32", placeholder: "+32 470 12 34 56" },
+  { code: "BR", name: "Brazil", dialCode: "+55", placeholder: "+55 11 99999-9999" },
+  { code: "CA", name: "Canada", dialCode: "+1", placeholder: "+1 (555) 000-0000" },
+  { code: "CL", name: "Chile", dialCode: "+56", placeholder: "+56 9 1234 5678" },
+  { code: "CN", name: "China", dialCode: "+86", placeholder: "+86 139 1234 5678" },
+  { code: "CO", name: "Colombia", dialCode: "+57", placeholder: "+57 300 123 4567" },
+  { code: "DK", name: "Denmark", dialCode: "+45", placeholder: "+45 12 34 56 78" },
+  { code: "EG", name: "Egypt", dialCode: "+20", placeholder: "+20 100 123 4567" },
+  { code: "FI", name: "Finland", dialCode: "+358", placeholder: "+358 40 1234567" },
+  { code: "FR", name: "France", dialCode: "+33", placeholder: "+33 6 1234 5678" },
+  { code: "DE", name: "Germany", dialCode: "+49", placeholder: "+49 170 1234567" },
+  { code: "GR", name: "Greece", dialCode: "+30", placeholder: "+30 697 123 4567" },
+  { code: "HK", name: "Hong Kong", dialCode: "+852", placeholder: "+852 9123 4567" },
+  { code: "IN", name: "India", dialCode: "+91", placeholder: "+91 99999 99999" },
+  { code: "ID", name: "Indonesia", dialCode: "+62", placeholder: "+62 812-3456-7890" },
+  { code: "IE", name: "Ireland", dialCode: "+353", placeholder: "+353 87 123 4567" },
+  { code: "IL", name: "Israel", dialCode: "+972", placeholder: "+972 50-123-4567" },
+  { code: "IT", name: "Italy", dialCode: "+39", placeholder: "+39 333 123 4567" },
+  { code: "JP", name: "Japan", dialCode: "+81", placeholder: "+81 90-1234-5678" },
+  { code: "KE", name: "Kenya", dialCode: "+254", placeholder: "+254 712 345678" },
+  { code: "MY", name: "Malaysia", dialCode: "+60", placeholder: "+60 12-345 6789" },
+  { code: "MX", name: "Mexico", dialCode: "+52", placeholder: "+52 55 1234 5678" },
+  { code: "NP", name: "Nepal", dialCode: "+977", placeholder: "+977 980-1234567" },
+  { code: "NL", name: "Netherlands", dialCode: "+31", placeholder: "+31 6 12345678" },
+  { code: "NZ", name: "New Zealand", dialCode: "+64", placeholder: "+64 21 123 4567" },
+  { code: "NG", name: "Nigeria", dialCode: "+234", placeholder: "+234 803 123 4567" },
+  { code: "NO", name: "Norway", dialCode: "+47", placeholder: "+47 912 34 567" },
+  { code: "PK", name: "Pakistan", dialCode: "+92", placeholder: "+92 300 1234567" },
+  { code: "PE", name: "Peru", dialCode: "+51", placeholder: "+51 912 345 678" },
+  { code: "PH", name: "Philippines", dialCode: "+63", placeholder: "+63 912 345 6789" },
+  { code: "PL", name: "Poland", dialCode: "+48", placeholder: "+48 501 123 456" },
+  { code: "PT", name: "Portugal", dialCode: "+351", placeholder: "+351 912 345 678" },
+  { code: "RO", name: "Romania", dialCode: "+40", placeholder: "+40 722 123 456" },
+  { code: "RU", name: "Russia", dialCode: "+7", placeholder: "+7 999 123-45-67" },
+  { code: "SA", name: "Saudi Arabia", dialCode: "+966", placeholder: "+966 50 123 4567" },
+  { code: "SG", name: "Singapore", dialCode: "+65", placeholder: "+65 9123 4567" },
+  { code: "ZA", name: "South Africa", dialCode: "+27", placeholder: "+27 82 123 4567" },
+  { code: "KR", name: "South Korea", dialCode: "+82", placeholder: "+82 10-1234-5678" },
+  { code: "ES", name: "Spain", dialCode: "+34", placeholder: "+34 600 123 456" },
+  { code: "LK", name: "Sri Lanka", dialCode: "+94", placeholder: "+94 77 123 4567" },
+  { code: "SE", name: "Sweden", dialCode: "+46", placeholder: "+46 70 123 45 67" },
+  { code: "CH", name: "Switzerland", dialCode: "+41", placeholder: "+41 78 123 45 67" },
+  { code: "TW", name: "Taiwan", dialCode: "+886", placeholder: "+886 912 345 678" },
+  { code: "TH", name: "Thailand", dialCode: "+66", placeholder: "+66 81 234 5678" },
+  { code: "TR", name: "Turkey", dialCode: "+90", placeholder: "+90 532 123 4567" },
+  { code: "UA", name: "Ukraine", dialCode: "+380", placeholder: "+380 50 123 4567" },
+  { code: "AE", name: "United Arab Emirates", dialCode: "+971", placeholder: "+971 50 123 4567" },
+  { code: "GB", name: "United Kingdom", dialCode: "+44", placeholder: "+44 7911 123456" },
+  { code: "US", name: "United States", dialCode: "+1", placeholder: "+1 (555) 000-0000" },
+  { code: "VN", name: "Vietnam", dialCode: "+84", placeholder: "+84 91 234 5678" },
+];
 
 interface LoginFormProps {
   onLoginSuccess: (username: string, token: string) => void;
@@ -35,8 +94,25 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
+  const [country, setCountry] = useState("US");
+  const [phonePlaceholder, setPhonePlaceholder] = useState("+1 (555) 000-0000");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
+
+  const handleCountrySelect = (code: string) => {
+    setCountry(code);
+    setCountrySearch("");
+    const selected = COUNTRIES.find((c) => c.code === code);
+    if (selected) {
+      setPhonePlaceholder(selected.placeholder);
+      const currentDial = COUNTRIES.find((c) => mobile.startsWith(c.dialCode))?.dialCode;
+      if (!mobile.trim() || (currentDial && mobile.startsWith(currentDial))) {
+        setMobile(selected.dialCode + " ");
+      }
+    }
+  };
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -96,6 +172,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setIsRegistering(false);
         setPassword("");
         setConfirmPassword("");
+        setCountry("US");
+        setPhonePlaceholder("+1 (555) 000-0000");
+        setIsCountryDropdownOpen(false);
       } else {
         // Persist username if requested for Login
         try {
@@ -132,8 +211,22 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setError("");
     setSuccessMsg("");
     setConfirmPassword("");
+    setCountry("US");
+    setPhonePlaceholder("+1 (555) 000-0000");
+    setIsCountryDropdownOpen(false);
+    setCountrySearch("");
     firstInputRef.current?.focus();
   }, [isRegistering]);
+
+  useEffect(() => {
+    if (!isCountryDropdownOpen) {
+      setCountrySearch("");
+    }
+  }, [isCountryDropdownOpen]);
+
+  const filteredCountries = [...COUNTRIES]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .filter((c) => c.name.toLowerCase().includes(countrySearch.toLowerCase()));
 
   return (
     <>
@@ -261,9 +354,90 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               </div>
             )}
 
+            {/* Country Field (Register Only) */}
+            {isRegistering && (
+              <div className="animate-fade-in custom-dropdown-container">
+                <label className="auth-label" htmlFor="auth-country">
+                  Country
+                </label>
+                <div
+                  className="input-wrapper"
+                  onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <Globe size={18} className="input-icon" />
+                  <div
+                    className="auth-input"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      paddingRight: "16px",
+                      lineHeight: "48px"
+                    }}
+                  >
+                    <span>{COUNTRIES.find((c) => c.code === country)?.name || "Select Country"}</span>
+                    <ChevronDown size={16} className="text-muted" />
+                  </div>
+                </div>
+
+                {isCountryDropdownOpen && (
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 40 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCountryDropdownOpen(false);
+                      }}
+                    />
+                    <div className="custom-dropdown-menu">
+                      <div style={{ padding: "4px 8px 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "6px" }}>
+                        <input
+                          type="text"
+                          placeholder="Search country..."
+                          value={countrySearch}
+                          onChange={(e) => setCountrySearch(e.target.value)}
+                          className="country-search-input"
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      </div>
+                      <div className="custom-dropdown-items-wrapper">
+                        {filteredCountries.map((c) => (
+                          <div
+                            key={c.code}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCountrySelect(c.code);
+                              setIsCountryDropdownOpen(false);
+                            }}
+                            className={`custom-dropdown-item ${country === c.code ? "active" : ""}`}
+                          >
+                            {c.name}
+                          </div>
+                        ))}
+                        {filteredCountries.length === 0 && (
+                          <div
+                            style={{
+                              padding: "12px",
+                              textAlign: "center",
+                              color: "var(--text-muted)",
+                              fontSize: "13px"
+                            }}
+                          >
+                            No countries found
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Mobile Field (Register Only) */}
             {isRegistering && (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in col-span-full">
                 <label className="auth-label" htmlFor="auth-mobile">
                   Mobile Number
                 </label>
@@ -274,7 +448,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     type="tel"
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder={phonePlaceholder}
                     className="auth-input"
                   />
                 </div>
@@ -652,6 +826,78 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           background: var(--bg-hover) !important;
           color: var(--text-primary) !important;
           border-color: var(--border-medium) !important;
+        }
+
+        .custom-dropdown-container {
+          position: relative;
+        }
+        .custom-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          width: 100%;
+          background: #080a13;
+          border: 1px solid var(--border-light);
+          border-radius: 14px;
+          z-index: 50;
+          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7);
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+        }
+        .country-search-input {
+          width: 100%;
+          height: 36px;
+          padding: 0 10px;
+          border-radius: 8px;
+          background: rgba(0, 0, 0, 0.4);
+          border: 1px solid var(--border-light);
+          color: var(--text-primary);
+          font-size: 13px;
+          outline: none;
+          transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .country-search-input:focus {
+          border-color: var(--accent-primary);
+          box-shadow: 0 0 8px rgba(34, 211, 238, 0.2);
+        }
+        .custom-dropdown-items-wrapper {
+          max-height: 180px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .custom-dropdown-items-wrapper::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-dropdown-items-wrapper::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-dropdown-items-wrapper::-webkit-scrollbar-thumb {
+          background: rgba(34, 211, 238, 0.3);
+          border-radius: 3px;
+        }
+        .custom-dropdown-items-wrapper::-webkit-scrollbar-thumb:hover {
+          background: rgba(34, 211, 238, 0.5);
+        }
+        .custom-dropdown-item {
+          padding: 9px 12px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--text-secondary);
+          transition: all 0.15s ease;
+        }
+        .custom-dropdown-item:hover {
+          background: rgba(34, 211, 238, 0.08);
+          color: var(--text-primary);
+        }
+        .custom-dropdown-item.active {
+          background: rgba(34, 211, 238, 0.12);
+          color: #22d3ee;
+          font-weight: 700;
         }
 
         .col-span-full {
