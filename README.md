@@ -57,12 +57,9 @@ npm run dev
 
 The frontend application will be available at `http://localhost:3000`.
 
-## Default Credentials
+## Account Setup
 
-The project comes with a default set of login credentials:
-
-- **Username**: `admin`
-- **Password**: `1234`
+For production security, all default pre-seeded credentials have been removed. When you launch the application for the first time, click **"Create new account"** on the login screen to register your admin user under the new password policy.
 
 ## Features
 

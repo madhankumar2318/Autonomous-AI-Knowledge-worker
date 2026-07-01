@@ -4,6 +4,7 @@ import re
 import csv
 import json
 import traceback
+import importlib
 from typing import List, Dict, Any, Optional
 import chromadb
 from google import genai
@@ -300,7 +301,7 @@ def extract_pdf_content(filepath: str) -> List[Dict[str, Any]]:
     3. Detect section headers (lines that are ALL CAPS or end with ':' with short length)
     """
     try:
-        import pdfplumber
+        import pdfplumber # type: ignore
     except ImportError:
         # Graceful fallback to pypdf if pdfplumber not installed
         print("[RAG] pdfplumber not available. Falling back to pypdf text-only extraction.")
@@ -547,7 +548,7 @@ def extract_file_content(filepath: str, filename: str) -> str:
 
 # ── Indexing ───────────────────────────────────────────────────────────────────
 
-def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, Any]:
+def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, Any]: # type: ignore
     """
     Extract file content into enriched blocks, apply smart chunking,
     generate embeddings, and index into ChromaDB or pgvector.
@@ -668,7 +669,7 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
 
 # ── Deletion ───────────────────────────────────────────────────────────────────
 
-def delete_file_index(filename: str, username: str = None):
+def delete_file_index(filename: str, username: str = None): # type: ignore
     """
     Remove all document chunks for a specific file from ChromaDB or pgvector.
     """
@@ -720,7 +721,7 @@ def delete_file_index(filename: str, username: str = None):
 
 # ── Listing ────────────────────────────────────────────────────────────────────
 
-def get_indexed_files(username: str = None) -> List[Dict[str, Any]]:
+def get_indexed_files(username: str = None) -> List[Dict[str, Any]]: # type: ignore
     """
     Get a list of all indexed files and their chunk counts.
     """
