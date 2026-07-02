@@ -99,18 +99,14 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
-  const [countrySearch, setCountrySearch] = useState("");
+
 
   const handleCountrySelect = (code: string) => {
     setCountry(code);
-    setCountrySearch("");
     const selected = COUNTRIES.find((c) => c.code === code);
     if (selected) {
-      setPhonePlaceholder(selected.placeholder);
-      const currentDial = COUNTRIES.find((c) => mobile.startsWith(c.dialCode))?.dialCode;
-      if (!mobile.trim() || (currentDial && mobile.startsWith(currentDial))) {
-        setMobile(selected.dialCode + " ");
-      }
+      const cleanPlaceholder = selected.placeholder.replace(selected.dialCode, "").trim();
+      setPhonePlaceholder(cleanPlaceholder);
     }
   };
 
@@ -179,7 +175,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       if (isRegistering) {
         if (name) formData.append("name", name);
         if (email) formData.append("email", email);
-        if (mobile) formData.append("mobile", mobile);
+        if (mobile.trim()) {
+          const selected = COUNTRIES.find((c) => c.code === country);
+          const prefix = selected ? selected.dialCode : "";
+          formData.append("mobile", `${prefix} ${mobile.trim()}`);
+        }
       }
 
       const res = await fetch(endpoint, {
@@ -244,21 +244,14 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setSuccessMsg("");
     setConfirmPassword("");
     setCountry("US");
-    setPhonePlaceholder("+1 (555) 000-0000");
+    setPhonePlaceholder("(555) 000-0000");
+    setMobile("");
     setIsCountryDropdownOpen(false);
-    setCountrySearch("");
     firstInputRef.current?.focus();
   }, [isRegistering]);
 
-  useEffect(() => {
-    if (!isCountryDropdownOpen) {
-      setCountrySearch("");
-    }
-  }, [isCountryDropdownOpen]);
-
   const filteredCountries = [...COUNTRIES]
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .filter((c) => c.name.toLowerCase().includes(countrySearch.toLowerCase()));
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <>
@@ -423,17 +416,6 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       }}
                     />
                     <div className="custom-dropdown-menu">
-                      <div style={{ padding: "4px 8px 8px 8px", borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: "6px" }}>
-                        <input
-                          type="text"
-                          placeholder="Search country..."
-                          value={countrySearch}
-                          onChange={(e) => setCountrySearch(e.target.value)}
-                          className="country-search-input"
-                          onClick={(e) => e.stopPropagation()}
-                          autoFocus
-                        />
-                      </div>
                       <div className="custom-dropdown-items-wrapper">
                         {filteredCountries.map((c) => (
                           <div
@@ -473,8 +455,23 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 <label className="auth-label" htmlFor="auth-mobile">
                   Mobile Number
                 </label>
-                <div className="input-wrapper">
+                <div className="input-wrapper" style={{ position: "relative" }}>
                   <Phone size={18} className="input-icon" />
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: "42px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      color: "var(--text-primary)",
+                      fontWeight: "600",
+                      fontSize: "14px",
+                      pointerEvents: "none",
+                      userSelect: "none",
+                    }}
+                  >
+                    {COUNTRIES.find((c) => c.code === country)?.dialCode || ""}
+                  </span>
                   <input
                     id="auth-mobile"
                     type="tel"
@@ -482,6 +479,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     onChange={(e) => setMobile(e.target.value)}
                     placeholder={phonePlaceholder}
                     className="auth-input"
+                    style={{
+                      paddingLeft: `${
+                        ((COUNTRIES.find((c) => c.code === country)?.dialCode || "").length * 8) + 48
+                      }px`
+                    }}
                   />
                 </div>
               </div>
@@ -877,22 +879,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           display: flex;
           flex-direction: column;
         }
-        .country-search-input {
-          width: 100%;
-          height: 36px;
-          padding: 0 10px;
-          border-radius: 8px;
-          background: rgba(0, 0, 0, 0.4);
-          border: 1px solid var(--border-light);
-          color: var(--text-primary);
-          font-size: 13px;
-          outline: none;
-          transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        .country-search-input:focus {
-          border-color: var(--accent-primary);
-          box-shadow: 0 0 8px rgba(34, 211, 238, 0.2);
-        }
+
+
         .custom-dropdown-items-wrapper {
           max-height: 180px;
           overflow-y: auto;
