@@ -784,6 +784,108 @@ def get_indexed_files(username: str = None) -> List[Dict[str, Any]]: # type: ign
             return []
 
 
+# ── Hybrid Search Helpers (FTS + RRF) ─────────────────────────────────────────
+
+def _fts_search(query: str, username: str, top_k: int, cur) -> List[Dict[str, Any]]:
+    """
+    Full-Text Search (FTS) using PostgreSQL to_tsvector / plainto_tsquery.
+    Returns rows ranked by text relevance, enriched with the same fields as
+    the vector search so they can be merged via RRF.
+    """
+    try:
+        if username and username != "guest":
+            execute_sql(
+                cur,
+                """
+                SELECT filename, chunk_index, total_chunks, content,
+                       ts_rank(to_tsvector('english', content),
+                               plainto_tsquery('english', ?)) * 100 AS similarity,
+                       chunk_type, page_num
+                FROM document_embeddings
+                WHERE username = ?
+                  AND to_tsvector('english', content) @@ plainto_tsquery('english', ?)
+                ORDER BY similarity DESC
+                LIMIT ?
+                """,
+                (query, username, query, top_k)
+            )
+        else:
+            execute_sql(
+                cur,
+                """
+                SELECT filename, chunk_index, total_chunks, content,
+                       ts_rank(to_tsvector('english', content),
+                               plainto_tsquery('english', ?)) * 100 AS similarity,
+                       chunk_type, page_num
+                FROM document_embeddings
+                WHERE to_tsvector('english', content) @@ plainto_tsquery('english', ?)
+                ORDER BY similarity DESC
+                LIMIT ?
+                """,
+                (query, query, top_k)
+            )
+        rows = cur.fetchall()
+        results = []
+        for row in rows:
+            try:
+                results.append({
+                    "content": str(row["content"]),
+                    "filename": str(row["filename"]),
+                    "chunk_index": int(row["chunk_index"]),
+                    "total_chunks": int(row["total_chunks"]) if row["total_chunks"] is not None else 0,
+                    "similarity_score": round(float(row["similarity"]), 2),
+                    "chunk_type": str(row["chunk_type"]) if row["chunk_type"] is not None else "text",
+                    "page_num": int(row["page_num"]) if row["page_num"] is not None else 0,
+                })
+            except Exception:
+                results.append({
+                    "content": str(row[3]),
+                    "filename": str(row[0]),
+                    "chunk_index": int(row[1]),
+                    "total_chunks": int(row[2]) if row[2] is not None else 0,
+                    "similarity_score": round(float(row[4]), 2),
+                    "chunk_type": str(row[5]) if row[5] is not None else "text",
+                    "page_num": int(row[6]) if row[6] is not None else 0,
+                })
+        return results
+    except Exception as e:
+        print(f"[RAG] FTS search failed (non-fatal, using vector-only): {e}")
+        return []
+
+
+def _reciprocal_rank_fusion(
+    vector_results: List[Dict[str, Any]],
+    fts_results: List[Dict[str, Any]],
+    k: int = 60
+) -> List[Dict[str, Any]]:
+    """
+    Merge two ranked lists using Reciprocal Rank Fusion (RRF).
+
+    RRF score = sum(1 / (k + rank)) across all lists a document appears in.
+    Documents that appear in BOTH lists are boosted to the top.
+    k=60 is the standard constant that dampens the effect of high ranks.
+
+    Returns a single de-duplicated list sorted by descending RRF score.
+    """
+    scores: Dict[str, float] = {}
+    # Key = (filename, chunk_index) for de-duplication
+    best: Dict[str, Dict[str, Any]] = {}
+
+    for rank, result in enumerate(vector_results, start=1):
+        key = f"{result['filename']}::{result['chunk_index']}"
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank)
+        best[key] = result
+
+    for rank, result in enumerate(fts_results, start=1):
+        key = f"{result['filename']}::{result['chunk_index']}"
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank)
+        if key not in best:
+            best[key] = result
+
+    merged = sorted(scores.keys(), key=lambda key: scores[key], reverse=True)
+    return [best[key] for key in merged]
+
+
 # ── Search ─────────────────────────────────────────────────────────────────────
 
 def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
@@ -807,6 +909,7 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         conn = get_conn()
         cur = get_cursor(conn)
         try:
+            # ── Step 1: Semantic (vector cosine) search ──────────────────────
             if username and username != "guest":
                 execute_sql(
                     cur,
@@ -835,10 +938,10 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                     (str(query_embedding), str(query_embedding), top_k)
                 )
             rows = cur.fetchall()
-            formatted_results = []
+            vector_results = []
             for row in rows:
                 try:
-                    formatted_results.append({
+                    vector_results.append({
                         "content": str(row["content"]),
                         "filename": str(row["filename"]),
                         "chunk_index": int(row["chunk_index"]),
@@ -848,7 +951,7 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                         "page_num": int(row["page_num"]) if row["page_num"] is not None else 0
                     })
                 except Exception:
-                    formatted_results.append({
+                    vector_results.append({
                         "content": str(row[3]),
                         "filename": str(row[0]),
                         "chunk_index": int(row[1]),
@@ -857,7 +960,19 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                         "chunk_type": str(row[5]) if row[5] is not None else "text",
                         "page_num": int(row[6]) if row[6] is not None else 0
                     })
-            return formatted_results
+
+            # ── Step 2: Full-Text Search (FTS) for exact keyword matches ─────
+            fts_results = _fts_search(query, username, top_k, cur) # type: ignore
+
+            # ── Step 3: Merge with Reciprocal Rank Fusion (RRF) ─────────────
+            if fts_results:
+                merged = _reciprocal_rank_fusion(vector_results, fts_results)
+                print(f"[RAG] Hybrid search: {len(vector_results)} vector + "
+                      f"{len(fts_results)} FTS -> {len(merged)} merged (RRF)")
+                return merged[:top_k]
+
+            # FTS found nothing — fall through to pure vector results
+            return vector_results
         except Exception as e:
             print(f"[RAG] Error searching pgvector: {e}")
             return []
