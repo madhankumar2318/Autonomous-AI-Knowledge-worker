@@ -8,8 +8,8 @@ from db import insert_history
 router = APIRouter(prefix="/news", tags=["News"])
 
 # ── Currents API config ────────────────────────────────────────────────
-API_PAGE_SIZE = 50    # articles per API call (Free tier max = 50)
-MAX_PAGES     = 4     # number of API pages to fetch (4 × 50 = 200 articles max)
+API_PAGE_SIZE = 20    # articles per API call (Free tier max = 20)
+MAX_PAGES     = 5     # number of API pages to fetch (5 × 20 = 100 articles max)
 PER_PAGE      = 100   # articles served per page to the frontend
 CACHE_TTL     = 1800  # 30 minutes
 
@@ -54,7 +54,7 @@ def _fetch_from_api(category: str, topic: str, max_pages: int = MAX_PAGES) -> li
     """
     api_key = os.getenv("CURRENTS_API_KEY")
     if not api_key or api_key == "your_currents_api_key_here":
-        print("⚠️ Currents API Key is not set or is still the placeholder. Please set CURRENTS_API_KEY in your .env file.")
+        print("[WARN] Currents API Key is not set or is still the placeholder. Please set CURRENTS_API_KEY in your .env file.")
         return []
 
     all_articles: list[dict] = []
