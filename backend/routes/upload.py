@@ -342,15 +342,20 @@ def download_file(
         # Log to history
         insert_history(username, "file_download", f"filename={filename}")
 
-        # If stored on S3, stream it directly
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(filename)
+        if not mime_type:
+            mime_type = "application/octet-stream"
+
+        # If stored on S3, stream it directly with inline disposition
         if IS_S3 and db_filepath.startswith("s3://"):
             try:
                 s3_client = get_s3_client()
                 response = s3_client.get_object(Bucket=S3_BUCKET, Key=f"{username}/{filename}")
                 return StreamingResponse(
                     response['Body'].iter_chunks(),
-                    media_type="application/octet-stream",
-                    headers={"Content-Disposition": f"attachment; filename={filename}"}
+                    media_type=mime_type,
+                    headers={"Content-Disposition": f"inline; filename=\"{filename}\""}
                 )
             except Exception as e:
                 print(f"S3 download failed/missing for {filename}: {e}. Falling back to local disk.")
@@ -361,10 +366,11 @@ def download_file(
         if not os.path.exists(local_path):
             raise HTTPException(status_code=404, detail="File not found")
 
+        # Serve inline by specifying headers and omitting the filename argument
         return FileResponse(
             path=local_path,
-            media_type="application/octet-stream",
-            filename=filename,
+            media_type=mime_type,
+            headers={"Content-Disposition": f"inline; filename=\"{filename}\""}
         )
     except Exception as e:
         if isinstance(e, HTTPException):

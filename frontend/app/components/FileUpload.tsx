@@ -16,6 +16,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
+import DocumentWorkspace from "./DocumentWorkspace";
 
 interface UploadedFile {
   id: number;
@@ -45,12 +46,17 @@ function formatSize(bytes: number) {
   return `${bytes} B`;
 }
 
-export default function FileUpload() {
+interface FileUploadProps {
+  username?: string;
+}
+
+export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [uploads, setUploads] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<UploadedFile | null>(null);
   const dragCounter = useRef(0);
 
   const fetchUploads = async () => {
@@ -167,7 +173,17 @@ export default function FileUpload() {
   };
 
   return (
-    <div className="fw-root">
+    <>
+      {/* ── Document Workspace overlay (renders when a file is opened) ── */}
+      {activeWorkspaceFile && (
+        <DocumentWorkspace
+          file={activeWorkspaceFile}
+          username={username}
+          onClose={() => setActiveWorkspaceFile(null)}
+        />
+      )}
+
+      <div className="fw-root">
       {/* ── HEADER ── */}
       <div className="fw-header">
         <div className="fw-header-icon">
@@ -347,6 +363,18 @@ export default function FileUpload() {
                     </div>
                   </div>
                   <div className="fw-file-actions">
+                    {/* Analyze button — only shown when file is RAG-indexed */}
+                    {u.rag_indexed && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveWorkspaceFile(u)}
+                        className="fw-file-action-btn fw-analyze-btn"
+                        title="Open in Document Workspace (AI Chat)"
+                      >
+                        <Brain className="w-3.5 h-3.5" />
+                        <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '3px' }}>Analyze</span>
+                      </button>
+                    )}
                     <a
                       href={`${API_BASE_URL}/upload/download/${u.filename}`}
                       className="fw-file-action-btn"
@@ -766,6 +794,29 @@ export default function FileUpload() {
           border-color: rgba(239,68,68,0.3) !important;
           color: #ef4444 !important;
         }
+        .fw-analyze-btn {
+          width: auto !important;
+          display: flex;
+          align-items: center;
+          padding: 0 10px !important;
+          gap: 4px;
+          background: rgba(34,211,238,0.06) !important;
+          border-color: rgba(34,211,238,0.2) !important;
+          color: #22d3ee !important;
+          border-radius: 8px !important;
+          height: 30px;
+          font-size: 11px;
+          font-weight: 700;
+          transition: all 0.2s ease;
+        }
+        .fw-analyze-btn:hover {
+          background: rgba(34,211,238,0.18) !important;
+          border-color: rgba(34,211,238,0.4) !important;
+          color: #67e8f9 !important;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(34,211,238,0.15);
+        }
+
 
         /* ── AI HINT ── */
         .fw-ai-hint {
@@ -793,5 +844,6 @@ export default function FileUpload() {
         .fw-ai-hint-sub { font-size: 10px; color: var(--text-secondary); line-height: 1.5; }
       `}</style>
     </div>
+    </>
   );
 }

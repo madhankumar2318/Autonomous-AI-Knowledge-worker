@@ -13,6 +13,8 @@ from db import is_postgres_active, get_conn, get_cursor, execute_sql
 
 # Context variable to store active user context during RAG search
 active_user_context = contextvars.ContextVar("active_user_context", default=None)
+# Context variable to optionally restrict RAG search to a single document file
+active_file_context = contextvars.ContextVar("active_file_context", default=None)
 
 # Database path (relative to backend folder)
 CHROMA_DB_PATH = os.path.join(os.path.dirname(__file__), "data", "chromadb")
@@ -786,44 +788,44 @@ def get_indexed_files(username: str = None) -> List[Dict[str, Any]]: # type: ign
 
 # ── Hybrid Search Helpers (FTS + RRF) ─────────────────────────────────────────
 
-def _fts_search(query: str, username: str, top_k: int, cur) -> List[Dict[str, Any]]:
+def _fts_search(query: str, username: str, top_k: int, cur, active_file: str = None) -> List[Dict[str, Any]]: # type: ignore
     """
     Full-Text Search (FTS) using PostgreSQL to_tsvector / plainto_tsquery.
     Returns rows ranked by text relevance, enriched with the same fields as
     the vector search so they can be merged via RRF.
+    Optionally restricted to a specific file via active_file.
     """
     try:
+        # Build WHERE clause dynamically
+        where_parts = ["to_tsvector('english', content) @@ plainto_tsquery('english', ?)"]
+        params_fts: list = []
+        params_fts.append(query)  # for ts_rank
+        params_fts.append(query)  # for @@ operator
+
         if username and username != "guest":
-            execute_sql(
-                cur,
-                """
-                SELECT filename, chunk_index, total_chunks, content,
-                       ts_rank(to_tsvector('english', content),
-                               plainto_tsquery('english', ?)) * 100 AS similarity,
-                       chunk_type, page_num
-                FROM document_embeddings
-                WHERE username = ?
-                  AND to_tsvector('english', content) @@ plainto_tsquery('english', ?)
-                ORDER BY similarity DESC
-                LIMIT ?
-                """,
-                (query, username, query, top_k)
-            )
-        else:
-            execute_sql(
-                cur,
-                """
-                SELECT filename, chunk_index, total_chunks, content,
-                       ts_rank(to_tsvector('english', content),
-                               plainto_tsquery('english', ?)) * 100 AS similarity,
-                       chunk_type, page_num
-                FROM document_embeddings
-                WHERE to_tsvector('english', content) @@ plainto_tsquery('english', ?)
-                ORDER BY similarity DESC
-                LIMIT ?
-                """,
-                (query, query, top_k)
-            )
+            where_parts.append("username = ?")
+            params_fts.append(username)
+        if active_file:
+            where_parts.append("filename = ?")
+            params_fts.append(active_file)
+
+        where_sql = " AND ".join(where_parts)
+        params_fts.append(top_k)  # for LIMIT
+
+        execute_sql(
+            cur,
+            f"""
+            SELECT filename, chunk_index, total_chunks, content,
+                   ts_rank(to_tsvector('english', content),
+                           plainto_tsquery('english', ?)) * 100 AS similarity,
+                   chunk_type, page_num
+            FROM document_embeddings
+            WHERE {where_sql}
+            ORDER BY similarity DESC
+            LIMIT ?
+            """,
+            tuple(params_fts)
+        )
         rows = cur.fetchall()
         results = []
         for row in rows:
@@ -851,6 +853,7 @@ def _fts_search(query: str, username: str, top_k: int, cur) -> List[Dict[str, An
     except Exception as e:
         print(f"[RAG] FTS search failed (non-fatal, using vector-only): {e}")
         return []
+
 
 
 def _reciprocal_rank_fusion(
@@ -893,10 +896,17 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     Embed the user query and retrieve the top_k most semantically similar
     document chunks from ChromaDB or pgvector.
 
+    If active_file_context is set (document workspace mode), results are
+    filtered to only include chunks from that specific file.
+
     Returns enriched result dicts:
         {content, filename, chunk_index, total_chunks, similarity_score, chunk_type, page_num}
     """
     username = active_user_context.get()
+    active_file = active_file_context.get()  # None means all files
+
+    if active_file:
+        print(f"[RAG] Document mode: restricting search to file '{active_file}'")
 
     # Get query embedding
     try:
@@ -910,33 +920,33 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
         cur = get_cursor(conn)
         try:
             # ── Step 1: Semantic (vector cosine) search ──────────────────────
+            # Build WHERE clause dynamically based on username and active_file
+            where_clauses = []
+            params_vec: list = [str(query_embedding)]
+
             if username and username != "guest":
-                execute_sql(
-                    cur,
-                    """
-                    SELECT filename, chunk_index, total_chunks, content,
-                           (1 - (embedding <=> ?::vector)) * 100 AS similarity,
-                           chunk_type, page_num
-                    FROM document_embeddings
-                    WHERE username = ?
-                    ORDER BY embedding <=> ?::vector
-                    LIMIT ?
-                    """,
-                    (str(query_embedding), username, str(query_embedding), top_k)
-                )
-            else:
-                execute_sql(
-                    cur,
-                    """
-                    SELECT filename, chunk_index, total_chunks, content,
-                           (1 - (embedding <=> ?::vector)) * 100 AS similarity,
-                           chunk_type, page_num
-                    FROM document_embeddings
-                    ORDER BY embedding <=> ?::vector
-                    LIMIT ?
-                    """,
-                    (str(query_embedding), str(query_embedding), top_k)
-                )
+                where_clauses.append("username = ?")
+                params_vec.append(username)
+            if active_file:
+                where_clauses.append("filename = ?")
+                params_vec.append(active_file)
+
+            where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+            params_vec += [str(query_embedding), top_k]
+
+            execute_sql(
+                cur,
+                f"""
+                SELECT filename, chunk_index, total_chunks, content,
+                       (1 - (embedding <=> ?::vector)) * 100 AS similarity,
+                       chunk_type, page_num
+                FROM document_embeddings
+                {where_sql}
+                ORDER BY embedding <=> ?::vector
+                LIMIT ?
+                """,
+                tuple(params_vec)
+            )
             rows = cur.fetchall()
             vector_results = []
             for row in rows:
@@ -962,13 +972,14 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                     })
 
             # ── Step 2: Full-Text Search (FTS) for exact keyword matches ─────
-            fts_results = _fts_search(query, username, top_k, cur) # type: ignore
+            fts_results = _fts_search(query, username, top_k, cur, active_file) # type: ignore
 
             # ── Step 3: Merge with Reciprocal Rank Fusion (RRF) ─────────────
             if fts_results:
                 merged = _reciprocal_rank_fusion(vector_results, fts_results)
                 print(f"[RAG] Hybrid search: {len(vector_results)} vector + "
-                      f"{len(fts_results)} FTS -> {len(merged)} merged (RRF)")
+                      f"{len(fts_results)} FTS -> {len(merged)} merged (RRF)"
+                      + (f" [file={active_file}]" if active_file else ""))
                 return merged[:top_k]
 
             # FTS found nothing — fall through to pure vector results
@@ -989,8 +1000,17 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                 "n_results": top_k,
                 "include": ["documents", "metadatas", "distances"]
             }
+            # Build ChromaDB where filter combining username and active_file
+            chroma_filters = []
             if username and username != "guest":
-                query_kwargs["where"] = {"username": username}
+                chroma_filters.append({"username": username})
+            if active_file:
+                chroma_filters.append({"filename": active_file})
+
+            if len(chroma_filters) == 1:
+                query_kwargs["where"] = chroma_filters[0]
+            elif len(chroma_filters) > 1:
+                query_kwargs["where"] = {"$and": chroma_filters}
 
             results = collection.query(**query_kwargs)
             if results is None:

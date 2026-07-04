@@ -332,7 +332,7 @@ export default function Home_Page() {
 
             {activeTab === "files" && (
               <div className="animate-fade-in tab-content-wrapper">
-                <FileUpload />
+                <FileUpload username={loggedInUser} />
               </div>
             )}
 

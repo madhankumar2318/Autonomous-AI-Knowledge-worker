@@ -30,6 +30,7 @@ class ChatRequest(BaseModel):
     message: str
     username: Optional[str] = "guest"
     history: Optional[List[ChatMessage]] = []
+    filename: Optional[str] = None  # If set, restricts RAG to this document (Document Workspace mode)
 
 # ── Helper: Initialize Gemini Client ──────────────────────────────────────────
 def get_gemini_client():
@@ -746,9 +747,26 @@ async def chat(
     if username == "guest" and req.username:
         username = req.username
 
-    # Set the ContextVar for RAG queries inside this request execution context
-    from rag import active_user_context
+    # Set the ContextVars for RAG queries inside this request execution context
+    from rag import active_user_context, active_file_context
     token_ctx = active_user_context.set(username)
+    file_ctx  = active_file_context.set(req.filename)
+
+    # Build effective system instruction (append document focus if in doc workspace mode)
+    if req.filename:
+        effective_instruction = SYSTEM_INSTRUCTION + f"""
+
+---
+
+# DOCUMENT WORKSPACE MODE
+You are currently in **Document Workspace Mode** analyzing the file: `{req.filename}`.
+- Use `search_knowledge_base` to retrieve content from this document.
+- Focus your answers EXCLUSIVELY on the content of this file.
+- Do NOT reference other documents or files unless the user explicitly asks.
+- Always cite with [Source: {req.filename}].
+"""
+    else:
+        effective_instruction = SYSTEM_INSTRUCTION
 
     async def run_chat():
         # Log the incoming query
@@ -878,7 +896,7 @@ async def chat(
                             history=contents,
                             config=types.GenerateContentConfig(
                                 tools=agent_tools,
-                                system_instruction=SYSTEM_INSTRUCTION,
+                                system_instruction=effective_instruction,
                             )
                         )
                         response = chat_session.send_message(req.message)
@@ -947,6 +965,7 @@ async def chat(
         return await run_chat()
     finally:
         active_user_context.reset(token_ctx)
+        active_file_context.reset(file_ctx)
 
 
 # ── SSE Helper ────────────────────────────────────────────────────────────────
@@ -1007,8 +1026,25 @@ async def chat_stream(
 
     async def event_generator():
         # Set tenant context for RAG isolation within this generator
-        from rag import active_user_context
+        from rag import active_user_context, active_file_context
         token_ctx = active_user_context.set(resolved_username)
+        file_ctx  = active_file_context.set(req.filename)
+
+        # Build effective system instruction for this stream request
+        if req.filename:
+            stream_instruction = SYSTEM_INSTRUCTION + f"""
+
+---
+
+# DOCUMENT WORKSPACE MODE
+You are currently in **Document Workspace Mode** analyzing the file: `{req.filename}`.
+- Use `search_knowledge_base` to retrieve content from this document.
+- Focus your answers EXCLUSIVELY on the content of this file.
+- Do NOT reference other documents or files unless the user explicitly asks.
+- Always cite with [Source: {req.filename}].
+"""
+        else:
+            stream_instruction = SYSTEM_INSTRUCTION
 
         accumulated_reply = ""
 
@@ -1202,7 +1238,7 @@ async def chat_stream(
                                 history=contents,
                                 config=types.GenerateContentConfig(
                                     tools=agent_tools,
-                                    system_instruction=SYSTEM_INSTRUCTION,
+                                    system_instruction=stream_instruction,
                                 )
                             )
                             # send_message_stream handles the full tool-calling loop internally
@@ -1272,6 +1308,7 @@ async def chat_stream(
                 pass
         finally:
             active_user_context.reset(token_ctx)
+            active_file_context.reset(file_ctx)
 
     return StreamingResponse(
         event_generator(),

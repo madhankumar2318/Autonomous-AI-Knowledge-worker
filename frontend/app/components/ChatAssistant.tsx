@@ -21,6 +21,7 @@ interface ChatMessage {
 interface ChatAssistantProps {
   username?: string;
   inline?: boolean;
+  activeDocumentFilename?: string | null;
 }
 
 const QUICK_PROMPTS = [
@@ -33,13 +34,15 @@ const QUICK_PROMPTS = [
 export default function ChatAssistant({
   username = "guest",
   inline = false,
+  activeDocumentFilename = null,
 }: ChatAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "ai",
-      content:
-        "Hi! I'm your AI Knowledge Worker. I can help you analyze news, check stock data, summarize documents, and answer questions. What can I do for you today?",
+      content: activeDocumentFilename
+        ? `📄 **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document — I'll search it and give you precise, cited answers.`
+        : "Hi! I'm your AI Knowledge Worker. I can help you analyze news, check stock data, summarize documents, and answer questions. What can I do for you today?",
     },
   ]);
   const [input, setInput] = useState("");
@@ -150,7 +153,12 @@ export default function ChatAssistant({
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         signal: controller.signal,
-        body: JSON.stringify({ message: userMessage, username, history: chatHistory }),
+        body: JSON.stringify({
+          message: userMessage,
+          username,
+          history: chatHistory,
+          ...(activeDocumentFilename ? { filename: activeDocumentFilename } : {}),
+        }),
       });
 
       if (!res.ok || !res.body) {
@@ -260,7 +268,14 @@ export default function ChatAssistant({
           <div className="chat-header-actions">
             <button
               type="button"
-              onClick={() => setMessages([{ role: "ai", content: "Hi! I'm your AI Knowledge Worker. How can I help you today?" }])}
+              onClick={() => setMessages([
+                {
+                  role: "ai",
+                  content: activeDocumentFilename
+                    ? `📄 **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document — I'll search it and give you precise, cited answers.`
+                    : "Hi! I'm your AI Knowledge Worker. How can I help you today?"
+                }
+              ])}
               className="chat-clear-btn"
               title="Clear conversation"
             >
@@ -317,7 +332,14 @@ export default function ChatAssistant({
         {/* Quick prompts (only if few messages) */}
         {messages.length <= 1 && !loading && (
           <div className="chat-quick-prompts">
-            {QUICK_PROMPTS.map((prompt, i) => (
+            {(activeDocumentFilename
+              ? [
+                  "📝 Summarize this document",
+                  "💡 Key takeaways & insights",
+                  "🔍 Find action items/decisions",
+                ]
+              : QUICK_PROMPTS
+            ).map((prompt, i) => (
               <button
                 key={i}
                 type="button"
@@ -680,7 +702,7 @@ export default function ChatAssistant({
 
   // ── FLOATING FAB MODE (default) ──
   return (
-    <div style={{ position: "fixed", bottom: "32px", right: "32px", zIndex: 100 }}>
+    <div className="chat-floating-wrapper" style={{ position: "fixed", bottom: "32px", right: "32px", zIndex: 100 }}>
       {isOpen && (
         <div
           style={{
