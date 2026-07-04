@@ -4,6 +4,8 @@ import { useState } from "react";
 import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { showToast } from "./Toast";
+import StockChartDetail from "./StockChartDetail";
+
 
 interface StockQuote {
   symbol: string;
@@ -104,6 +106,8 @@ export default function StockSection({ compact = false }: { compact?: boolean })
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedSector, setSelectedSector] = useState<string>("All");
+  const [activeStockChart, setActiveStockChart] = useState<string | null>(null);
+
 
   const fetchStocks = () => {
     setLoading(true);
@@ -304,6 +308,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
                     key={s.symbol}
                     className="stocks-card"
                     style={{ "--stock-color": isPos ? "#34d399" : "#f87171" } as React.CSSProperties}
+                    onClick={() => setActiveStockChart(s.symbol)}
                   >
                     {/* Card top: symbol + trend badge */}
                     <div className="stocks-card-header">
@@ -350,6 +355,18 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           </div>
         );
       })}
+
+      {/* Render detailed stock chart modal */}
+      {activeStockChart && (() => {
+        const activeStock = data.stocks.find(s => s.symbol === activeStockChart);
+        return activeStock ? (
+          <StockChartDetail
+            stock={activeStock}
+            onClose={() => setActiveStockChart(null)}
+          />
+        ) : null;
+      })()}
+
 
       <style>{`
         .stocks-root {
@@ -538,6 +555,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           transition: all 0.18s ease;
           position: relative;
           overflow: hidden;
+          cursor: pointer;
         }
         .stocks-card::before {
           content: "";

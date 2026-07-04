@@ -131,3 +131,54 @@ def get_stock(symbol: str = Query(..., description="Stock symbol like AAPL, TSLA
     results = _fetch_all([symbol.upper()])
     _cache[cache_key] = (results, now)
     return results[0] if results else {"error": "Not found"}
+
+
+@router.get("/history/{symbol}")
+def get_stock_history(
+    symbol: str,
+    period: str = Query("1mo", description="1d, 5d, 1mo, 1y")
+):
+    """
+    Get historical data for stock charting.
+    Returns list of date-price pairs.
+    """
+    try:
+        ticker = yf.Ticker(symbol.upper())
+        
+        # Determine frequency/interval
+        interval = "1d"
+        if period == "1d":
+            interval = "5m"
+        elif period == "5d":
+            interval = "30m"
+
+        hist = ticker.history(period=period, interval=interval)
+
+        # Fallback if empty (e.g. off-hours / weekend for 1d)
+        if hist.empty and period == "1d":
+            hist = ticker.history(period="5d", interval="60m")
+
+        data = []
+        for date, row in hist.iterrows():
+            if "Close" in row:
+                price = float(row["Close"])
+                if price == price:  # filter out NaN
+                    if period == "1d":
+                        date_str = date.strftime("%H:%M")
+                    elif period == "5d":
+                        date_str = date.strftime("%a %H:%M")
+                    else:
+                        date_str = date.strftime("%Y-%m-%d")
+
+                    data.append({
+                        "date": date_str,
+                        "price": round(price, 2)
+                    })
+        return {
+            "symbol": symbol.upper(),
+            "period": period,
+            "data": data
+        }
+    except Exception as e:
+        return {"symbol": symbol.upper(), "error": str(e), "data": []}
+
