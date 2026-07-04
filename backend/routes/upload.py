@@ -7,6 +7,7 @@ from db import get_conn, get_cursor, execute_sql, insert_history, get_user_id
 import boto3
 from botocore.client import Config
 from routes.auth import _get_username_from_auth_header, _decode_access_token
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -376,3 +377,98 @@ def download_file(
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class EditFileRequest(BaseModel):
+    content: str
+
+
+@router.put("/edit/{filename}")
+def edit_file(
+    filename: str,
+    req: EditFileRequest,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
+    try:
+        # Verify authenticated user
+        username = _get_username_from_auth_header(authorization, access_token)
+        user_id = get_user_id(username)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User session invalid")
+
+        # 1. Verify file ownership
+        conn = get_conn()
+        cur = get_cursor(conn)
+        execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+        row = cur.fetchone()
+        if not row:
+            conn.close()
+            raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
+
+        # 2. Check if file is an editable text-based file
+        _, ext = os.path.splitext(filename.lower())
+        if ext not in [".txt", ".md", ".json", ".csv"]:
+            conn.close()
+            raise HTTPException(status_code=400, detail="Only text-based files (.txt, .md, .json, .csv) can be edited.")
+
+        local_path = os.path.join(UPLOAD_DIR, username, filename)
+
+        # 3. Clean up previous RAG embeddings first
+        from rag import active_user_context, delete_file_index, index_file
+        token_ctx = active_user_context.set(username)
+        try:
+            delete_file_index(filename)
+        except Exception as e:
+            print(f"Failed to clear RAG index for edit: {e}")
+
+        # 4. Overwrite physical file
+        try:
+            content_bytes = req.content.encode("utf-8")
+            with open(local_path, "wb") as f:
+                f.write(content_bytes)
+            new_size = len(content_bytes)
+        except Exception as e:
+            active_user_context.reset(token_ctx)
+            conn.close()
+            raise HTTPException(status_code=500, detail=f"Failed to write file update: {e}")
+
+        # 5. S3 update if configured
+        if IS_S3:
+            s3_client = get_s3_client()
+            try:
+                s3_client.upload_file(local_path, S3_BUCKET, f"{username}/{filename}")
+            except Exception as s3_err:
+                active_user_context.reset(token_ctx)
+                conn.close()
+                raise HTTPException(status_code=500, detail=f"S3 cloud update failed: {s3_err}")
+
+        # 6. Re-index file in RAG
+        chunks_count = 0
+        try:
+            res = index_file(local_path, filename)
+            chunks_count = res.get("chunks", 0)
+        except Exception as e:
+            print(f"RAG Re-indexing failed during edit: {e}")
+        finally:
+            active_user_context.reset(token_ctx)
+
+        # 7. Update database record with new size
+        execute_sql(cur, "UPDATE uploads SET size = ? WHERE filename = ? AND user_id = ?", (new_size, filename, user_id))
+        conn.commit()
+        conn.close()
+
+        # 8. Log to history
+        insert_history(username, "file_edit", f"filename={filename}, new_size={new_size}")
+
+        return {
+            "message": f"File '{filename}' updated successfully",
+            "size": new_size,
+            "chunks": chunks_count
+        }
+
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+

@@ -9,9 +9,13 @@ import {
   ZoomOut,
   RotateCcw,
   Brain,
+  Edit3,
+  Save,
+  Undo,
 } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import ChatAssistant from "./ChatAssistant";
+import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 
 interface UploadedFile {
@@ -62,6 +66,11 @@ export default function DocumentWorkspace({
   const [textError, setTextError] = useState<string | null>(null);
   const [pdfZoom, setPdfZoom] = useState(100);
 
+  // Edit mode states (for text, JSON, CSV, MD files)
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState("");
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     if (isPDF) return;
     setTextLoading(true);
@@ -71,10 +80,14 @@ export default function DocumentWorkspace({
         if (!r.ok) throw new Error(`Failed to load file (${r.status})`);
         return r.text();
       })
-      .then((txt) => setTextContent(txt))
+      .then((txt) => {
+        setTextContent(txt);
+        setEditedContent(txt);
+      })
       .catch((err) => setTextError(String(err)))
       .finally(() => setTextLoading(false));
   }, [fileUrl, isPDF]);
+
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -83,10 +96,43 @@ export default function DocumentWorkspace({
     [onClose]
   );
 
+  const handleSave = async () => {
+    if (editedContent === textContent) {
+      setIsEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/upload/edit/${encodeURIComponent(file.filename)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editedContent }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to save file updates.");
+      }
+      setTextContent(editedContent);
+      setIsEditing(false);
+      showToast("success", `File saved! Re-indexed into RAG with ${data.chunks} chunks.`);
+    } catch (err) {
+      showToast("error", String(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedContent(textContent || "");
+    setIsEditing(false);
+  };
+
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
 
   return (
     <div className="dw-overlay">
@@ -369,6 +415,68 @@ export default function DocumentWorkspace({
           min-height: 0;
         }
 
+        /* ── Textarea Edit Mode ── */
+        .dw-text-textarea {
+          width: 100%;
+          height: 100%;
+          border: none;
+          outline: none;
+          background: rgba(0, 0, 0, 0.15);
+          color: var(--text-primary, #e2e8f0);
+          font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+          font-size: 13px;
+          line-height: 1.7;
+          padding: 20px 24px;
+          resize: none;
+          border-radius: 0;
+        }
+
+        .dw-edit-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #22d3ee;
+          background: rgba(34,211,238,0.06);
+          border: 1px solid rgba(34,211,238,0.2);
+          border-radius: 6px;
+          padding: 4px 10px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .dw-edit-btn:hover:not(:disabled) {
+          background: rgba(34,211,238,0.15);
+          border-color: rgba(34,211,238,0.35);
+          color: #67e8f9;
+        }
+        .dw-save-btn {
+          color: #34d399;
+          background: rgba(52,211,153,0.06);
+          border-color: rgba(52,211,153,0.25);
+        }
+        .dw-save-btn:hover:not(:disabled) {
+          color: #6ee7b7;
+          background: rgba(52,211,153,0.18);
+          border-color: rgba(52,211,153,0.4);
+        }
+        .dw-cancel-btn {
+          color: #94a3b8;
+          background: rgba(148,163,184,0.06);
+          border-color: rgba(148,163,184,0.2);
+          margin-left: 6px;
+        }
+        .dw-cancel-btn:hover:not(:disabled) {
+          color: #f1f5f9;
+          background: rgba(148,163,184,0.15);
+          border-color: rgba(148,163,184,0.3);
+        }
+        .dw-edit-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+
         /* Make the inline ChatAssistant fill the right panel completely */
         .dw-chat-inner .chat-inline-root {
           height: 100%;
@@ -416,8 +524,12 @@ export default function DocumentWorkspace({
         {/* Left: Document Viewer */}
         <div className="dw-viewer">
           <div className="dw-viewer-toolbar">
-            <span className="dw-viewer-label">📄 Document Preview</span>
-            {isPDF && (
+            <span className="dw-viewer-label">
+              {isEditing ? "📝 Editing Document" : "📄 Document Preview"}
+            </span>
+
+            {/* Render zoom for PDF, or Edit/Save controls for text-based files */}
+            {isPDF ? (
               <div className="dw-zoom-controls">
                 <button
                   className="dw-zoom-btn"
@@ -442,6 +554,42 @@ export default function DocumentWorkspace({
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
               </div>
+            ) : (
+              !textLoading && !textError && textContent !== null && (
+                <div className="dw-zoom-controls">
+                  {isEditing ? (
+                    <>
+                      <button
+                        className="dw-edit-btn dw-save-btn"
+                        onClick={handleSave}
+                        disabled={saving}
+                        title="Save changes and re-index"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        className="dw-edit-btn dw-cancel-btn"
+                        onClick={handleCancel}
+                        disabled={saving}
+                        title="Cancel edits"
+                      >
+                        <Undo className="w-3.5 h-3.5" />
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="dw-edit-btn"
+                      onClick={() => setIsEditing(true)}
+                      title="Edit file content"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      Edit Content
+                    </button>
+                  )}
+                </div>
+              )
             )}
           </div>
 
@@ -460,6 +608,14 @@ export default function DocumentWorkspace({
               </div>
             ) : textError ? (
               <div className="dw-error">⚠️ {textError}</div>
+            ) : isEditing ? (
+              <textarea
+                className="dw-text-textarea"
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                disabled={saving}
+                placeholder="Type your edits here..."
+              />
             ) : (
               <div className="dw-text-content">
                 <pre className="dw-text-pre">{textContent}</pre>
