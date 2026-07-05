@@ -65,6 +65,7 @@ function formatVolume(v?: number) {
 export default function StockChartDetail({ stock, onClose }: StockChartDetailProps) {
   const [period, setPeriod] = useState<"1d" | "5d" | "1mo" | "1y">("1mo");
   const [chartData, setChartData] = useState<HistoricalPoint[]>([]);
+  const [details, setDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -83,6 +84,9 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
       })
       .then((d) => {
         setChartData(d.data || []);
+        if (d.details) {
+          setDetails(d.details);
+        }
       })
       .catch((err) => {
         console.error("Error loading history:", err);
@@ -519,19 +523,19 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         <div className="sc-grid-grid">
           <div className="sc-stat-card">
             <span className="sc-stat-label">Day's High</span>
-            <span className="sc-stat-value">{formatPrice(stock.day_high)}</span>
+            <span className="sc-stat-value">{formatPrice(details?.day_high ?? stock.day_high)}</span>
           </div>
           <div className="sc-stat-card">
             <span className="sc-stat-label">Day's Low</span>
-            <span className="sc-stat-value">{formatPrice(stock.day_low)}</span>
+            <span className="sc-stat-value">{formatPrice(details?.day_low ?? stock.day_low)}</span>
           </div>
           <div className="sc-stat-card">
             <span className="sc-stat-label">Volume</span>
-            <span className="sc-stat-value">{formatVolume(stock.volume)}</span>
+            <span className="sc-stat-value">{formatVolume(details?.volume ?? stock.volume)}</span>
           </div>
           <div className="sc-stat-card">
             <span className="sc-stat-label">Market Cap</span>
-            <span className="sc-stat-value">{formatBigNumber(stock.market_cap)}</span>
+            <span className="sc-stat-value">{formatBigNumber(details?.market_cap ?? stock.market_cap)}</span>
           </div>
         </div>
       </div>

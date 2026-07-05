@@ -82,10 +82,10 @@ export default function SearchSection({
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (!infiniteScroll) return;
+    if (!infiniteScroll || loading) return;
     const bottom =
       e.currentTarget.scrollHeight - e.currentTarget.scrollTop <=
-      e.currentTarget.clientHeight + 50;
+      e.currentTarget.clientHeight + 100;
     if (bottom) {
       setPage((p) => {
         const next = p + 1;
@@ -96,7 +96,7 @@ export default function SearchSection({
   };
 
   return (
-    <div className="search-root">
+    <div className="search-root" onScroll={handleScroll}>
       {/* Search Form */}
       <form onSubmit={handleSearch} className="flex gap-2">
         <div className="flex-1 relative">
@@ -155,7 +155,7 @@ export default function SearchSection({
 
       {/* Results — max height so they don't push other cards away */}
       {results.length > 0 && (
-        <div className="space-y-2 pr-1" onScroll={handleScroll}>
+        <div className="space-y-2 pr-1">
           {results.map((r, _i) => (
             <div
               key={`${r.link}-${_i}`}

@@ -65,6 +65,7 @@ app.include_router(upload.router)
 app.include_router(history_router.router)
 app.include_router(chat.router)
 
+
 # Ensure folders exist
 BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")

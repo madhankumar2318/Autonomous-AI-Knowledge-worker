@@ -12,6 +12,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_session_key_1234567890!")
 ALGORITHM = "HS256"
+is_prod = os.getenv("ENV", "development").lower() == "production" or os.getenv("SECURE_COOKIES", "false").lower() == "true"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,8 +145,8 @@ def register(
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
         max_age=86400,
         path="/"
     )
@@ -203,8 +204,8 @@ def login(
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,
-        samesite="lax",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
         max_age=86400,
         path="/"
     )
@@ -218,8 +219,12 @@ def login(
 
 @router.post("/logout")
 def logout(response: Response):
-    """Clear the access_token HttpOnly cookie."""
-    response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(
+        "access_token",
+        path="/",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax"
+    )
     return {"status": "success", "message": "Logged out successfully"}
 
 

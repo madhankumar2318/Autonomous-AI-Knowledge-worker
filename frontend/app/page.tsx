@@ -95,6 +95,29 @@ export default function Home_Page() {
   }, []);
 
   useEffect(() => {
+    // Intercept global fetch responses to catch session expirations (HTTP 401)
+    const originalFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      if (response.status === 401) {
+        const urlStr = typeof args[0] === "string" ? args[0] : "";
+        if (
+          !urlStr.includes("/auth/verify") &&
+          !urlStr.includes("/auth/login") &&
+          !urlStr.includes("/auth/logout")
+        ) {
+          localStorage.removeItem("ak_session");
+          window.location.reload();
+        }
+      }
+      return response;
+    };
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
+  useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     document.documentElement.setAttribute("data-theme", savedTheme);
     fetch(`${API_BASE_URL}/auth/verify`, { credentials: "include" })

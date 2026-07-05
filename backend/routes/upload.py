@@ -251,6 +251,7 @@ def delete_file(
     access_token: Optional[str] = Cookie(None)
 ):
     try:
+        filename = os.path.basename(filename)
         username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
         if not user_id:
@@ -312,6 +313,7 @@ def download_file(
     access_token: Optional[str] = Cookie(None)
 ):
     try:
+        filename = os.path.basename(filename)
         # Extract JWT session token from Cookie, Query parameters or Headers
         token_to_decode = access_token or token
         if not token_to_decode and authorization:
@@ -391,6 +393,7 @@ def edit_file(
     access_token: Optional[str] = Cookie(None)
 ):
     try:
+        filename = os.path.basename(filename)
         # Verify authenticated user
         username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
