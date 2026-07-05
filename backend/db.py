@@ -99,8 +99,15 @@ def get_conn():
 
 
 def is_postgres_active():
-    """Check if PostgreSQL connection is active."""
-    return True
+    """Check if PostgreSQL connection pool is active and functional."""
+    global _pool
+    try:
+        pool = _get_pool()
+        conn = pool.getconn()
+        pool.putconn(conn)
+        return True
+    except Exception:
+        return False
 
 
 def get_cursor(conn):
