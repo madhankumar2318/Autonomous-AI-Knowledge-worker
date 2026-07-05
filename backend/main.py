@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Autonomous AI Knowledge Worker", lifespan=lifespan)
 
 # CORS - Allow explicit origins to support credentials / cookies
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
