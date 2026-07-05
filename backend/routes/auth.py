@@ -126,19 +126,17 @@ def register(
 
     hashed = _hash_password(password)
 
-    conn = get_conn()
-    cur  = get_cursor(conn)
     try:
-        execute_sql(
-            cur,
-            "INSERT INTO users (username, password, name, email, mobile) VALUES (?, ?, ?, ?, ?)",
-            (username.strip(), hashed, name, email, mobile)
-        )
-        conn.commit()
+        with get_conn() as conn:
+            cur  = get_cursor(conn)
+            execute_sql(
+                cur,
+                "INSERT INTO users (username, password, name, email, mobile) VALUES (?, ?, ?, ?, ?)",
+                (username.strip(), hashed, name, email, mobile)
+            )
+            conn.commit()
     except Exception:
-        conn.close()
         raise HTTPException(status_code=400, detail="Username already exists")
-    conn.close()
 
     token = _create_access_token(username.strip())
     response.set_cookie(
@@ -169,32 +167,29 @@ def login(
     plain-text passwords (auto-migrates to bcrypt on first successful login).
     Returns username and a signed JWT access token in response + cookie.
     """
-    conn = get_conn()
-    cur  = get_cursor(conn)
-    execute_sql(cur, "SELECT password FROM users WHERE username = ?", (username,))
-    row = cur.fetchone()
-
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-
-    stored = row["password"]
     authenticated = False
+    with get_conn() as conn:
+        cur  = get_cursor(conn)
+        execute_sql(cur, "SELECT password FROM users WHERE username = ?", (username,))
+        row = cur.fetchone()
 
-    # ── Legacy migration: plain-text password stored (old account) ──────────
-    if _is_plain_text(stored):
-        if stored == password:
-            # Silently upgrade to bcrypt hash
-            new_hash = _hash_password(password)
-            execute_sql(cur, "UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
-            conn.commit()
-            authenticated = True
-        conn.close()
-    else:
-        # ── Normal bcrypt verification ───────────────────────────────────────────
-        conn.close()
-        if _verify_password(password, stored):
-            authenticated = True
+        if not row:
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+
+        stored = row["password"]
+
+        # ── Legacy migration: plain-text password stored (old account) ──────────
+        if _is_plain_text(stored):
+            if stored == password:
+                # Silently upgrade to bcrypt hash
+                new_hash = _hash_password(password)
+                execute_sql(cur, "UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
+                conn.commit()
+                authenticated = True
+        else:
+            # ── Normal bcrypt verification ───────────────────────────────────────────
+            if _verify_password(password, stored):
+                authenticated = True
 
     if not authenticated:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -249,11 +244,10 @@ def verify_session(
 
     username = _decode_access_token(token_to_decode)
 
-    conn = get_conn()
-    cur  = get_cursor(conn)
-    execute_sql(cur, "SELECT username FROM users WHERE username = ?", (username,))
-    user = cur.fetchone()
-    conn.close()
+    with get_conn() as conn:
+        cur  = get_cursor(conn)
+        execute_sql(cur, "SELECT username FROM users WHERE username = ?", (username,))
+        user = cur.fetchone()
 
     if not user:
         raise HTTPException(status_code=401, detail="Session invalid")
@@ -269,11 +263,10 @@ def get_profile(
     """Fetch the full profile for the authenticated user."""
     username = _get_username_from_auth_header(authorization, access_token)
     
-    conn = get_conn()
-    cur  = get_cursor(conn)
-    execute_sql(cur, "SELECT id, username, name, email, mobile FROM users WHERE username = ?", (username,))
-    user = cur.fetchone()
-    conn.close()
+    with get_conn() as conn:
+        cur  = get_cursor(conn)
+        execute_sql(cur, "SELECT id, username, name, email, mobile FROM users WHERE username = ?", (username,))
+        user = cur.fetchone()
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -298,16 +291,15 @@ def update_profile(
     """Update profile fields for the authenticated user."""
     username = _get_username_from_auth_header(authorization, access_token)
     
-    conn = get_conn()
-    cur  = get_cursor(conn)
-    execute_sql(
-        cur,
-        "UPDATE users SET name = ?, email = ?, mobile = ? WHERE username = ?",
-        (name, email, mobile, username)
-    )
-    conn.commit()
-    rows = cur.rowcount
-    conn.close()
+    with get_conn() as conn:
+        cur  = get_cursor(conn)
+        execute_sql(
+            cur,
+            "UPDATE users SET name = ?, email = ?, mobile = ? WHERE username = ?",
+            (name, email, mobile, username)
+        )
+        conn.commit()
+        rows = cur.rowcount
 
     if rows == 0:
         raise HTTPException(status_code=404, detail="User not found")
@@ -329,31 +321,28 @@ def change_password(
     if not is_strong:
         raise HTTPException(status_code=400, detail=msg)
 
-    conn = get_conn()
-    cur  = get_cursor(conn)
-    execute_sql(cur, "SELECT password FROM users WHERE username = ?", (username,))
-    row = cur.fetchone()
+    with get_conn() as conn:
+        cur  = get_cursor(conn)
+        execute_sql(cur, "SELECT password FROM users WHERE username = ?", (username,))
+        row = cur.fetchone()
 
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="User not found")
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    stored = row["password"]
+        stored = row["password"]
 
-    # Support both legacy plain-text and bcrypt-hashed passwords
-    if _is_plain_text(stored):
-        correct = (stored == old_password)
-    else:
-        correct = _verify_password(old_password, stored)
+        # Support both legacy plain-text and bcrypt-hashed passwords
+        if _is_plain_text(stored):
+            correct = (stored == old_password)
+        else:
+            correct = _verify_password(old_password, stored)
 
-    if not correct:
-        conn.close()
-        raise HTTPException(status_code=401, detail="Current password is incorrect")
+        if not correct:
+            raise HTTPException(status_code=401, detail="Current password is incorrect")
 
-    # Save new bcrypt hash
-    new_hash = _hash_password(new_password)
-    execute_sql(cur, "UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
-    conn.commit()
-    conn.close()
+        # Save new bcrypt hash
+        new_hash = _hash_password(new_password)
+        execute_sql(cur, "UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
+        conn.commit()
 
     return {"status": "success", "message": "Password changed successfully"}

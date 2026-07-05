@@ -117,15 +117,14 @@ async def upload_file(
 
         # Save to database (attaching the user_id)
         db_filepath = f"s3://{S3_BUCKET}/{s3_key}" if IS_S3 else file_path
-        conn = get_conn()
-        cur = get_cursor(conn)
-        execute_sql(
-            cur,
-            "INSERT INTO uploads (filename, filepath, size, user_id) VALUES (?, ?, ?, ?)",
-            (filename, db_filepath, size, user_id),
-        )
-        conn.commit()
-        conn.close()
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(
+                cur,
+                "INSERT INTO uploads (filename, filepath, size, user_id) VALUES (?, ?, ?, ?)",
+                (filename, db_filepath, size, user_id),
+            )
+            conn.commit()
 
         # Log to history
         insert_history(username, "file_upload", f"filename={filename}, size={size} bytes")
@@ -214,13 +213,12 @@ def list_uploads(
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
 
-        conn = get_conn()
-        cur = get_cursor(conn)
-        # Filter DB records by user_id
-        execute_sql(cur, "SELECT id, filename, filepath, size, uploaded_at FROM uploads WHERE user_id = ? ORDER BY uploaded_at DESC", (user_id,))
-        rows = cur.fetchall()
-        uploads = [dict(r) for r in rows]
-        conn.close()
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            # Filter DB records by user_id
+            execute_sql(cur, "SELECT id, filename, filepath, size, uploaded_at FROM uploads WHERE user_id = ? ORDER BY uploaded_at DESC", (user_id,))
+            rows = cur.fetchall()
+            uploads = [dict(r) for r in rows]
         
         # Merge with ChromaDB indexed files (filtered by active username)
         from rag import active_user_context, get_indexed_files
@@ -258,33 +256,31 @@ def delete_file(
             raise HTTPException(status_code=401, detail="User session invalid")
 
         # 1. Verify file ownership
-        conn = get_conn()
-        cur = get_cursor(conn)
-        execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
-        row = cur.fetchone()
-        if not row:
-            conn.close()
-            raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
-        
-        file_path = row["filepath"]
-        
-        # 2. Delete physical local file if it exists
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
+            
+            file_path = row["filepath"]
+            
+            # 2. Delete database entry first (within transaction)
+            execute_sql(cur, "DELETE FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            conn.commit()
+
+        # 3. Delete physical local file if it exists
         local_path = os.path.join(UPLOAD_DIR, username, filename)
         if os.path.exists(local_path):
             os.remove(local_path)
             
-        # 3. Delete from S3 if configured
+        # 4. Delete from S3 if configured
         if IS_S3:
             s3_client = get_s3_client()
             try:
                 s3_client.delete_object(Bucket=S3_BUCKET, Key=f"{username}/{filename}")
             except Exception as e:
                 print(f"Failed to delete {filename} from S3: {e}")
-
-        # 4. Delete database entry
-        execute_sql(cur, "DELETE FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
-        conn.commit()
-        conn.close()
         
         # 5. Clean up from ChromaDB under active username context
         from rag import active_user_context, delete_file_index
@@ -330,11 +326,10 @@ def download_file(
             raise HTTPException(status_code=401, detail="User session invalid")
 
         # Verify file ownership from relational records
-        conn = get_conn()
-        cur = get_cursor(conn)
-        execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
-        row = cur.fetchone()
-        conn.close()
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            row = cur.fetchone()
 
         if not row:
             raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
@@ -400,19 +395,18 @@ def edit_file(
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
 
-        # 1. Verify file ownership
-        conn = get_conn()
-        cur = get_cursor(conn)
-        execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
-        row = cur.fetchone()
+        # 1. Verify file ownership (Database read)
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            row = cur.fetchone()
+
         if not row:
-            conn.close()
             raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
 
         # 2. Check if file is an editable text-based file
         _, ext = os.path.splitext(filename.lower())
         if ext not in [".txt", ".md", ".json", ".csv"]:
-            conn.close()
             raise HTTPException(status_code=400, detail="Only text-based files (.txt, .md, .json, .csv) can be edited.")
 
         local_path = os.path.join(UPLOAD_DIR, username, filename)
@@ -433,7 +427,6 @@ def edit_file(
             new_size = len(content_bytes)
         except Exception as e:
             active_user_context.reset(token_ctx)
-            conn.close()
             raise HTTPException(status_code=500, detail=f"Failed to write file update: {e}")
 
         # 5. S3 update if configured
@@ -443,7 +436,6 @@ def edit_file(
                 s3_client.upload_file(local_path, S3_BUCKET, f"{username}/{filename}")
             except Exception as s3_err:
                 active_user_context.reset(token_ctx)
-                conn.close()
                 raise HTTPException(status_code=500, detail=f"S3 cloud update failed: {s3_err}")
 
         # 6. Re-index file in RAG
@@ -456,10 +448,11 @@ def edit_file(
         finally:
             active_user_context.reset(token_ctx)
 
-        # 7. Update database record with new size
-        execute_sql(cur, "UPDATE uploads SET size = ? WHERE filename = ? AND user_id = ?", (new_size, filename, user_id))
-        conn.commit()
-        conn.close()
+        # 7. Update database record with new size (Database write)
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "UPDATE uploads SET size = ? WHERE filename = ? AND user_id = ?", (new_size, filename, user_id))
+            conn.commit()
 
         # 8. Log to history
         insert_history(username, "file_edit", f"filename={filename}, new_size={new_size}")

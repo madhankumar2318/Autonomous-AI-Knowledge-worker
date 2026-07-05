@@ -355,11 +355,10 @@ def read_uploaded_file(filename: str) -> str:
         from db import get_user_id, get_conn, get_cursor, execute_sql
         user_id = get_user_id(username)
         if user_id:
-            conn = get_conn()
-            cur = get_cursor(conn)
-            execute_sql(cur, "SELECT id FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
-            row = cur.fetchone()
-            conn.close()
+            with get_conn() as conn:
+                cur = get_cursor(conn)
+                execute_sql(cur, "SELECT id FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+                row = cur.fetchone()
             if not row:
                 return f"Error: Access Denied. You do not own the file '{filename}'."
 

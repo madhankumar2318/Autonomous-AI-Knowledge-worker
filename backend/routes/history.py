@@ -23,8 +23,6 @@ def log_event(event: dict = Body(...)):
 
 @router.get("/list")
 def get_history(q: Optional[str] = Query(None), type: Optional[str] = Query(None), limit: int = Query(100)):
-    conn = get_conn()
-    cur = get_cursor(conn)
     sql = "SELECT id, username, action, details, timestamp AS created_at FROM history"
     params = []
     
@@ -41,9 +39,10 @@ def get_history(q: Optional[str] = Query(None), type: Optional[str] = Query(None
     sql += " ORDER BY timestamp DESC LIMIT ?"
     params.append(limit)
     
-    execute_sql(cur, sql, params)
-    rows = cur.fetchall()
-    history = [dict(r) for r in rows]
-    conn.close()
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(cur, sql, params)
+        rows = cur.fetchall()
+        history = [dict(r) for r in rows]
     
     return {"history": history}

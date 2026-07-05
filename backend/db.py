@@ -219,53 +219,50 @@ def init_db():
 
 def insert_history(username, action, details=""):
     """Insert a record into the history table."""
-    conn = get_conn()
-    cur = get_cursor(conn)
-    execute_sql(
-        cur,
-        "INSERT INTO history (username, action, details, timestamp) VALUES (?, ?, ?, datetime('now', 'localtime'))",
-        (username, action, details)
-    )
-    conn.commit()
-    conn.close()
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(
+            cur,
+            "INSERT INTO history (username, action, details, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+            (username, action, details)
+        )
+        conn.commit()
 
 
 # ── Reports ────────────────────────────────────────────────────────────────────
 
 def insert_report(news, stock, insights):
     """Insert generated report into reports table."""
-    conn = get_conn()
-    cur = get_cursor(conn)
-    execute_sql(
-        cur,
-        "INSERT INTO reports (news, stock, insights) VALUES (?, ?, ?)",
-        (news, stock, insights)
-    )
-    conn.commit()
-    conn.close()
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(
+            cur,
+            "INSERT INTO reports (news, stock, insights) VALUES (?, ?, ?)",
+            (news, stock, insights)
+        )
+        conn.commit()
 
 
 # ── Generic Query Helper ────────────────────────────────────────────────────────
 
 def log_action(action):
     """Simple history log (without username)."""
-    conn = get_conn()
-    cur = get_cursor(conn)
-    execute_sql(cur, "INSERT INTO history (action) VALUES (?)", (action,))
-    conn.commit()
-    conn.close()
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(cur, "INSERT INTO history (action) VALUES (?)", (action,))
+        conn.commit()
 
 
 def get_user_id(username):
     """Retrieve database ID for a given username."""
-    conn = get_conn()
-    cur = get_cursor(conn)
-    execute_sql(cur, "SELECT id FROM users WHERE username = ?", (username,))
-    row = cur.fetchone()
-    conn.close()
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(cur, "SELECT id FROM users WHERE username = ?", (username,))
+        row = cur.fetchone()
     if row:
         try:
             return row["id"]
         except Exception:
             return row[0]
     return None
+
