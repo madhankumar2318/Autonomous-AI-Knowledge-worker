@@ -702,27 +702,9 @@ export default function ChatAssistant({
 
   // ── FLOATING FAB MODE (default) ──
   return (
-    <div className="chat-floating-wrapper" style={{ position: "fixed", bottom: "32px", right: "32px", zIndex: 100 }}>
+    <div className="chat-floating-wrapper">
       {isOpen && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "68px",
-            right: "0",
-            width: "380px",
-            height: "530px",
-            background: "var(--bg-sidebar)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid var(--border-medium)",
-            borderRadius: "20px",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(34,211,238,0.08)",
-            animation: "slideUpFade 0.22s ease",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
+        <div className="chat-floating-window">
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -826,6 +808,31 @@ export default function ChatAssistant({
       </button>
 
       <style>{`
+        .chat-floating-wrapper {
+          position: fixed;
+          bottom: 32px;
+          right: 32px;
+          z-index: 100;
+        }
+
+        .chat-floating-window {
+          position: absolute;
+          bottom: 68px;
+          right: 0;
+          width: 380px;
+          height: 530px;
+          background: var(--bg-sidebar);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid var(--border-medium);
+          border-radius: 20px;
+          box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(34,211,238,0.08);
+          animation: slideUpFade 0.22s ease;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+        }
+
         @keyframes slideUpFade {
           from { opacity: 0; transform: translateY(12px) scale(0.97); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -838,6 +845,23 @@ export default function ChatAssistant({
         @keyframes typingBounce {
           0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
           40% { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 600px) {
+          .chat-floating-wrapper {
+            bottom: 16px !important;
+            right: 16px !important;
+          }
+          .chat-floating-window {
+            position: fixed !important;
+            bottom: 82px !important;
+            right: 16px !important;
+            left: 16px !important;
+            width: auto !important;
+            height: calc(100vh - 120px) !important;
+            max-height: 580px !important;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.85) !important;
+          }
         }
       `}</style>
     </div>
