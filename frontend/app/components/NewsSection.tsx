@@ -938,6 +938,45 @@ export default function NewsSection({
           justify-content: center;
           padding: 16px 0;
         }
+
+        @media (max-width: 640px) {
+          .news-root {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+          }
+          .news-toolbar {
+            flex-direction: row !important;
+            flex-wrap: wrap !important;
+            gap: 10px 12px !important;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+          }
+          .news-search-form {
+            order: 1 !important;
+            flex: 1 1 auto !important;
+            min-width: 150px !important;
+          }
+          .news-refresh-wrap {
+            order: 2 !important;
+            margin-left: auto !important;
+          }
+          .news-category-pills {
+            order: 3 !important;
+            width: 100% !important;
+            flex: 1 1 100% !important;
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+            padding-bottom: 2px !important;
+          }
+          .news-category-pills::-webkit-scrollbar {
+            display: none !important;
+          }
+          .news-cat-pill {
+            flex-shrink: 0 !important;
+          }
+        }
       `}</style>
     </div>
   );
