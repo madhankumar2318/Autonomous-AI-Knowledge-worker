@@ -15,7 +15,7 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # List of allowed file extensions
-ALLOWED_EXTENSIONS = {".csv", ".json", ".pdf", ".txt", ".md"}
+ALLOWED_EXTENSIONS = {".csv", ".json", ".pdf", ".txt", ".md", ".docx", ".xlsx"}
 
 # File upload size limits configuration (default: 25MB)
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "25"))

@@ -499,6 +499,110 @@ def extract_file_content_blocks(filepath: str, filename: str) -> List[Dict[str, 
             })
         return blocks
 
+    # ── DOCX (Microsoft Word) ──────────────────────────────────────────────────
+    elif ext == "docx":
+        blocks = []
+        try:
+            import docx
+            doc = docx.Document(filepath)
+            
+            # Extract paragraphs
+            for i, para in enumerate(doc.paragraphs):
+                text = para.text.strip()
+                if not text:
+                    continue
+                
+                is_header = False
+                if para.style and para.style.name.startswith("Heading"):
+                    is_header = True
+                
+                blocks.append({
+                    "text": text,
+                    "chunk_type": "header" if is_header else "text",
+                    "page_num": 0
+                })
+
+            # Extract tables
+            for table in doc.tables:
+                table_rows = []
+                for row in table.rows:
+                    row_cells = [cell.text.strip() for cell in row.cells]
+                    table_rows.append(row_cells)
+                if table_rows:
+                    markdown_table = _table_to_markdown(table_rows)
+                    if markdown_table:
+                        blocks.append({
+                            "text": markdown_table,
+                            "chunk_type": "table",
+                            "page_num": 0
+                        })
+        except Exception as e:
+            print(f"[RAG] Error parsing Word document '{filename}': {e}")
+            blocks.append({
+                "text": f"Error parsing Word document '{filename}'. Content could not be indexed due to: {str(e)}",
+                "chunk_type": "text",
+                "page_num": 0
+            })
+        return blocks
+
+    # ── XLSX (Microsoft Excel) ─────────────────────────────────────────────────
+    elif ext == "xlsx":
+        blocks = []
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(filepath, data_only=True)
+            
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                rows = []
+                for row in sheet.iter_rows(values_only=True):
+                    if not any(val is not None for val in row):
+                        continue
+                    rows.append([str(val).strip() if val is not None else "" for val in row])
+                
+                if not rows:
+                    continue
+
+                headers = rows[0]
+                sheet_rows_text = []
+                
+                # Build a Markdown table for a preview header block of this sheet
+                preview_rows = rows[:6]  # Header + up to 5 preview rows
+                markdown_preview = _table_to_markdown(preview_rows)
+                if markdown_preview:
+                    blocks.append({
+                        "text": f"Excel Sheet: {sheet_name} (Preview):\n{markdown_preview}",
+                        "chunk_type": "table",
+                        "page_num": 0
+                    })
+
+                # Index row-by-row
+                for i, row in enumerate(rows[1:]):
+                    row_vals = []
+                    for j, val in enumerate(row):
+                        header = headers[j] if j < len(headers) and headers[j] else f"Column {j+1}"
+                        row_vals.append(f"{header}={val}")
+                    row_text = f"Sheet: {sheet_name}, Row {i+1}: {', '.join(row_vals)}"
+                    sheet_rows_text.append(row_text)
+
+                # Chunk rows into groups of 15 for index efficiency
+                ROWS_PER_CHUNK = 15
+                for start in range(0, len(sheet_rows_text), ROWS_PER_CHUNK):
+                    group = sheet_rows_text[start:start + ROWS_PER_CHUNK]
+                    blocks.append({
+                        "text": '\n'.join(group),
+                        "chunk_type": "text",
+                        "page_num": 0
+                    })
+        except Exception as e:
+            print(f"[RAG] Error parsing Excel spreadsheet '{filename}': {e}")
+            blocks.append({
+                "text": f"Error parsing Excel spreadsheet '{filename}'. Content could not be indexed due to: {str(e)}",
+                "chunk_type": "text",
+                "page_num": 0
+            })
+        return blocks
+
     # ── TXT / MD / Other ──────────────────────────────────────────────────────
     else:
         with open(filepath, "r", encoding="utf-8", errors="ignore") as f:

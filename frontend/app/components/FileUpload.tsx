@@ -254,7 +254,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                     </>
                   )}
                 </p>
-                <p className="fw-dropzone-hint">CSV, JSON, PDF, TXT, MD · Max 50MB</p>
+                <p className="fw-dropzone-hint">CSV, JSON, PDF, TXT, MD, DOCX, XLSX · Max 50MB</p>
               </>
             )}
 
@@ -264,16 +264,16 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                 const selected = e.target.files?.[0] || null;
                 if (selected) {
                   const ext = selected.name.split(".").pop()?.toLowerCase();
-                  if (ext && ["csv", "json", "pdf", "txt", "md"].includes(ext)) {
+                  if (ext && ["csv", "json", "pdf", "txt", "md", "docx", "xlsx"].includes(ext)) {
                     setFile(selected);
                   } else {
-                    showToast("error", "Only CSV, JSON, PDF, TXT, and MD formats are supported.");
+                    showToast("error", "Only CSV, JSON, PDF, TXT, MD, DOCX, and XLSX formats are supported.");
                   }
                 }
               }}
               className="hidden"
               id="file-upload"
-              accept=".csv,.json,.pdf,.txt,.md"
+              accept=".csv,.json,.pdf,.txt,.md,.docx,.xlsx"
             />
           </div>
 

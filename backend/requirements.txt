@@ -16,3 +16,5 @@ boto3
 duckduckgo-search
 ddgs
 pdfplumber
+python-docx
+openpyxl
