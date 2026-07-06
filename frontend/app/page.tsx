@@ -155,13 +155,13 @@ export default function Home_Page() {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-6 relative overflow-y-auto bg-[#030f1a]">
+      <div className="min-h-screen flex flex-col justify-start items-center p-4 md:p-6 relative overflow-y-auto bg-[#030f1a]">
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none filter blur-[110px] saturate-[1.8]">
           <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#0891b2] opacity-60" />
           <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#22d3ee] opacity-40" />
           <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0e7490] opacity-35" />
         </div>
-        <div className="w-full relative z-10 flex justify-center">
+        <div className="w-full my-auto relative z-10 flex justify-center py-4">
           <LoginForm onLoginSuccess={(username, _token) => {
             setIsLoggedIn(true);
             setLoggedInUser(username);
