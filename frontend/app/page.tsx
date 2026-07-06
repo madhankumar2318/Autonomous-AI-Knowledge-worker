@@ -389,6 +389,28 @@ export default function Home_Page() {
         />
       )}
 
+      {/* Mobile Bottom Navigation */}
+      <div className="mobile-bottom-nav">
+        {NAV_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => tab.id === "settings" ? setShowProfile(true) : setActiveTab(tab.id)}
+              className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}
+              style={{
+                "--tab-accent": tab.accent,
+              } as React.CSSProperties}
+            >
+              <Icon className="mobile-nav-icon" />
+              <span className="mobile-nav-label">{tab.shortLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <style>{`
         /* ── APP SHELL ── */
         .app-shell {
@@ -886,6 +908,10 @@ export default function Home_Page() {
           margin: 0;
         }
 
+        .mobile-bottom-nav {
+          display: none;
+        }
+
         @media (max-width: 768px) {
           .app-sidebar { display: none; }
           .header-search { display: none; }
@@ -893,6 +919,63 @@ export default function Home_Page() {
           .brand-text { display: none; }
           .app-body { height: auto; }
           .content-body { padding: 16px; }
+
+          /* Mobile Bottom Navigation */
+          .mobile-bottom-nav {
+            display: flex;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background: rgba(8, 8, 20, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 90;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 12px;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+          }
+          
+          .mobile-nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 700;
+            gap: 4px;
+            flex: 1;
+            height: 100%;
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+          }
+          
+          .mobile-nav-icon {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.2s ease;
+          }
+          
+          .mobile-nav-active {
+            color: var(--tab-accent, var(--accent-primary)) !important;
+          }
+          
+          .mobile-nav-active .mobile-nav-icon {
+            transform: translateY(-2px);
+            filter: drop-shadow(0 0 5px var(--tab-accent, var(--accent-primary)));
+          }
+          
+          /* Content area padding to make space for bottom bar */
+          .app-main {
+            padding-bottom: 74px !important;
+          }
         }
       `}</style>
     </div>

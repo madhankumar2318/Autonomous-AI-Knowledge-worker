@@ -849,17 +849,17 @@ export default function ChatAssistant({
 
         @media (max-width: 600px) {
           .chat-floating-wrapper {
-            bottom: 16px !important;
+            bottom: 80px !important;
             right: 16px !important;
           }
           .chat-floating-window {
             position: fixed !important;
-            bottom: 82px !important;
+            bottom: 146px !important;
             right: 16px !important;
             left: 16px !important;
             width: auto !important;
-            height: calc(100vh - 120px) !important;
-            max-height: 580px !important;
+            height: calc(100vh - 180px) !important;
+            max-height: 520px !important;
             box-shadow: 0 16px 48px rgba(0,0,0,0.85) !important;
           }
         }
