@@ -8,6 +8,7 @@ import {
   User,
   X,
   Zap,
+  Settings,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
@@ -16,12 +17,123 @@ import { API_BASE_URL } from "../config";
 interface ChatMessage {
   role: "user" | "ai";
   content: string;
+  thinkingLogs?: string[];
 }
 
 interface ChatAssistantProps {
   username?: string;
   inline?: boolean;
   activeDocumentFilename?: string | null;
+}
+
+interface ThinkingLogsAccordionProps {
+  logs: string[];
+  isGenerating?: boolean;
+}
+
+function ThinkingLogsAccordion({ logs, isGenerating }: ThinkingLogsAccordionProps) {
+  const [isOpen, setIsOpen] = useState(isGenerating ?? false);
+
+  useEffect(() => {
+    if (isGenerating) {
+      setIsOpen(true);
+    }
+  }, [logs.length, isGenerating]);
+
+  return (
+    <div className="chat-thinking-accordion" style={{
+      marginBottom: "8px",
+      background: "rgba(34, 211, 238, 0.02)",
+      border: "1px solid rgba(34, 211, 238, 0.12)",
+      borderRadius: "8px",
+      overflow: "hidden",
+      fontSize: "11px",
+      width: "100%",
+      boxSizing: "border-box",
+    }}>
+      <style>{`
+        @keyframes agent-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "6px 10px",
+          background: "rgba(34, 211, 238, 0.04)",
+          border: "none",
+          cursor: "pointer",
+          color: "rgba(103, 232, 249, 0.95)",
+          fontWeight: 600,
+          textAlign: "left",
+          fontFamily: "inherit",
+          outline: "none",
+          boxSizing: "border-box",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <Settings
+            size={12}
+            style={{
+              animation: isGenerating ? "agent-spin 2s linear infinite" : "none",
+              color: "#22d3ee",
+            }}
+          />
+          {isGenerating ? "Agent executing tools..." : `Tool execution audit (${logs.length} step${logs.length > 1 ? "s" : ""})`}
+        </span>
+        <span style={{
+          transition: "transform 0.2s ease",
+          transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+          fontSize: "9px",
+          color: "rgba(103, 232, 249, 0.65)",
+        }}>
+          ▶
+        </span>
+      </button>
+      {isOpen && (
+        <div style={{
+          padding: "8px 10px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+          borderTop: "1px solid rgba(34, 211, 238, 0.08)",
+          background: "rgba(8, 8, 20, 0.4)",
+          boxSizing: "border-box",
+        }}>
+          {logs.map((log, idx) => (
+            <div key={idx} style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              color: "rgba(224, 242, 254, 0.75)",
+            }}>
+              <span style={{
+                width: "4px",
+                height: "4px",
+                borderRadius: "50%",
+                background: "#22d3ee",
+                boxShadow: "0 0 4px #22d3ee",
+                flexShrink: 0
+              }} />
+              <span style={{
+                lineHeight: "1.4",
+                fontFamily: "monospace",
+                color: "#a5f3fc"
+              }}>
+                {log}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const QUICK_PROMPTS = [
@@ -206,6 +318,21 @@ export default function ChatAssistant({
               });
             } else if (event.type === "status") {
               setStreamingStatus(event.content);
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last && last.role === "ai") {
+                  const logs = last.thinkingLogs ? [...last.thinkingLogs] : [];
+                  if (!logs.includes(event.content)) {
+                    logs.push(event.content);
+                  }
+                  updated[updated.length - 1] = {
+                    ...last,
+                    thinkingLogs: logs,
+                  };
+                }
+                return updated;
+              });
             } else if (event.type === "error") {
               setMessages((prev) => {
                 const updated = [...prev];
@@ -303,6 +430,9 @@ export default function ChatAssistant({
                 </div>
                 <div className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}>
                   <div className="chat-bubble-content">
+                    {msg.thinkingLogs && msg.thinkingLogs.length > 0 && (
+                      <ThinkingLogsAccordion logs={msg.thinkingLogs} isGenerating={isLastAi} />
+                    )}
                     {msg.content === "" && isLastAi ? (
                       <span className="chat-typing">
                         <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
@@ -734,6 +864,9 @@ export default function ChatAssistant({
                     {msg.role === "user" ? <User size={13} color="#fff" /> : <Bot size={13} color="#67e8f9" />}
                   </div>
                   <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "var(--bg-surface)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid var(--border-light)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "var(--text-primary)", fontSize: "0.95rem", lineHeight: "1.55", maxWidth: "80%" }}>
+                    {msg.thinkingLogs && msg.thinkingLogs.length > 0 && (
+                      <ThinkingLogsAccordion logs={msg.thinkingLogs} isGenerating={isLastAi} />
+                    )}
                     {msg.content === "" && isLastAi ? (
                       <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                         <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />

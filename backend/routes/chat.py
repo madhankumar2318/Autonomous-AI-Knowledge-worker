@@ -1225,6 +1225,13 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             parts=[types.Part.from_text(text=msg.content)]
                         )
                     )
+                # Append user query to history
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[types.Part.from_text(text=resolved_message)]
+                    )
+                )
 
                 MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
                 last_error = None
@@ -1237,17 +1244,76 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         if await request.is_disconnected():
                             return
                         try:
-                            chat_session = client.chats.create(
+                            # ── Manual Gemini Tool-Calling Loop ──
+                            for loop_idx in range(5):
+                                if await request.is_disconnected():
+                                    return
+
+                                # Invoke model (generate_content does not auto-run tools)
+                                gemini_response = client.models.generate_content(
+                                    model=model_name,
+                                    contents=contents,
+                                    config=types.GenerateContentConfig(
+                                        tools=agent_tools,
+                                        system_instruction=stream_instruction,
+                                    )
+                                )
+
+                                # If no function calls are returned, exit the loop to stream the final response
+                                tool_calls = gemini_response.function_calls
+                                if not tool_calls:
+                                    break
+
+                                # Append the model's call to history
+                                contents.append(gemini_response.candidates[0].content)
+
+                                # Execute tool calls and stream status notifications
+                                tool_parts = []
+                                for tool_call in tool_calls:
+                                    func_name = tool_call.name
+                                    yield _sse_event("status", f"Calling tool: {func_name}...")
+
+                                    func_to_call = FUNCTIONS_MAP.get(func_name)
+                                    if not func_to_call:
+                                        tool_output = f"Error: Tool {func_name} not found."
+                                    else:
+                                        try:
+                                            tool_args = tool_call.args or {}
+                                            tool_output = await asyncio.get_event_loop().run_in_executor(
+                                                None, lambda f=func_to_call, a=tool_args: f(**a)
+                                            )
+                                        except Exception as e:
+                                            tool_output = f"Error executing {func_name}: {str(e)}"
+
+                                    tool_parts.append(
+                                        types.Part.from_function_response(
+                                            name=func_name,
+                                            response={"result": str(tool_output)}
+                                        )
+                                    )
+
+                                # Append function responses back to history
+                                contents.append(
+                                    types.Content(
+                                        role="tool",
+                                        parts=tool_parts
+                                    )
+                                )
+
+                            # Now stream the final response
+                            if await request.is_disconnected():
+                                return
+
+                            gemini_stream = client.models.generate_content_stream(
                                 model=model_name,
-                                history=contents,
+                                contents=contents,
                                 config=types.GenerateContentConfig(
                                     tools=agent_tools,
                                     system_instruction=stream_instruction,
                                 )
                             )
-                            # send_message_stream handles the full tool-calling loop internally
-                            # and streams only the final textual response
-                            for chunk in chat_session.send_message_stream(resolved_message):
+
+                            for chunk in gemini_stream:
                                 if await request.is_disconnected():
                                     print("[INFO] Client disconnected mid-stream (Gemini).")
                                     return
