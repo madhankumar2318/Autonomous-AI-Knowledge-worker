@@ -168,17 +168,37 @@ export default function NewsSection({
     <div className="news-root" onScroll={handleScroll}>
       {/* ── TOOLBAR ── */}
       <div className="news-toolbar">
-        <form onSubmit={handleSearch} className="news-search-form">
-          <Search className="news-search-icon" />
-          <input
-            type="text"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="Search topics, keywords…"
-            className="news-search-input"
-            id="news-search"
-          />
-        </form>
+        <div className="news-toolbar-top">
+          <form onSubmit={handleSearch} className="news-search-form">
+            <Search className="news-search-icon" />
+            <input
+              type="text"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="Search topics, keywords…"
+              className="news-search-input"
+              id="news-search"
+            />
+          </form>
+
+          <div className="news-refresh-wrap">
+            {!loading && total > 0 && (
+              <span className="news-count">
+                {articles.length} / {total}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={triggerRefresh}
+              disabled={isRefreshing}
+              className="news-refresh-btn"
+              title="Refresh news"
+            >
+              <RefreshCw size={12} className={isRefreshing ? "animate-spin" : ""} />
+              <span>{isRefreshing ? "Refreshing…" : countdown}</span>
+            </button>
+          </div>
+        </div>
 
         <div className="news-category-pills">
           {CATEGORIES.map((cat) => (
@@ -191,24 +211,6 @@ export default function NewsSection({
               {cat.label}
             </button>
           ))}
-        </div>
-
-        <div className="news-refresh-wrap">
-          {!loading && total > 0 && (
-            <span className="news-count">
-              {articles.length} / {total}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={triggerRefresh}
-            disabled={isRefreshing}
-            className="news-refresh-btn"
-            title="Refresh news"
-          >
-            <RefreshCw size={12} className={isRefreshing ? "animate-spin" : ""} />
-            <span>{isRefreshing ? "Refreshing…" : countdown}</span>
-          </button>
         </div>
       </div>
 
@@ -487,9 +489,13 @@ export default function NewsSection({
           padding-top: 4px;
           padding-bottom: 12px;
         }
+        .news-toolbar-top {
+          display: contents; /* Flat list on desktop */
+        }
         .news-search-form {
           position: relative;
           flex: 0 0 240px;
+          order: 1;
         }
         .news-search-icon {
           position: absolute;
@@ -523,6 +529,7 @@ export default function NewsSection({
           gap: 6px;
           flex-wrap: wrap;
           flex: 1;
+          order: 2;
         }
         .news-cat-pill {
           padding: 5px 12px;
@@ -553,6 +560,7 @@ export default function NewsSection({
           gap: 8px;
           flex-shrink: 0;
           margin-left: auto;
+          order: 3;
         }
         .news-count {
           font-size: 13px;
@@ -945,25 +953,35 @@ export default function NewsSection({
             padding-right: 12px !important;
           }
           .news-toolbar {
-            flex-direction: row !important;
-            flex-wrap: wrap !important;
-            gap: 10px 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
             padding-left: 4px !important;
             padding-right: 4px !important;
           }
-          .news-search-form {
+          .news-toolbar-top {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            gap: 12px !important;
             order: 1 !important;
-            flex: 1 1 auto !important;
-            min-width: 150px !important;
+          }
+          .news-search-form {
+            flex: 1 !important;
+            min-width: 0 !important;
+            order: unset !important;
           }
           .news-refresh-wrap {
-            order: 2 !important;
-            margin-left: auto !important;
+            margin-left: 0 !important;
+            order: unset !important;
+            flex-shrink: 0 !important;
           }
           .news-category-pills {
-            order: 3 !important;
+            order: 2 !important;
             width: 100% !important;
-            flex: 1 1 100% !important;
+            flex: unset !important;
             overflow-x: auto !important;
             flex-wrap: nowrap !important;
             -webkit-overflow-scrolling: touch !important;
