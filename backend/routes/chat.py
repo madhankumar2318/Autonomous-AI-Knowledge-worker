@@ -397,6 +397,20 @@ def read_uploaded_file(filename: str) -> str:
     else:
         file_path = os.path.join(UPLOAD_DIR, filename)
 
+    # S3 fallback: On container deployments, local disk is ephemeral.
+    # If the file doesn't exist locally, try downloading from S3.
+    if not os.path.exists(file_path):
+        try:
+            from routes.upload import IS_S3, get_s3_client, S3_BUCKET
+            if IS_S3:
+                s3_key = f"{username}/{filename}"
+                s3_client = get_s3_client()
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                s3_client.download_file(S3_BUCKET, s3_key, file_path)
+                print(f"[S3] Downloaded '{s3_key}' to local cache for read_uploaded_file")
+        except Exception as s3_err:
+            print(f"[S3] Failed to download '{filename}' from S3: {s3_err}")
+
     if not os.path.exists(file_path):
         return f"File '{filename}' not found in your workspace."
     
