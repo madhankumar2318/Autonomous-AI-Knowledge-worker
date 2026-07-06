@@ -81,19 +81,11 @@ export default function Home_Page() {
   const [loggedInUser, setLoggedInUser] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState("Initializing…");
   const [activeTab, setActiveTab] = useState("news");
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [globalSearchTrigger, setGlobalSearchTrigger] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const [dbStatus, setDbStatus] = useState("postgres");
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoadingMessage("Waking up server in the cloud (takes ~30-50s)...");
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/db/status`)
@@ -155,7 +147,7 @@ export default function Home_Page() {
           <Brain size={26} style={{ color: "white" }} />
         </div>
         <div style={{ width: "32px", height: "32px", borderRadius: "50%", border: "2.5px solid rgba(34,211,238,0.2)", borderTopColor: "#22d3ee", animation: "spin 0.8s linear infinite" }} />
-        <p style={{ color: "#52525b", fontSize: "12px", fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase", textAlign: "center", padding: "0 20px" }}>{loadingMessage}</p>
+        <p style={{ color: "#52525b", fontSize: "12px", fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase" }}>Initializing…</p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
