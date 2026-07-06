@@ -370,7 +370,7 @@ def web_search(query: str) -> str:
 def read_uploaded_file(filename: str) -> str:
     """
     Read the content of a file that has been uploaded to the workspace uploads directory.
-    Supports CSV, JSON, and standard text/markdown files.
+    Supports CSV, JSON, PDF, TXT, MD, DOCX (Microsoft Word), and XLSX (Microsoft Excel) files.
     """
     filename = os.path.basename(filename)
     if not filename or filename in (".", ".."):
@@ -424,6 +424,44 @@ def read_uploaded_file(filename: str) -> str:
                 if len(out) > 10000:
                     out = out[:10000] + "\n... (truncated)"
                 return f"Contents of JSON file '{filename}':\n{out}"
+        elif ext == "docx":
+            import docx
+            doc = docx.Document(file_path)
+            paragraphs = []
+            for para in doc.paragraphs:
+                text = para.text.strip()
+                if text:
+                    paragraphs.append(text)
+            # Also extract tables
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = " | ".join(cell.text.strip() for cell in row.cells)
+                    if row_text.strip(" ||"):
+                        paragraphs.append(row_text)
+            content = "\n".join(paragraphs)
+            if len(content) > 10000:
+                content = content[:10000] + "\n... (truncated)"
+            return f"Contents of Word document '{filename}':\n{content}"
+        elif ext == "xlsx":
+            import openpyxl
+            wb = openpyxl.load_workbook(file_path, data_only=True)
+            parts = []
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                rows = []
+                for row in sheet.iter_rows(values_only=True):
+                    if any(val is not None for val in row):
+                        rows.append([str(val).strip() if val is not None else "" for val in row])
+                if rows:
+                    parts.append(f"--- Sheet: {sheet_name} ---")
+                    for i, row in enumerate(rows[:50]):
+                        parts.append(", ".join(row))
+                    if len(rows) > 50:
+                        parts.append(f"... (truncated {len(rows)-50} rows)")
+            content = "\n".join(parts)
+            if len(content) > 10000:
+                content = content[:10000] + "\n... (truncated)"
+            return f"Contents of Excel file '{filename}':\n{content}"
         else:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read(10000)
@@ -548,7 +586,7 @@ def _compress_context(chunks: list, query: str) -> list:
 
 def search_knowledge_base(query: str) -> str:
     """
-    Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD) for relevant information matching the query.
+    Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD, DOCX, XLSX) for relevant information matching the query.
     Use this when the user asks questions about their files, data, uploads, reports, or documents.
     """
     print(f"[AI Tool] search_knowledge_base(query='{query}')")

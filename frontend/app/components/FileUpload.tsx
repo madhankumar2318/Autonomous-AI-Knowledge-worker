@@ -191,7 +191,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         </div>
         <div>
           <h2 className="fw-title">File Workspace</h2>
-          <p className="fw-subtitle">Upload CSV, JSON, PDF, TXT, or MD files to index with AI Knowledge Worker</p>
+          <p className="fw-subtitle">Upload CSV, JSON, PDF, TXT, MD, DOCX, or XLSX files to index with AI Knowledge Worker</p>
         </div>
         <button
           type="button"
@@ -317,6 +317,12 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
             </div>
             <div className="fw-format-badge" style={{ borderColor: "rgba(192,132,252,0.3)", color: "#c084fc", background: "rgba(192,132,252,0.08)" }}>
               <FileText className="w-3 h-3" /> TXT/MD
+            </div>
+            <div className="fw-format-badge" style={{ borderColor: "rgba(96,165,250,0.3)", color: "#60a5fa", background: "rgba(96,165,250,0.08)" }}>
+              <FileText className="w-3 h-3" /> DOCX
+            </div>
+            <div className="fw-format-badge" style={{ borderColor: "rgba(74,222,128,0.3)", color: "#4ade80", background: "rgba(74,222,128,0.08)" }}>
+              <FileText className="w-3 h-3" /> XLSX
             </div>
           </div>
         </div>
