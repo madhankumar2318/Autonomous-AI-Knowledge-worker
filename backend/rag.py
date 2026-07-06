@@ -652,8 +652,7 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
                 "chunk_type": chunk.get("chunk_type", "text"),
                 "page_num": chunk.get("page_num", 0)
             }
-            if username:
-                meta["username"] = username
+            meta["username"] = username or "guest"
             metadatas.append(meta)
 
         embeddings_any: Any = embeddings
@@ -682,20 +681,14 @@ def delete_file_index(filename: str, username: str = None): # type: ignore
         conn = get_conn()
         cur = get_cursor(conn)
         try:
-            if username and username != "guest":
-                execute_sql(
-                    cur,
-                    "DELETE FROM document_embeddings WHERE filename = ? AND username = ?",
-                    (filename, username)
-                )
-            else:
-                execute_sql(
-                    cur,
-                    "DELETE FROM document_embeddings WHERE filename = ?",
-                    (filename,)
-                )
+            # Enforce strict user isolation for deletion
+            execute_sql(
+                cur,
+                "DELETE FROM document_embeddings WHERE filename = ? AND username = ?",
+                (filename, username or "guest")
+            )
             conn.commit()
-            print(f"[RAG] Deleted pgvector index for file: {filename} under user: {username}")
+            print(f"[RAG] Deleted pgvector index for file: {filename} under user: {username or 'guest'}")
         except Exception as e:
             conn.rollback()
             print(f"[RAG] Error deleting pgvector index for file {filename}: {e}")
@@ -706,17 +699,15 @@ def delete_file_index(filename: str, username: str = None): # type: ignore
         if collection is None:
             return
         try:
-            if username and username != "guest":
-                where_clause = {
-                    "$and": [
-                        {"filename": filename},
-                        {"username": username}
-                    ]
-                }
-            else:
-                where_clause = {"filename": filename}
+            # Enforce strict user isolation for deletion
+            where_clause = {
+                "$and": [
+                    {"filename": filename},
+                    {"username": username or "guest"}
+                ]
+            }
             collection.delete(where=where_clause)
-            print(f"[RAG] Deleted index for file: {filename} under user: {username}")
+            print(f"[RAG] Deleted index for file: {filename} under user: {username or 'guest'}")
         except Exception as e:
             print(f"[RAG] Error deleting index for file {filename}: {e}")
 
@@ -734,17 +725,12 @@ def get_indexed_files(username: str = None) -> List[Dict[str, Any]]: # type: ign
         conn = get_conn()
         cur = get_cursor(conn)
         try:
-            if username and username != "guest":
-                execute_sql(
-                    cur,
-                    "SELECT filename, COUNT(*) as chunks FROM document_embeddings WHERE username = ? GROUP BY filename",
-                    (username,)
-                )
-            else:
-                execute_sql(
-                    cur,
-                    "SELECT filename, COUNT(*) as chunks FROM document_embeddings GROUP BY filename"
-                )
+            # Enforce strict user isolation for listing
+            execute_sql(
+                cur,
+                "SELECT filename, COUNT(*) as chunks FROM document_embeddings WHERE username = ? GROUP BY filename",
+                (username or "guest",)
+            )
             rows = cur.fetchall()
             res = []
             for row in rows:
@@ -766,9 +752,8 @@ def get_indexed_files(username: str = None) -> List[Dict[str, Any]]: # type: ign
         if collection is None:
             return []
         try:
-            where_clause = {}
-            if username and username != "guest":
-                where_clause = {"username": username}
+            # Enforce strict user isolation for listing
+            where_clause = {"username": username or "guest"}
             results = collection.get(where=where_clause, include=["metadatas"])
             if results is None:
                 return []
@@ -802,9 +787,9 @@ def _fts_search(query: str, username: str, top_k: int, cur, active_file: str = N
         params_fts.append(query)  # for ts_rank
         params_fts.append(query)  # for @@ operator
 
-        if username and username != "guest":
-            where_parts.append("username = ?")
-            params_fts.append(username)
+        # Enforce strict user isolation (force guest scoping for unauthenticated sessions)
+        where_parts.append("username = ?")
+        params_fts.append(username or "guest")
         if active_file:
             where_parts.append("filename = ?")
             params_fts.append(active_file)
@@ -924,9 +909,9 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
             where_clauses = []
             params_vec: list = [str(query_embedding)]
 
-            if username and username != "guest":
-                where_clauses.append("username = ?")
-                params_vec.append(username)
+            # Enforce strict user isolation (force guest scoping for unauthenticated sessions)
+            where_clauses.append("username = ?")
+            params_vec.append(username or "guest")
             if active_file:
                 where_clauses.append("filename = ?")
                 params_vec.append(active_file)
@@ -1002,8 +987,8 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
             }
             # Build ChromaDB where filter combining username and active_file
             chroma_filters = []
-            if username and username != "guest":
-                chroma_filters.append({"username": username})
+            # Enforce strict user isolation (force guest scoping for unauthenticated sessions)
+            chroma_filters.append({"username": username or "guest"})
             if active_file:
                 chroma_filters.append({"filename": active_file})
 

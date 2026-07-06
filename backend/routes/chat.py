@@ -348,10 +348,15 @@ def read_uploaded_file(filename: str) -> str:
     Read the content of a file that has been uploaded to the workspace uploads directory.
     Supports CSV, JSON, and standard text/markdown files.
     """
+    filename = os.path.basename(filename)
+    if not filename or filename in (".", ".."):
+        return "Error: Invalid filename."
+
     # Secure ownership check
     from rag import active_user_context
-    username = active_user_context.get()
-    if username and username != "guest":
+    username = active_user_context.get() or "guest"
+    
+    if username != "guest":
         from db import get_user_id, get_conn, get_cursor, execute_sql
         user_id = get_user_id(username)
         if user_id:
@@ -362,14 +367,14 @@ def read_uploaded_file(filename: str) -> str:
             if not row:
                 return f"Error: Access Denied. You do not own the file '{filename}'."
 
-    file_path = os.path.join(UPLOAD_DIR, filename)
+    # Enforce multi-tenancy by reading from user-specific subfolder
+    if username != "guest":
+        file_path = os.path.join(UPLOAD_DIR, username, filename)
+    else:
+        file_path = os.path.join(UPLOAD_DIR, filename)
+
     if not os.path.exists(file_path):
-        # Try to find file by matching name in directory
-        if os.path.exists(UPLOAD_DIR):
-            files = os.listdir(UPLOAD_DIR)
-        else:
-            files = []
-        return f"File '{filename}' not found. Available uploads: {', '.join(files) if files else 'None'}"
+        return f"File '{filename}' not found in your workspace."
     
     try:
         size = os.path.getsize(file_path)
