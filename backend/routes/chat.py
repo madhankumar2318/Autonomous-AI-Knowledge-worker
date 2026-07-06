@@ -232,15 +232,39 @@ def get_stock_price(symbol: str) -> str:
     print(f"[Cache MISS] get_stock_price({symbol.upper()}) — fetching live data")
     try:
         ticker = yf.Ticker(symbol.upper())
-        info = ticker.info
-        price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
-        name = info.get("shortName") or symbol
-        if price is not None:
-            high = info.get("dayHigh", "N/A")
-            low = info.get("dayLow", "N/A")
-            result = f"Stock: {name} ({symbol.upper()}) | Current Price: ${price:.2f} | Day High: ${high} | Day Low: ${low}"
+        # Use history(period="2d") instead of info to bypass Yahoo Finance HTML scraping blocks
+        hist = ticker.history(period="2d")
+        if hist.empty:
+            return f"Could not find stock price data for ticker '{symbol.upper()}'."
+        
+        close_prices = hist['Close'].dropna().tolist()
+        high_prices = hist['High'].dropna().tolist()
+        low_prices = hist['Low'].dropna().tolist()
+        
+        if len(close_prices) >= 1:
+            price = close_prices[-1]
+            high = high_prices[-1]
+            low = low_prices[-1]
+            
+            # Calculate daily price delta and percent change
+            if len(close_prices) >= 2:
+                prev_close = close_prices[-2]
+                change = price - prev_close
+                change_pct = (change / prev_close) * 100
+                change_str = f" | Change: ${change:+.2f} ({change_pct:+.2f}%)"
+            else:
+                change_str = ""
+
+            try:
+                from routes.stock import COMPANY_NAMES
+                name = COMPANY_NAMES.get(symbol.upper(), symbol.upper())
+            except Exception:
+                name = symbol.upper()
+
+            result = f"Stock: {name} ({symbol.upper()}) | Current Price: ${price:.2f}{change_str} | Day High: ${high:.2f} | Day Low: ${low:.2f}"
             _stock_cache.set(cache_key, result)
             return result
+            
         return f"Could not find stock price data for ticker '{symbol.upper()}'."
     except Exception as e:
         return f"Error retrieving stock data for '{symbol}': {str(e)}"
