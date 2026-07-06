@@ -258,15 +258,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       <div
         className="animate-fade-in w-full mx-auto auth-card"
         style={{
-          transition: "max-width 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s ease",
           maxWidth: isRegistering ? "600px" : "420px",
-          padding: "48px 40px",
-          borderRadius: "28px",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-          background: "linear-gradient(160deg, rgba(10,12,24,0.94) 0%, rgba(5,6,12,0.98) 100%)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          boxShadow: "0 24px 60px -12px rgba(0,0,0,0.85), 0 0 40px rgba(34, 211, 238, 0.03), inset 0 1px 0 rgba(255,255,255,0.06)",
         }}
       >
         {/* Header Icon */}
@@ -314,7 +306,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div className={isRegistering ? "register-grid" : "login-stack"} style={isRegistering ? { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" } : { display: "flex", flexDirection: "column", gap: "20px" }}>
+          <div className={isRegistering ? "register-grid" : "login-stack"}>
             
             {/* Full Name Field (Register Only) */}
             {isRegistering && (
@@ -737,7 +729,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           </div>
         </form>
 
-        <div style={{ textAlign: "center", marginTop: "32px", borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: "20px" }}>
+        <div className="auth-footer" style={{ textAlign: "center", marginTop: "32px", borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: "20px" }}>
           <p
             style={{
               margin: 0,
@@ -920,6 +912,30 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           font-weight: 700;
         }
 
+        .auth-card {
+          transition: max-width 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s ease;
+          padding: 48px 40px;
+          border-radius: 28px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: linear-gradient(160deg, rgba(10,12,24,0.94) 0%, rgba(5,6,12,0.98) 100%);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          box-shadow: 0 24px 60px -12px rgba(0,0,0,0.85), 0 0 40px rgba(34, 211, 238, 0.03), inset 0 1px 0 rgba(255,255,255,0.06);
+          box-sizing: border-box;
+        }
+
+        .login-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .register-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+        }
+
         .col-span-full {
           grid-column: 1 / -1;
         }
@@ -930,8 +946,16 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             gap: 16px !important;
           }
           .auth-card {
-            padding: 36px 24px !important;
-            margin: 10px !important;
+            padding: 32px 20px !important;
+            border-radius: 20px !important;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.6) !important;
+          }
+          .auth-card h1 {
+            font-size: 24px !important;
+          }
+          .auth-card .auth-footer {
+            margin-top: 20px !important;
+            padding-top: 16px !important;
           }
         }
       `}</style>
