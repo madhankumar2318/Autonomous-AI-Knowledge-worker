@@ -1,6 +1,6 @@
 "use client";
 import { Activity, BarChart2, RefreshCw, TrendingDown, TrendingUp, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { showToast } from "./Toast";
@@ -109,26 +109,76 @@ export default function StockSection({ compact = false }: { compact?: boolean })
   const [activeStockChart, setActiveStockChart] = useState<string | null>(null);
 
 
-  const fetchStocks = () => {
-    setLoading(true);
-    return fetch(`${API_BASE_URL}/stock/multiple`)
-      .then((r) => r.json())
-      .then((d: StockResponse) => {
-        setData(d);
-        setLastUpdated(new Date().toLocaleTimeString());
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const [wsConnected, setWsConnected] = useState(false);
+  const [wsConnecting, setWsConnecting] = useState(false);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+
+  const fetchStocks = async () => {
+    setManualRefreshing(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/stock/multiple`);
+      const d: StockResponse = await res.json();
+      setData(d);
+      setLastUpdated(new Date().toLocaleTimeString());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setManualRefreshing(false);
+    }
   };
 
-  const { countdown, isRefreshing, triggerRefresh } = useAutoRefresh({
-    intervalSeconds: 120,
-    onRefresh: async () => {
-      await fetchStocks();
-      showToast("success", "Stock prices updated! 📈");
-    },
-    refreshOnMount: true,
-  });
+  useEffect(() => {
+    const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/live";
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: any = null;
+
+    function connect() {
+      setWsConnecting(true);
+      console.log("[WS] Connecting to stocks stream...");
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("[WS] Connected to stocks stream.");
+        setWsConnected(true);
+        setWsConnecting(false);
+        ws?.send(JSON.stringify({ type: "subscribe", channels: ["stocks"] }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "stocks") {
+            setData(msg.data);
+            setLastUpdated(new Date().toLocaleTimeString());
+            setLoading(false);
+          }
+        } catch (e) {
+          console.error("[WS] Error parsing stock message:", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("[WS] Stocks stream disconnected. Retrying in 5 seconds...");
+        setWsConnected(false);
+        setWsConnecting(true);
+        reconnectTimeout = setTimeout(connect, 5000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("[WS] Stocks stream error:", err);
+        ws?.close();
+      };
+    }
+
+    connect();
+    fetchStocks();
+
+    return () => {
+      if (ws) ws.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    };
+  }, []);
 
   // ── COMPACT HOME-VIEW MODE (Top 6 Stocks) ──
   if (compact) {
@@ -246,19 +296,38 @@ export default function StockSection({ compact = false }: { compact?: boolean })
 
         {/* Right: refresh */}
         <div className="stocks-overview-right">
-          <span className="stocks-live-indicator">
-            <span className="stocks-live-dot" />
-            {data.cached ? "Cached" : "Live"}
+          <span className="stocks-live-indicator" style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
+            background: wsConnected ? "rgba(52,211,153,0.08)" : (wsConnecting ? "rgba(251,191,36,0.08)" : "rgba(248,113,113,0.08)"),
+            borderColor: wsConnected ? "rgba(52,211,153,0.3)" : (wsConnecting ? "rgba(251,191,36,0.3)" : "rgba(248,113,113,0.3)"),
+            color: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
+            padding: "4px 8px",
+            borderRadius: "6px",
+            fontSize: "11px",
+            fontWeight: 600,
+            border: "1px solid"
+          }}>
+            <span className="stocks-live-dot" style={{
+              width: "6px",
+              height: "6px",
+              borderRadius: "50%",
+              background: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
+              boxShadow: wsConnected ? "0 0 8px #34d399" : (wsConnecting ? "0 0 8px #fbbf24" : "none"),
+              animation: wsConnected ? "pulse 2s infinite" : "none"
+            }} />
+            {wsConnected ? "Real-Time Live" : (wsConnecting ? "Connecting Live..." : "Disconnected")}
           </span>
           <span className="stocks-last-updated">{lastUpdated}</span>
           <button
             type="button"
-            onClick={triggerRefresh}
-            disabled={isRefreshing}
+            onClick={fetchStocks}
+            disabled={manualRefreshing}
             className="stocks-refresh-btn"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span>{isRefreshing ? "Refreshing…" : countdown}</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${manualRefreshing ? "animate-spin" : ""}`} />
+            <span>{manualRefreshing ? "Syncing…" : "Sync Now"}</span>
           </button>
         </div>
       </div>

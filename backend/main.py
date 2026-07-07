@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Routers
-from routes import news, stock, search, auth, upload, chat
+from routes import news, stock, search, auth, upload, chat, live
 from routes import history as history_router
 
 from db import init_db, is_postgres_active
@@ -32,6 +32,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Failed to initialize RAG: {e}")
         
+    # Start background live visual streams
+    try:
+        from routes.live import start_live_streams
+        start_live_streams()
+    except Exception as e:
+        print(f"[ERROR] Failed to start WS live streams: {e}")
+
     # Scheduler disabled as report generation features were removed.
     yield
     # --- Shutdown (add cleanup here if needed) ---
@@ -64,6 +71,7 @@ app.include_router(auth.router)
 app.include_router(upload.router)
 app.include_router(history_router.router)
 app.include_router(chat.router)
+app.include_router(live.router)
 
 
 # Ensure folders exist

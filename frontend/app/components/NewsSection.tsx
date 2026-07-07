@@ -102,9 +102,14 @@ export default function NewsSection({
   const [hasMore, setHasMore] = useState(true);
   const [total, setTotal] = useState(0);
 
+  const [wsConnected, setWsConnected] = useState(false);
+  const [wsConnecting, setWsConnecting] = useState(false);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+
   const fetchNews = useCallback(
     async (pageNum: number, searchTopic = topic, searchCategory = category, append = false) => {
       setLoading(true);
+      if (!append) setManualRefreshing(true);
       let url = `${API_BASE_URL}/news?page=${pageNum}`;
       if (searchTopic) url += `&topic=${encodeURIComponent(searchTopic)}`;
       if (searchCategory) url += `&category=${encodeURIComponent(searchCategory)}`;
@@ -124,23 +129,65 @@ export default function NewsSection({
         console.error("Error fetching news:", err);
       }
       setLoading(false);
+      setManualRefreshing(false);
     },
     [topic, category]
   );
 
   useEffect(() => {
-    setPage(1);
-    fetchNews(1, topic, category, false);
-  }, [topic, category, fetchNews]);
+    const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/live";
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: any = null;
 
-  const { countdown, isRefreshing, triggerRefresh } = useAutoRefresh({
-    intervalSeconds: 600,
-    onRefresh: async () => {
-      setPage(1);
-      await fetchNews(1, topic, category, false);
-      showToast("success", "News feed updated! 📰");
-    },
-  });
+    function connect() {
+      setWsConnecting(true);
+      console.log("[WS] Connecting to news stream...");
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log("[WS] Connected to news stream.");
+        setWsConnected(true);
+        setWsConnecting(false);
+        ws?.send(JSON.stringify({ type: "subscribe", channels: ["news"] }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === "news") {
+            // Only update live feed if there is no active topic/category filter
+            if (!topic && !category) {
+              setArticles(msg.data.news);
+              setTotal(msg.data.total);
+              setHasMore(msg.data.has_more);
+            }
+          }
+        } catch (e) {
+          console.error("[WS] Error parsing news message:", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("[WS] News stream disconnected. Retrying in 5 seconds...");
+        setWsConnected(false);
+        setWsConnecting(true);
+        reconnectTimeout = setTimeout(connect, 5000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("[WS] News stream error:", err);
+        ws?.close();
+      };
+    }
+
+    connect();
+    fetchNews(1, topic, category, false);
+
+    return () => {
+      if (ws) ws.close();
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+    };
+  }, [topic, category, fetchNews]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (!infiniteScroll || loading || !hasMore) return;
@@ -181,21 +228,45 @@ export default function NewsSection({
             />
           </form>
 
-          <div className="news-refresh-wrap">
+          <div className="news-refresh-wrap" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span className="stocks-live-indicator" style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              background: wsConnected ? "rgba(52,211,153,0.08)" : (wsConnecting ? "rgba(251,191,36,0.08)" : "rgba(248,113,113,0.08)"),
+              borderColor: wsConnected ? "rgba(52,211,153,0.3)" : (wsConnecting ? "rgba(251,191,36,0.3)" : "rgba(248,113,113,0.3)"),
+              color: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
+              padding: "4px 8px",
+              borderRadius: "6px",
+              fontSize: "11px",
+              fontWeight: 600,
+              border: "1px solid"
+            }}>
+              <span className="stocks-live-dot" style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
+                boxShadow: wsConnected ? "0 0 8px #34d399" : (wsConnecting ? "0 0 8px #fbbf24" : "none"),
+                animation: wsConnected ? "pulse 2s infinite" : "none"
+              }} />
+              {wsConnected ? "Real-Time Live" : (wsConnecting ? "Connecting Live..." : "Disconnected")}
+            </span>
+
             {!loading && total > 0 && (
-              <span className="news-count">
+              <span className="news-count" style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
                 {articles.length} / {total}
               </span>
             )}
             <button
               type="button"
-              onClick={triggerRefresh}
-              disabled={isRefreshing}
+              onClick={() => fetchNews(1, topic, category, false)}
+              disabled={manualRefreshing}
               className="news-refresh-btn"
               title="Refresh news"
             >
-              <RefreshCw size={12} className={isRefreshing ? "animate-spin" : ""} />
-              <span>{isRefreshing ? "Refreshing…" : countdown}</span>
+              <RefreshCw size={12} className={manualRefreshing ? "animate-spin" : ""} />
+              <span>{manualRefreshing ? "Syncing…" : "Sync Now"}</span>
             </button>
           </div>
         </div>
