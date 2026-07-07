@@ -31,6 +31,7 @@ class ChatRequest(BaseModel):
     username: Optional[str] = "guest"
     history: Optional[List[ChatMessage]] = []
     filename: Optional[str] = None  # If set, restricts RAG to this document (Document Workspace mode)
+    model: Optional[str] = None  # Supported values: 'llama-70b', 'gemini-pro', 'gemini-flash'
 
 # ── Helper: Initialize Gemini Client ──────────────────────────────────────────
 def get_gemini_client():
@@ -860,92 +861,100 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
         except Exception as err:
             print(f"Failed to log chat query: {err}")
 
-        # 1. Try Groq first if available
-        groq_client = get_groq_client()
-        if groq_client:
-            try:
-                print("[INFO] Executing Chat Agent using Groq...")
-                # Prepare messages in OpenAI/Groq format
-                messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
-                for msg in req.history:
-                    role = "user" if msg.role == "user" else "assistant"
-                    messages.append({"role": role, "content": msg.content})
-                messages.append({"role": "user", "content": req.message})
+        # Resolve which model we want to run
+        selected_model = req.model
+        if not selected_model:
+            selected_model = "llama-70b" if get_groq_client() else "gemini-flash"
 
-                reply = None
-                # Tool calling loop for Groq (up to 5 loops)
-                for loop_idx in range(5):
-                    groq_response = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=messages,
-                        tools=GROQ_TOOLS,
-                        tool_choice="auto",
-                        temperature=0.1,
-                    )
-                    
-                    response_message = groq_response.choices[0].message
-                    
-                    # Convert response message to dict to append to history safely
-                    msg_dict = {
-                        "role": "assistant",
-                        "content": response_message.content,
-                    }
-                    if response_message.tool_calls:
-                        msg_dict["tool_calls"] = [
-                            {
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tc.function.name,
-                                    "arguments": tc.function.arguments
-                                }
-                            } for tc in response_message.tool_calls
-                        ]
-                    messages.append(msg_dict)
-                    
-                    tool_calls = response_message.tool_calls
-                    if not tool_calls:
-                        # No more tools called, this is the final response
-                        reply = response_message.content or ""
-                        break
+        print(f"[INFO] Processing chat query. Model selected: {selected_model}")
+
+        # 1. Try Groq (Llama-3.3-70b) if selected
+        if selected_model == "llama-70b":
+            groq_client = get_groq_client()
+            if groq_client:
+                try:
+                    print("[INFO] Executing Chat Agent using Groq...")
+                    # Prepare messages in OpenAI/Groq format
+                    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+                    for msg in req.history:
+                        role = "user" if msg.role == "user" else "assistant"
+                        messages.append({"role": role, "content": msg.content})
+                    messages.append({"role": "user", "content": req.message})
+
+                    reply = None
+                    # Tool calling loop for Groq (up to 5 loops)
+                    for loop_idx in range(5):
+                        groq_response = groq_client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=messages,
+                            tools=GROQ_TOOLS,
+                            tool_choice="auto",
+                            temperature=0.1,
+                        )
                         
-                    # Execute tool calls
-                    for tool_call in tool_calls:
-                        func_name = tool_call.function.name
-                        func_to_call = FUNCTIONS_MAP.get(func_name)
-                        if not func_to_call:
-                            tool_output = f"Error: Tool {func_name} not found."
-                        else:
-                            try:
-                                import json
-                                func_args = json.loads(tool_call.function.arguments)
-                                # Call function with arguments
-                                tool_output = func_to_call(**func_args)
-                            except Exception as e:
-                                tool_output = f"Error executing {func_name}: {str(e)}"
+                        response_message = groq_response.choices[0].message
                         
-                        # Append tool result to messages
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": tool_call.id,
-                            "name": func_name,
-                            "content": str(tool_output)
-                        })
-                else:
-                    reply = "I completed execution but reached maximum reasoning loops."
+                        # Convert response message to dict to append to history safely
+                        msg_dict = {
+                            "role": "assistant",
+                            "content": response_message.content,
+                        }
+                        if response_message.tool_calls:
+                            msg_dict["tool_calls"] = [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments
+                                    }
+                                } for tc in response_message.tool_calls
+                            ]
+                        messages.append(msg_dict)
+                        
+                        tool_calls = response_message.tool_calls
+                        if not tool_calls:
+                            # No more tools called, this is the final response
+                            reply = response_message.content or ""
+                            break
+                            
+                        # Execute tool calls
+                        for tool_call in tool_calls:
+                            func_name = tool_call.function.name
+                            func_to_call = FUNCTIONS_MAP.get(func_name)
+                            if not func_to_call:
+                                tool_output = f"Error: Tool {func_name} not found."
+                            else:
+                                try:
+                                    import json
+                                    func_args = json.loads(tool_call.function.arguments)
+                                    # Call function with arguments
+                                    tool_output = func_to_call(**func_args)
+                                except Exception as e:
+                                    tool_output = f"Error executing {func_name}: {str(e)}"
+                            
+                            # Append tool result to messages
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": str(tool_output)
+                            })
+                    else:
+                        reply = "I completed execution but reached maximum reasoning loops."
 
-                if reply:
-                    # Log response
-                    try:
-                        insert_history(username, "chat_response", reply)
-                    except Exception as err:
-                        print(f"Failed to log Groq chat response: {err}")
-                    return {"reply": reply}
+                    if reply:
+                        # Log response
+                        try:
+                            insert_history(username, "chat_response", reply)
+                        except Exception as err:
+                            print(f"Failed to log Groq chat response: {err}")
+                        return {"reply": reply}
 
-            except Exception as groq_err:
-                print(f"Groq API execution error: {groq_err}. Falling back to Gemini...")
+                except Exception as groq_err:
+                    print(f"Groq API execution error: {groq_err}. Falling back to Gemini...")
 
-        # 2. Fall back to Gemini Client
+        # 2. Try Gemini Client (Pro or Flash depending on selection/fallback)
         client = get_gemini_client()
         if not client:
             reply = await handle_mock_fallback(req.message)
@@ -967,8 +976,11 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     )
                 )
             
-            # Invoke Gemini Flash with retry on 503 / quota errors
-            MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
+            # Choose correct Gemini model list
+            if selected_model == "gemini-pro":
+                MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-1.5-pro"]
+            else:
+                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
             response = None
             last_error = None
 
@@ -1136,6 +1148,13 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
         else:
             stream_instruction = SYSTEM_INSTRUCTION
 
+        # Resolve which model we want to run
+        selected_model = req.model
+        if not selected_model:
+            selected_model = "llama-70b" if get_groq_client() else "gemini-flash"
+
+        print(f"[INFO] Processing streaming query. Model selected: {selected_model}")
+
         accumulated_reply = ""
 
         try:
@@ -1147,7 +1166,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 
             # ── 1. Try Groq streaming ─────────────────────────────────────
             groq_client = get_groq_client()
-            if groq_client:
+            if selected_model == "llama-70b" and groq_client:
                 try:
                     print("[INFO] Executing Streaming Chat Agent using Groq...")
                     # Build messages
@@ -1319,7 +1338,11 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     )
                 )
 
-                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
+                # Choose correct Gemini model list
+                if selected_model == "gemini-pro":
+                    MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-1.5-pro"]
+                else:
+                    MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
                 last_error = None
                 streamed = False
 

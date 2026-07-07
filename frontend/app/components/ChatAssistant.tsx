@@ -149,6 +149,20 @@ export default function ChatAssistant({
   activeDocumentFilename = null,
 }: ChatAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ak_selected_model") || "llama-70b";
+    }
+    return "llama-70b";
+  });
+  
+  const handleModelChange = (model: string) => {
+    setSelectedModel(model);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ak_selected_model", model);
+    }
+  };
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "ai",
@@ -269,6 +283,7 @@ export default function ChatAssistant({
           message: userMessage,
           username,
           history: chatHistory,
+          model: selectedModel,
           ...(activeDocumentFilename ? { filename: activeDocumentFilename } : {}),
         }),
       });
@@ -388,11 +403,34 @@ export default function ChatAssistant({
           <div>
             <div className="chat-inline-title">AI Knowledge Worker</div>
             <div className="chat-inline-status">
-              <span className="chat-status-dot" />
-              <span>Online · Powered by Gemini</span>
+              <span className="chat-status-dot" style={{
+                background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399"),
+                boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399")
+              }} />
+              <span>Online · {selectedModel === "llama-70b" ? "Llama 3.3 70B (Groq)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
             </div>
           </div>
-          <div className="chat-header-actions">
+          <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <select
+              value={selectedModel}
+              onChange={(e) => handleModelChange(e.target.value)}
+              className="stocks-sector-pill"
+              style={{
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-light)",
+                borderRadius: "8px",
+                color: "var(--text-primary)",
+                fontSize: "12px",
+                padding: "5px 10px",
+                fontWeight: 600,
+                outline: "none",
+                cursor: "pointer"
+              }}
+            >
+              <option value="llama-70b">Llama 3.3 (Groq)</option>
+              <option value="gemini-pro">Gemini Pro</option>
+              <option value="gemini-flash">Gemini Flash</option>
+            </select>
             <button
               type="button"
               onClick={() => setMessages([
@@ -844,14 +882,42 @@ export default function ChatAssistant({
               <div>
                 <p style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "1.05rem", margin: 0, lineHeight: 1 }}>AI Assistant</p>
                 <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
-                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#4ade80", display: "inline-block", boxShadow: "0 0 5px #4ade80" }} />
-                  Online · Gemini AI
+                  <span style={{
+                    width: "6px",
+                    height: "6px",
+                    borderRadius: "50%",
+                    background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#4ade80"),
+                    display: "inline-block",
+                    boxShadow: selectedModel === "llama-70b" ? "0 0 5px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 5px #60a5fa" : "0 0 5px #4ade80")
+                  }} />
+                  Online · {selectedModel === "llama-70b" ? "Llama 3.3 (Groq)" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}
                 </p>
               </div>
             </div>
-            <button type="button" onClick={() => setIsOpen(false)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-secondary)" }}>
-              <X size={14} />
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <select
+                value={selectedModel}
+                onChange={(e) => handleModelChange(e.target.value)}
+                style={{
+                  background: "var(--bg-surface)",
+                  border: "1px solid var(--border-light)",
+                  borderRadius: "8px",
+                  color: "var(--text-primary)",
+                  fontSize: "11px",
+                  padding: "4px 8px",
+                  fontWeight: 600,
+                  outline: "none",
+                  cursor: "pointer"
+                }}
+              >
+                <option value="llama-70b">Llama 3.3 (Groq)</option>
+                <option value="gemini-pro">Gemini Pro</option>
+                <option value="gemini-flash">Gemini Flash</option>
+              </select>
+              <button type="button" onClick={() => setIsOpen(false)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-secondary)" }}>
+                <X size={14} />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
