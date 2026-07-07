@@ -416,7 +416,7 @@ export default function ChatAssistant({
               onChange={(e) => handleModelChange(e.target.value)}
               className="stocks-sector-pill"
               style={{
-                background: "var(--bg-surface)",
+                background: "#080814",
                 border: "1px solid var(--border-light)",
                 borderRadius: "8px",
                 color: "var(--text-primary)",
@@ -427,9 +427,9 @@ export default function ChatAssistant({
                 cursor: "pointer"
               }}
             >
-              <option value="llama-70b">Llama 3.3 (Groq)</option>
-              <option value="gemini-pro">Gemini Pro</option>
-              <option value="gemini-flash">Gemini Flash</option>
+              <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Llama 3.3 (Groq)</option>
+              <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini Pro</option>
+              <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Gemini Flash</option>
             </select>
             <button
               type="button"
@@ -899,7 +899,7 @@ export default function ChatAssistant({
                 value={selectedModel}
                 onChange={(e) => handleModelChange(e.target.value)}
                 style={{
-                  background: "var(--bg-surface)",
+                  background: "#080814",
                   border: "1px solid var(--border-light)",
                   borderRadius: "8px",
                   color: "var(--text-primary)",
@@ -910,9 +910,9 @@ export default function ChatAssistant({
                   cursor: "pointer"
                 }}
               >
-                <option value="llama-70b">Llama 3.3 (Groq)</option>
-                <option value="gemini-pro">Gemini Pro</option>
-                <option value="gemini-flash">Gemini Flash</option>
+                <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Llama 3.3 (Groq)</option>
+                <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini Pro</option>
+                <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Gemini Flash</option>
               </select>
               <button type="button" onClick={() => setIsOpen(false)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-secondary)" }}>
                 <X size={14} />
