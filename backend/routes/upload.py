@@ -56,6 +56,11 @@ async def upload_file(
     try:
         # Verify authenticated user uploader
         username = _get_username_from_auth_header(authorization, access_token)
+        
+        # ── Rate Limiter Check ────────────────────────────────────────────────
+        from rate_limit import upload_limiter
+        upload_limiter.check_rate_limit(username)
+
         user_id = get_user_id(username)
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")

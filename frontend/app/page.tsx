@@ -98,16 +98,32 @@ export default function Home_Page() {
     // Intercept global fetch responses to catch session expirations (HTTP 401)
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
+      let response = await originalFetch(...args);
       if (response.status === 401) {
         const urlStr = typeof args[0] === "string" ? args[0] : "";
         if (
           !urlStr.includes("/auth/verify") &&
           !urlStr.includes("/auth/login") &&
-          !urlStr.includes("/auth/logout")
+          !urlStr.includes("/auth/logout") &&
+          !urlStr.includes("/auth/refresh")
         ) {
-          localStorage.removeItem("ak_session");
-          window.location.reload();
+          try {
+            // Attempt silent token refresh via HTTP HttpOnly cookie
+            const refreshRes = await originalFetch(`${API_BASE_URL}/auth/refresh`, {
+              method: "POST",
+              credentials: "include"
+            });
+            if (refreshRes.ok) {
+              // Retry the original request with the fresh token cookie
+              response = await originalFetch(...args);
+            } else {
+              localStorage.removeItem("ak_session");
+              window.location.reload();
+            }
+          } catch (err) {
+            localStorage.removeItem("ak_session");
+            window.location.reload();
+          }
         }
       }
       return response;

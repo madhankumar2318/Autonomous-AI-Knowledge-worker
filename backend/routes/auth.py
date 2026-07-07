@@ -54,18 +54,48 @@ def _is_strong_password(password: str) -> tuple[bool, str]:
 
 
 def _create_access_token(username: str) -> str:
-    """Create a signed JWT token that expires in 24 hours."""
+    """Create a signed JWT token that expires in 15 minutes."""
     payload = {
         "sub": username,
-        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=24)
+        "type": "access",
+        "exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+
+
+def _create_refresh_token(username: str) -> str:
+    """Create a signed JWT refresh token that expires in 7 days and store it in DB."""
+    expires_in = datetime.timedelta(days=7)
+    expires_at = datetime.datetime.now(datetime.timezone.utc) + expires_in
+    payload = {
+        "sub": username,
+        "type": "refresh",
+        "exp": expires_at
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm=ALGORITHM)
+    try:
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            # Delete old tokens to keep the db tidy
+            execute_sql(cur, "DELETE FROM refresh_tokens WHERE username = ?", (username,))
+            # Insert the new one
+            execute_sql(
+                cur,
+                "INSERT INTO refresh_tokens (username, token, expires_at) VALUES (?, ?, ?)",
+                (username, token, expires_at.replace(tzinfo=None))
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"[DB] Error saving refresh token: {e}")
+    return token
 
 
 def _decode_access_token(token: str) -> str:
     """Decode and verify access token. Returns verified username."""
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
         username = payload.get("sub")
         if not username:
             raise HTTPException(status_code=401, detail="Invalid token payload")
@@ -138,21 +168,33 @@ def register(
     except Exception:
         raise HTTPException(status_code=400, detail="Username already exists")
 
-    token = _create_access_token(username.strip())
+    username_clean = username.strip()
+    access_token = _create_access_token(username_clean)
+    ref_token = _create_refresh_token(username_clean)
     response.set_cookie(
         key="access_token",
-        value=token,
+        value=access_token,
         httponly=True,
         secure=is_prod,
         samesite="none" if is_prod else "lax",
-        max_age=86400,
+        max_age=900,  # 15 minutes
+        path="/"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=ref_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        max_age=604800,  # 7 days
         path="/"
     )
     return {
         "status": "success",
-        "message": f"User '{username}' registered successfully",
-        "username": username.strip(),
-        "token": token
+        "message": f"User '{username_clean}' registered successfully",
+        "username": username_clean,
+        "token": access_token,
+        "refresh_token": ref_token
     }
 
 
@@ -194,28 +236,62 @@ def login(
     if not authenticated:
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    token = _create_access_token(username)
+    access_token = _create_access_token(username)
+    ref_token = _create_refresh_token(username)
     response.set_cookie(
         key="access_token",
-        value=token,
+        value=access_token,
         httponly=True,
         secure=is_prod,
         samesite="none" if is_prod else "lax",
-        max_age=86400,
+        max_age=900,  # 15 minutes
+        path="/"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=ref_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        max_age=604800,  # 7 days
         path="/"
     )
     return {
         "status": "success",
         "message": "Login successful",
         "username": username,
-        "token": token
+        "token": access_token,
+        "refresh_token": ref_token
     }
 
 
 @router.post("/logout")
-def logout(response: Response):
+def logout(
+    response: Response,
+    access_token: Optional[str] = Cookie(None),
+    refresh_token: Optional[str] = Cookie(None)
+):
+    try:
+        token_to_use = access_token or refresh_token
+        if token_to_use:
+            payload = jwt.decode(token_to_use, JWT_SECRET, options={"verify_signature": False})
+            username = payload.get("sub")
+            if username:
+                with get_conn() as conn:
+                    cur = get_cursor(conn)
+                    execute_sql(cur, "DELETE FROM refresh_tokens WHERE username = ?", (username,))
+                    conn.commit()
+    except Exception:
+        pass
+
     response.delete_cookie(
         "access_token",
+        path="/",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax"
+    )
+    response.delete_cookie(
+        "refresh_token",
         path="/",
         secure=is_prod,
         samesite="none" if is_prod else "lax"
@@ -346,3 +422,81 @@ def change_password(
         conn.commit()
 
     return {"status": "success", "message": "Password changed successfully"}
+
+
+@router.post("/refresh")
+def refresh_session(
+    response: Response,
+    refresh_token: Optional[str] = Cookie(None),
+    authorization: Optional[str] = Header(None)
+):
+    """
+    Refresh access token using a valid HttpOnly refresh token.
+    Implements Refresh Token Rotation for enhanced security.
+    """
+    token = refresh_token
+    if not token and authorization:
+        parts = authorization.split(" ")
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            token = parts[1]
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token signature")
+
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(cur, "SELECT token, expires_at FROM refresh_tokens WHERE username = ? AND token = ?", (username, token))
+        row = cur.fetchone()
+
+        if not row:
+            # Token reuse detection
+            execute_sql(cur, "DELETE FROM refresh_tokens WHERE username = ?", (username,))
+            conn.commit()
+            raise HTTPException(status_code=401, detail="Refresh token reuse or invalid session. Please log in again.")
+
+        expires_at = row["expires_at"]
+        if expires_at < datetime.datetime.now():
+            execute_sql(cur, "DELETE FROM refresh_tokens WHERE username = ?", (username,))
+            conn.commit()
+            raise HTTPException(status_code=401, detail="Refresh token lease expired")
+
+    new_access_token = _create_access_token(username)
+    new_ref_token = _create_refresh_token(username)
+
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        max_age=900,  # 15 minutes
+        path="/"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=new_ref_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
+        max_age=604800,  # 7 days
+        path="/"
+    )
+
+    return {
+        "status": "success",
+        "message": "Token refreshed successfully",
+        "token": new_access_token,
+        "refresh_token": new_ref_token
+    }

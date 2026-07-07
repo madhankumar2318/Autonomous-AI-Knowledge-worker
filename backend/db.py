@@ -145,6 +145,15 @@ def init_db():
     )
     """)
     cur.execute("""
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) NOT NULL,
+        token TEXT UNIQUE NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS reports (
         id SERIAL PRIMARY KEY,
         news TEXT,
@@ -215,6 +224,7 @@ def init_db():
         cur.execute("ALTER TABLE uploads ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE history ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE document_embeddings ENABLE ROW LEVEL SECURITY;")
+        cur.execute("ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;")
     except Exception as e:
         print(f"[WARN] Failed to enable RLS: {e}")
 

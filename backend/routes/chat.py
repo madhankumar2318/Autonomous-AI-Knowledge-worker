@@ -827,7 +827,12 @@ async def chat(
     if username == "guest" and req.username:
         username = req.username
 
-    # Set the ContextVars for RAG queries inside this request execution context
+    # ── Rate Limiter Check ────────────────────────────────────────────────────
+    from rate_limit import chat_limiter
+    rate_limit_key = username if username != "guest" else (request.client.host if request.client else "unknown_ip")
+    chat_limiter.check_rate_limit(rate_limit_key)
+
+    # Set active user context dynamically during stream processing
     from rag import active_user_context, active_file_context
     token_ctx = active_user_context.set(username)
     file_ctx  = active_file_context.set(req.filename)
@@ -1098,6 +1103,11 @@ async def chat_stream(
 
     if username == "guest" and req.username:
         username = req.username
+
+    # ── Rate Limiter Check ────────────────────────────────────────────────────
+    from rate_limit import chat_limiter
+    rate_limit_key = username if username != "guest" else (request.client.host if request.client else "unknown_ip")
+    chat_limiter.check_rate_limit(rate_limit_key)
 
     # Capture context values now (before generator runs in background thread)
     resolved_username = username
