@@ -764,7 +764,7 @@ export default function Home_Page() {
           opacity: 1;
           transition: opacity 0.2s ease;
         }
-        .sidebar-collapsed .sidebar-nav-text { opacity: 0; pointer-events: none; }
+        .sidebar-collapsed .sidebar-nav-text { display: none !important; }
         .sidebar-nav-label {
           font-size: 14px;
           font-weight: 600;
@@ -789,7 +789,7 @@ export default function Home_Page() {
           flex-shrink: 0;
           transition: opacity 0.2s;
         }
-        .sidebar-collapsed .sidebar-badge { opacity: 0; }
+        .sidebar-collapsed .sidebar-badge { display: none !important; }
 
         .sidebar-active-bar {
           position: absolute;
@@ -930,8 +930,7 @@ export default function Home_Page() {
         .sidebar-collapsed .sidebar-nav-text,
         .sidebar-collapsed .sidebar-badge,
         .sidebar-collapsed .sidebar-section-label {
-          opacity: 0;
-          pointer-events: none;
+          display: none !important;
         }
         .sidebar-collapsed .sidebar-nav-item {
           justify-content: center;
