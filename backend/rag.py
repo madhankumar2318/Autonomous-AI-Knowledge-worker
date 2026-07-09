@@ -503,7 +503,7 @@ def extract_file_content_blocks(filepath: str, filename: str) -> List[Dict[str, 
     elif ext == "docx":
         blocks = []
         try:
-            import docx
+            import docx # type: ignore
             doc = docx.Document(filepath)
             
             # Extract paragraphs
@@ -549,7 +549,7 @@ def extract_file_content_blocks(filepath: str, filename: str) -> List[Dict[str, 
     elif ext == "xlsx":
         blocks = []
         try:
-            import openpyxl
+            import openpyxl # type: ignore
             wb = openpyxl.load_workbook(filepath, data_only=True)
             
             for sheet_name in wb.sheetnames:
