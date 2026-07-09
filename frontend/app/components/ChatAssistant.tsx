@@ -1263,27 +1263,28 @@ export default function ChatAssistant({
       {isOpen && (
         <div className="chat-floating-window">
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "linear-gradient(135deg, rgba(34,211,238,0.25), rgba(14,165,233,0.15))", border: "1px solid rgba(34,211,238,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flexShrink: 0 }}>
+              <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "linear-gradient(135deg, rgba(34,211,238,0.25), rgba(14,165,233,0.15))", border: "1px solid rgba(34,211,238,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Sparkles size={15} color="#67e8f9" />
               </div>
-              <div>
-                <p style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "1.05rem", margin: 0, lineHeight: 1 }}>AI Assistant</p>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
+              <div style={{ minWidth: 0, flexShrink: 0 }}>
+                <p style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "1.05rem", margin: 0, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>AI Assistant</p>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px", whiteSpace: "nowrap" }}>
                   <span style={{
                     width: "6px",
                     height: "6px",
                     borderRadius: "50%",
                     background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#4ade80"),
                     display: "inline-block",
-                    boxShadow: selectedModel === "llama-70b" ? "0 0 5px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 5px #60a5fa" : "0 0 5px #4ade80")
+                    boxShadow: selectedModel === "llama-70b" ? "0 0 5px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 5px #60a5fa" : "0 0 5px #4ade80"),
+                    flexShrink: 0
                   }} />
-                  Online · {selectedModel === "llama-70b" ? "Llama 3.3 (Groq)" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}
+                  Online · {selectedModel === "llama-70b" ? "Llama 3.3" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}
                 </p>
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={() => setShowThreadSidebar(!showThreadSidebar)}
@@ -1333,15 +1334,17 @@ export default function ChatAssistant({
           {showThreadSidebar && (
             <div style={{
               position: "absolute",
-              top: "70px",
+              top: "67px",
               left: 0,
               right: 0,
               bottom: 0,
-              background: "var(--bg-sidebar)",
-              zIndex: 10,
+              background: "#080814",
+              zIndex: 50,
               display: "flex",
               flexDirection: "column",
-              borderTop: "1px solid var(--border-light)"
+              borderTop: "1px solid var(--border-light)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)"
             }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--border-light)" }}>
                 <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Chat History ({threads.length})</span>
@@ -1540,6 +1543,124 @@ export default function ChatAssistant({
         @keyframes typingBounce {
           0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
           40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Thread styling inside FAB mode overlay */
+        .chat-thread-list {
+          overflow-y: auto;
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .chat-thread-list::-webkit-scrollbar {
+          width: 4px;
+        }
+        .chat-thread-list::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.08);
+          border-radius: 4px;
+        }
+        .chat-thread-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 60px 16px;
+          color: var(--text-muted);
+          font-size: 13px;
+          text-align: center;
+        }
+        .chat-thread-item {
+          display: flex;
+          align-items: center;
+          padding: 10px 12px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          position: relative;
+          border: 1px solid transparent;
+        }
+        .chat-thread-item:hover {
+          background: var(--bg-surface);
+          border-color: var(--border-light);
+        }
+        .chat-thread-active {
+          background: rgba(34, 211, 238, 0.08) !important;
+          border-color: rgba(34, 211, 238, 0.25) !important;
+        }
+        .chat-thread-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          flex: 1;
+          min-width: 0;
+          text-align: left;
+        }
+        .chat-thread-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .chat-thread-time {
+          font-size: 11px;
+          color: var(--text-muted);
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .chat-thread-actions {
+          display: none;
+          align-items: center;
+          gap: 4px;
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: var(--bg-surface);
+          padding: 4px;
+          border-radius: 6px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .chat-thread-active .chat-thread-actions {
+          background: rgb(15, 15, 35);
+        }
+        .chat-thread-item:hover .chat-thread-actions {
+          display: flex;
+        }
+        .chat-thread-actions button {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: var(--text-secondary);
+          padding: 4px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s ease;
+        }
+        .chat-thread-actions button:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+        .chat-thread-actions button.chat-thread-delete:hover {
+          background: rgba(239, 68, 68, 0.15);
+          color: #f87171;
+        }
+        .chat-thread-rename-input {
+          width: 100%;
+          background: var(--bg-sidebar);
+          border: 1px solid rgba(34, 211, 238, 0.4);
+          border-radius: 6px;
+          padding: 4px 8px;
+          color: var(--text-primary);
+          font-size: 13px;
+          outline: none;
+          font-family: inherit;
         }
 
         @media (max-width: 600px) {
