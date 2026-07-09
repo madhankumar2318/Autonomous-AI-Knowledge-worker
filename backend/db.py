@@ -200,6 +200,28 @@ def init_db():
     CREATE INDEX IF NOT EXISTS document_embeddings_file_user_idx
     ON document_embeddings (filename, username);
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS chat_threads (
+        id          TEXT PRIMARY KEY,
+        username    VARCHAR(255) NOT NULL,
+        title       VARCHAR(500) DEFAULT 'New Chat',
+        model       VARCHAR(100),
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS chat_messages (
+        id          SERIAL PRIMARY KEY,
+        thread_id   TEXT NOT NULL REFERENCES chat_threads(id) ON DELETE CASCADE,
+        role        VARCHAR(10) NOT NULL,
+        content     TEXT NOT NULL,
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+    cur.execute("CREATE INDEX IF NOT EXISTS chat_threads_user_idx ON chat_threads (username, updated_at DESC);")
+    cur.execute("CREATE INDEX IF NOT EXISTS chat_messages_thread_idx ON chat_messages (thread_id, created_at);")
+
 
     # ── Migrations ──────────────────────────────────────────────────────────────
     try:
@@ -225,6 +247,8 @@ def init_db():
         cur.execute("ALTER TABLE history ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE document_embeddings ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;")
+        cur.execute("ALTER TABLE chat_threads ENABLE ROW LEVEL SECURITY;")
+        cur.execute("ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;")
     except Exception as e:
         print(f"[WARN] Failed to enable RLS: {e}")
 

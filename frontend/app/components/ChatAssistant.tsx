@@ -1,10 +1,18 @@
 "use client";
 import {
   Bot,
+  Clock,
+  Download,
+  History,
   MessageSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pencil,
+  Plus,
   Send,
   Sparkles,
   Square,
+  Trash2,
   User,
   X,
   Zap,
@@ -18,6 +26,15 @@ interface ChatMessage {
   role: "user" | "ai";
   content: string;
   thinkingLogs?: string[];
+}
+
+interface ChatThread {
+  id: string;
+  username: string;
+  title: string;
+  model: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface ChatAssistantProps {
@@ -175,9 +192,129 @@ export default function ChatAssistant({
   const [loading, setLoading] = useState(false);
   const [streamingStatus, setStreamingStatus] = useState<string>("");
 
+  // ── Thread History State ──
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [showThreadSidebar, setShowThreadSidebar] = useState(false);
+  const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const welcomeMessage = (): ChatMessage => ({
+    role: "ai",
+    content: activeDocumentFilename
+      ? `📄 **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document — I'll search it and give you precise, cited answers.`
+      : "Hi! I'm your AI Knowledge Worker. I can help you analyze news, check stock data, summarize documents, and answer questions. What can I do for you today?",
+  });
+
+  // ── Thread CRUD Helpers ──
+  const fetchThreads = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/threads?username=${encodeURIComponent(username)}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setThreads(data);
+      }
+    } catch { /* silent */ }
+  };
+
+  const createThread = async (firstMessage?: string) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/threads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, title: firstMessage ? firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "") : "New Chat", model: selectedModel }),
+      });
+      if (res.ok) {
+        const thread = await res.json();
+        setThreads((prev) => [thread, ...prev]);
+        setActiveThreadId(thread.id);
+        return thread.id as string;
+      }
+    } catch { /* silent */ }
+    return null;
+  };
+
+  const switchThread = async (threadId: string) => {
+    if (threadId === activeThreadId) return;
+    setActiveThreadId(threadId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat/threads/${threadId}/messages`, { credentials: "include" });
+      if (res.ok) {
+        const msgs = await res.json();
+        if (msgs.length === 0) {
+          setMessages([welcomeMessage()]);
+        } else {
+          setMessages(msgs.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "ai", content: m.content })));
+        }
+      }
+    } catch { setMessages([welcomeMessage()]); }
+  };
+
+  const renameThread = async (threadId: string, title: string) => {
+    try {
+      await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ title }),
+      });
+      setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, title } : t));
+    } catch { /* silent */ }
+    setRenamingThreadId(null);
+  };
+
+  const deleteThread = async (threadId: string) => {
+    try {
+      await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, { method: "DELETE", credentials: "include" });
+      setThreads((prev) => prev.filter((t) => t.id !== threadId));
+      if (activeThreadId === threadId) {
+        setActiveThreadId(null);
+        setMessages([welcomeMessage()]);
+      }
+    } catch { /* silent */ }
+  };
+
+  const exportThread = (thread: ChatThread) => {
+    let md = `# ${thread.title}\n\n`;
+    for (const msg of messages) {
+      md += msg.role === "user" ? `**You:** ${msg.content}\n\n` : `**AI:** ${msg.content}\n\n`;
+    }
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${thread.title.replace(/[^a-zA-Z0-9]/g, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const startNewChat = async () => {
+    setActiveThreadId(null);
+    setMessages([welcomeMessage()]);
+  };
+
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString();
+  };
+
+  // Load threads on mount
+  useEffect(() => {
+    fetchThreads();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [username]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -257,6 +394,12 @@ export default function ChatAssistant({
     setInput("");
     setStreamingStatus("");
 
+    // Auto-create a thread if none is active
+    let threadId = activeThreadId;
+    if (!threadId) {
+      threadId = await createThread(userMessage);
+    }
+
     // Append user message + empty AI placeholder
     const chatHistory = messages.map((msg) => ({
       role: msg.role === "ai" ? "ai" : "user",
@@ -284,6 +427,7 @@ export default function ChatAssistant({
           username,
           history: chatHistory,
           model: selectedModel,
+          thread_id: threadId,
           ...(activeDocumentFilename ? { filename: activeDocumentFilename } : {}),
         }),
       });
@@ -388,6 +532,8 @@ export default function ChatAssistant({
       setLoading(false);
       setStreamingStatus("");
       abortControllerRef.current = null;
+      // Refresh threads to pick up auto-title and updated_at changes
+      fetchThreads();
     }
   };
 
@@ -397,6 +543,14 @@ export default function ChatAssistant({
       <div className="chat-inline-root">
         {/* Header */}
         <div className="chat-inline-header">
+          <button
+            type="button"
+            className="chat-sidebar-toggle"
+            onClick={() => setShowThreadSidebar(!showThreadSidebar)}
+            title={showThreadSidebar ? "Hide history" : "Show history"}
+          >
+            {showThreadSidebar ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+          </button>
           <div className="chat-inline-avatar">
             <Sparkles className="w-4 h-4" style={{ color: "#67e8f9" }} />
           </div>
@@ -433,23 +587,80 @@ export default function ChatAssistant({
             </select>
             <button
               type="button"
-              onClick={() => setMessages([
-                {
-                  role: "ai",
-                  content: activeDocumentFilename
-                    ? `📄 **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document — I'll search it and give you precise, cited answers.`
-                    : "Hi! I'm your AI Knowledge Worker. How can I help you today?"
-                }
-              ])}
+              onClick={startNewChat}
               className="chat-clear-btn"
-              title="Clear conversation"
+              title="New conversation"
             >
-              <X className="w-3.5 h-3.5" />
-              Clear
+              <Plus size={14} />
+              New Chat
             </button>
           </div>
         </div>
 
+        {/* Body: Sidebar + Chat */}
+        <div className="chat-inline-body">
+          {/* Thread Sidebar */}
+          {showThreadSidebar && (
+            <div className="chat-thread-sidebar">
+              <div className="chat-thread-sidebar-header">
+                <History size={14} />
+                <span>Chat History</span>
+                <span className="chat-thread-count">{threads.length}</span>
+              </div>
+              <div className="chat-thread-list">
+                {threads.length === 0 && (
+                  <div className="chat-thread-empty">
+                    <MessageSquare size={20} style={{ opacity: 0.3 }} />
+                    <span>No conversations yet</span>
+                  </div>
+                )}
+                {threads.map((thread) => (
+                  <div
+                    key={thread.id}
+                    className={`chat-thread-item ${activeThreadId === thread.id ? "chat-thread-active" : ""}`}
+                    onClick={() => switchThread(thread.id)}
+                  >
+                    {renamingThreadId === thread.id ? (
+                      <input
+                        type="text"
+                        className="chat-thread-rename-input"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => renameThread(thread.id, renameValue)}
+                        onKeyDown={(e) => { if (e.key === "Enter") renameThread(thread.id, renameValue); if (e.key === "Escape") setRenamingThreadId(null); }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <>
+                        <div className="chat-thread-info">
+                          <span className="chat-thread-title">{thread.title}</span>
+                          <span className="chat-thread-time">
+                            <Clock size={10} />
+                            {timeAgo(thread.updated_at)}
+                          </span>
+                        </div>
+                        <div className="chat-thread-actions" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" title="Rename" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}>
+                            <Pencil size={11} />
+                          </button>
+                          <button type="button" title="Export" onClick={() => { switchThread(thread.id); setTimeout(() => exportThread(thread), 300); }}>
+                            <Download size={11} />
+                          </button>
+                          <button type="button" title="Delete" className="chat-thread-delete" onClick={() => deleteThread(thread.id)}>
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Main Chat Area */}
+          <div className="chat-inline-main">
         {/* Messages */}
         <div className="chat-inline-messages">
           {messages.map((msg, idx) => {
@@ -560,6 +771,8 @@ export default function ChatAssistant({
             Powered by Gemini AI · Your conversations are private
           </div>
         </div>
+          </div>{/* /chat-inline-main */}
+        </div>{/* /chat-inline-body */}
 
         <style>{`
           .chat-inline-root {
@@ -570,6 +783,182 @@ export default function ChatAssistant({
             border: 1px solid var(--border-medium);
             border-radius: 20px;
             overflow: hidden;
+            position: relative;
+          }
+          .chat-sidebar-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+          }
+          .chat-sidebar-toggle:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+          }
+          .chat-inline-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+          }
+          .chat-thread-sidebar {
+            width: 240px;
+            background: rgba(8, 8, 20, 0.4);
+            border-right: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow: hidden;
+          }
+          .chat-thread-sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+          }
+          .chat-thread-count {
+            margin-left: auto;
+            background: rgba(34, 211, 238, 0.1);
+            color: #22d3ee;
+            padding: 2px 6px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+          }
+          .chat-thread-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+          }
+          .chat-thread-list::-webkit-scrollbar {
+            width: 4px;
+          }
+          .chat-thread-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+          }
+          .chat-thread-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 40px 16px;
+            color: var(--text-muted);
+            font-size: 13px;
+            text-align: center;
+          }
+          .chat-thread-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            group: true;
+            border: 1px solid transparent;
+          }
+          .chat-thread-item:hover {
+            background: var(--bg-surface);
+            border-color: var(--border-light);
+          }
+          .chat-thread-active {
+            background: rgba(34, 211, 238, 0.08) !important;
+            border-color: rgba(34, 211, 238, 0.25) !important;
+          }
+          .chat-thread-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 0;
+          }
+          .chat-thread-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .chat-thread-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          .chat-thread-actions {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-surface);
+            padding: 4px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          }
+          .chat-thread-active .chat-thread-actions {
+            background: rgb(15, 15, 35);
+          }
+          .chat-thread-item:hover .chat-thread-actions {
+            display: flex;
+          }
+          .chat-thread-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 4px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+          }
+          .chat-thread-actions button:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+          }
+          .chat-thread-actions button.chat-thread-delete:hover {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+          }
+          .chat-thread-rename-input {
+            width: 100%;
+            background: var(--bg-sidebar);
+            border: 1px solid rgba(34, 211, 238, 0.4);
+            border-radius: 6px;
+            padding: 4px 8px;
+            color: var(--text-primary);
+            font-size: 13px;
+            outline: none;
+            font-family: inherit;
+          }
+          .chat-inline-main {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            height: 100%;
             position: relative;
           }
           .chat-inline-root::before {
@@ -895,6 +1284,26 @@ export default function ChatAssistant({
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <button
+                type="button"
+                onClick={() => setShowThreadSidebar(!showThreadSidebar)}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "8px",
+                  background: showThreadSidebar ? "rgba(34, 211, 238, 0.15)" : "var(--bg-surface)",
+                  border: showThreadSidebar ? "1px solid rgba(34, 211, 238, 0.3)" : "1px solid var(--border-light)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  color: showThreadSidebar ? "#22d3ee" : "var(--text-secondary)",
+                  outline: "none"
+                }}
+                title="Chat History"
+              >
+                <History size={14} />
+              </button>
               <select
                 value={selectedModel}
                 onChange={(e) => handleModelChange(e.target.value)}
@@ -919,6 +1328,93 @@ export default function ChatAssistant({
               </button>
             </div>
           </div>
+
+          {/* Floating Thread History Overlay */}
+          {showThreadSidebar && (
+            <div style={{
+              position: "absolute",
+              top: "70px",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: "var(--bg-sidebar)",
+              zIndex: 10,
+              display: "flex",
+              flexDirection: "column",
+              borderTop: "1px solid var(--border-light)"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--border-light)" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Chat History ({threads.length})</span>
+                <button
+                  type="button"
+                  onClick={async () => { await startNewChat(); setShowThreadSidebar(false); }}
+                  style={{
+                    background: "rgba(34,211,238,0.1)",
+                    border: "1px solid rgba(34,211,238,0.2)",
+                    borderRadius: "6px",
+                    color: "#22d3ee",
+                    fontSize: "11px",
+                    padding: "4px 8px",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px"
+                  }}
+                >
+                  <Plus size={12} /> New Chat
+                </button>
+              </div>
+              <div className="chat-thread-list" style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+                {threads.length === 0 && (
+                  <div className="chat-thread-empty">
+                    <MessageSquare size={20} style={{ opacity: 0.3 }} />
+                    <span>No conversations yet</span>
+                  </div>
+                )}
+                {threads.map((thread) => (
+                  <div
+                    key={thread.id}
+                    className={`chat-thread-item ${activeThreadId === thread.id ? "chat-thread-active" : ""}`}
+                    onClick={() => { switchThread(thread.id); setShowThreadSidebar(false); }}
+                  >
+                    {renamingThreadId === thread.id ? (
+                      <input
+                        type="text"
+                        className="chat-thread-rename-input"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onBlur={() => renameThread(thread.id, renameValue)}
+                        onKeyDown={(e) => { if (e.key === "Enter") renameThread(thread.id, renameValue); if (e.key === "Escape") setRenamingThreadId(null); }}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : (
+                      <>
+                        <div className="chat-thread-info">
+                          <span className="chat-thread-title">{thread.title}</span>
+                          <span className="chat-thread-time">
+                            <Clock size={10} />
+                            {timeAgo(thread.updated_at)}
+                          </span>
+                        </div>
+                        <div className="chat-thread-actions" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" title="Rename" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}>
+                            <Pencil size={11} />
+                          </button>
+                          <button type="button" title="Export" onClick={() => { switchThread(thread.id); setTimeout(() => exportThread(thread), 300); }}>
+                            <Download size={11} />
+                          </button>
+                          <button type="button" title="Delete" className="chat-thread-delete" onClick={() => deleteThread(thread.id)}>
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: "auto", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>

@@ -32,6 +32,15 @@ class ChatRequest(BaseModel):
     history: Optional[List[ChatMessage]] = []
     filename: Optional[str] = None  # If set, restricts RAG to this document (Document Workspace mode)
     model: Optional[str] = None  # Supported values: 'llama-70b', 'gemini-pro', 'gemini-flash'
+    thread_id: Optional[str] = None  # For persisting to a thread
+
+class ThreadCreateRequest(BaseModel):
+    username: str
+    title: Optional[str] = "New Chat"
+    model: Optional[str] = None
+
+class ThreadRenameRequest(BaseModel):
+    title: str
 
 # ── Helper: Initialize Gemini Client ──────────────────────────────────────────
 def get_gemini_client():
@@ -800,6 +809,81 @@ async def handle_mock_fallback(msg: str):
         
     return "⚠️ **Gemini API Key is missing.**\n\nPlease check your `.env` file and set `GEMINI_API_KEY` to enable the full power of the AI agent assistant."
 
+# ── Chat Thread CRUD Endpoints ────────────────────────────────────────────────
+
+@router.get("/threads")
+def list_threads(username: str):
+    """List all chat threads for a user, sorted by most recent."""
+    from db import get_conn, get_cursor, execute_sql
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(
+            cur,
+            "SELECT id, username, title, model, created_at, updated_at FROM chat_threads WHERE username = ? ORDER BY updated_at DESC",
+            (username,)
+        )
+        rows = cur.fetchall()
+    return [{"id": r["id"], "username": r["username"], "title": r["title"], "model": r["model"], "created_at": str(r["created_at"]), "updated_at": str(r["updated_at"])} for r in rows]
+
+
+@router.post("/threads")
+def create_thread(req: ThreadCreateRequest):
+    """Create a new chat thread."""
+    import uuid
+    from db import get_conn, get_cursor, execute_sql
+    thread_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(
+            cur,
+            "INSERT INTO chat_threads (id, username, title, model, created_at, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            (thread_id, req.username, req.title or "New Chat", req.model)
+        )
+        conn.commit()
+    return {"id": thread_id, "username": req.username, "title": req.title or "New Chat", "model": req.model}
+
+
+@router.patch("/threads/{thread_id}")
+def rename_thread(thread_id: str, req: ThreadRenameRequest):
+    """Rename a chat thread."""
+    from db import get_conn, get_cursor, execute_sql
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(
+            cur,
+            "UPDATE chat_threads SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (req.title, thread_id)
+        )
+        conn.commit()
+    return {"id": thread_id, "title": req.title}
+
+
+@router.delete("/threads/{thread_id}")
+def delete_thread(thread_id: str):
+    """Delete a chat thread and all its messages (cascade)."""
+    from db import get_conn, get_cursor, execute_sql
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(cur, "DELETE FROM chat_threads WHERE id = ?", (thread_id,))
+        conn.commit()
+    return {"status": "deleted", "id": thread_id}
+
+
+@router.get("/threads/{thread_id}/messages")
+def get_thread_messages(thread_id: str):
+    """Get all messages for a chat thread."""
+    from db import get_conn, get_cursor, execute_sql
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(
+            cur,
+            "SELECT id, thread_id, role, content, created_at FROM chat_messages WHERE thread_id = ? ORDER BY created_at ASC",
+            (thread_id,)
+        )
+        rows = cur.fetchall()
+    return [{"id": r["id"], "thread_id": r["thread_id"], "role": r["role"], "content": r["content"], "created_at": str(r["created_at"])} for r in rows]
+
+
 # ── API Route handler ─────────────────────────────────────────────────────────
 @router.post("/")
 async def chat(
@@ -1157,6 +1241,32 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 
         accumulated_reply = ""
 
+        def _persist_thread_messages(reply_text):
+            """Persist user + AI messages to the chat thread if thread_id is set."""
+            if not req.thread_id:
+                return
+            try:
+                from db import get_conn, get_cursor, execute_sql
+                with get_conn() as _conn:
+                    _cur = get_cursor(_conn)
+                    execute_sql(_cur, "INSERT INTO chat_messages (thread_id, role, content) VALUES (?, ?, ?)",
+                                (req.thread_id, "user", req.message))
+                    execute_sql(_cur, "INSERT INTO chat_messages (thread_id, role, content) VALUES (?, ?, ?)",
+                                (req.thread_id, "ai", reply_text))
+                    execute_sql(_cur, "UPDATE chat_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                (req.thread_id,))
+                    execute_sql(_cur, "SELECT title FROM chat_threads WHERE id = ?", (req.thread_id,))
+                    _row = _cur.fetchone()
+                    if _row and _row[0] == "New Chat":
+                        auto_title = req.message[:50].strip()
+                        if len(req.message) > 50:
+                            auto_title += "..."
+                        execute_sql(_cur, "UPDATE chat_threads SET title = ? WHERE id = ?",
+                                    (auto_title, req.thread_id))
+                    _conn.commit()
+            except Exception as _pe:
+                print(f"[WARN] Failed to persist chat messages: {_pe}")
+
         try:
             # Log query to history
             try:
@@ -1219,6 +1329,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                         insert_history(resolved_username, "chat_response", accumulated_reply)
                                     except Exception as err:
                                         print(f"[WARN] Failed to log Groq stream response: {err}")
+                                _persist_thread_messages(accumulated_reply)
                                 yield _sse_done()
                                 return
 
@@ -1291,6 +1402,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             insert_history(resolved_username, "chat_response", groq_final_text)
                         except Exception as err:
                             print(f"[WARN] Failed to log Groq stream response: {err}")
+                        _persist_thread_messages(groq_final_text)
                         yield _sse_done()
                         return
 
@@ -1316,6 +1428,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     insert_history(resolved_username, "chat_response", accumulated_reply.strip())
                 except Exception:
                     pass
+                _persist_thread_messages(accumulated_reply.strip())
                 yield _sse_done()
                 return
 
@@ -1471,6 +1584,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         insert_history(resolved_username, "chat_response", accumulated_reply)
                     except Exception as err:
                         print(f"[WARN] Failed to log Gemini stream response: {err}")
+                _persist_thread_messages(accumulated_reply)
                 yield _sse_done()
 
             except Exception as e:
