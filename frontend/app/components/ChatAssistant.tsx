@@ -1292,7 +1292,7 @@ export default function ChatAssistant({
                     flexShrink: 0,
                     animation: "pulse 2s ease-in-out infinite"
                   }} />
-                  <span style={{ lineHeight: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {selectedModel === "llama-70b" ? "Llama 3.3" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}</span>
+                  <span style={{ lineHeight: "12px" }}>Online</span>
                 </div>
               </div>
             </div>
