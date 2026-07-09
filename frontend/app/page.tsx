@@ -22,7 +22,7 @@ import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
 import { API_BASE_URL } from "./config";
 
-const NewspaperIconCustom = (props: React.SVGProps<SVGSVGElement>) => (
+const NewspaperIconCustom = ({ size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -31,8 +31,8 @@ const NewspaperIconCustom = (props: React.SVGProps<SVGSVGElement>) => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
-    width="24"
-    height="24"
+    width={size}
+    height={size}
     {...props}
   >
     <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
@@ -320,7 +320,7 @@ export default function Home_Page() {
                     title={!sidebarExpanded ? tab.label : undefined}
                   >
                     <div className="sidebar-nav-icon-wrap">
-                      <Icon className="sidebar-nav-icon" />
+                      <Icon className="sidebar-nav-icon" size={15} />
                     </div>
                     <div className="sidebar-nav-text">
                       <span className="sidebar-nav-label">{tab.label}</span>
@@ -439,7 +439,7 @@ export default function Home_Page() {
                 "--tab-accent": tab.accent,
               } as React.CSSProperties}
             >
-              <Icon className="mobile-nav-icon" />
+              <Icon className="mobile-nav-icon" size={18} />
               <span className="mobile-nav-label">{tab.shortLabel}</span>
             </button>
           );
