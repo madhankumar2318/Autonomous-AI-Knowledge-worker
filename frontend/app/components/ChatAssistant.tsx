@@ -1275,12 +1275,12 @@ export default function ChatAssistant({
       {isOpen && (
         <div className="chat-floating-window">
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)", flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 14px 16px 12px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1, marginRight: "12px" }}>
               <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "linear-gradient(135deg, rgba(34,211,238,0.25), rgba(14,165,233,0.15))", border: "1px solid rgba(34,211,238,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Sparkles size={15} color="#67e8f9" />
               </div>
-              <div style={{ minWidth: 0, flexShrink: 0 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "15px", lineHeight: "1.2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>AI Assistant</div>
                 <div style={{ color: "var(--text-secondary)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", whiteSpace: "nowrap" }}>
                   <span className="chat-status-dot" style={{
@@ -1292,7 +1292,7 @@ export default function ChatAssistant({
                     flexShrink: 0,
                     animation: "pulse 2s ease-in-out infinite"
                   }} />
-                  <span style={{ lineHeight: "12px" }}>Online · {selectedModel === "llama-70b" ? "Llama 3.3" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}</span>
+                  <span style={{ lineHeight: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>Online · {selectedModel === "llama-70b" ? "Llama 3.3" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}</span>
                 </div>
               </div>
             </div>
