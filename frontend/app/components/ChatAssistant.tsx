@@ -1276,7 +1276,7 @@ export default function ChatAssistant({
                     height: "6px",
                     borderRadius: "50%",
                     background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#4ade80"),
-                    display: "inline-block",
+                    display: "block",
                     boxShadow: selectedModel === "llama-70b" ? "0 0 5px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 5px #60a5fa" : "0 0 5px #4ade80"),
                     flexShrink: 0
                   }} />
@@ -1314,7 +1314,8 @@ export default function ChatAssistant({
                   borderRadius: "8px",
                   color: "var(--text-primary)",
                   fontSize: "11px",
-                  padding: "4px 8px",
+                  padding: "0 8px",
+                  height: "28px",
                   fontWeight: 600,
                   outline: "none",
                   cursor: "pointer"
