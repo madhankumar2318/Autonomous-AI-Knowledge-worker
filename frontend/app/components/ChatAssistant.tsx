@@ -568,18 +568,7 @@ export default function ChatAssistant({
             <select
               value={selectedModel}
               onChange={(e) => handleModelChange(e.target.value)}
-              className="stocks-sector-pill"
-              style={{
-                background: "#080814",
-                border: "1px solid var(--border-light)",
-                borderRadius: "8px",
-                color: "var(--text-primary)",
-                fontSize: "12px",
-                padding: "5px 10px",
-                fontWeight: 600,
-                outline: "none",
-                cursor: "pointer"
-              }}
+              className="chat-model-select"
             >
               <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Llama 3.3 (Groq)</option>
               <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini Pro</option>
@@ -800,6 +789,29 @@ export default function ChatAssistant({
           .chat-sidebar-toggle:hover {
             background: var(--bg-hover);
             color: var(--text-primary);
+          }
+          .chat-model-select {
+            background: #080814;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 11px;
+            height: 28px;
+            padding: 0 24px 0 8px;
+            font-weight: 600;
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 12px;
+            transition: border-color 0.15s ease;
+          }
+          .chat-model-select:hover {
+            border-color: rgba(34, 211, 238, 0.4);
           }
           .chat-inline-body {
             display: flex;
@@ -1269,19 +1281,19 @@ export default function ChatAssistant({
                 <Sparkles size={15} color="#67e8f9" />
               </div>
               <div style={{ minWidth: 0, flexShrink: 0 }}>
-                <p style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "1.05rem", margin: 0, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>AI Assistant</p>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", margin: 0, display: "flex", alignItems: "center", gap: "4px", marginTop: "3px", whiteSpace: "nowrap" }}>
-                  <span style={{
+                <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "15px", lineHeight: "1.2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>AI Assistant</div>
+                <div style={{ color: "var(--text-secondary)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", whiteSpace: "nowrap" }}>
+                  <span className="chat-status-dot" style={{
                     width: "6px",
                     height: "6px",
                     borderRadius: "50%",
-                    background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#4ade80"),
-                    display: "block",
-                    boxShadow: selectedModel === "llama-70b" ? "0 0 5px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 5px #60a5fa" : "0 0 5px #4ade80"),
-                    flexShrink: 0
+                    background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399"),
+                    boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399"),
+                    flexShrink: 0,
+                    animation: "pulse 2s ease-in-out infinite"
                   }} />
-                  Online · {selectedModel === "llama-70b" ? "Llama 3.3" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}
-                </p>
+                  <span style={{ lineHeight: "12px" }}>Online · {selectedModel === "llama-70b" ? "Llama 3.3" : (selectedModel === "gemini-pro" ? "Gemini Pro" : "Gemini Flash")}</span>
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
@@ -1308,18 +1320,7 @@ export default function ChatAssistant({
               <select
                 value={selectedModel}
                 onChange={(e) => handleModelChange(e.target.value)}
-                style={{
-                  background: "#080814",
-                  border: "1px solid var(--border-light)",
-                  borderRadius: "8px",
-                  color: "var(--text-primary)",
-                  fontSize: "11px",
-                  padding: "0 8px",
-                  height: "28px",
-                  fontWeight: 600,
-                  outline: "none",
-                  cursor: "pointer"
-                }}
+                className="chat-model-select"
               >
                 <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Llama 3.3 (Groq)</option>
                 <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini Pro</option>
@@ -1544,6 +1545,29 @@ export default function ChatAssistant({
         @keyframes typingBounce {
           0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
           40% { transform: scale(1); opacity: 1; }
+        }
+        .chat-model-select {
+          background: #080814;
+          border: 1px solid var(--border-light);
+          border-radius: 8px;
+          color: var(--text-primary);
+          font-size: 11px;
+          height: 28px;
+          padding: 0 24px 0 8px;
+          font-weight: 600;
+          outline: none;
+          cursor: pointer;
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+          background-repeat: no-repeat;
+          background-position: right 8px center;
+          background-size: 12px;
+          transition: border-color 0.15s ease;
+        }
+        .chat-model-select:hover {
+          border-color: rgba(34, 211, 238, 0.4);
         }
 
         /* Thread styling inside FAB mode overlay */
