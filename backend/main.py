@@ -1,6 +1,6 @@
 # backend/main.py
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
@@ -102,3 +102,8 @@ def root():
     return {
         "message": "Backend running ✅. Use /news, /stock, /search, /auth, /upload, /history"
     }
+
+
+@app.head("/")
+def root_head():
+    return Response(content=b"", media_type="application/json", headers={"Content-Length": "0"})
