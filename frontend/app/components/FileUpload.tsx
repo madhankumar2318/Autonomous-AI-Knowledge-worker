@@ -101,6 +101,26 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     };
   }, [uploads]);
 
+  useEffect(() => {
+    if (activeWorkspaceFile) {
+      localStorage.setItem("ak_active_file", activeWorkspaceFile.filename);
+    } else {
+      localStorage.removeItem("ak_active_file");
+    }
+  }, [activeWorkspaceFile]);
+
+  useEffect(() => {
+    if (uploads.length > 0 && !activeWorkspaceFile) {
+      const savedFilename = localStorage.getItem("ak_active_file");
+      if (savedFilename) {
+        const matched = uploads.find((u) => u.filename === savedFilename);
+        if (matched) {
+          setActiveWorkspaceFile(matched);
+        }
+      }
+    }
+  }, [uploads, activeWorkspaceFile]);
+
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     dragCounter.current++;

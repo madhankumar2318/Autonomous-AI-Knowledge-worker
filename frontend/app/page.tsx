@@ -100,7 +100,12 @@ export default function Home_Page() {
   const [loggedInUser, setLoggedInUser] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState("news");
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ak_active_tab") || "news";
+    }
+    return "news";
+  });
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [globalSearchTrigger, setGlobalSearchTrigger] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -174,6 +179,10 @@ export default function Home_Page() {
       window.removeEventListener("open-rag-document", handleOpenDocument);
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("ak_active_tab", activeTab);
+  }, [activeTab]);
 
   const handleGlobalSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
