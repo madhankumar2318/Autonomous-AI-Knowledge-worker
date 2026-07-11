@@ -1371,9 +1371,11 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             else:
                                 try:
                                     func_args = json.loads(tool_call.function.arguments)
-                                    # Run blocking tool in executor to avoid blocking event loop
+                                    # Run blocking tool in executor to avoid blocking event loop, propagating contextvars
+                                    import contextvars
+                                    ctx = contextvars.copy_context()
                                     tool_output = await asyncio.get_event_loop().run_in_executor(
-                                        None, lambda f=func_to_call, a=func_args: f(**a)
+                                        None, lambda: ctx.run(func_to_call, **func_args)
                                     )
                                 except Exception as e:
                                     tool_output = f"Error executing {func_name}: {str(e)}"
@@ -1531,8 +1533,11 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                     else:
                                         try:
                                             tool_args = tool_call.args or {}
+                                            # Run blocking tool in executor, propagating contextvars
+                                            import contextvars
+                                            ctx = contextvars.copy_context()
                                             tool_output = await asyncio.get_event_loop().run_in_executor(
-                                                None, lambda f=func_to_call, a=tool_args: f(**a)
+                                                None, lambda: ctx.run(func_to_call, **tool_args)
                                             )
                                         except Exception as e:
                                             tool_output = f"Error executing {func_name}: {str(e)}"
