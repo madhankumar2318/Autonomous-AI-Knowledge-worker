@@ -547,9 +547,27 @@ export default function ChatAssistant({
     });
   };
 
-  const parseInlineStyles = (text: string): React.ReactNode[] => {
-    const regex = /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g;
-    const parts = text.split(regex);
+  const handleCitationClick = (filename: string, phrase: string) => {
+    const event = new CustomEvent("open-rag-document", {
+      detail: { filename, phrase }
+    });
+    window.dispatchEvent(event);
+  };
+
+  const getPrecedingPhrase = (fullText: string, citationIndex: number): string => {
+    const precedingText = fullText.slice(0, citationIndex).trim();
+    const sentences = precedingText.split(/[.\n?•▸]/);
+    const lastSentence = sentences[sentences.length - 1].trim();
+    if (lastSentence.length < 12 && sentences.length > 1) {
+      return (sentences[sentences.length - 2].trim() + " " + lastSentence).trim().slice(-100);
+    }
+    return lastSentence.slice(-100);
+  };
+
+  const parseInlineStyles = (lineText: string): React.ReactNode[] => {
+    // Matches **bold**, `code`, [link](url), and [Source: file.ext] (Relevancy: X%)
+    const regex = /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\)|\[Source:\s*[^\]]+\](?:\s*\(\s*Relevancy:\s*\d+%\s*\))?)/g;
+    const parts = lineText.split(regex);
     return parts.map((part, index) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return <strong key={index} style={{ fontWeight: 700, color: "#fff" }}>{part.slice(2, -2)}</strong>;
@@ -560,6 +578,52 @@ export default function ChatAssistant({
             {part.slice(1, -1)}
           </code>
         );
+      }
+      if (part.startsWith("[Source:") && part.includes("]")) {
+        const match = part.match(/\[Source:\s*([^\]]+)\](?:\s*\(\s*Relevancy:\s*(\d+%)\s*\))?/);
+        if (match) {
+          const filename = match[1].trim();
+          const relevancy = match[2] ? match[2].trim() : null;
+          const phrase = getPrecedingPhrase(lineText, lineText.indexOf(part));
+          return (
+            <button
+              key={index}
+              type="button"
+              onClick={() => handleCitationClick(filename, phrase)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                background: "rgba(245, 158, 11, 0.08)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                color: "#f59e0b",
+                borderRadius: "5px",
+                padding: "1px 5px",
+                fontSize: "10px",
+                fontWeight: 600,
+                cursor: "pointer",
+                margin: "0 3px",
+                verticalAlign: "middle",
+                transition: "all 0.15s ease",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(245, 158, 11, 0.16)";
+                e.currentTarget.style.border = "1px solid rgba(245, 158, 11, 0.4)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(245, 158, 11, 0.08)";
+                e.currentTarget.style.border = "1px solid rgba(245, 158, 11, 0.25)";
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
+              <FolderOpen size={10} />
+              <span>{filename}</span>
+              {relevancy && <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: "2px" }}>({relevancy})</span>}
+            </button>
+          );
+        }
       }
       const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
       if (linkMatch) {

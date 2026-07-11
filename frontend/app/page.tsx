@@ -165,6 +165,16 @@ export default function Home_Page() {
       .finally(() => setSessionChecked(true));
   }, []);
 
+  useEffect(() => {
+    const handleOpenDocument = () => {
+      setActiveTab("files");
+    };
+    window.addEventListener("open-rag-document", handleOpenDocument);
+    return () => {
+      window.removeEventListener("open-rag-document", handleOpenDocument);
+    };
+  }, []);
+
   const handleGlobalSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (globalSearchQuery.trim()) {

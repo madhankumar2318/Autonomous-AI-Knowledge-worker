@@ -57,6 +57,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<UploadedFile | null>(null);
+  const [workspaceHighlightPhrase, setWorkspaceHighlightPhrase] = useState<string>("");
   const dragCounter = useRef(0);
 
   const fetchUploads = async () => {
@@ -75,6 +76,30 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   useEffect(() => {
     fetchUploads();
   }, []);
+
+  useEffect(() => {
+    const handleOpenDocument = (e: Event) => {
+      const customEvent = e as CustomEvent<{ filename: string; phrase?: string }>;
+      const { filename, phrase } = customEvent.detail;
+      setWorkspaceHighlightPhrase(phrase || "");
+      const matched = uploads.find((u) => u.filename === filename);
+      if (matched) {
+        setActiveWorkspaceFile(matched);
+      } else {
+        // Fallback: construct a temporary UploadedFile object if not loaded yet
+        setActiveWorkspaceFile({
+          id: 0,
+          filename: filename,
+          size: 0,
+          rag_indexed: true,
+        });
+      }
+    };
+    window.addEventListener("open-rag-document", handleOpenDocument);
+    return () => {
+      window.removeEventListener("open-rag-document", handleOpenDocument);
+    };
+  }, [uploads]);
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -179,7 +204,11 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         <DocumentWorkspace
           file={activeWorkspaceFile}
           username={username}
-          onClose={() => setActiveWorkspaceFile(null)}
+          onClose={() => {
+            setActiveWorkspaceFile(null);
+            setWorkspaceHighlightPhrase("");
+          }}
+          highlightPhrase={workspaceHighlightPhrase}
         />
       )}
 

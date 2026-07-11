@@ -30,6 +30,7 @@ interface DocumentWorkspaceProps {
   file: UploadedFile;
   username: string;
   onClose: () => void;
+  highlightPhrase?: string;
 }
 
 function formatSize(bytes: number): string {
@@ -55,10 +56,16 @@ export default function DocumentWorkspace({
   file,
   username,
   onClose,
+  highlightPhrase = "",
 }: DocumentWorkspaceProps) {
   const ext = getFileExt(file.filename);
   const isPDF = ext === "pdf";
   const fileUrl = `${API_BASE_URL}/upload/download/${encodeURIComponent(file.filename)}`;
+  
+  let pdfUrl = fileUrl;
+  if (isPDF && highlightPhrase) {
+    pdfUrl += `#search="${encodeURIComponent(highlightPhrase)}"`;
+  }
 
   // For text-based files: fetch and display content
   const [textContent, setTextContent] = useState<string | null>(null);
@@ -87,6 +94,60 @@ export default function DocumentWorkspace({
       .catch((err) => setTextError(String(err)))
       .finally(() => setTextLoading(false));
   }, [fileUrl, isPDF]);
+
+  // Scroll to highlighted text segment if specified
+  useEffect(() => {
+    if (highlightPhrase && !isPDF && textContent) {
+      const timer = setTimeout(() => {
+        const markedElement = document.querySelector(".dw-text-content mark");
+        if (markedElement) {
+          markedElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightPhrase, textContent, isPDF]);
+
+  const escapeRegExp = (str: string) => {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  };
+
+  const renderTextWithHighlight = (text: string, phrase: string) => {
+    if (!phrase || !phrase.trim()) {
+      return <pre className="dw-text-pre">{text}</pre>;
+    }
+    try {
+      const cleanPhrase = escapeRegExp(phrase.trim()).replace(/\s+/g, "\\s+");
+      const regex = new RegExp(`(${cleanPhrase})`, "gi");
+      const parts = text.split(regex);
+      return (
+        <pre className="dw-text-pre">
+          {parts.map((part, i) => {
+            if (part.toLowerCase() === phrase.trim().toLowerCase()) {
+              return (
+                <mark
+                  key={i}
+                  style={{
+                    background: "rgba(245, 158, 11, 0.35)",
+                    borderBottom: "2px solid #f59e0b",
+                    color: "#fff",
+                    padding: "1px 2px",
+                    borderRadius: "3px",
+                    fontWeight: 550,
+                  }}
+                >
+                  {part}
+                </mark>
+              );
+            }
+            return part;
+          })}
+        </pre>
+      );
+    } catch {
+      return <pre className="dw-text-pre">{text}</pre>;
+    }
+  };
 
 
   const handleKeyDown = useCallback(
@@ -597,7 +658,7 @@ export default function DocumentWorkspace({
             {isPDF ? (
               <iframe
                 className="dw-pdf-frame"
-                src={fileUrl}
+                src={pdfUrl}
                 title={file.filename}
                 style={{ transform: `scale(${pdfZoom / 100})`, transformOrigin: "top center", height: pdfZoom === 100 ? "100%" : `${10000 / pdfZoom}%` }}
               />
@@ -618,7 +679,7 @@ export default function DocumentWorkspace({
               />
             ) : (
               <div className="dw-text-content">
-                <pre className="dw-text-pre">{textContent}</pre>
+                {renderTextWithHighlight(textContent || "", highlightPhrase)}
               </div>
             )}
           </div>
