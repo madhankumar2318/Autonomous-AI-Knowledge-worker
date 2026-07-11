@@ -10,6 +10,7 @@ import random
 import datetime
 import asyncio
 import time
+import uuid
 import yfinance as yf
 import requests
 from google import genai
@@ -1354,6 +1355,16 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         for tool_call in tool_calls:
                             func_name = tool_call.function.name
                             yield _sse_event("status", f"Calling tool: {func_name}...")
+                            
+                            # Structured tool start event
+                            tool_id = getattr(tool_call, "id", None) or str(uuid.uuid4())
+                            tool_args_str = tool_call.function.arguments
+                            yield _sse_event("tool_start", json.dumps({
+                                "id": tool_id,
+                                "name": func_name,
+                                "arguments": tool_args_str
+                            }))
+                            
                             func_to_call = FUNCTIONS_MAP.get(func_name)
                             if not func_to_call:
                                 tool_output = f"Error: Tool {func_name} not found."
@@ -1366,6 +1377,16 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                     )
                                 except Exception as e:
                                     tool_output = f"Error executing {func_name}: {str(e)}"
+                                    
+                            # Structured tool end event
+                            status = "error" if str(tool_output).startswith("Error") else "success"
+                            yield _sse_event("tool_end", json.dumps({
+                                "id": tool_id,
+                                "name": func_name,
+                                "status": status,
+                                "output": str(tool_output)[:500]
+                            }))
+                            
                             messages.append({
                                 "role": "tool",
                                 "tool_call_id": tool_call.id,
@@ -1495,6 +1516,15 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                     func_name = tool_call.name
                                     yield _sse_event("status", f"Calling tool: {func_name}...")
 
+                                    # Structured tool start event
+                                    tool_id = str(uuid.uuid4())
+                                    tool_args = tool_call.args or {}
+                                    yield _sse_event("tool_start", json.dumps({
+                                        "id": tool_id,
+                                        "name": func_name,
+                                        "arguments": json.dumps(tool_args)
+                                    }))
+
                                     func_to_call = FUNCTIONS_MAP.get(func_name)
                                     if not func_to_call:
                                         tool_output = f"Error: Tool {func_name} not found."
@@ -1506,6 +1536,15 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                             )
                                         except Exception as e:
                                             tool_output = f"Error executing {func_name}: {str(e)}"
+
+                                    # Structured tool end event
+                                    status = "error" if str(tool_output).startswith("Error") else "success"
+                                    yield _sse_event("tool_end", json.dumps({
+                                        "id": tool_id,
+                                        "name": func_name,
+                                        "status": status,
+                                        "output": str(tool_output)[:500]
+                                    }))
 
                                     tool_parts.append(
                                         types.Part.from_function_response(
