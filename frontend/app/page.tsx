@@ -9,7 +9,6 @@ import {
   Bell,
   Settings,
   ChevronRight,
-  LayoutDashboard,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import ChatAssistant from "./components/ChatAssistant";
@@ -21,7 +20,6 @@ import StockSection from "./components/StockSection";
 import ThemeToggle from "./components/ThemeToggle";
 import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
-import LiveDashboard from "./components/LiveDashboard";
 import { API_BASE_URL } from "./config";
 
 const NewspaperIconCustom = ({ size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) => (
@@ -46,16 +44,6 @@ const NewspaperIconCustom = ({ size = 24, ...props }: React.SVGProps<SVGSVGEleme
 
 const NAV_TABS = [
   {
-    id: "dashboard",
-    label: "Live Dashboard",
-    shortLabel: "Dashboard",
-    icon: LayoutDashboard,
-    accent: "#6366f1",
-    accentRgb: "99,102,241",
-    description: "Real-time market & news overview",
-    badge: "LIVE",
-  },
-  {
     id: "news",
     label: "Live News",
     shortLabel: "News",
@@ -63,7 +51,7 @@ const NAV_TABS = [
     accent: "#22d3ee",
     accentRgb: "34,211,238",
     description: "Real-time headlines",
-    badge: null,
+    badge: "LIVE",
   },
   {
     id: "stocks",
@@ -114,9 +102,9 @@ export default function Home_Page() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("ak_active_tab") || "dashboard";
+      return localStorage.getItem("ak_active_tab") || "news";
     }
-    return "dashboard";
+    return "news";
   });
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [globalSearchTrigger, setGlobalSearchTrigger] = useState("");
@@ -407,12 +395,6 @@ export default function Home_Page() {
 
           {/* ── TAB CONTENT ── */}
           <div className="content-body">
-            {activeTab === "dashboard" && (
-              <div className="animate-fade-in tab-content-wrapper">
-                <LiveDashboard />
-              </div>
-            )}
-
             {activeTab === "news" && (
               <div className="animate-fade-in tab-content-wrapper">
                 <NewsSection infiniteScroll={true} />
