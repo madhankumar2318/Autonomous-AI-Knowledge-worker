@@ -62,8 +62,13 @@ export default function DocumentWorkspace({
   const isPDF = ext === "pdf";
   const fileUrl = `${API_BASE_URL}/upload/download/${encodeURIComponent(file.filename)}`;
   
-  let pdfUrl = fileUrl;
-  if (isPDF && highlightPhrase) {
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfZoom, setPdfZoom] = useState(100);
+
+  let pdfUrl = pdfBlobUrl || "";
+  if (pdfUrl && highlightPhrase) {
     pdfUrl += `#search="${encodeURIComponent(highlightPhrase)}"`;
   }
 
@@ -71,7 +76,6 @@ export default function DocumentWorkspace({
   const [textContent, setTextContent] = useState<string | null>(null);
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
-  const [pdfZoom, setPdfZoom] = useState(100);
 
   // Edit mode states (for text, JSON, CSV, MD files)
   const [isEditing, setIsEditing] = useState(false);
@@ -93,6 +97,32 @@ export default function DocumentWorkspace({
       })
       .catch((err) => setTextError(String(err)))
       .finally(() => setTextLoading(false));
+  }, [fileUrl, isPDF]);
+
+  useEffect(() => {
+    if (!isPDF) return;
+    setPdfLoading(true);
+    setPdfError(null);
+    let activeUrl: string | null = null;
+
+    fetch(fileUrl, { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Failed to load PDF (${r.status})`);
+        return r.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        activeUrl = url;
+        setPdfBlobUrl(url);
+      })
+      .catch((err) => setPdfError(String(err)))
+      .finally(() => setPdfLoading(false));
+
+    return () => {
+      if (activeUrl) {
+        URL.revokeObjectURL(activeUrl);
+      }
+    };
   }, [fileUrl, isPDF]);
 
   // Scroll to highlighted text segment if specified
@@ -656,12 +686,21 @@ export default function DocumentWorkspace({
 
           <div className="dw-viewer-content">
             {isPDF ? (
-              <iframe
-                className="dw-pdf-frame"
-                src={pdfUrl}
-                title={file.filename}
-                style={{ transform: `scale(${pdfZoom / 100})`, transformOrigin: "top center", height: pdfZoom === 100 ? "100%" : `${10000 / pdfZoom}%` }}
-              />
+              pdfLoading ? (
+                <div className="dw-loading">
+                  <div className="dw-spinner" />
+                  <span>Loading PDF preview…</span>
+                </div>
+              ) : pdfError ? (
+                <div className="dw-error">⚠️ {pdfError}</div>
+              ) : pdfUrl ? (
+                <iframe
+                  className="dw-pdf-frame"
+                  src={pdfUrl}
+                  title={file.filename}
+                  style={{ transform: `scale(${pdfZoom / 100})`, transformOrigin: "top center", height: pdfZoom === 100 ? "100%" : `${10000 / pdfZoom}%` }}
+                />
+              ) : null
             ) : textLoading ? (
               <div className="dw-loading">
                 <div className="dw-spinner" />
