@@ -449,6 +449,18 @@ def read_uploaded_file(filename: str) -> str:
                 if len(out) > 10000:
                     out = out[:10000] + "\n... (truncated)"
                 return f"Contents of JSON file '{filename}':\n{out}"
+        elif ext == "pdf":
+            from pypdf import PdfReader
+            reader = PdfReader(file_path)
+            pages_text = []
+            for i, page in enumerate(reader.pages):
+                page_text = page.extract_text()
+                if page_text and page_text.strip():
+                    pages_text.append(f"[Page {i+1}]\n{page_text.strip()}")
+            content = "\n\n".join(pages_text)
+            if len(content) > 10000:
+                content = content[:10000] + "\n... (truncated)"
+            return f"Contents of PDF file '{filename}':\n{content}"
         elif ext == "docx":
             import docx
             doc = docx.Document(file_path)
