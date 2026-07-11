@@ -109,14 +109,6 @@ export default function Home_Page() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [globalSearchTrigger, setGlobalSearchTrigger] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
-  const [dbStatus, setDbStatus] = useState("postgres");
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/db/status`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => setDbStatus(data.database))
-      .catch(() => setDbStatus("sqlite"));
-  }, []);
 
   useEffect(() => {
     // Intercept global fetch responses to catch session expirations (HTTP 401)
@@ -244,13 +236,6 @@ export default function Home_Page() {
               <span className="brand-sub">Autonomous Knowledge Worker</span>
             </div>
           </div>
-
-          {dbStatus === "sqlite" && (
-            <div className="db-status-badge">
-              <span className="status-dot-pulse" />
-              <span>Local Offline Mode</span>
-            </div>
-          )}
 
           {/* Global Search */}
           <form onSubmit={handleGlobalSearch} className="header-search">
