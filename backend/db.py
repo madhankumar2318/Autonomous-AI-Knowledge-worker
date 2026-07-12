@@ -119,12 +119,23 @@ def execute_sql(cur, sql, params=None):
     """Executes a SQL query, converting placeholders dynamically to PostgreSQL syntax."""
     if params is None:
         params = ()
+    else:
+        # Sanitize parameters to remove NUL bytes (psycopg2/Postgres crash prevention)
+        new_params = []
+        for p in params:
+            if isinstance(p, str):
+                new_params.append(p.replace("\x00", "").replace("\u0000", ""))
+            else:
+                new_params.append(p)
+        params = tuple(new_params)
+
     # Convert SQLite ? placeholders to PostgreSQL %s placeholders
     sql = sql.replace("?", "%s")
     # Replace SQLite local timestamp function with standard Postgres timestamp
     sql = sql.replace("datetime('now', 'localtime')", "CURRENT_TIMESTAMP")
     cur.execute(sql, params)
     return cur
+
 
 
 # ── Database Init ───────────────────────────────────────────────────────────────
