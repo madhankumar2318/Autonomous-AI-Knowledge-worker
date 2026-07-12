@@ -84,9 +84,6 @@ os.makedirs(DATA_DIR, exist_ok=True)
 REPORTS_DIR = os.path.join(DATA_DIR, "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
-# Mount static routes
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-app.mount("/reports", StaticFiles(directory=REPORTS_DIR), name="reports")
 
 
 @app.get("/db/status")
