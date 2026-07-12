@@ -974,7 +974,7 @@ export default function Home_Page() {
           .header-search { display: none; }
           .avatar-info { display: none; }
           .brand-text { display: none; }
-          .app-body { height: auto; }
+          .app-body { height: calc(100dvh - 58px) !important; min-height: 0 !important; }
           .content-body { padding: 16px; }
 
           .header-inner {
