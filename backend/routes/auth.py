@@ -1,5 +1,5 @@
 # backend/routes/auth.py
-from fastapi import APIRouter, Form, HTTPException, Header, Query, Cookie, Response
+from fastapi import APIRouter, Form, HTTPException, Header, Query, Cookie, Response, Request
 from typing import Optional
 import bcrypt
 import os
@@ -7,6 +7,7 @@ import datetime
 import jwt
 import re
 from db import get_conn, get_cursor, execute_sql
+from rate_limit import auth_limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -136,6 +137,7 @@ def _get_username_from_auth_header(
 
 @router.post("/register")
 def register(
+    request: Request,
     response: Response,
     username: str           = Form(...),
     password: str           = Form(...),
@@ -143,6 +145,8 @@ def register(
     email:    Optional[str] = Form(None),
     mobile:   Optional[str] = Form(None),
 ):
+    client_ip = request.client.host if request.client else "unknown"
+    auth_limiter.check_rate_limit(client_ip)
     """
     Register a new user. Password is bcrypt-hashed before storage.
     Returns username and a signed JWT access token in response + cookie.
@@ -200,10 +204,13 @@ def register(
 
 @router.post("/login")
 def login(
+    request: Request,
     response: Response,
     username: str = Form(...),
     password: str = Form(...)
 ):
+    client_ip = request.client.host if request.client else "unknown"
+    auth_limiter.check_rate_limit(client_ip)
     """
     Authenticate user. Supports both bcrypt-hashed passwords and legacy
     plain-text passwords (auto-migrates to bcrypt on first successful login).
