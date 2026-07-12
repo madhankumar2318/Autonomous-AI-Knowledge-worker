@@ -400,10 +400,13 @@ def read_uploaded_file(filename: str) -> str:
         if user_id:
             with get_conn() as conn:
                 cur = get_cursor(conn)
-                execute_sql(cur, "SELECT id FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+                execute_sql(cur, "SELECT filename FROM uploads WHERE LOWER(filename) = ? AND user_id = ?", (filename.lower(), user_id))
                 row = cur.fetchone()
             if not row:
                 return f"Error: Access Denied. You do not own the file '{filename}'."
+            # Use the actual case-sensitive filename from the database
+            filename = row["filename"]
+
 
     # Enforce multi-tenancy by reading from user-specific subfolder
     if username != "guest":
