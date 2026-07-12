@@ -729,6 +729,52 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           color: var(--text-muted);
           font-size: 15px;
         }
+
+        @media (max-width: 640px) {
+          .stocks-root {
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+          }
+          .stocks-overview {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 12px !important;
+            padding: 16px !important;
+            border-radius: 14px !important;
+          }
+          .stocks-overview-stat {
+            padding: 0 !important;
+            justify-content: flex-start !important;
+          }
+          .stocks-overview-divider {
+            display: none !important;
+          }
+          .stocks-overview-right {
+            grid-column: 1 / -1 !important;
+            width: 100% !important;
+            margin-left: 0 !important;
+            padding-left: 0 !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            border-top: 1px solid var(--border-light) !important;
+            padding-top: 12px !important;
+            margin-top: 4px !important;
+          }
+          .stocks-sector-pills {
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            -webkit-overflow-scrolling: touch !important;
+            scrollbar-width: none !important;
+            padding-bottom: 4px !important;
+          }
+          .stocks-sector-pills::-webkit-scrollbar {
+            display: none !important;
+          }
+          .stocks-sector-pill {
+            flex-shrink: 0 !important;
+          }
+        }
       `}</style>
     </div>
   );

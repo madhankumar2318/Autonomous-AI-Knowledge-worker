@@ -1027,27 +1027,28 @@ export default function NewsSection({
             display: flex !important;
             flex-direction: column !important;
             align-items: stretch !important;
-            gap: 10px !important;
-            padding-left: 4px !important;
-            padding-right: 4px !important;
+            gap: 12px !important;
+            padding: 8px 4px !important;
           }
           .news-toolbar-top {
             display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
             width: 100% !important;
-            gap: 12px !important;
+            gap: 10px !important;
             order: 1 !important;
           }
           .news-search-form {
-            flex: 1 !important;
-            min-width: 0 !important;
-            order: unset !important;
+            width: 100% !important;
+            flex: unset !important;
           }
           .news-refresh-wrap {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
             margin-left: 0 !important;
-            order: unset !important;
-            flex-shrink: 0 !important;
+            flex-shrink: unset !important;
           }
           .news-category-pills {
             order: 2 !important;
@@ -1057,7 +1058,7 @@ export default function NewsSection({
             flex-wrap: nowrap !important;
             -webkit-overflow-scrolling: touch !important;
             scrollbar-width: none !important;
-            padding-bottom: 2px !important;
+            padding-bottom: 4px !important;
           }
           .news-category-pills::-webkit-scrollbar {
             display: none !important;
