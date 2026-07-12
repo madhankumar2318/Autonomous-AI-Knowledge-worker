@@ -603,11 +603,17 @@ export default function Home_Page() {
           background: var(--border-light);
           margin: 0 2px;
         }
+        .header-actions > button:first-of-type {
+          width: 36px !important;
+          height: 36px !important;
+          border-radius: 12px !important;
+        }
+
         .header-notification-btn {
           position: relative;
-          width: 34px;
-          height: 34px;
-          border-radius: 10px;
+          width: 36px;
+          height: 36px;
+          border-radius: 12px;
           background: var(--bg-secondary);
           border: 1px solid var(--border-light);
           display: flex;
@@ -634,6 +640,7 @@ export default function Home_Page() {
           align-items: center;
           gap: 8px;
           padding: 4px 10px 4px 4px;
+          height: 36px;
           border-radius: 12px;
           background: var(--bg-secondary);
           border: 1px solid var(--border-light);
@@ -664,9 +671,9 @@ export default function Home_Page() {
         .avatar-role { font-size: 11px; color: var(--text-muted); }
 
         .header-logout-btn {
-          width: 34px;
-          height: 34px;
-          border-radius: 10px;
+          width: 36px;
+          height: 36px;
+          border-radius: 12px;
           background: rgba(239,68,68,0.08);
           border: 1px solid rgba(239,68,68,0.15);
           display: flex;
@@ -969,6 +976,25 @@ export default function Home_Page() {
           .brand-text { display: none; }
           .app-body { height: auto; }
           .content-body { padding: 16px; }
+
+          .header-inner {
+            justify-content: space-between !important;
+            padding: 0 16px !important;
+          }
+          .header-actions {
+            gap: 6px !important;
+          }
+          .header-divider {
+            display: none !important;
+          }
+          .header-avatar-btn {
+            width: 36px !important;
+            padding: 0 !important;
+            justify-content: center !important;
+          }
+          .header-avatar-btn > svg {
+            display: none !important;
+          }
 
           /* Mobile Bottom Navigation */
           .mobile-bottom-nav {
