@@ -1,7 +1,6 @@
 import requests
 import time
 import os
-from urllib.parse import quote as url_quote
 from fastapi import APIRouter, Query
 from db import insert_history
 

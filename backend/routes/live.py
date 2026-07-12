@@ -1,6 +1,5 @@
 import asyncio
 import time
-from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from routes.stock import _fetch_all, ALL_SYMBOLS, SECTORS
 from routes.news import _fetch_from_api, _make_cache_key, _cache as news_cache, CACHE_TTL as news_cache_ttl

@@ -1,7 +1,6 @@
 import time
 import yfinance as yf
 from fastapi import APIRouter, Query
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 router = APIRouter(prefix="/stock", tags=["Stock"])
