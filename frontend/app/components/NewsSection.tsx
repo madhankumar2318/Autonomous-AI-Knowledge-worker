@@ -1022,6 +1022,7 @@ export default function NewsSection({
           .news-root {
             padding-left: 12px !important;
             padding-right: 12px !important;
+            padding-bottom: 96px !important;
           }
           .news-toolbar {
             display: flex !important;
