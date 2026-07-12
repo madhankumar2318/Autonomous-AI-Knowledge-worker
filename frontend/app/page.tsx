@@ -202,14 +202,15 @@ export default function Home_Page() {
   if (!isLoggedIn) {
     return (
       <div style={{
-        minHeight: "100dvh",
+        height: "100dvh",
         width: "100vw",
         background: "#030f1a",
         display: "flex",
-        justifyContent: "center",
+        flexDirection: "column",
+        justifyContent: "flex-start",
         alignItems: "center",
         position: "relative",
-        padding: "16px",
+        padding: "24px 16px",
         boxSizing: "border-box",
         overflowY: "auto"
       }}>
@@ -218,7 +219,7 @@ export default function Home_Page() {
           <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#22d3ee] opacity-40" />
           <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0e7490] opacity-35" />
         </div>
-        <div style={{ position: "relative", zIndex: 10, width: "100%", display: "flex", justifyContent: "center" }}>
+        <div style={{ position: "relative", zIndex: 10, width: "100%", display: "flex", justifyContent: "center", margin: "auto 0" }}>
           <LoginForm onLoginSuccess={(username, _token) => {
             setIsLoggedIn(true);
             setLoggedInUser(username);
