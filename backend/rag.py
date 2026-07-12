@@ -433,17 +433,20 @@ def extract_file_content_blocks(filepath: str, filename: str) -> List[Dict[str, 
     """
     Parse files and return a list of enriched content blocks:
         [{text, chunk_type, page_num}, ...]
-
-    Supported formats:
-        - PDF  → pdfplumber (text + table extraction), with pypdf fallback
-        - CSV  → each row as a structured text block
-        - JSON → pretty-printed items
-        - TXT/MD → plain text (paragraph-split chunking)
+    Cleans all NUL (0x00) characters from text to prevent database crashes.
     """
+    raw_blocks = _extract_raw_content_blocks(filepath, filename)
+    for block in raw_blocks:
+        if "text" in block and isinstance(block["text"], str):
+            block["text"] = block["text"].replace("\x00", "").replace("\u0000", "")
+    return raw_blocks
+
+def _extract_raw_content_blocks(filepath: str, filename: str) -> List[Dict[str, Any]]:
     if not os.path.exists(filepath):
         raise FileNotFoundError(f"File not found at path: {filepath}")
 
     ext = filename.split(".")[-1].lower()
+
 
     # ── PDF ────────────────────────────────────────────────────────────────────
     if ext == "pdf":
