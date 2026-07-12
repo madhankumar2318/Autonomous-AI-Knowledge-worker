@@ -946,6 +946,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             gap: 16px !important;
           }
           .auth-card {
+            width: 100% !important;
+            max-width: 92% !important;
             padding: 32px 20px !important;
             border-radius: 20px !important;
             box-shadow: 0 16px 40px rgba(0,0,0,0.6) !important;
