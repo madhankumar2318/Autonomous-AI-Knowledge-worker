@@ -1136,9 +1136,9 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             
             # Choose correct Gemini model list
             if selected_model == "gemini-pro":
-                MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-2.0-pro"]
+                MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-2.0-flash"]
             else:
-                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
+                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
             response = None
             last_error = None
 
@@ -1552,9 +1552,9 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 
                 # Choose correct Gemini model list
                 if selected_model == "gemini-pro":
-                    MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-2.0-pro"]
+                    MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-2.0-flash"]
                 else:
-                    MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash"]
+                    MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
                 last_error = None
                 streamed = False
 

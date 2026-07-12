@@ -247,6 +247,73 @@ def list_uploads(
             raise e
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.post("/reindex/{filename}")
+def reindex_file(
+    filename: str,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
+    """Re-trigger RAG indexing for a file that shows RAG Pending status."""
+    try:
+        filename = os.path.basename(filename)
+        username = _get_username_from_auth_header(authorization, access_token)
+        user_id = get_user_id(username)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User session invalid")
+
+        # Verify file ownership
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=403, detail="Access denied or file not found.")
+
+        # Try local path first, then S3 fallback
+        local_path = os.path.join(UPLOAD_DIR, username, filename)
+        if not os.path.exists(local_path):
+            try:
+                if IS_S3:
+                    s3_client = get_s3_client()
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                    s3_client.download_file(S3_BUCKET, f"{username}/{filename}", local_path)
+            except Exception as s3_err:
+                raise HTTPException(status_code=404, detail=f"File not found locally or in S3: {s3_err}")
+
+        if not os.path.exists(local_path):
+            raise HTTPException(status_code=404, detail=f"File '{filename}' not found in storage.")
+
+        # Re-index under the user's context
+        from rag import index_file, active_user_context
+        token_ctx = active_user_context.set(username)
+        rag_status = "pending"
+        chunks_count = 0
+        error_msg = None
+        try:
+            res = index_file(local_path, filename)
+            rag_status = res.get("status", "success")
+            chunks_count = res.get("chunks", 0)
+        except Exception as e:
+            rag_status = "failed"
+            error_msg = str(e)
+            print(f"Re-indexing failed for {filename}: {e}")
+        finally:
+            active_user_context.reset(token_ctx)
+
+        return {
+            "message": f"Re-indexing complete for '{filename}'",
+            "rag_status": rag_status,
+            "chunks": chunks_count,
+            "error": error_msg
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 @router.delete("/{filename}")
 def delete_file(
     filename: str,

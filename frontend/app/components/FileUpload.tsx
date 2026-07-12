@@ -8,6 +8,7 @@ import {
   FolderOpen,
   MessageSquare,
   RefreshCw,
+  RotateCw,
   Trash2,
   X,
   Zap,
@@ -59,6 +60,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<UploadedFile | null>(null);
   const [workspaceHighlightPhrase, setWorkspaceHighlightPhrase] = useState<string>("");
   const dragCounter = useRef(0);
+  const [reindexingFiles, setReindexingFiles] = useState<Set<string>>(new Set());
 
   const fetchUploads = async () => {
     try {
@@ -198,6 +200,37 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       setUploadProgress(0);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleReindex = async (filename: string) => {
+    setReindexingFiles((prev) => new Set(prev).add(filename));
+    try {
+      const res = await fetch(`${API_BASE_URL}/upload/reindex/${encodeURIComponent(filename)}`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.rag_status === "success") {
+          showToast("success", `"${filename}" re-indexed successfully with ${data.chunks} chunks!`);
+        } else if (data.rag_status === "keyword_only") {
+          showToast("success", `"${filename}" indexed for keyword search (${data.chunks} chunks).`);
+        } else {
+          showToast("warning", `Re-indexing failed: ${data.error || "Unknown error"}`);
+        }
+        fetchUploads();
+      } else {
+        showToast("error", data.detail || "Re-indexing failed.");
+      }
+    } catch (_err) {
+      showToast("error", "Connection error during re-indexing.");
+    } finally {
+      setReindexingFiles((prev) => {
+        const next = new Set(prev);
+        next.delete(filename);
+        return next;
+      });
     }
   };
 
@@ -432,6 +465,24 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                         <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '3px' }}>Analyze</span>
                       </button>
                     )}
+                    {/* Re-index button — shown when file is NOT indexed (RAG Pending) */}
+                    {!u.rag_indexed && (
+                      <button
+                        type="button"
+                        onClick={() => handleReindex(u.filename)}
+                        disabled={reindexingFiles.has(u.filename)}
+                        className="fw-file-action-btn fw-reindex-btn"
+                        title="Re-index this file for AI search"
+                      >
+                        <RotateCw
+                          className="w-3.5 h-3.5"
+                          style={reindexingFiles.has(u.filename) ? { animation: 'spin 1s linear infinite' } : {}}
+                        />
+                        <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '3px' }}>
+                          {reindexingFiles.has(u.filename) ? 'Indexing...' : 'Re-index'}
+                        </span>
+                      </button>
+                    )}
                     <a
                       href={`${API_BASE_URL}/upload/download/${u.filename}`}
                       className="fw-file-action-btn"
@@ -448,6 +499,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
+
                 </div>
               ))}
             </div>
@@ -873,7 +925,36 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(34,211,238,0.15);
         }
-
+        .fw-reindex-btn {
+          width: auto !important;
+          display: flex;
+          align-items: center;
+          padding: 0 10px !important;
+          gap: 4px;
+          background: rgba(251,191,36,0.06) !important;
+          border-color: rgba(251,191,36,0.25) !important;
+          color: #fbbf24 !important;
+          border-radius: 8px !important;
+          height: 30px;
+          font-size: 11px;
+          font-weight: 700;
+          transition: all 0.2s ease;
+        }
+        .fw-reindex-btn:hover:not(:disabled) {
+          background: rgba(251,191,36,0.15) !important;
+          border-color: rgba(251,191,36,0.4) !important;
+          color: #fde68a !important;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(251,191,36,0.15);
+        }
+        .fw-reindex-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
 
         /* ── AI HINT ── */
         .fw-ai-hint {

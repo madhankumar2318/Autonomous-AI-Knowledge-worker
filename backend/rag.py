@@ -65,8 +65,9 @@ def get_gemini_client():
 
 def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
     """
-    Generate text-embedding-004 embeddings for a batch of texts using Gemini API.
-    Provides automatic fallback to individual queries if batch results are incomplete or fail.
+    Generate embeddings for a batch of texts using Gemini API.
+    Tries gemini-embedding-2 first, then text-embedding-004 as fallback.
+    Provides automatic fallback to individual queries if batch results are incomplete.
     """
     if not texts:
         return []
@@ -75,46 +76,64 @@ def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
     if not client:
         raise ValueError("Gemini API key is not configured or is invalid. Cannot generate embeddings.")
 
+    # Embedding models to try in order
+    EMBED_MODELS = ["gemini-embedding-2", "text-embedding-004"]
     all_embeddings = []
 
-    # 1. Try batch embedding first (efficient, 1 API call)
-    try:
-        texts_any: Any = texts
-        response = client.models.embed_content(
-            model="gemini-embedding-2",
-            contents=texts_any
-        )
-        response_any: Any = response
-        if hasattr(response_any, 'embeddings') and response_any.embeddings:
-            for emb in response_any.embeddings:
-                all_embeddings.append(emb.values)
-    except Exception as e:
-        print(f"Batch embedding failed: {e}. Falling back to individual embedding...")
-
-    # 2. If batching returned incorrect length or failed, fallback to individual text queries
-    if len(all_embeddings) != len(texts):
+    for embed_model in EMBED_MODELS:
         all_embeddings = []
-        print(f"Embedding count mismatch. Embedding items individually...")
-        for text in texts:
+        try:
+            # 1. Try batch embedding first (efficient, 1 API call)
             try:
+                texts_any: Any = texts
                 response = client.models.embed_content(
-                    model="gemini-embedding-2",
-                    contents=text
+                    model=embed_model,
+                    contents=texts_any
                 )
                 response_any: Any = response
-                if hasattr(response_any, 'embedding') and response_any.embedding is not None:
-                    emb: Any = response_any.embedding
-                    if hasattr(emb, 'values') and emb.values is not None:
-                        all_embeddings.append(list(emb.values))
-                elif hasattr(response_any, 'embeddings') and response_any.embeddings:
-                    all_embeddings.append(list(response_any.embeddings[0].values))
-                else:
-                    raise ValueError("Could not extract embedding values.")
+                if hasattr(response_any, 'embeddings') and response_any.embeddings:
+                    for emb in response_any.embeddings:
+                        all_embeddings.append(emb.values)
             except Exception as e:
-                print(f"Individual embedding failed for text '{text[:30]}...': {e}")
-                raise e
+                print(f"[{embed_model}] Batch embedding failed: {e}. Trying individual...")
 
-    return all_embeddings
+            # 2. If batching returned incorrect length or failed, fallback to individual
+            if len(all_embeddings) != len(texts):
+                all_embeddings = []
+                print(f"[{embed_model}] Embedding count mismatch. Embedding items individually...")
+                for text in texts:
+                    try:
+                        response = client.models.embed_content(
+                            model=embed_model,
+                            contents=text
+                        )
+                        response_any2: Any = response
+                        if hasattr(response_any2, 'embedding') and response_any2.embedding is not None:
+                            emb2: Any = response_any2.embedding
+                            if hasattr(emb2, 'values') and emb2.values is not None:
+                                all_embeddings.append(list(emb2.values))
+                        elif hasattr(response_any2, 'embeddings') and response_any2.embeddings:
+                            all_embeddings.append(list(response_any2.embeddings[0].values))
+                        else:
+                            raise ValueError("Could not extract embedding values.")
+                    except Exception as e2:
+                        print(f"[{embed_model}] Individual embedding failed: {e2}")
+                        raise e2
+
+            if len(all_embeddings) == len(texts):
+                print(f"[RAG] Successfully generated {len(all_embeddings)} embeddings using {embed_model}")
+                return all_embeddings
+
+        except Exception as model_err:
+            print(f"[RAG] Embedding model '{embed_model}' failed: {model_err}. Trying next model...")
+            continue
+
+    # All models failed
+    if len(all_embeddings) == len(texts):
+        return all_embeddings
+    raise ValueError(f"All embedding models failed. Cannot generate embeddings for {len(texts)} texts.")
+
+
 
 
 # ── Advanced Chunking ──────────────────────────────────────────────────────────
