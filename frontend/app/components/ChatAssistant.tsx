@@ -524,27 +524,164 @@ export default function ChatAssistant({
 
   const formatMessage = (text: string) => {
     if (!text) return "";
+    
+    const segments: React.ReactNode[] = [];
     const lines = text.split("\n");
-    return lines.map((line, i) => {
-      const isBullet =
-        line.trim().startsWith("- ") ||
-        line.trim().startsWith("* ") ||
-        line.trim().startsWith("• ");
-      if (isBullet) {
-        const cleanLine = line.trim().replace(/^[-*•]\s+/, "");
-        return (
-          <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "3px" }}>
-            <span style={{ color: "#22d3ee", flexShrink: 0, lineHeight: "1.6" }}>▸</span>
-            <span>{parseInlineStyles(cleanLine)}</span>
-          </div>
-        );
+    let inCodeBlock = false;
+    let codeBlockLanguage = "";
+    let codeBlockLines: string[] = [];
+
+    const handleCopy = (codeText: string, btnId: string) => {
+      navigator.clipboard.writeText(codeText);
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.innerText = "Copied!";
+        btn.style.background = "rgba(16, 185, 129, 0.25)";
+        btn.style.borderColor = "#10b981";
+        btn.style.color = "#10b981";
+        setTimeout(() => {
+          btn.innerText = "Copy";
+          btn.style.background = "rgba(255, 255, 255, 0.03)";
+          btn.style.borderColor = "rgba(255, 255, 255, 0.1)";
+          btn.style.color = "#94a3b8";
+        }, 1500);
       }
-      return (
-        <div key={i} className={line.trim() === "" ? "" : "chat-line"}>
-          {parseInlineStyles(line)}
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim().startsWith("```")) {
+        if (inCodeBlock) {
+          // Close the code block
+          const codeText = codeBlockLines.join("\n");
+          const btnId = `copy-btn-${segments.length}`;
+          const currentCodeText = codeText;
+          segments.push(
+            <div 
+              key={`code-${segments.length}`} 
+              style={{ 
+                background: "#0b0f19", 
+                border: "1px solid rgba(255,255,255,0.06)", 
+                borderRadius: "8px", 
+                margin: "12px 0", 
+                fontFamily: "monospace", 
+                fontSize: "0.85em", 
+                position: "relative",
+                overflow: "hidden"
+              }}
+            >
+              {/* Header bar of code block */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#060913", borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "4px 12px", height: "28px" }}>
+                <span style={{ color: "#475569", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>
+                  {codeBlockLanguage || "code"}
+                </span>
+                <button
+                  id={btnId}
+                  type="button"
+                  onClick={() => handleCopy(currentCodeText, btnId)}
+                  style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "4px",
+                    color: "#94a3b8",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
+              <pre style={{ margin: 0, padding: "12px", overflowX: "auto", color: "#e2e8f0", lineHeight: "1.5" }}>
+                <code>{codeText}</code>
+              </pre>
+            </div>
+          );
+          codeBlockLines = [];
+          inCodeBlock = false;
+        } else {
+          // Open new code block
+          inCodeBlock = true;
+          codeBlockLanguage = line.trim().slice(3).trim();
+        }
+      } else if (inCodeBlock) {
+        codeBlockLines.push(line);
+      } else {
+        // Normal text line
+        const isBullet =
+          line.trim().startsWith("- ") ||
+          line.trim().startsWith("* ") ||
+          line.trim().startsWith("• ");
+        if (isBullet) {
+          const cleanLine = line.trim().replace(/^[-*•]\s+/, "");
+          segments.push(
+            <div key={`line-${i}`} style={{ display: "flex", gap: "8px", marginBottom: "3px" }}>
+              <span style={{ color: "#22d3ee", flexShrink: 0, lineHeight: "1.6" }}>▸</span>
+              <span>{parseInlineStyles(cleanLine)}</span>
+            </div>
+          );
+        } else {
+          segments.push(
+            <div key={`line-${i}`} className={line.trim() === "" ? "" : "chat-line"}>
+              {parseInlineStyles(line)}
+            </div>
+          );
+        }
+      }
+    }
+
+    // Flush any open code block at the end of text stream
+    if (inCodeBlock && codeBlockLines.length > 0) {
+      const codeText = codeBlockLines.join("\n");
+      const btnId = `copy-btn-${segments.length}`;
+      const currentCodeText = codeText;
+      segments.push(
+        <div 
+          key={`code-${segments.length}`} 
+          style={{ 
+            background: "#0b0f19", 
+            border: "1px solid rgba(255,255,255,0.06)", 
+            borderRadius: "8px", 
+            margin: "12px 0", 
+            fontFamily: "monospace", 
+            fontSize: "0.85em", 
+            position: "relative",
+            overflow: "hidden"
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#060913", borderBottom: "1px solid rgba(255,255,255,0.04)", padding: "4px 12px", height: "28px" }}>
+            <span style={{ color: "#475569", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>
+              {codeBlockLanguage || "code"}
+            </span>
+            <button
+              id={btnId}
+              type="button"
+              onClick={() => handleCopy(currentCodeText, btnId)}
+              style={{
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "4px",
+                color: "#94a3b8",
+                fontSize: "10px",
+                fontWeight: 600,
+                padding: "2px 8px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              Copy
+            </button>
+          </div>
+          <pre style={{ margin: 0, padding: "12px", overflowX: "auto", color: "#e2e8f0", lineHeight: "1.5" }}>
+            <code>{codeText}</code>
+          </pre>
         </div>
       );
-    });
+    }
+
+    return segments;
   };
 
   const handleCitationClick = (filename: string, phrase: string) => {
