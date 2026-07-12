@@ -715,8 +715,17 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
     total = len(chunk_texts)
     print(f"[RAG] Created {total} smart chunks for '{filename}'. Generating embeddings...")
 
-    # 4. Generate embeddings
-    embeddings = get_gemini_embeddings_batch(chunk_texts)
+    # 4. Generate embeddings — use zero-vectors as fallback if Gemini is unavailable
+    embeddings_available = True
+    try:
+        embeddings = get_gemini_embeddings_batch(chunk_texts)
+    except Exception as emb_err:
+        print(f"[RAG] Warning: Embedding generation failed for '{filename}': {emb_err}")
+        print(f"[RAG] Storing chunks without embeddings — keyword search will still work.")
+        embeddings_available = False
+        # Use zero-vectors so the documents are stored and retrievable by keyword
+        EMBEDDING_DIM = 768  # text-embedding-004 dimension
+        embeddings = [[0.0] * EMBEDDING_DIM for _ in chunk_texts]
 
     # 5. Insert into vector store with enriched metadata
     if is_postgres_active():
@@ -768,8 +777,10 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
             ids=ids
         )
 
+
     print(f"[RAG] Successfully indexed '{filename}' with {total} chunks ({sum(1 for c in all_chunks if c.get('chunk_type')=='table')} table chunks, {sum(1 for c in all_chunks if c.get('chunk_type')=='header')} header chunks).")
-    return {"filename": filename, "status": "success", "chunks": total}
+    status = "success" if embeddings_available else "keyword_only"
+    return {"filename": filename, "status": status, "chunks": total}
 
 
 # ── Deletion ───────────────────────────────────────────────────────────────────
@@ -997,12 +1008,66 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
     if active_file:
         print(f"[RAG] Document mode: restricting search to file '{active_file}'")
 
-    # Get query embedding
+    # Get query embedding — fall back to keyword search if embedding fails
+    query_embedding = None
+    embedding_available = True
     try:
         query_embedding = get_gemini_embeddings_batch([query])[0]
     except Exception as e:
-        print(f"[RAG] Error embedding query '{query}': {e}")
-        return []
+        print(f"[RAG] Warning: Could not generate query embedding (Gemini key missing?): {e}")
+        print(f"[RAG] Falling back to keyword-based search for query: '{query}'")
+        embedding_available = False
+
+    # ── Keyword fallback path (no Gemini embeddings) ──────────────────────────
+    if not embedding_available:
+        try:
+            if is_postgres_active():
+                conn = get_conn()
+                cur = get_cursor(conn)
+                try:
+                    fts_results = _fts_search(query, username, top_k, cur, active_file)  # type: ignore
+                    return fts_results
+                finally:
+                    conn.close()
+            else:
+                # ChromaDB keyword scan — fetch all docs for this user and filter
+                collection = get_chroma_collection()
+                if collection is None:
+                    return []
+                where_clause: Dict[str, Any] = {"username": username or "guest"}
+                if active_file:
+                    where_clause = {"$and": [{"username": username or "guest"}, {"filename": active_file}]}
+                all_docs = collection.get(where=where_clause, include=["documents", "metadatas"])
+                if not all_docs:
+                    return []
+                docs_list = all_docs.get("documents") or []
+                metas_list = all_docs.get("metadatas") or []
+                query_words = [w.lower() for w in query.split() if len(w) > 2]
+                scored = []
+                for doc, meta_raw in zip(docs_list, metas_list):
+                    if not doc:
+                        continue
+                    score = sum(doc.lower().count(w) for w in query_words)
+                    if score > 0:
+                        meta: Any = meta_raw
+                        scored.append((score, doc, meta))
+                scored.sort(key=lambda x: x[0], reverse=True)
+                results_kw = []
+                for score, doc, meta in scored[:top_k]:
+                    results_kw.append({
+                        "content": str(doc),
+                        "filename": meta.get("filename", "unknown") if hasattr(meta, "get") else "unknown",
+                        "chunk_index": meta.get("chunk_index", 0) if hasattr(meta, "get") else 0,
+                        "total_chunks": meta.get("total_chunks", 0) if hasattr(meta, "get") else 0,
+                        "similarity_score": round(min(score * 10.0, 100.0), 2),
+                        "chunk_type": meta.get("chunk_type", "text") if hasattr(meta, "get") else "text",
+                        "page_num": meta.get("page_num", 0) if hasattr(meta, "get") else 0,
+                    })
+                return results_kw
+        except Exception as kw_err:
+            print(f"[RAG] Keyword fallback search failed: {kw_err}")
+            return []
+
 
     if is_postgres_active():
         conn = get_conn()

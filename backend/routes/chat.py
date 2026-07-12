@@ -184,9 +184,12 @@ Before responding to any query, follow this mental framework:
 
 ## File & Knowledge Base Analysis:
 - Always use `search_knowledge_base` first for any query referring to user's files/data.
+- If `search_knowledge_base` returns no results, empty, or mentions "RAG Pending", IMMEDIATELY call `read_uploaded_file` with the filename to read the file content directly.
+- NEVER say you cannot access a file — always try `read_uploaded_file` as a fallback before saying you can't help.
 - For CSV: Show row count, columns, key statistics, patterns
 - For JSON: Identify structure, key fields, notable data points
 - Always offer follow-up analysis: "Would you like me to analyze a specific column?" or "I can create a report from this data."
+
 
 ---
 
@@ -631,7 +634,62 @@ def search_knowledge_base(query: str) -> str:
         from rag import search_knowledge
         results = search_knowledge(query, top_k=5)
         if not results:
-            return "No relevant information found in the knowledge base."
+            # ── Fallback: if RAG returns nothing (e.g. Gemini key missing or
+            #    not indexed yet), try reading the active file directly ─────────
+            try:
+                from rag import active_file_context, active_user_context, get_indexed_files
+                active_file = active_file_context.get()
+                username = active_user_context.get()
+
+                # If we are in document workspace mode, read that file directly
+                if active_file:
+                    file_content = read_uploaded_file(active_file)
+                    if file_content and not file_content.startswith("Error") and not file_content.startswith("File"):
+                        # Basic keyword relevance filter
+                        query_words = [w.lower() for w in query.split() if len(w) > 2]
+                        lines = file_content.splitlines()
+                        relevant_lines = []
+                        for line in lines:
+                            if any(w in line.lower() for w in query_words):
+                                relevant_lines.append(line)
+                        if relevant_lines:
+                            excerpt = "\n".join(relevant_lines[:80])
+                        else:
+                            excerpt = "\n".join(lines[:120])  # first 120 lines as context
+                        return (
+                            f"Result 1 (Source File: {active_file}, Type: DIRECT_READ, Relevancy: N/A):\n"
+                            f"Content:\n{excerpt}\n"
+                            f"----------------------------------------"
+                        )
+                    else:
+                        return file_content  # propagate access/not-found error
+
+                # No specific file — try to find any indexed or uploaded file and read it
+                token_ctx = active_user_context.set(username) if username else None
+                try:
+                    indexed = get_indexed_files()
+                finally:
+                    if token_ctx:
+                        active_user_context.reset(token_ctx)
+
+                if indexed:
+                    first_file = indexed[0]["filename"]
+                    file_content = read_uploaded_file(first_file)
+                    if file_content and not file_content.startswith("Error") and not file_content.startswith("File"):
+                        query_words = [w.lower() for w in query.split() if len(w) > 2]
+                        lines = file_content.splitlines()
+                        relevant_lines = [l for l in lines if any(w in l.lower() for w in query_words)]
+                        excerpt = "\n".join(relevant_lines[:80]) if relevant_lines else "\n".join(lines[:120])
+                        return (
+                            f"Result 1 (Source File: {first_file}, Type: DIRECT_READ, Relevancy: N/A):\n"
+                            f"Content:\n{excerpt}\n"
+                            f"----------------------------------------"
+                        )
+
+            except Exception as fallback_err:
+                print(f"[AI Tool] Fallback read also failed: {fallback_err}")
+
+            return "No relevant information found in the knowledge base. The document may not be indexed yet (RAG Pending) — try asking me to 'read' the file directly instead."
 
         # Improvement 4: compress each retrieved chunk before sending to LLM
         results = _compress_context(results, query)
@@ -663,6 +721,7 @@ def search_knowledge_base(query: str) -> str:
         return "\n\n".join(formatted)
     except Exception as e:
         return f"Error searching knowledge base: {str(e)}"
+
 
 # Define Python tool registry for the Gemini SDK
 agent_tools = [
@@ -943,10 +1002,12 @@ async def chat(
 
 # DOCUMENT WORKSPACE MODE
 You are currently in **Document Workspace Mode** analyzing the file: `{req.filename}`.
-- Use `search_knowledge_base` to retrieve content from this document.
+- FIRST use `search_knowledge_base` to retrieve content from this document.
+- If `search_knowledge_base` returns no results or says "RAG Pending", IMMEDIATELY call `read_uploaded_file` with filename `{req.filename}` to read the file directly.
 - Focus your answers EXCLUSIVELY on the content of this file.
 - Do NOT reference other documents or files unless the user explicitly asks.
 - Always cite with [Source: {req.filename}].
+- NEVER say you cannot access the file — always try both tools before giving up.
 """
     else:
         effective_instruction = SYSTEM_INSTRUCTION
@@ -1237,13 +1298,16 @@ async def chat_stream(
 
 # DOCUMENT WORKSPACE MODE
 You are currently in **Document Workspace Mode** analyzing the file: `{req.filename}`.
-- Use `search_knowledge_base` to retrieve content from this document.
+- FIRST use `search_knowledge_base` to retrieve content from this document.
+- If `search_knowledge_base` returns no results or says "RAG Pending", IMMEDIATELY call `read_uploaded_file` with filename `{req.filename}` to read the file directly.
 - Focus your answers EXCLUSIVELY on the content of this file.
 - Do NOT reference other documents or files unless the user explicitly asks.
 - Always cite with [Source: {req.filename}].
+- NEVER say you cannot access the file — always try both tools before giving up.
 """
         else:
             stream_instruction = SYSTEM_INSTRUCTION
+
 
         # Resolve which model we want to run
         selected_model = req.model

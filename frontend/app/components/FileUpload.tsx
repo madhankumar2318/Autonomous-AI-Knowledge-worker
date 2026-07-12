@@ -178,8 +178,10 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           
           if (data.rag_status === "success") {
             showToast("success", `"${file.name}" uploaded & RAG indexed successfully!`);
+          } else if (data.rag_status === "keyword_only") {
+            showToast("success", `"${file.name}" uploaded & indexed! (Keyword search active — semantic search needs Gemini API key.)`);
           } else if (data.rag_status === "failed") {
-            showToast("warning", `Uploaded "${file.name}", but RAG indexing failed: ${data.error || "Gemini key not configured."}`);
+            showToast("warning", `Uploaded "${file.name}", but indexing failed: ${data.error || "Check server logs."}`);
           } else {
             showToast("success", `"${file.name}" uploaded successfully!`);
           }
@@ -897,6 +899,81 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         .fw-ai-hint-text { display: flex; flex-direction: column; gap: 2px; flex: 1; }
         .fw-ai-hint-title { font-size: 13px; font-weight: 700; color: #67e8f9; }
         .fw-ai-hint-sub { font-size: 10px; color: var(--text-secondary); line-height: 1.5; }
+
+        @media (max-width: 768px) {
+          .fw-root {
+            padding-bottom: 96px !important;
+          }
+          .fw-header {
+            padding: 12px 14px;
+            gap: 10px;
+            border-radius: 12px;
+          }
+          .fw-header-icon {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+          }
+          .fw-title { font-size: 15px; }
+          .fw-subtitle { font-size: 11px; }
+          .fw-upload-panel, .fw-files-panel {
+            padding: 14px;
+            border-radius: 14px;
+          }
+          .fw-dropzone {
+            padding: 22px 14px;
+          }
+          .fw-file-item {
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 12px;
+          }
+          .fw-file-info {
+            flex: 1;
+            min-width: 0;
+            max-width: calc(100% - 50px);
+          }
+          .fw-file-name {
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .fw-file-meta {
+            gap: 5px;
+            flex-wrap: wrap;
+          }
+          .fw-file-actions {
+            width: 100%;
+            justify-content: flex-end;
+            gap: 6px;
+            border-top: 1px solid var(--border-light);
+            padding-top: 8px;
+            margin-top: 2px;
+          }
+          .fw-analyze-btn {
+            flex: 1;
+            justify-content: center;
+            max-width: 120px;
+          }
+          .fw-file-rag-badge, .fw-file-rag-badge-pending {
+            font-size: 10px;
+            padding: 1px 5px;
+          }
+          .fw-format-badges {
+            gap: 5px;
+          }
+          .fw-format-badge {
+            font-size: 10px;
+            padding: 3px 7px;
+          }
+          .fw-ai-hint {
+            padding: 10px 12px;
+          }
+          .fw-ai-hint-sub {
+            font-size: 11px;
+          }
+        }
       `}</style>
     </div>
     </>
