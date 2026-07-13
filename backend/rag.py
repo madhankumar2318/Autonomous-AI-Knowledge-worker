@@ -1051,6 +1051,56 @@ def _fts_search(query: str, username: str, top_k: int, cur, active_file: str = N
         return results
     except Exception as e:
         print(f"[RAG] FTS search failed (non-fatal, using vector-only): {e}")
+def _local_fts_search(query: str, username: str, top_k: int, active_file: str = None) -> List[Dict[str, Any]]:
+    """
+    Keyword search in ChromaDB by fetching metadata and documents for the active user,
+    ranking using term occurrence frequency, and formatting standard output.
+    """
+    collection = get_chroma_collection()
+    if collection is None:
+        return []
+    try:
+        where_clause: Dict[str, Any] = {"username": username or "guest"}
+        if active_file:
+            where_clause = {"$and": [{"username": username or "guest"}, {"filename": active_file}]}
+
+        all_docs = collection.get(where=where_clause, include=["documents", "metadatas"])
+        if not all_docs:
+            return []
+
+        docs_list = all_docs.get("documents") or []
+        metas_list = all_docs.get("metadatas") or []
+
+        query_words = [w.lower() for w in query.split() if len(w) > 2]
+        if not query_words:
+            query_words = [query.lower()]
+
+        scored = []
+        for doc, meta_raw in zip(docs_list, metas_list):
+            if not doc:
+                continue
+            doc_lower = doc.lower()
+            # Rank based on query terms frequency
+            score = sum(doc_lower.count(w) for w in query_words)
+            if score > 0:
+                meta: Any = meta_raw
+                scored.append((score, doc, meta))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        results = []
+        for score, doc, meta in scored[:top_k]:
+            results.append({
+                "content": str(doc),
+                "filename": meta.get("filename", "unknown") if hasattr(meta, "get") else "unknown",
+                "chunk_index": meta.get("chunk_index", 0) if hasattr(meta, "get") else 0,
+                "total_chunks": meta.get("total_chunks", 0) if hasattr(meta, "get") else 0,
+                "similarity_score": round(min(score * 10.0, 100.0), 2),
+                "chunk_type": meta.get("chunk_type", "text") if hasattr(meta, "get") else "text",
+                "page_num": meta.get("page_num", 0) if hasattr(meta, "get") else 0,
+            })
+        return results
+    except Exception as e:
+        print(f"[RAG] Local keyword search failed: {e}")
         return []
 
 
@@ -1291,6 +1341,15 @@ def search_knowledge(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
                         "chunk_type": meta.get("chunk_type", "text") if hasattr(meta, "get") else "text",
                         "page_num": meta.get("page_num", 0) if hasattr(meta, "get") else 0
                     })
+
+            # Run local keyword search for hybrid matching
+            fts_results = _local_fts_search(query, username, top_k, active_file)
+            if fts_results:
+                merged = _reciprocal_rank_fusion(formatted_results, fts_results)
+                print(f"[RAG] Local hybrid search: {len(formatted_results)} vector + "
+                      f"{len(fts_results)} keyword -> {len(merged)} merged (RRF)"
+                      + (f" [file={active_file}]" if active_file else ""))
+                return merged[:top_k]
 
             return formatted_results
         except Exception as e:
