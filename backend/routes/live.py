@@ -40,22 +40,35 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+# Centralized locks to prevent thundering herd API storms
+stocks_lock = asyncio.Lock()
+news_lock = asyncio.Lock()
+
+# Centralized caches to serve concurrent client subscriptions
+_stocks_cache = {
+    "data": None,
+    "timestamp": 0.0
+}
+STOCKS_CACHE_TTL = 15.0  # seconds
+
 # Background loops running as tasks
 async def live_stocks_updater():
     while True:
         has_subscribers = any("stocks" in subs for subs in manager.subscriptions.values())
         if has_subscribers:
             try:
-                # Fetch stock quotes bulk
-                stocks = _fetch_all(ALL_SYMBOLS)
-                payload = {
-                    "type": "stocks",
-                    "data": {
-                        "stocks": stocks,
-                        "sectors": SECTORS
+                # Fetch stock quotes bulk and write cache under lock
+                async with stocks_lock:
+                    stocks = _fetch_all(ALL_SYMBOLS)
+                    _stocks_cache["data"] = {
+                        "type": "stocks",
+                        "data": {
+                            "stocks": stocks,
+                            "sectors": SECTORS
+                        }
                     }
-                }
-                await manager.broadcast("stocks", payload)
+                    _stocks_cache["timestamp"] = time.time()
+                await manager.broadcast("stocks", _stocks_cache["data"])
             except Exception as e:
                 print(f"[WS] Error in stocks updater: {e}")
         await asyncio.sleep(15) # update every 15 seconds
@@ -67,22 +80,25 @@ async def live_news_updater():
             try:
                 now = time.time()
                 cache_key = _make_cache_key("", "")
-                # If cache is missing or expired, trigger refresh and broadcast
+                # Thread-safe news cache validation & update under lock
                 if cache_key not in news_cache or (now - news_cache[cache_key]["timestamp"]) > news_cache_ttl:
-                    articles = _fetch_from_api("", "")
-                    news_cache[cache_key] = {"data": articles, "timestamp": now}
-                    
-                    payload = {
-                        "type": "news",
-                        "data": {
-                            "news": articles,
-                            "total": len(articles),
-                            "page": 1,
-                            "per_page": len(articles),
-                            "has_more": False
-                        }
-                    }
-                    await manager.broadcast("news", payload)
+                    async with news_lock:
+                        now2 = time.time()
+                        if cache_key not in news_cache or (now2 - news_cache[cache_key]["timestamp"]) > news_cache_ttl:
+                            articles = _fetch_from_api("", "")
+                            news_cache[cache_key] = {"data": articles, "timestamp": now2}
+                            
+                            payload = {
+                                "type": "news",
+                                "data": {
+                                    "news": articles,
+                                    "total": len(articles),
+                                    "page": 1,
+                                    "per_page": len(articles),
+                                    "has_more": False
+                                }
+                            }
+                            await manager.broadcast("news", payload)
             except Exception as e:
                 print(f"[WS] Error in news updater: {e}")
         await asyncio.sleep(60) # check for news updates every 60 seconds
@@ -110,14 +126,22 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Push initial data state immediately on subscription so client doesn't wait
                 if "stocks" in channels:
                     try:
-                        stocks = _fetch_all(ALL_SYMBOLS)
-                        await websocket.send_json({
-                            "type": "stocks",
-                            "data": {
-                                "stocks": stocks,
-                                "sectors": SECTORS
-                            }
-                        })
+                        now = time.time()
+                        if not _stocks_cache["data"] or (now - _stocks_cache["timestamp"]) > STOCKS_CACHE_TTL:
+                            async with stocks_lock:
+                                now2 = time.time()
+                                if not _stocks_cache["data"] or (now2 - _stocks_cache["timestamp"]) > STOCKS_CACHE_TTL:
+                                    print("[WS] Stocks cache expired. Fetching fresh data...")
+                                    stocks = _fetch_all(ALL_SYMBOLS)
+                                    _stocks_cache["data"] = {
+                                        "type": "stocks",
+                                        "data": {
+                                            "stocks": stocks,
+                                            "sectors": SECTORS
+                                        }
+                                    }
+                                    _stocks_cache["timestamp"] = now2
+                        await websocket.send_json(_stocks_cache["data"])
                     except Exception as e:
                         print(f"[WS] Error pushing initial stocks: {e}")
                 if "news" in channels:
@@ -125,8 +149,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         now = time.time()
                         cache_key = _make_cache_key("", "")
                         if cache_key not in news_cache or (now - news_cache[cache_key]["timestamp"]) > news_cache_ttl:
-                            articles = _fetch_from_api("", "")
-                            news_cache[cache_key] = {"data": articles, "timestamp": now}
+                            async with news_lock:
+                                now2 = time.time()
+                                if cache_key not in news_cache or (now2 - news_cache[cache_key]["timestamp"]) > news_cache_ttl:
+                                    print("[WS] News cache expired. Fetching fresh data...")
+                                    articles = _fetch_from_api("", "")
+                                    news_cache[cache_key] = {"data": articles, "timestamp": now2}
                         
                         all_articles = news_cache[cache_key]["data"]
                         await websocket.send_json({
