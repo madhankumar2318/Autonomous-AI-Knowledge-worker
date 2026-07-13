@@ -331,7 +331,7 @@ def _serpapi_search(query: str) -> str:
 
 def _duckduckgo_search(query: str) -> str:
     """Perform a free search using DuckDuckGo. Returns formatted results or raises an exception."""
-    from ddgs import DDGS
+    from duckduckgo_search import DDGS
     results = []
     with DDGS() as ddgs:
         for r in ddgs.text(query, max_results=5):
@@ -647,19 +647,13 @@ def search_knowledge_base(query: str) -> str:
                 if active_file:
                     file_content = read_uploaded_file(active_file)
                     if file_content and not file_content.startswith("Error") and not file_content.startswith("File"):
-                        # Basic keyword relevance filter
-                        query_words = [w.lower() for w in query.split() if len(w) > 2]
+                        # Build pseudo-chunks and pass through _compress_context for smart pruning
                         lines = file_content.splitlines()
-                        relevant_lines = []
-                        for line in lines:
-                            if any(w in line.lower() for w in query_words):
-                                relevant_lines.append(line)
-                        if relevant_lines:
-                            excerpt = "\n".join(relevant_lines[:80])
-                        else:
-                            excerpt = "\n".join(lines[:120])  # first 120 lines as context
+                        chunks = [{"content": "\n".join(lines[i:i+15]), "filename": active_file, "chunk_index": i//15, "similarity_score": 100.0} for i in range(0, len(lines), 15)]
+                        compressed = _compress_context(chunks, query)
+                        excerpt = "\n".join(c["content"] for c in compressed[:10])
                         return (
-                            f"Result 1 (Source File: {active_file}, Type: DIRECT_READ, Relevancy: N/A):\n"
+                            f"Result 1 (Source File: {active_file}, Type: DIRECT_READ_COMPRESSED, Relevancy: N/A):\n"
                             f"Content:\n{excerpt}\n"
                             f"----------------------------------------"
                         )
@@ -678,12 +672,13 @@ def search_knowledge_base(query: str) -> str:
                     first_file = indexed[0]["filename"]
                     file_content = read_uploaded_file(first_file)
                     if file_content and not file_content.startswith("Error") and not file_content.startswith("File"):
-                        query_words = [w.lower() for w in query.split() if len(w) > 2]
+                        # Build pseudo-chunks and pass through _compress_context for smart pruning
                         lines = file_content.splitlines()
-                        relevant_lines = [l for l in lines if any(w in l.lower() for w in query_words)]
-                        excerpt = "\n".join(relevant_lines[:80]) if relevant_lines else "\n".join(lines[:120])
+                        chunks = [{"content": "\n".join(lines[i:i+15]), "filename": first_file, "chunk_index": i//15, "similarity_score": 100.0} for i in range(0, len(lines), 15)]
+                        compressed = _compress_context(chunks, query)
+                        excerpt = "\n".join(c["content"] for c in compressed[:10])
                         return (
-                            f"Result 1 (Source File: {first_file}, Type: DIRECT_READ, Relevancy: N/A):\n"
+                            f"Result 1 (Source File: {first_file}, Type: DIRECT_READ_COMPRESSED, Relevancy: N/A):\n"
                             f"Content:\n{excerpt}\n"
                             f"----------------------------------------"
                         )

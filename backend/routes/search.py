@@ -37,7 +37,7 @@ def _serpapi_search(query: str, page: int = 1) -> list[dict]:
 
 def _duckduckgo_search(query: str, page: int = 1) -> list[dict]:
     """Search via DuckDuckGo (free, no key required). Raises on any error."""
-    from ddgs import DDGS
+    from duckduckgo_search import DDGS
     max_results = 10
     offset = (page - 1) * max_results
     results = []
