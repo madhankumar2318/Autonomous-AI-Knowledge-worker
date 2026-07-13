@@ -306,20 +306,98 @@ def _table_to_markdown(table: List[List[Any]]) -> str:
     return "\n".join(lines)
 
 
+def extract_pdf_content_via_gemini(filepath: str) -> List[Dict[str, Any]]:
+    """
+    OCR and multi-modal document parser using the Gemini File API.
+    Transcribes page-by-page and returns structured content blocks.
+    """
+    client = get_gemini_client()
+    if not client:
+        print("[RAG] Gemini client not configured, cannot fall back to OCR.")
+        return []
+
+    print(f"[RAG] Uploading scanned PDF to Gemini File API: {os.path.basename(filepath)}...")
+    try:
+        pdf_file = client.files.upload(file=filepath)
+        print(f"[RAG] Upload complete. Temporary name: {pdf_file.name}")
+
+        # Wait for file to become active
+        import time
+        for _ in range(15):
+            if pdf_file.state.name == "ACTIVE":
+                break
+            time.sleep(1)
+            pdf_file = client.files.get(name=pdf_file.name)
+
+        if pdf_file.state.name != "ACTIVE":
+            print(f"[RAG] Gemini File upload stuck in state: {pdf_file.state.name}")
+            return []
+
+        print("[RAG] Transcribing scanned pages via gemini-2.5-flash...")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                pdf_file,
+                "Transcribe all text from this PDF file. Return the transcription page-by-page. For each page, start with a header like '[Page X]' followed by the transcribed text and tables. Preserve the exact content without summarizing."
+            ]
+        )
+
+        # Clean up temporary file from Gemini storage
+        try:
+            client.files.delete(name=pdf_file.name)
+            print("[RAG] Temporary file cleaned up from Gemini API storage.")
+        except Exception as del_err:
+            print(f"[RAG] Warning: failed to delete temp file {pdf_file.name}: {del_err}")
+
+        transcription = response.text or ""
+        blocks = []
+        pages = re.split(r'\[Page\s+(\d+)\]', transcription)
+        if len(pages) > 1:
+            for i in range(1, len(pages), 2):
+                page_num = int(pages[i])
+                page_text = pages[i+1].strip()
+                if page_text:
+                    blocks.append({
+                        "text": page_text,
+                        "chunk_type": "text",
+                        "page_num": page_num
+                    })
+        else:
+            if transcription.strip():
+                blocks.append({
+                    "text": transcription.strip(),
+                    "chunk_type": "text",
+                    "page_num": 1
+                })
+
+        print(f"[RAG] Gemini OCR completed. Extracted {len(blocks)} pages.")
+        return blocks
+
+    except Exception as e:
+        print(f"[RAG] Gemini OCR failed: {e}")
+        return []
+
+
 def extract_pdf_content(filepath: str) -> List[Dict[str, Any]]:
     """
-    Extract text and tables from a PDF using pdfplumber.
-
-    Returns a list of content blocks, each with:
-        - text: The string content (plain text or Markdown table)
-        - chunk_type: 'text' | 'table' | 'header'
-        - page_num: 1-based page number
-
-    Strategy per page:
-    1. Extract all tables first using pdfplumber's bounding-box detection
-    2. Extract remaining text (excluding table bounding boxes) as plain text
-    3. Detect section headers (lines that are ALL CAPS or end with ':' with short length)
+    Extract text and tables from a PDF using standard parsers,
+    falling back to Gemini OCR if it's a scanned document (image-only).
     """
+    blocks = _extract_raw_pdf_content(filepath)
+    total_length = sum(len(b["text"]) for b in blocks if "text" in b)
+    if total_length < 100:
+        print(f"[RAG] Scanned or empty PDF detected (digital text length: {total_length}). Triggering Gemini OCR...")
+        ocr_blocks = extract_pdf_content_via_gemini(filepath)
+        if ocr_blocks:
+            return ocr_blocks
+    return blocks
+
+
+def _extract_raw_pdf_content(filepath: str) -> List[Dict[str, Any]]:
+    """
+    Extract text and tables from a PDF using pdfplumber.
+    """
+
     try:
         import pdfplumber # type: ignore
     except ImportError:
