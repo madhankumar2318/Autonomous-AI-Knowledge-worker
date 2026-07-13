@@ -53,13 +53,31 @@ STOCKS_CACHE_TTL = 15.0  # seconds
 
 # Background loops running as tasks
 async def live_stocks_updater():
+    # Pre-warm stocks cache on startup immediately
+    try:
+        print("[WS] Pre-warming stocks cache on startup...")
+        async with stocks_lock:
+            stocks = await asyncio.to_thread(_fetch_all, ALL_SYMBOLS)
+            _stocks_cache["data"] = {
+                "type": "stocks",
+                "data": {
+                    "stocks": stocks,
+                    "sectors": SECTORS
+                }
+            }
+            _stocks_cache["timestamp"] = time.time()
+        print("[WS] Stocks cache pre-warmed successfully.")
+    except Exception as e:
+        print(f"[WS] Warning: Stocks pre-warm failed: {e}")
+
     while True:
+        await asyncio.sleep(15) # update every 15 seconds
         has_subscribers = any("stocks" in subs for subs in manager.subscriptions.values())
         if has_subscribers:
             try:
-                # Fetch stock quotes bulk and write cache under lock
+                # Fetch stock quotes bulk and write cache under lock (non-blocking)
                 async with stocks_lock:
-                    stocks = _fetch_all(ALL_SYMBOLS)
+                    stocks = await asyncio.to_thread(_fetch_all, ALL_SYMBOLS)
                     _stocks_cache["data"] = {
                         "type": "stocks",
                         "data": {
@@ -71,21 +89,33 @@ async def live_stocks_updater():
                 await manager.broadcast("stocks", _stocks_cache["data"])
             except Exception as e:
                 print(f"[WS] Error in stocks updater: {e}")
-        await asyncio.sleep(15) # update every 15 seconds
 
 async def live_news_updater():
+    # Pre-warm news cache on startup immediately
+    try:
+        print("[WS] Pre-warming news cache on startup...")
+        async with news_lock:
+            now = time.time()
+            cache_key = _make_cache_key("", "")
+            articles = await asyncio.to_thread(_fetch_from_api, "", "")
+            news_cache[cache_key] = {"data": articles, "timestamp": now}
+        print("[WS] News cache pre-warmed successfully.")
+    except Exception as e:
+        print(f"[WS] Warning: News pre-warm failed: {e}")
+
     while True:
+        await asyncio.sleep(60) # check for news updates every 60 seconds
         has_subscribers = any("news" in subs for subs in manager.subscriptions.values())
         if has_subscribers:
             try:
                 now = time.time()
                 cache_key = _make_cache_key("", "")
-                # Thread-safe news cache validation & update under lock
+                # Thread-safe news cache validation & update under lock (non-blocking)
                 if cache_key not in news_cache or (now - news_cache[cache_key]["timestamp"]) > news_cache_ttl:
                     async with news_lock:
                         now2 = time.time()
                         if cache_key not in news_cache or (now2 - news_cache[cache_key]["timestamp"]) > news_cache_ttl:
-                            articles = _fetch_from_api("", "")
+                            articles = await asyncio.to_thread(_fetch_from_api, "", "")
                             news_cache[cache_key] = {"data": articles, "timestamp": now2}
                             
                             payload = {
@@ -101,7 +131,6 @@ async def live_news_updater():
                             await manager.broadcast("news", payload)
             except Exception as e:
                 print(f"[WS] Error in news updater: {e}")
-        await asyncio.sleep(60) # check for news updates every 60 seconds
 
 background_tasks = []
 
@@ -132,7 +161,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                 now2 = time.time()
                                 if not _stocks_cache["data"] or (now2 - _stocks_cache["timestamp"]) > STOCKS_CACHE_TTL:
                                     print("[WS] Stocks cache expired. Fetching fresh data...")
-                                    stocks = _fetch_all(ALL_SYMBOLS)
+                                    stocks = await asyncio.to_thread(_fetch_all, ALL_SYMBOLS)
                                     _stocks_cache["data"] = {
                                         "type": "stocks",
                                         "data": {
@@ -153,7 +182,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                 now2 = time.time()
                                 if cache_key not in news_cache or (now2 - news_cache[cache_key]["timestamp"]) > news_cache_ttl:
                                     print("[WS] News cache expired. Fetching fresh data...")
-                                    articles = _fetch_from_api("", "")
+                                    articles = await asyncio.to_thread(_fetch_from_api, "", "")
                                     news_cache[cache_key] = {"data": articles, "timestamp": now2}
                         
                         all_articles = news_cache[cache_key]["data"]
