@@ -249,7 +249,8 @@ def get_stock_history(
 
                     data.append({
                         "date": date_str,
-                        "price": round(price, 2)
+                        "price": round(price, 2),
+                        "volume": float(row["Volume"]) if "Volume" in row else 0.0
                     })
         return {
             "symbol": symbol.upper(),

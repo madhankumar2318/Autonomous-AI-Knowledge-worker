@@ -28,6 +28,7 @@ interface StockQuote {
 interface HistoricalPoint {
   date: string;
   price: number;
+  volume?: number;
 }
 
 interface StockChartDetailProps {
@@ -107,44 +108,89 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
   }, [onClose]);
 
   // Render SVG Chart elements
-  const width = 600;
-  const height = 260;
-  const padding = 20;
+  // Render SVG Chart elements
+  const width = 640;
+  const height = 300;
+  
+  const paddingLeft = 20;
+  const paddingRight = 65;
+  const paddingTop = 20;
+  const paddingBottom = 40;
+  
+  const chartWidth = width - paddingLeft - paddingRight;
+  const priceChartHeight = 160;
+  const volumeChartHeight = 50;
+  const volumeTop = paddingTop + priceChartHeight + 15;
 
   const prices = chartData.map((d) => d.price);
   const minVal = Math.min(...prices);
   const maxVal = Math.max(...prices);
   const valRange = maxVal - minVal || 1;
-  const chartHeight = height - padding * 2;
 
-  // Generate path coordinates
-  const svgPoints = chartData.map((pt, i) => {
-    const x = (i / (chartData.length - 1)) * width;
-    const y = padding + chartHeight - ((pt.price - minVal) / valRange) * chartHeight;
-    return { x, y };
-  });
+  const volumes = chartData.map((d) => d.volume ?? 0);
+  const maxVolume = Math.max(...volumes) || 1;
 
-  const pathD = svgPoints.length > 0
-    ? `M ${svgPoints[0].x} ${svgPoints[0].y} ` + svgPoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ")
+  // Coordinate converters
+  const getX = (index: number) => {
+    if (chartData.length <= 1) return paddingLeft;
+    return paddingLeft + (index / (chartData.length - 1)) * chartWidth;
+  };
+
+  const getPriceY = (p: number) => {
+    return paddingTop + priceChartHeight - ((p - minVal) / valRange) * priceChartHeight;
+  };
+
+  const getVolumeY = (v: number) => {
+    return volumeTop + volumeChartHeight - (v / maxVolume) * volumeChartHeight;
+  };
+
+  // Generate price path coordinates (glowing line & area fill)
+  const pricePoints = chartData.map((pt, i) => ({
+    x: getX(i),
+    y: getPriceY(pt.price),
+  }));
+
+  const pricePathD = pricePoints.length > 0
+    ? `M ${pricePoints[0].x} ${pricePoints[0].y} ` + pricePoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ")
     : "";
 
-  const areaD = svgPoints.length > 0
-    ? `${pathD} L ${width} ${height} L 0 ${height} Z`
+  const priceAreaD = pricePoints.length > 0
+    ? `${pricePathD} L ${pricePoints[pricePoints.length - 1].x} ${paddingTop + priceChartHeight} L ${pricePoints[0].x} ${paddingTop + priceChartHeight} Z`
     : "";
+
+  // Grid tick calculations
+  const priceTicks = [
+    maxVal,
+    minVal + valRange * 0.66,
+    minVal + valRange * 0.33,
+    minVal,
+  ];
+
+  // Selected date ticks (evenly spaced, max 4)
+  const dateTickIndices = chartData.length > 1
+    ? [
+        0,
+        Math.floor((chartData.length - 1) * 0.33),
+        Math.floor((chartData.length - 1) * 0.66),
+        chartData.length - 1,
+      ]
+    : [0];
 
   // Mouse Move calculation for hover crosshair
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
     if (!chartData.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const pct = Math.max(0, Math.min(1, x / rect.width));
+    const pct = Math.max(0, Math.min(1, (x - (paddingLeft / rect.width) * rect.width) / ((chartWidth / rect.width) * rect.width)));
     const idx = Math.round(pct * (chartData.length - 1));
-    setHoverIndex(idx);
+    const finalIdx = Math.max(0, Math.min(chartData.length - 1, idx));
+    setHoverIndex(finalIdx);
   };
 
   const activePoint = hoverIndex !== null ? chartData[hoverIndex] : null;
-  const hoverX = hoverIndex !== null && svgPoints[hoverIndex] ? svgPoints[hoverIndex].x : 0;
-  const hoverY = hoverIndex !== null && svgPoints[hoverIndex] ? svgPoints[hoverIndex].y : 0;
+  const hoverX = hoverIndex !== null && pricePoints[hoverIndex] ? pricePoints[hoverIndex].x : 0;
+  const hoverY = hoverIndex !== null && pricePoints[hoverIndex] ? pricePoints[hoverIndex].y : 0;
+  const hoverVolY = hoverIndex !== null && activePoint ? getVolumeY(activePoint.volume ?? 0) : 0;
 
   return (
     <div className="sc-overlay">
@@ -285,10 +331,10 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         }
 
         .sc-chart-wrap {
-          padding: 20px 24px;
-          background: rgba(0,0,0,0.15);
+          padding: 16px 20px 24px 20px;
+          background: rgba(0,0,0,0.18);
           position: relative;
-          height: 300px;
+          height: 330px;
           display: flex;
           flex-direction: column;
           justify-content: center;
@@ -300,24 +346,58 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           cursor: crosshair;
         }
         
-        /* Tooltip inside SVG */
+        /* Premium Floating Tooltip */
         .sc-tooltip {
           position: absolute;
-          top: 15px;
-          left: 50%;
-          transform: translateX(-50%);
+          z-index: 10;
           background: rgba(18, 20, 26, 0.95);
-          border: 1px solid var(--border-medium, rgba(255,255,255,0.1));
-          border-radius: 8px;
-          padding: 4px 10px;
+          backdrop-filter: blur(8px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 10px;
+          padding: 8px 12px;
           pointer-events: none;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.5);
           display: flex;
-          align-items: center;
-          gap: 8px;
+          flex-direction: column;
+          gap: 4px;
           font-size: 11px;
-          font-weight: 700;
+          font-weight: 500;
+          transition: left 0.1s ease-out, top 0.1s ease-out;
         }
+        .sc-tooltip-date {
+          color: var(--text-muted, #94a3b8);
+          font-size: 10px;
+          font-weight: 600;
+        }
+        .sc-tooltip-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+        }
+        
+        /* Bloomberg-Style Floating Axis Labels */
+        .sc-axis-label-y {
+          font-size: 10px;
+          font-weight: 800;
+          fill: #fbbf24;
+          background: #fbbf24;
+          color: #0c0e12;
+        }
+        .sc-axis-label-x {
+          font-size: 10px;
+          font-weight: 800;
+          fill: #22d3ee;
+          background: #22d3ee;
+          color: #0c0e12;
+        }
+        
+        .sc-grid-label {
+          font-size: 10px;
+          font-family: monospace;
+          fill: var(--text-muted, #475569);
+          font-weight: 500;
+        }
+
 
         .sc-grid-grid {
           display: grid;
@@ -430,12 +510,27 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           ) : (
             <>
               {/* Tooltip Overlay */}
-              {activePoint && (
-                <div className="sc-tooltip">
-                  <span style={{ color: "var(--text-muted)" }}>{activePoint.date}</span>
-                  <span style={{ color: themeColor, fontFamily: "monospace" }}>
-                    {formatPrice(activePoint.price)}
-                  </span>
+              {activePoint && hoverIndex !== null && (
+                <div
+                  className="sc-tooltip"
+                  style={{
+                    left: `${hoverX > chartWidth / 2 + paddingLeft ? hoverX - 165 : hoverX + 25}px`,
+                    top: `${Math.max(10, Math.min(height - 110, hoverY - 40))}px`,
+                  }}
+                >
+                  <span className="sc-tooltip-date">{activePoint.date}</span>
+                  <div className="sc-tooltip-row">
+                    <span style={{ color: "var(--text-muted)" }}>Price:</span>
+                    <span style={{ color: themeColor, fontFamily: "monospace", fontWeight: 700 }}>
+                      {formatPrice(activePoint.price)}
+                    </span>
+                  </div>
+                  <div className="sc-tooltip-row">
+                    <span style={{ color: "var(--text-muted)" }}>Volume:</span>
+                    <span style={{ color: "#f1f5f9", fontFamily: "monospace", fontWeight: 700 }}>
+                      {formatVolume(activePoint.volume)}
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -461,17 +556,88 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                   </linearGradient>
                 </defs>
 
-                {/* Subtle horizontal grid guide lines */}
-                <line x1="0" y1={padding} x2={width} y2={padding} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                <line x1="0" y1={padding + chartHeight / 2} x2={width} y2={padding + chartHeight / 2} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                <line x1="0" y1={height - padding} x2={width} y2={height - padding} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+                {/* Subtle horizontal grid guide lines + Y-axis Price Ticks */}
+                {priceTicks.map((tickVal, idx) => {
+                  const y = getPriceY(tickVal);
+                  return (
+                    <g key={`y-grid-${idx}`}>
+                      <line
+                        x1={paddingLeft}
+                        y1={y}
+                        x2={paddingLeft + chartWidth}
+                        y2={y}
+                        stroke="rgba(255,255,255,0.03)"
+                        strokeWidth="1"
+                        strokeDasharray="2 2"
+                      />
+                      <text
+                        x={paddingLeft + chartWidth + 8}
+                        y={y + 3.5}
+                        className="sc-grid-label"
+                        textAnchor="start"
+                      >
+                        {tickVal.toFixed(2)}
+                      </text>
+                    </g>
+                  );
+                })}
 
-                {/* Shading area fill */}
-                <path d={areaD} fill="url(#areaGradient)" />
+                {/* X-axis Date Ticks */}
+                {dateTickIndices.map((idxVal) => {
+                  if (idxVal < 0 || idxVal >= chartData.length) return null;
+                  const pt = chartData[idxVal];
+                  const x = getX(idxVal);
+                  return (
+                    <g key={`x-grid-${idxVal}`}>
+                      <line
+                        x1={x}
+                        y1={paddingTop}
+                        x2={x}
+                        y2={paddingTop + priceChartHeight}
+                        stroke="rgba(255,255,255,0.02)"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={x}
+                        y={height - 12}
+                        className="sc-grid-label"
+                        textAnchor="middle"
+                        style={{ fill: "var(--text-secondary)" }}
+                      >
+                        {pt.date}
+                      </text>
+                    </g>
+                  );
+                })}
 
-                {/* Glowing Trend line */}
+                {/* Shading area fill under Price path */}
+                <path d={priceAreaD} fill="url(#areaGradient)" />
+
+                {/* Volume vertical bars (lower zone) */}
+                {chartData.map((d, idx) => {
+                  const x = getX(idx);
+                  const y = getVolumeY(d.volume ?? 0);
+                  const barWidth = Math.max(1.5, (chartWidth / chartData.length) * 0.6);
+                  
+                  // Color green if price went up from previous tick, else red
+                  const isUp = idx === 0 || d.price >= chartData[idx - 1].price;
+                  const barColor = isUp ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)";
+
+                  return (
+                    <rect
+                      key={`vol-bar-${idx}`}
+                      x={x - barWidth / 2}
+                      y={y}
+                      width={barWidth}
+                      height={Math.max(1, volumeTop + volumeChartHeight - y)}
+                      fill={barColor}
+                    />
+                  );
+                })}
+
+                {/* Glowing Price Trend line */}
                 <path
-                  d={pathD}
+                  d={pricePathD}
                   fill="none"
                   stroke="url(#trendGradient)"
                   strokeWidth="2.2"
@@ -480,19 +646,67 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                   style={{ filter: `drop-shadow(0 2px 6px ${themeColor}40)` }}
                 />
 
-                {/* Crosshair Overlay and Hover indicators */}
+                {/* Double Crosshairs & Hover overlays */}
                 {hoverIndex !== null && activePoint && (
                   <>
                     {/* Vertical dashed crosshair line */}
                     <line
                       x1={hoverX}
-                      y1={0}
+                      y1={paddingTop}
                       x2={hoverX}
-                      y2={height}
-                      stroke="rgba(255,255,255,0.15)"
+                      y2={height - 30}
+                      stroke="rgba(255,255,255,0.18)"
                       strokeWidth="1.2"
-                      strokeDasharray="4 4"
+                      strokeDasharray="3 3"
                     />
+
+                    {/* Horizontal dashed price crosshair line */}
+                    <line
+                      x1={paddingLeft}
+                      y1={hoverY}
+                      x2={paddingLeft + chartWidth}
+                      y2={hoverY}
+                      stroke="rgba(255,255,255,0.18)"
+                      strokeWidth="1.2"
+                      strokeDasharray="3 3"
+                    />
+
+                    {/* Floating Axis Tags */}
+                    {/* Y-Axis price coordinate tag */}
+                    <rect
+                      x={paddingLeft + chartWidth + 2}
+                      y={hoverY - 8}
+                      width={52}
+                      height={16}
+                      rx={3}
+                      fill="#fbbf24"
+                    />
+                    <text
+                      x={paddingLeft + chartWidth + 28}
+                      y={hoverY + 4}
+                      className="sc-axis-label-y"
+                      textAnchor="middle"
+                    >
+                      {activePoint.price.toFixed(1)}
+                    </text>
+
+                    {/* X-Axis date coordinate tag */}
+                    <rect
+                      x={hoverX - 32}
+                      y={height - 28}
+                      width={64}
+                      height={16}
+                      rx={3}
+                      fill="#22d3ee"
+                    />
+                    <text
+                      x={hoverX}
+                      y={height - 16}
+                      className="sc-axis-label-x"
+                      textAnchor="middle"
+                    >
+                      {activePoint.date.split(" ")[0]}
+                    </text>
 
                     {/* Glowing outer hover circle */}
                     <circle
