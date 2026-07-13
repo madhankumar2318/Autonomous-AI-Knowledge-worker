@@ -378,17 +378,13 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         /* Bloomberg-Style Floating Axis Labels */
         .sc-axis-label-y {
           font-size: 10px;
-          font-weight: 800;
-          fill: #fbbf24;
-          background: #fbbf24;
-          color: #0c0e12;
+          font-weight: 700;
+          fill: #ffffff;
         }
         .sc-axis-label-x {
           font-size: 10px;
-          font-weight: 800;
-          fill: #22d3ee;
-          background: #22d3ee;
-          color: #0c0e12;
+          font-weight: 700;
+          fill: #ffffff;
         }
         
         .sc-grid-label {
@@ -679,11 +675,13 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                       width={52}
                       height={16}
                       rx={3}
-                      fill="#fbbf24"
+                      fill="rgba(18, 20, 26, 0.95)"
+                      stroke={themeColor}
+                      strokeWidth="1"
                     />
                     <text
                       x={paddingLeft + chartWidth + 28}
-                      y={hoverY + 4}
+                      y={hoverY + 4.5}
                       className="sc-axis-label-y"
                       textAnchor="middle"
                     >
@@ -697,11 +695,13 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                       width={64}
                       height={16}
                       rx={3}
-                      fill="#22d3ee"
+                      fill="rgba(18, 20, 26, 0.95)"
+                      stroke={themeColor}
+                      strokeWidth="1"
                     />
                     <text
                       x={hoverX}
-                      y={height - 16}
+                      y={height - 15.5}
                       className="sc-axis-label-x"
                       textAnchor="middle"
                     >
