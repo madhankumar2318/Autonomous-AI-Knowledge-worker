@@ -1723,7 +1723,7 @@ export default function ChatAssistant({
   return (
     <div className="chat-floating-wrapper">
       {isOpen && (
-        <div className="chat-floating-window">
+        <div className="chat-floating-window scale-in-smooth">
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 14px 16px 12px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)", flexShrink: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1, marginRight: "12px" }}>
@@ -1876,7 +1876,7 @@ export default function ChatAssistant({
             {messages.map((msg, idx) => {
               const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
               return (
-                <div key={idx} style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+                <div key={idx} className="animate-message-bubble" style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
                   <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: msg.role === "user" ? "var(--bg-hover)" : "rgba(34,211,238,0.12)", border: msg.role === "user" ? "1px solid var(--border-light)" : "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {msg.role === "user" ? <User size={13} color="#fff" /> : <Bot size={13} color="#67e8f9" />}
                   </div>
@@ -1954,9 +1954,7 @@ export default function ChatAssistant({
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         title="AI Assistant"
-        style={{ width: "56px", height: "56px", borderRadius: "18px", background: isOpen ? "linear-gradient(135deg, #0891b2, #0369a1)" : "linear-gradient(135deg, #22d3ee, #0891b2)", border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isOpen ? "0 8px 32px rgba(8,145,178,0.6), 0 0 0 4px rgba(34,211,238,0.15)" : "0 8px 24px rgba(34,211,238,0.4)", transition: "all 0.25s cubic-bezier(0.34,1.56,0.64,1)", transform: isOpen ? "rotate(180deg) scale(1.05)" : "scale(1)" }}
-        onMouseEnter={(e) => { if (!isOpen) { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.1) translateY(-2px)"; } }}
-        onMouseLeave={(e) => { if (!isOpen) { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; } }}
+        className={`chat-fab ${isOpen ? "chat-fab-active" : "fab-pulse-glow"}`}
       >
         {isOpen ? <X size={22} color="#fff" /> : <MessageSquare size={22} color="#fff" />}
       </button>
@@ -1967,6 +1965,31 @@ export default function ChatAssistant({
           bottom: 32px;
           right: 32px;
           z-index: 100;
+        }
+
+        .chat-fab {
+          width: 56px;
+          height: 56px;
+          border-radius: 18px;
+          background: linear-gradient(135deg, #22d3ee, #0891b2);
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 8px 24px rgba(34, 211, 238, 0.4);
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+          outline: none;
+          will-change: transform, box-shadow;
+        }
+        .chat-fab:hover {
+          transform: scale(1.1) translateY(-2px);
+          box-shadow: 0 12px 28px rgba(34, 211, 238, 0.55), 0 0 15px rgba(34, 211, 238, 0.2);
+        }
+        .chat-fab-active {
+          background: linear-gradient(135deg, #0891b2, #0369a1) !important;
+          box-shadow: 0 8px 32px rgba(8, 145, 178, 0.6), 0 0 0 4px rgba(34, 211, 238, 0.15) !important;
+          transform: rotate(180deg) scale(1.05) !important;
         }
 
         .chat-floating-window {
@@ -1981,7 +2004,6 @@ export default function ChatAssistant({
           border: 1px solid var(--border-medium);
           border-radius: 20px;
           box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(34,211,238,0.08);
-          animation: slideUpFade 0.22s ease;
           display: flex;
           flex-direction: column;
           overflow: hidden;

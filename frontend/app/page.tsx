@@ -751,6 +751,14 @@ export default function Home_Page() {
           background: var(--bg-hover);
           color: var(--text-primary);
         }
+        .sidebar-nav-item:hover .sidebar-nav-icon-wrap {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(var(--tab-accent-rgb), 0.25);
+          border-color: rgba(var(--tab-accent-rgb), 0.35);
+        }
+        .sidebar-nav-item:hover .sidebar-nav-icon {
+          color: var(--tab-accent);
+        }
         .sidebar-nav-active {
           background: rgba(var(--tab-accent-rgb), 0.1) !important;
           border-color: rgba(var(--tab-accent-rgb), 0.2) !important;
@@ -766,7 +774,8 @@ export default function Home_Page() {
           flex-shrink: 0;
           background: var(--bg-secondary);
           border: 1px solid var(--border-light);
-          transition: all 0.18s ease;
+          transition: all 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+          will-change: transform;
         }
         .sidebar-nav-active .sidebar-nav-icon-wrap {
           background: rgba(var(--tab-accent-rgb), 0.2);
@@ -775,7 +784,7 @@ export default function Home_Page() {
         .sidebar-nav-icon {
           width: 15px;
           height: 15px;
-          transition: color 0.18s ease;
+          transition: color 0.2s ease;
         }
         .sidebar-nav-active .sidebar-nav-icon {
           color: var(--tab-accent) !important;

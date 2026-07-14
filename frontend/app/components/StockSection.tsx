@@ -107,6 +107,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedSector, setSelectedSector] = useState<string>("All");
   const [activeStockChart, setActiveStockChart] = useState<string | null>(null);
+  const [priceFlash, setPriceFlash] = useState<Record<string, "up" | "down">>({});
 
 
   const [wsConnected, setWsConnected] = useState(false);
@@ -149,7 +150,31 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === "stocks") {
-            setData(msg.data);
+            setData((prev) => {
+              if (prev && prev.stocks && msg.data && msg.data.stocks) {
+                const flashes: Record<string, "up" | "down"> = {};
+                for (const newS of msg.data.stocks) {
+                  const oldS = prev.stocks.find(s => s.symbol === newS.symbol);
+                  if (oldS && oldS.price != null && newS.price != null) {
+                    if (newS.price > oldS.price) flashes[newS.symbol] = "up";
+                    else if (newS.price < oldS.price) flashes[newS.symbol] = "down";
+                  }
+                }
+                if (Object.keys(flashes).length > 0) {
+                  setPriceFlash((prevFlash) => ({ ...prevFlash, ...flashes }));
+                  setTimeout(() => {
+                    setPriceFlash((prevFlash) => {
+                      const updated = { ...prevFlash };
+                      for (const sym of Object.keys(flashes)) {
+                        delete updated[sym];
+                      }
+                      return updated;
+                    });
+                  }, 800);
+                }
+              }
+              return msg.data;
+            });
             setLastUpdated(new Date().toLocaleTimeString());
             setLoading(false);
           }
@@ -198,7 +223,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         {data.stocks.slice(0, 6).filter(s => !s.error).map((s) => {
           const isPos = (s.change_percent ?? 0) >= 0;
           return (
-            <div key={s.symbol} style={{ display: "grid", gridTemplateColumns: "48px 1fr 50px 50px", gap: "6px", padding: "6px 8px", borderRadius: "8px", alignItems: "center", background: "var(--bg-secondary)", border: "1px solid var(--border-light)" }}>
+            <div key={s.symbol} className={`${priceFlash[s.symbol] === "up" ? "flash-price-up" : ""} ${priceFlash[s.symbol] === "down" ? "flash-price-down" : ""}`} style={{ display: "grid", gridTemplateColumns: "48px 1fr 50px 50px", gap: "6px", padding: "6px 8px", borderRadius: "8px", alignItems: "center", background: "var(--bg-secondary)", border: "1px solid var(--border-light)", transition: "background-color 0.8s ease" }}>
               <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)" }}>{s.symbol}</span>
               <Sparkline data={s.history} isPos={isPos} width={50} height={18} />
               <span style={{ fontSize: "10px", fontWeight: 700, color: isPos ? "#34d399" : "#f87171", textAlign: "right" }}>{formatChange(s.change_percent)}</span>
@@ -375,7 +400,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
                 return (
                   <div
                     key={s.symbol}
-                    className="stocks-card"
+                    className={`stocks-card premium-card-hover ${priceFlash[s.symbol] === "up" ? "flash-price-up" : ""} ${priceFlash[s.symbol] === "down" ? "flash-price-down" : ""}`}
                     style={{ "--stock-color": isPos ? "#34d399" : "#f87171" } as React.CSSProperties}
                     onClick={() => setActiveStockChart(s.symbol)}
                   >

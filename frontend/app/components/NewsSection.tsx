@@ -307,7 +307,7 @@ export default function NewsSection({
                 href={featuredArticle.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="news-hero-card"
+                className="news-hero-card premium-card-hover"
               >
                 {featuredArticle.urlToImage ? (
                   <div className="news-hero-img-wrap">
@@ -377,7 +377,7 @@ export default function NewsSection({
                     href={art.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="news-side-card"
+                    className="news-side-card premium-card-hover"
                   >
                     <div className="news-side-content">
                       <div className="news-side-meta">
@@ -428,7 +428,7 @@ export default function NewsSection({
                   href={article.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="news-card"
+                  className="news-card premium-card-hover"
                 >
                   <div className="news-card-img-wrap" style={!article.urlToImage ? { background: getPlaceholderGradient(article.title), display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}>
                     {article.urlToImage ? (
