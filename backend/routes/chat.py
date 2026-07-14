@@ -1,5 +1,5 @@
 # backend/routes/chat.py
-from fastapi import APIRouter, Header, Cookie, Request
+from fastapi import APIRouter, Header, Cookie, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List
@@ -18,6 +18,7 @@ from db import insert_history
 from routes.news import _fetch_from_api
 from routes.search import SERPAPI_KEY
 from routes.upload import UPLOAD_DIR
+from routes.auth import _get_username_from_auth_header, _decode_access_token
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -881,8 +882,17 @@ async def handle_mock_fallback(msg: str):
 # ── Chat Thread CRUD Endpoints ────────────────────────────────────────────────
 
 @router.get("/threads")
-def list_threads(username: str):
+def list_threads(
+    username: str,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     """List all chat threads for a user, sorted by most recent."""
+    if username != "guest":
+        token_user = _get_username_from_auth_header(authorization, access_token)
+        if token_user != username:
+            raise HTTPException(status_code=403, detail="Access denied. You cannot view another user's chat threads.")
+
     from db import get_conn, get_cursor, execute_sql
     with get_conn() as conn:
         cur = get_cursor(conn)
@@ -896,8 +906,17 @@ def list_threads(username: str):
 
 
 @router.post("/threads")
-def create_thread(req: ThreadCreateRequest):
+def create_thread(
+    req: ThreadCreateRequest,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     """Create a new chat thread."""
+    if req.username != "guest":
+        token_user = _get_username_from_auth_header(authorization, access_token)
+        if token_user != req.username:
+            raise HTTPException(status_code=403, detail="Access denied. You cannot create a chat thread for another user.")
+
     import uuid
     from db import get_conn, get_cursor, execute_sql
     thread_id = str(uuid.uuid4())
@@ -913,11 +932,27 @@ def create_thread(req: ThreadCreateRequest):
 
 
 @router.patch("/threads/{thread_id}")
-def rename_thread(thread_id: str, req: ThreadRenameRequest):
+def rename_thread(
+    thread_id: str,
+    req: ThreadRenameRequest,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     """Rename a chat thread."""
     from db import get_conn, get_cursor, execute_sql
     with get_conn() as conn:
         cur = get_cursor(conn)
+        execute_sql(cur, "SELECT username FROM chat_threads WHERE id = ?", (thread_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Chat thread not found")
+        
+        owner = row["username"]
+        if owner != "guest":
+            token_user = _get_username_from_auth_header(authorization, access_token)
+            if token_user != owner:
+                raise HTTPException(status_code=403, detail="Access denied. You do not own this chat thread.")
+
         execute_sql(
             cur,
             "UPDATE chat_threads SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -928,22 +963,52 @@ def rename_thread(thread_id: str, req: ThreadRenameRequest):
 
 
 @router.delete("/threads/{thread_id}")
-def delete_thread(thread_id: str):
+def delete_thread(
+    thread_id: str,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     """Delete a chat thread and all its messages (cascade)."""
     from db import get_conn, get_cursor, execute_sql
     with get_conn() as conn:
         cur = get_cursor(conn)
+        execute_sql(cur, "SELECT username FROM chat_threads WHERE id = ?", (thread_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Chat thread not found")
+        
+        owner = row["username"]
+        if owner != "guest":
+            token_user = _get_username_from_auth_header(authorization, access_token)
+            if token_user != owner:
+                raise HTTPException(status_code=403, detail="Access denied. You do not own this chat thread.")
+
         execute_sql(cur, "DELETE FROM chat_threads WHERE id = ?", (thread_id,))
         conn.commit()
     return {"status": "deleted", "id": thread_id}
 
 
 @router.get("/threads/{thread_id}/messages")
-def get_thread_messages(thread_id: str):
+def get_thread_messages(
+    thread_id: str,
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
     """Get all messages for a chat thread."""
     from db import get_conn, get_cursor, execute_sql
     with get_conn() as conn:
         cur = get_cursor(conn)
+        execute_sql(cur, "SELECT username FROM chat_threads WHERE id = ?", (thread_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Chat thread not found")
+        
+        owner = row["username"]
+        if owner != "guest":
+            token_user = _get_username_from_auth_header(authorization, access_token)
+            if token_user != owner:
+                raise HTTPException(status_code=403, detail="Access denied. You do not own this chat thread.")
+
         execute_sql(
             cur,
             "SELECT id, thread_id, role, content, created_at FROM chat_messages WHERE thread_id = ? ORDER BY created_at ASC",
