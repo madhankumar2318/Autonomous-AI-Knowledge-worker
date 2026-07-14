@@ -11,9 +11,18 @@ from rate_limit import auth_limiter
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_session_key_1234567890!")
-ALGORITHM = "HS256"
 is_prod = os.getenv("ENV", "development").lower() == "production" or os.getenv("SECURE_COOKIES", "false").lower() == "true"
+
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    if is_prod:
+        raise RuntimeError("CRITICAL SECURITY ERROR: The JWT_SECRET environment variable must be set in production mode!")
+    else:
+        import secrets
+        JWT_SECRET = secrets.token_hex(32)
+        print("[WARN] JWT_SECRET not found in environment. Generated dynamic session key for development.")
+
+ALGORITHM = "HS256"
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -392,12 +401,15 @@ def update_profile(
 
 @router.put("/password")
 def change_password(
+    request: Request,
     old_password: str = Form(...),
     new_password: str = Form(...),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
     """Change password for the authenticated user."""
+    client_ip = request.client.host if request.client else "unknown"
+    auth_limiter.check_rate_limit(client_ip)
     username = _get_username_from_auth_header(authorization, access_token)
     
     is_strong, msg = _is_strong_password(new_password)

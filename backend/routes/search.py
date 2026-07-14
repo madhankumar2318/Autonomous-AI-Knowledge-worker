@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query
 router = APIRouter(prefix="/search", tags=["Search"])
 
 # SerpAPI key (optional — DuckDuckGo is used as fallback if unreachable)
-SERPAPI_KEY = os.getenv("SERPAPI_KEY", "274cc21d7e711fa7d08ff66ffd401b3558a0d12f8bebb0a6b4cd31059b77cdfb")
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
 
 def _serpapi_search(query: str, page: int = 1) -> list[dict]:
