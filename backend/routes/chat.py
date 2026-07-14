@@ -1418,6 +1418,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             if selected_model == "llama-70b" and groq_client:
                 try:
                     print("[INFO] Executing Streaming Chat Agent using Groq...")
+                    yield _sse_event("model_used", "Llama 3.3 (Groq)")
                     # Build messages
                     messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
                     for msg in resolved_history:
@@ -1623,10 +1624,12 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                 for model_name in MODELS_TO_TRY:
                     if streamed:
                         break
+                    friendly_name = "Gemini 2.5 Pro" if "pro" in model_name else "Gemini 2.5 Flash"
                     for attempt in range(3):
                         if await request.is_disconnected():
                             return
                         try:
+                            yield _sse_event("model_used", friendly_name)
                             # ── Manual Gemini Tool-Calling Loop ──
                             for loop_idx in range(5):
                                 if await request.is_disconnected():

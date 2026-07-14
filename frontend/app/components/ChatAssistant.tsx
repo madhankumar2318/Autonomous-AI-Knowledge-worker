@@ -42,6 +42,7 @@ interface ChatMessage {
   content: string;
   thinkingLogs?: string[];
   toolLogs?: ToolLog[];
+  model?: string;
 }
 
 interface ChatThread {
@@ -868,6 +869,18 @@ export default function ChatAssistant({
                 }
                 return updated;
               });
+            } else if (event.type === "model_used") {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                if (last && last.role === "ai") {
+                  updated[updated.length - 1] = {
+                    ...last,
+                    model: event.content,
+                  };
+                }
+                return updated;
+              });
             } else if (event.type === "status") {
               setStreamingStatus(event.content);
               setMessages((prev) => {
@@ -1131,6 +1144,11 @@ export default function ChatAssistant({
                       <>
                         {formatMessage(msg.content)}
                         {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
+                        {msg.model && (
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.8 }}>
+                            ⚡ {msg.model}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
@@ -1898,6 +1916,11 @@ export default function ChatAssistant({
                       <>
                         {formatMessage(msg.content)}
                         {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
+                        {msg.model && (
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.8 }}>
+                            ⚡ {msg.model}
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
