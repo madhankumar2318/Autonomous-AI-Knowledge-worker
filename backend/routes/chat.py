@@ -1630,13 +1630,16 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             return
                         try:
                             yield _sse_event("model_used", friendly_name)
-                            # ── Manual Gemini Tool-Calling Loop ──
+                            # ── Unified Gemini Tool-Streaming Loop ──
                             for loop_idx in range(5):
                                 if await request.is_disconnected():
                                     return
 
-                                # Invoke model (generate_content does not auto-run tools)
-                                gemini_response = client.models.generate_content(
+                                has_tool_calls = False
+                                tool_calls = []
+
+                                # Call stream immediately
+                                gemini_stream = client.models.generate_content_stream(
                                     model=model_name,
                                     contents=contents,
                                     config=types.GenerateContentConfig(
@@ -1645,13 +1648,34 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                     )
                                 )
 
-                                # If no function calls are returned, exit the loop to stream the final response
-                                tool_calls = gemini_response.function_calls
-                                if not tool_calls:
+                                for chunk in gemini_stream:
+                                    if await request.is_disconnected():
+                                        return
+                                    
+                                    # Collect function calls if present
+                                    if chunk.function_calls:
+                                        has_tool_calls = True
+                                        tool_calls.extend(chunk.function_calls)
+                                    
+                                    # Stream text tokens immediately if we haven't seen tool calls
+                                    token = chunk.text or ""
+                                    if token and not has_tool_calls:
+                                        accumulated_reply += token
+                                        yield _sse_event("token", token)
+                                        await asyncio.sleep(0)
+
+                                if not has_tool_calls:
+                                    # No tool calls in this turn. We are completely done!
+                                    streamed = True
                                     break
 
-                                # Append the model's call to history
-                                contents.append(gemini_response.candidates[0].content)
+                                # Append the model's function calls to contents history
+                                contents.append(
+                                    types.Content(
+                                        role="model",
+                                        parts=[types.Part(function_call=fc) for fc in tool_calls]
+                                    )
+                                )
 
                                 # Execute tool calls and stream status notifications
                                 tool_parts = []
@@ -1673,7 +1697,6 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                         tool_output = f"Error: Tool {func_name} not found."
                                     else:
                                         try:
-                                            tool_args = tool_call.args or {}
                                             # Run blocking tool in executor, propagating contextvars
                                             import contextvars
                                             ctx = contextvars.copy_context()
@@ -1706,29 +1729,6 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                         parts=tool_parts
                                     )
                                 )
-
-                            # Now stream the final response
-                            if await request.is_disconnected():
-                                return
-
-                            gemini_stream = client.models.generate_content_stream(
-                                model=model_name,
-                                contents=contents,
-                                config=types.GenerateContentConfig(
-                                    tools=agent_tools,
-                                    system_instruction=stream_instruction,
-                                )
-                            )
-
-                            for chunk in gemini_stream:
-                                if await request.is_disconnected():
-                                    print("[INFO] Client disconnected mid-stream (Gemini).")
-                                    return
-                                token = chunk.text or ""
-                                if token:
-                                    accumulated_reply += token
-                                    yield _sse_event("token", token)
-                                    await asyncio.sleep(0)
 
                             streamed = True
                             last_error = None
