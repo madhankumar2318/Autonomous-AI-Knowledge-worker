@@ -9,6 +9,8 @@ import {
   Bell,
   Settings,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import ChatAssistant from "./components/ChatAssistant";
@@ -109,6 +111,7 @@ export default function Home_Page() {
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   const [globalSearchTrigger, setGlobalSearchTrigger] = useState("");
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     // Intercept global fetch responses to catch session expirations (HTTP 401)
@@ -239,6 +242,16 @@ export default function Home_Page() {
       {/* ── PREMIUM TOP HEADER ── */}
       <header className="app-header">
         <div className="header-inner">
+          {/* Mobile Menu Toggle */}
+          <button
+            type="button"
+            className="mobile-nav-toggle"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          >
+            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+
           {/* Brand */}
           <div className="header-brand">
             <div className="brand-logo">
@@ -315,8 +328,16 @@ export default function Home_Page() {
 
       {/* ── BODY: SIDEBAR + CONTENT ── */}
       <div className="app-body">
+        {/* Mobile Sidebar Overlay Backdrop */}
+        {isMobileMenuOpen && (
+          <div
+            className="mobile-sidebar-overlay"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+        )}
+
         {/* ── PREMIUM SIDEBAR ── */}
-        <aside className={`app-sidebar ${sidebarExpanded ? "sidebar-expanded" : "sidebar-collapsed"}`}>
+        <aside className={`app-sidebar ${sidebarExpanded ? "sidebar-expanded" : "sidebar-collapsed"} ${isMobileMenuOpen ? "mobile-menu-open" : ""}`}>
           <div className="sidebar-inner">
             {/* Nav Items */}
             <nav className="sidebar-nav">
@@ -328,7 +349,14 @@ export default function Home_Page() {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => tab.id === "settings" ? setShowProfile(true) : setActiveTab(tab.id)}
+                    onClick={() => {
+                      if (tab.id === "settings") {
+                        setShowProfile(true);
+                      } else {
+                        setActiveTab(tab.id);
+                      }
+                      setIsMobileMenuOpen(false);
+                    }}
                     className={`sidebar-nav-item ${isActive ? "sidebar-nav-active" : ""}`}
                     style={{
                       "--tab-accent": tab.accent,
@@ -975,17 +1003,85 @@ export default function Home_Page() {
           margin: 0;
         }
 
-        .mobile-bottom-nav {
+        .mobile-nav-toggle {
           display: none;
+          background: none;
+          border: none;
+          color: var(--text-secondary);
+          cursor: pointer;
+          align-items: center;
+          justify-content: center;
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: 1px solid var(--border-light);
+          flex-shrink: 0;
+          transition: all 0.2s ease;
+        }
+        .mobile-nav-toggle:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .mobile-sidebar-overlay {
+          position: fixed;
+          top: 58px;
+          inset: 0;
+          background: rgba(3, 4, 9, 0.4);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          z-index: 99;
+          animation: overlayFadeIn 0.22s ease-out forwards;
+        }
+        @keyframes overlayFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         @media (max-width: 768px) {
-          .app-sidebar { display: none; }
-          .header-search { display: none; }
-          .avatar-info { display: none; }
-          .brand-text { display: none; }
+          .mobile-nav-toggle {
+            display: flex;
+          }
+          .app-sidebar {
+            position: fixed !important;
+            top: 58px;
+            left: 0;
+            bottom: 0;
+            width: 250px !important;
+            z-index: 100 !important;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            background: var(--bg-sidebar) !important;
+            box-shadow: 12px 0 30px rgba(0, 0, 0, 0.6) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            display: flex !important;
+          }
+          .app-sidebar.mobile-menu-open {
+            transform: translateX(0) !important;
+          }
+          .sidebar-nav-text,
+          .sidebar-badge,
+          .sidebar-section-label {
+            display: flex !important;
+            opacity: 1 !important;
+          }
+          .sidebar-nav-item {
+            justify-content: flex-start !important;
+            padding: 9px 12px !important;
+          }
+          .sidebar-nav-icon-wrap {
+            margin: 0 !important;
+          }
+          .sidebar-collapse-btn {
+            display: none !important;
+          }
+
+          .header-search { display: none !important; }
+          .avatar-info { display: none !important; }
+          .brand-text { display: none !important; }
           .app-body { height: calc(100dvh - 58px) !important; min-height: 0 !important; }
-          .content-body { padding: 16px; }
+          .content-body { padding: 16px !important; }
 
           .header-inner {
             justify-content: space-between !important;
@@ -1005,62 +1101,13 @@ export default function Home_Page() {
           .header-avatar-btn > svg {
             display: none !important;
           }
-
-          /* Mobile Bottom Navigation */
+          
+          /* Hide bottom bar since side drawer replaces it */
           .mobile-bottom-nav {
-            display: flex;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 64px;
-            background: rgba(8, 8, 20, 0.95);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            z-index: 90;
-            justify-content: space-around;
-            align-items: center;
-            padding: 0 12px;
-            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+            display: none !important;
           }
-          
-          .mobile-nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 10px;
-            font-weight: 700;
-            gap: 4px;
-            flex: 1;
-            height: 100%;
-            transition: all 0.2s ease;
-            -webkit-tap-highlight-color: transparent;
-          }
-          
-          .mobile-nav-icon {
-            width: 20px;
-            height: 20px;
-            transition: transform 0.2s ease;
-          }
-          
-          .mobile-nav-active {
-            color: var(--tab-accent, var(--accent-primary)) !important;
-          }
-          
-          .mobile-nav-active .mobile-nav-icon {
-            transform: translateY(-2px);
-            filter: drop-shadow(0 0 5px var(--tab-accent, var(--accent-primary)));
-          }
-          
-          /* Content area padding to make space for bottom bar */
           .app-main {
-            padding-bottom: 74px !important;
+            padding-bottom: 0 !important;
           }
         }
       `}</style>

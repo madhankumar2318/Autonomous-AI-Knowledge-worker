@@ -2189,18 +2189,19 @@ export default function ChatAssistant({
 
         @media (max-width: 600px) {
           .chat-floating-wrapper {
-            bottom: 80px !important;
-            right: 16px !important;
+            bottom: 24px !important;
+            right: 20px !important;
           }
           .chat-floating-window {
             position: fixed !important;
-            bottom: 146px !important;
+            bottom: 88px !important;
             right: 16px !important;
             left: 16px !important;
             width: auto !important;
-            height: calc(100vh - 180px) !important;
-            max-height: 520px !important;
+            height: calc(100dvh - 110px) !important;
+            max-height: 100% !important;
             box-shadow: 0 16px 48px rgba(0,0,0,0.85) !important;
+            border-radius: 18px !important;
           }
         }
       `}</style>
