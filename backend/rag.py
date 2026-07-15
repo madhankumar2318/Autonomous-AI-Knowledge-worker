@@ -324,13 +324,13 @@ def extract_pdf_content_via_gemini(filepath: str) -> List[Dict[str, Any]]:
         # Wait for file to become active
         import time
         for _ in range(15):
-            if pdf_file.state.name == "ACTIVE":
+            if pdf_file.state.name == "ACTIVE": # type: ignore
                 break
             time.sleep(1)
-            pdf_file = client.files.get(name=pdf_file.name)
+            pdf_file = client.files.get(name=pdf_file.name) # type: ignore
 
-        if pdf_file.state.name != "ACTIVE":
-            print(f"[RAG] Gemini File upload stuck in state: {pdf_file.state.name}")
+        if pdf_file.state.name != "ACTIVE": # type: ignore
+            print(f"[RAG] Gemini File upload stuck in state: {pdf_file.state.name}") # type: ignore
             return []
 
         print("[RAG] Transcribing scanned pages via gemini-2.5-flash...")
@@ -344,10 +344,10 @@ def extract_pdf_content_via_gemini(filepath: str) -> List[Dict[str, Any]]:
 
         # Clean up temporary file from Gemini storage
         try:
-            client.files.delete(name=pdf_file.name)
+            client.files.delete(name=pdf_file.name) # type: ignore
             print("[RAG] Temporary file cleaned up from Gemini API storage.")
         except Exception as del_err:
-            print(f"[RAG] Warning: failed to delete temp file {pdf_file.name}: {del_err}")
+            print(f"[RAG] Warning: failed to delete temp file {pdf_file.name}: {del_err}") # type: ignore
 
         transcription = response.text or ""
         blocks = []
@@ -1064,7 +1064,7 @@ def _fts_search(query: str, username: str, top_k: int, cur, active_file: str = N
         return results
     except Exception as e:
         print(f"[RAG] FTS search failed (non-fatal, using vector-only): {e}")
-def _local_fts_search(query: str, username: str, top_k: int, active_file: str = None) -> List[Dict[str, Any]]:
+def _local_fts_search(query: str, username: Optional[str], top_k: int, active_file: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Keyword search in ChromaDB by fetching metadata and documents for the active user,
     ranking using term occurrence frequency, and formatting standard output.
