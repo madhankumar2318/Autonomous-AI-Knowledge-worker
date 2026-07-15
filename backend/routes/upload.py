@@ -21,6 +21,10 @@ ALLOWED_EXTENSIONS = {".csv", ".json", ".pdf", ".txt", ".md", ".docx", ".xlsx"}
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "25"))
 MAX_UPLOAD_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
+# Total user storage quota configuration (default: 100MB)
+MAX_USER_STORAGE_MB = int(os.getenv("MAX_USER_STORAGE_MB", "100"))
+MAX_USER_STORAGE_BYTES = MAX_USER_STORAGE_MB * 1024 * 1024
+
 # S3 Cloud Storage Configurations
 S3_BUCKET = os.getenv("S3_BUCKET")
 S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
@@ -76,6 +80,19 @@ async def upload_file(
                 status_code=400
             )
 
+        # Check current total user storage size
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT SUM(size) as total_size FROM uploads WHERE user_id = ?", (user_id,))
+            row = cur.fetchone()
+            current_total = row["total_size"] if row and row["total_size"] is not None else 0
+
+        if current_total >= MAX_USER_STORAGE_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Your total storage quota limit ({MAX_USER_STORAGE_MB}MB) has been reached. Please delete some files first."
+            )
+
         # Create user-specific folder locally
         user_upload_dir = os.path.join(UPLOAD_DIR, username)
         os.makedirs(user_upload_dir, exist_ok=True)
@@ -95,6 +112,11 @@ async def upload_file(
                         raise HTTPException(
                             status_code=400,
                             detail=f"File exceeds maximum size limit of {MAX_FILE_SIZE_MB}MB."
+                        )
+                    if current_total + size > MAX_USER_STORAGE_BYTES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Uploading this file exceeds your total storage quota limit of {MAX_USER_STORAGE_MB}MB. Please free up space."
                         )
                     f.write(chunk)
         except Exception as e:
@@ -470,11 +492,29 @@ def edit_file(
         # 1. Verify file ownership (Database read)
         with get_conn() as conn:
             cur = get_cursor(conn)
-            execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            execute_sql(cur, "SELECT filepath, size FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
             row = cur.fetchone()
 
         if not row:
             raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
+
+        old_size = row["size"] if row and row["size"] is not None else 0
+
+        # Check total user storage usage
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT SUM(size) as total_size FROM uploads WHERE user_id = ?", (user_id,))
+            sum_row = cur.fetchone()
+            current_total = sum_row["total_size"] if sum_row and sum_row["total_size"] is not None else 0
+
+        content_bytes = req.content.encode("utf-8")
+        new_size = len(content_bytes)
+
+        if current_total - old_size + new_size > MAX_USER_STORAGE_BYTES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Updating this file would exceed your total storage quota limit of {MAX_USER_STORAGE_MB}MB. Please delete other files first."
+            )
 
         # 2. Check if file is an editable text-based file
         _, ext = os.path.splitext(filename.lower())
@@ -493,10 +533,8 @@ def edit_file(
 
         # 4. Overwrite physical file
         try:
-            content_bytes = req.content.encode("utf-8")
             with open(local_path, "wb") as f:
                 f.write(content_bytes)
-            new_size = len(content_bytes)
         except Exception as e:
             active_user_context.reset(token_ctx)
             raise HTTPException(status_code=500, detail=f"Failed to write file update: {e}")
