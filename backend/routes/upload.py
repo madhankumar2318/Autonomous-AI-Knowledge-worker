@@ -464,6 +464,12 @@ def download_file(
             media_type=mime_type,
             headers={"Content-Disposition": f"inline; filename=\"{filename}\""}
         )
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/parse-table/{filename}")
 def parse_table_file(
     filename: str,
