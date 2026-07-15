@@ -220,6 +220,7 @@ export default function Home_Page() {
           <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0e7490] opacity-35" />
         </div>
         <div style={{ position: "relative", zIndex: 10, width: "100%", display: "flex", justifyContent: "center", margin: "auto 0" }}>
+          <div className="auth-glow-backing" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1 }} />
           <LoginForm onLoginSuccess={(username, _token) => {
             setIsLoggedIn(true);
             setLoggedInUser(username);

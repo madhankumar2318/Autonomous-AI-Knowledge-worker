@@ -940,10 +940,10 @@ input:-webkit-autofill:active {
    ======================================== */
 .auth-glow-backing {
   position: absolute;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.06) 0%, rgba(59, 130, 246, 0.01) 70%, transparent 100%);
-  filter: blur(60px);
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.16) 0%, rgba(59, 130, 246, 0.06) 50%, transparent 100%) !important;
+  filter: blur(50px) !important;
   pointer-events: none;
   z-index: 0;
   animation: float-slow 12s infinite ease-in-out;
