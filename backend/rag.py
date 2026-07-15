@@ -1064,7 +1064,7 @@ def _fts_search(query: str, username: str, top_k: int, cur, active_file: str = N
         return results
     except Exception as e:
         print(f"[RAG] FTS search failed (non-fatal, using vector-only): {e}")
-def _local_fts_search(query: str, username: Optional[str], top_k: int, active_file: Optional[str] = None) -> List[Dict[str, Any]]:
+def _local_fts_search(query: str, username: Optional[str], top_k: int, active_file: Optional[str] = None) -> List[Dict[str, Any]]: # type: ignore
     """
     Keyword search in ChromaDB by fetching metadata and documents for the active user,
     ranking using term occurrence frequency, and formatting standard output.
