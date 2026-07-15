@@ -76,6 +76,17 @@ interface LoginFormProps {
   onLoginSuccess: (username: string, token: string) => void;
 }
 
+const getPasswordScore = (pw: string) => {
+  if (!pw) return 0;
+  let score = 0;
+  if (pw.length >= 6) score += 1;
+  if (pw.length >= 10) score += 1;
+  if (/[A-Z]/.test(pw)) score += 1;
+  if (/[0-9]/.test(pw)) score += 1;
+  if (/[^a-zA-Z0-9]/.test(pw)) score += 1;
+  return score;
+};
+
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -518,6 +529,60 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   )}
                 </button>
               </div>
+
+              {/* Password Strength Indicator (Register Only) */}
+              {isRegistering && password && (
+                <div className="animate-fade-in" style={{ marginTop: "8px", padding: "0 4px" }}>
+                  <div style={{ display: "flex", gap: "4px", height: "4px", borderRadius: "2px", overflow: "hidden", background: "rgba(255,255,255,0.08)" }}>
+                    {[...Array(5)].map((_, i) => {
+                      const score = getPasswordScore(password);
+                      const active = i < score;
+                      let bg = "transparent";
+                      if (active) {
+                        if (score <= 2) bg = "#ef4444"; // Weak (red)
+                        else if (score <= 4) bg = "#f59e0b"; // Medium (amber)
+                        else bg = "#10b981"; // Strong (green)
+                      }
+                      return (
+                        <div
+                          key={i}
+                          style={{
+                            flex: 1,
+                            background: bg,
+                            transition: "background-color 0.3s ease",
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color:
+                        getPasswordScore(password) <= 2
+                          ? "#ef4444"
+                          : getPasswordScore(password) <= 4
+                          ? "#fbbf24"
+                          : "#34d399",
+                      marginTop: "6px",
+                      fontWeight: 600,
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <span>
+                      {getPasswordScore(password) <= 2
+                        ? "Weak Password"
+                        : getPasswordScore(password) <= 4
+                        ? "Medium Security"
+                        : "Strong & Secure"}
+                    </span>
+                    <span style={{ opacity: 0.7 }}>
+                      {password.length}/15 chars
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Confirm Password Field (Register Only) */}
@@ -862,11 +927,13 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           top: calc(100% + 6px);
           left: 0;
           width: 100%;
-          background: #080a13;
-          border: 1px solid var(--border-light);
+          background: rgba(8, 10, 19, 0.85) !important;
+          backdrop-filter: blur(20px) !important;
+          -webkit-backdrop-filter: blur(20px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.1) !important;
           border-radius: 14px;
           z-index: 50;
-          box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.7);
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
           padding: 6px;
           display: flex;
           flex-direction: column;
@@ -916,11 +983,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           transition: max-width 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s ease;
           padding: 48px 40px;
           border-radius: 28px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: linear-gradient(160deg, rgba(10,12,24,0.94) 0%, rgba(5,6,12,0.98) 100%);
-          backdrop-filter: blur(24px);
-          -webkit-backdrop-filter: blur(24px);
-          box-shadow: 0 24px 60px -12px rgba(0,0,0,0.85), 0 0 40px rgba(34, 211, 238, 0.03), inset 0 1px 0 rgba(255,255,255,0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12) !important;
+          background: rgba(10, 12, 24, 0.55) !important;
+          backdrop-filter: blur(32px) !important;
+          -webkit-backdrop-filter: blur(32px) !important;
+          box-shadow: 0 24px 60px -12px rgba(0,0,0,0.85), 0 0 50px rgba(34, 211, 238, 0.04), inset 0 1px 0 rgba(255,255,255,0.08) !important;
           box-sizing: border-box;
         }
 

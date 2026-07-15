@@ -878,3 +878,79 @@ input:-webkit-autofill:active {
   animation: stock-flash-down 0.8s ease-out forwards;
 }
 
+/* ========================================
+   Custom Scrollbar Styling
+   ======================================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 99px;
+  transition: background-color 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.45);
+}
+
+/* ========================================
+   Premium Shimmer Skeleton
+   ======================================== */
+@keyframes premium-shimmer {
+  0% {
+    background-position: -150% 0;
+  }
+  100% {
+    background-position: 150% 0;
+  }
+}
+.skeleton-premium {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(34, 211, 238, 0.08) 37%,
+    rgba(255, 255, 255, 0.03) 63%
+  );
+  background-size: 200% 100%;
+  animation: premium-shimmer 1.5s infinite ease-in-out;
+}
+
+/* ========================================
+   Marching Ants Dropzone Border
+   ======================================== */
+@keyframes marching-ants {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -20;
+  }
+}
+.marching-ants-active {
+  stroke-dasharray: 8 4;
+  animation: marching-ants 0.6s linear infinite;
+}
+
+/* ========================================
+   Auth Floating Glow Backdrop
+   ======================================== */
+.auth-glow-backing {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.06) 0%, rgba(59, 130, 246, 0.01) 70%, transparent 100%);
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+  animation: float-slow 12s infinite ease-in-out;
+}
+@keyframes float-slow {
+  0%, 100% { transform: translate(-10px, -10px); }
+  50% { transform: translate(10px, 10px); }
+}
+
+

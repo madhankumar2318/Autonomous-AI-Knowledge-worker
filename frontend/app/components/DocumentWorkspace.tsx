@@ -414,6 +414,19 @@ export default function DocumentWorkspace({
           overflow: auto;
           padding: 20px 24px;
         }
+        .dw-text-content mark {
+          background: rgba(245, 158, 11, 0.22) !important;
+          color: #fbbf24 !important;
+          border-bottom: 2px solid #fbbf24;
+          padding: 2px 4px;
+          border-radius: 4px;
+          box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+          animation: mark-pulse 2.2s infinite ease-in-out;
+        }
+        @keyframes mark-pulse {
+          0%, 100% { background: rgba(245, 158, 11, 0.2); }
+          50% { background: rgba(245, 158, 11, 0.35); }
+        }
         .dw-text-pre {
           font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
           font-size: 13px;

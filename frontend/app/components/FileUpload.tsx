@@ -429,7 +429,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           ) : (
             <div className="fw-files-list">
               {uploads.map((u) => (
-                <div key={u.id} className="fw-file-item">
+                <div key={u.id} className={`fw-file-item premium-card-hover file-glow-${u.filename.split(".").pop()?.toLowerCase() || ""}`}>
                   <div className="fw-file-icon-wrap">
                     <FileIcon filename={u.filename} />
                   </div>
@@ -627,13 +627,15 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           position: relative;
         }
         .fw-dropzone-dragging {
-          border-color: rgba(34,211,238,0.6) !important;
-          background: rgba(34,211,238,0.07) !important;
-          box-shadow: 0 0 0 3px rgba(34,211,238,0.1), inset 0 0 40px rgba(34,211,238,0.05);
+          border-color: #22d3ee !important;
+          background: rgba(34,211,238,0.06) !important;
+          box-shadow: 0 0 24px rgba(34,211,238,0.25), inset 0 0 20px rgba(34,211,238,0.1) !important;
+          transform: scale(1.012) translateY(-1px);
         }
         .fw-dropzone-ready {
-          border-color: rgba(52,211,153,0.4) !important;
-          background: rgba(52,211,153,0.04) !important;
+          border-color: #10b981 !important;
+          background: rgba(16,185,129,0.03) !important;
+          box-shadow: 0 0 16px rgba(16,185,129,0.15) !important;
         }
         .fw-dropzone-icon {
           width: 54px;
@@ -826,6 +828,22 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         .fw-file-item:hover {
           background: var(--bg-hover);
           border-color: var(--border-medium);
+        }
+        .file-glow-pdf:hover {
+          border-color: rgba(239, 68, 68, 0.35) !important;
+          box-shadow: 0 6px 20px rgba(239, 68, 68, 0.06) !important;
+        }
+        .file-glow-csv:hover {
+          border-color: rgba(16, 185, 129, 0.35) !important;
+          box-shadow: 0 6px 20px rgba(16, 185, 129, 0.06) !important;
+        }
+        .file-glow-json:hover {
+          border-color: rgba(245, 158, 11, 0.35) !important;
+          box-shadow: 0 6px 20px rgba(245, 158, 11, 0.06) !important;
+        }
+        .file-glow-txt:hover, .file-glow-md:hover {
+          border-color: rgba(168, 85, 247, 0.35) !important;
+          box-shadow: 0 6px 20px rgba(168, 85, 247, 0.06) !important;
         }
         .fw-file-icon-wrap {
           width: 38px;
