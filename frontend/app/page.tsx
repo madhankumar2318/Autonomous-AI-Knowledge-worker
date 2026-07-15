@@ -214,10 +214,10 @@ export default function Home_Page() {
         boxSizing: "border-box",
         overflowY: "auto"
       }}>
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none filter blur-[110px] saturate-[1.8]">
-          <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#0891b2] opacity-60" />
-          <div className="absolute top-[10%] right-[-15%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#22d3ee] opacity-40" />
-          <div className="absolute bottom-[-25%] left-[10%] w-[60vw] h-[60vw] rounded-full mix-blend-screen bg-[#0e7490] opacity-35" />
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none filter blur-[120px] saturate-[1.8]">
+          <div className="absolute top-[-20%] left-[-15%] w-[80vw] h-[80vw] rounded-full mix-blend-screen bg-[#7c3aed] opacity-45 animate-liquid-1" />
+          <div className="absolute top-[15%] right-[-20%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#ec4899] opacity-30 animate-liquid-2" />
+          <div className="absolute bottom-[-30%] left-[10%] w-[75vw] h-[75vw] rounded-full mix-blend-screen bg-[#06b6d4] opacity-35 animate-liquid-3" />
         </div>
         <div style={{ position: "relative", zIndex: 10, width: "100%", display: "flex", justifyContent: "center", margin: "auto 0" }}>
           <div className="auth-glow-backing" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1 }} />

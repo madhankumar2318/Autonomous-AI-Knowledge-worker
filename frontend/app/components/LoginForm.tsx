@@ -284,16 +284,16 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               alignItems: "center",
               justifyContent: "center",
               margin: "0 auto 20px",
-              background: "linear-gradient(135deg, rgba(34,211,238,0.15) 0%, rgba(59,130,246,0.1) 100%)",
-              border: "1px solid rgba(34,211,238,0.25)",
-              boxShadow: "0 0 24px rgba(34,211,238,0.12), inset 0 1px 0 rgba(255,255,255,0.1)",
+              background: "linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(6,182,212,0.1) 100%)",
+              border: "1px solid rgba(168,85,247,0.25)",
+              boxShadow: "0 0 24px rgba(168,85,247,0.12), inset 0 1px 0 rgba(255,255,255,0.1)",
               backdropFilter: "blur(8px)",
             }}
           >
             {isRegistering ? (
-              <UserPlus className="w-6 h-6 text-cyan-400 animate-fade-in" />
+              <UserPlus className="w-6 h-6 text-purple-400 animate-fade-in" />
             ) : (
-              <Lock className="w-6 h-6 text-cyan-400 animate-fade-in" />
+              <Lock className="w-6 h-6 text-purple-400 animate-fade-in" />
             )}
           </div>
           <h1
@@ -302,7 +302,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               fontSize: "28px",
               fontWeight: 800,
               letterSpacing: "-0.5px",
-              background: "linear-gradient(135deg, #ffffff 40%, #c8f5ff 100%)",
+              background: "linear-gradient(135deg, #ffffff 40%, #ebd5ff 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -673,8 +673,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               height: "52px",
               borderRadius: "14px",
               border: "none",
-              background: "linear-gradient(135deg, #22d3ee 0%, #0891b2 100%)",
-              color: "#030f1a",
+              background: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)",
+              color: "#ffffff",
               fontSize: "15px",
               fontWeight: 800,
               display: "flex",
@@ -682,7 +682,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               justifyContent: "center",
               gap: "8px",
               cursor: loading ? "wait" : "pointer",
-              boxShadow: "0 8px 24px rgba(34, 211, 238, 0.25)",
+              boxShadow: "0 8px 24px rgba(139, 92, 246, 0.25)",
               marginTop: "12px",
             }}
           >
@@ -694,8 +694,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     width: "18px",
                     height: "18px",
                     borderRadius: "50%",
-                    border: "2px solid rgba(3,15,26,0.25)",
-                    borderTopColor: "#030f1a",
+                    border: "2px solid rgba(255,255,255,0.25)",
+                    borderTopColor: "#ffffff",
                     animation: "spin 0.6s linear infinite",
                   }}
                 />
@@ -858,18 +858,18 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
 
         .auth-input:hover {
-          border-color: rgba(34, 211, 238, 0.25);
+          border-color: rgba(168, 85, 247, 0.3) !important;
         }
 
         .auth-input:focus {
-          border-color: var(--accent-primary);
-          background: rgba(0, 0, 0, 0.5);
-          box-shadow: 0 0 16px rgba(34, 211, 238, 0.15);
+          border-color: #a855f7 !important;
+          background: rgba(0, 0, 0, 0.55);
+          box-shadow: 0 0 16px rgba(168, 85, 247, 0.2) !important;
         }
 
         .input-wrapper:focus-within .input-icon {
-          color: var(--accent-primary);
-          filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.4));
+          color: #a855f7 !important;
+          filter: drop-shadow(0 0 4px rgba(168, 85, 247, 0.4)) !important;
         }
 
         .input-action-btn {
@@ -897,7 +897,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         .auth-submit-btn:hover:not(:disabled) {
           transform: translateY(-1.5px);
           filter: brightness(1.05);
-          box-shadow: 0 10px 25px rgba(34, 211, 238, 0.35);
+          box-shadow: 0 10px 25px rgba(139, 92, 246, 0.4);
         }
 
         .auth-submit-btn:active:not(:disabled) {
@@ -905,7 +905,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
 
         .link-btn:hover {
-          color: #67e8f9 !important;
+          color: #d8b4fe !important;
           text-decoration: underline;
         }
 
