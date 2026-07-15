@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Routers
-from routes import news, stock, search, auth, upload, chat, live
+from routes import news, stock, search, auth, upload, chat, live, settings
 from routes import history as history_router
 
 from db import init_db, is_postgres_active
@@ -84,6 +84,7 @@ app.include_router(upload.router)
 app.include_router(history_router.router)
 app.include_router(chat.router)
 app.include_router(live.router)
+app.include_router(settings.router)
 
 
 # Ensure folders exist

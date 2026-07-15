@@ -764,6 +764,19 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
     if username is None:
         username = active_user_context.get()
 
+    chunk_size_val = 800
+    chunk_overlap_val = 100
+    if username:
+        try:
+            from db import get_user_id, get_user_settings
+            uid = get_user_id(username)
+            if uid:
+                settings = get_user_settings(uid)
+                chunk_size_val = settings.get("chunk_size", 800)
+                chunk_overlap_val = settings.get("chunk_overlap", 100)
+        except Exception as e:
+            print(f"[RAG] Error loading user settings for chunking: {e}")
+
     # 1. Clean up any existing index for this file
     delete_file_index(filename, username=username)
 
@@ -800,8 +813,8 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
             # Text blocks get sentence-aware chunking
             sub_chunks = chunk_text_smart(
                 block_text,
-                chunk_size=800,
-                overlap_sentences=1,
+                chunk_size=chunk_size_val,
+                overlap_sentences=max(1, chunk_overlap_val // 80),
                 chunk_type=block_type,
                 page_num=block_page
             )

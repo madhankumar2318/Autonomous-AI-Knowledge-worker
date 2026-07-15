@@ -34,6 +34,8 @@ class ChatRequest(BaseModel):
     filename: Optional[str] = None  # If set, restricts RAG to this document (Document Workspace mode)
     model: Optional[str] = None  # Supported values: 'llama-70b', 'gemini-pro', 'gemini-flash'
     thread_id: Optional[str] = None  # For persisting to a thread
+    temperature: Optional[float] = None
+    system_prompt: Optional[str] = None
 
 class ThreadCreateRequest(BaseModel):
     username: str
@@ -1046,6 +1048,28 @@ async def chat(
     if username == "guest" and req.username:
         username = req.username
 
+    # ── Retrieve User Settings ────────────────────────────────────────────────
+    user_settings = {
+        "default_model": "llama-70b",
+        "temperature": 0.1,
+        "system_prompt": "",
+        "chunk_size": 800,
+        "chunk_overlap": 100
+    }
+    if username != "guest":
+        try:
+            from db import get_user_id, get_user_settings
+            uid = get_user_id(username)
+            if uid:
+                user_settings = get_user_settings(uid)
+        except Exception as e:
+            print(f"Error fetching user settings for chat: {e}")
+
+    temperature_choice = req.temperature if req.temperature is not None else user_settings.get("temperature", 0.1)
+    system_prompt_choice = req.system_prompt if req.system_prompt is not None else user_settings.get("system_prompt", "")
+    if not system_prompt_choice:
+        system_prompt_choice = SYSTEM_INSTRUCTION
+
     # ── Rate Limiter Check ────────────────────────────────────────────────────
     from rate_limit import chat_limiter
     rate_limit_key = username if username != "guest" else (request.client.host if request.client else "unknown_ip")
@@ -1058,7 +1082,7 @@ async def chat(
 
     # Build effective system instruction (append document focus if in doc workspace mode)
     if req.filename:
-        effective_instruction = SYSTEM_INSTRUCTION + f"""
+        effective_instruction = system_prompt_choice + f"""
 
 ---
 
@@ -1072,7 +1096,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 - NEVER say you cannot access the file — always try both tools before giving up.
 """
     else:
-        effective_instruction = SYSTEM_INSTRUCTION
+        effective_instruction = system_prompt_choice
 
     async def run_chat():
         # Log the incoming query
@@ -1083,6 +1107,8 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 
         # Resolve which model we want to run
         selected_model = req.model
+        if not selected_model:
+            selected_model = user_settings.get("default_model", "llama-70b")
         if not selected_model:
             selected_model = "llama-70b" if get_groq_client() else "gemini-flash"
 
@@ -1095,7 +1121,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                 try:
                     print("[INFO] Executing Chat Agent using Groq...")
                     # Prepare messages in OpenAI/Groq format
-                    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+                    messages = [{"role": "system", "content": effective_instruction}]
                     for msg in req.history:
                         role = "user" if msg.role == "user" else "assistant"
                         messages.append({"role": role, "content": msg.content})
@@ -1109,7 +1135,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             messages=messages,
                             tools=GROQ_TOOLS,
                             tool_choice="auto",
-                            temperature=0.1,
+                            temperature=temperature_choice,
                         )
                         
                         response_message = groq_response.choices[0].message
@@ -1214,6 +1240,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             config=types.GenerateContentConfig(
                                 tools=agent_tools,
                                 system_instruction=effective_instruction,
+                                temperature=temperature_choice,
                             )
                         )
                         response = chat_session.send_message(req.message)
@@ -1336,6 +1363,28 @@ async def chat_stream(
     if username == "guest" and req.username:
         username = req.username
 
+    # ── Retrieve User Settings ────────────────────────────────────────────────
+    user_settings = {
+        "default_model": "llama-70b",
+        "temperature": 0.1,
+        "system_prompt": "",
+        "chunk_size": 800,
+        "chunk_overlap": 100
+    }
+    if username != "guest":
+        try:
+            from db import get_user_id, get_user_settings
+            uid = get_user_id(username)
+            if uid:
+                user_settings = get_user_settings(uid)
+        except Exception as e:
+            print(f"Error fetching user settings for stream: {e}")
+
+    temperature_choice = req.temperature if req.temperature is not None else user_settings.get("temperature", 0.1)
+    system_prompt_choice = req.system_prompt if req.system_prompt is not None else user_settings.get("system_prompt", "")
+    if not system_prompt_choice:
+        system_prompt_choice = SYSTEM_INSTRUCTION
+
     # ── Rate Limiter Check ────────────────────────────────────────────────────
     from rate_limit import chat_limiter
     rate_limit_key = username if username != "guest" else (request.client.host if request.client else "unknown_ip")
@@ -1354,7 +1403,7 @@ async def chat_stream(
 
         # Build effective system instruction for this stream request
         if req.filename:
-            stream_instruction = SYSTEM_INSTRUCTION + f"""
+            stream_instruction = system_prompt_choice + f"""
 
 ---
 
@@ -1368,11 +1417,13 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 - NEVER say you cannot access the file — always try both tools before giving up.
 """
         else:
-            stream_instruction = SYSTEM_INSTRUCTION
+            stream_instruction = system_prompt_choice
 
 
         # Resolve which model we want to run
         selected_model = req.model
+        if not selected_model:
+            selected_model = user_settings.get("default_model", "llama-70b")
         if not selected_model:
             selected_model = "llama-70b" if get_groq_client() else "gemini-flash"
 
@@ -1420,7 +1471,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     print("[INFO] Executing Streaming Chat Agent using Groq...")
                     yield _sse_event("model_used", "Llama 3.3 (Groq)")
                     # Build messages
-                    messages = [{"role": "system", "content": SYSTEM_INSTRUCTION}]
+                    messages = [{"role": "system", "content": stream_instruction}]
                     for msg in resolved_history:
                         role = "user" if msg.role == "user" else "assistant"
                         messages.append({"role": role, "content": msg.content})
@@ -1441,7 +1492,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             messages=messages,
                             tools=GROQ_TOOLS,
                             tool_choice="auto",
-                            temperature=0.1,
+                            temperature=temperature_choice,
                         )
                         response_message = tool_response.choices[0].message
                         tool_calls = response_message.tool_calls
@@ -1542,7 +1593,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     stream = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=messages,
-                        temperature=0.1,
+                        temperature=temperature_choice,
                         stream=True,
                     )
                     for chunk in stream:
@@ -1645,6 +1696,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                     config=types.GenerateContentConfig(
                                         tools=agent_tools,
                                         system_instruction=stream_instruction,
+                                        temperature=temperature_choice,
                                     )
                                 )
 

@@ -233,6 +233,17 @@ def init_db():
     cur.execute("CREATE INDEX IF NOT EXISTS chat_threads_user_idx ON chat_threads (username, updated_at DESC);")
     cur.execute("CREATE INDEX IF NOT EXISTS chat_messages_thread_idx ON chat_messages (thread_id, created_at);")
 
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS user_settings (
+        user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        default_model TEXT DEFAULT 'llama-70b',
+        temperature REAL DEFAULT 0.1,
+        system_prompt TEXT DEFAULT '',
+        chunk_size INTEGER DEFAULT 800,
+        chunk_overlap INTEGER DEFAULT 100
+    )
+    """)
+
 
     # ── Migrations ──────────────────────────────────────────────────────────────
     try:
@@ -260,6 +271,7 @@ def init_db():
         cur.execute("ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE chat_threads ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;")
+        cur.execute("ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;")
     except Exception as e:
         print(f"[WARN] Failed to enable RLS: {e}")
 
@@ -317,4 +329,81 @@ def get_user_id(username):
         except Exception:
             return row[0]
     return None
+
+
+# ── User Settings Helpers ───────────────────────────────────────────────────────
+
+def get_user_settings(user_id: int) -> dict:
+    """Retrieve settings for a given user. Creates default record if missing."""
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(cur, "SELECT default_model, temperature, system_prompt, chunk_size, chunk_overlap FROM user_settings WHERE user_id = ?", (user_id,))
+        row = cur.fetchone()
+        if row:
+            try:
+                return {
+                    "default_model": row["default_model"],
+                    "temperature": row["temperature"],
+                    "system_prompt": row["system_prompt"],
+                    "chunk_size": row["chunk_size"],
+                    "chunk_overlap": row["chunk_overlap"]
+                }
+            except Exception:
+                return {
+                    "default_model": row[0],
+                    "temperature": row[1],
+                    "system_prompt": row[2],
+                    "chunk_size": row[3],
+                    "chunk_overlap": row[4]
+                }
+        else:
+            # Create default settings
+            execute_sql(cur, """
+                INSERT INTO user_settings (user_id, default_model, temperature, system_prompt, chunk_size, chunk_overlap)
+                VALUES (?, 'llama-70b', 0.1, '', 800, 100)
+            """, (user_id,))
+            conn.commit()
+            return {
+                "default_model": "llama-70b",
+                "temperature": 0.1,
+                "system_prompt": "",
+                "chunk_size": 800,
+                "chunk_overlap": 100
+            }
+
+
+def save_user_settings(user_id: int, settings: dict):
+    """Save/update settings for a given user."""
+    with get_conn() as conn:
+        cur = get_cursor(conn)
+        execute_sql(cur, "SELECT 1 FROM user_settings WHERE user_id = ?", (user_id,))
+        exists = cur.fetchone()
+        
+        if exists:
+            execute_sql(cur, """
+                UPDATE user_settings 
+                SET default_model = ?, temperature = ?, system_prompt = ?, chunk_size = ?, chunk_overlap = ?
+                WHERE user_id = ?
+            """, (
+                settings.get("default_model", "llama-70b"),
+                settings.get("temperature", 0.1),
+                settings.get("system_prompt", ""),
+                settings.get("chunk_size", 800),
+                settings.get("chunk_overlap", 100),
+                user_id
+            ))
+        else:
+            execute_sql(cur, """
+                INSERT INTO user_settings (user_id, default_model, temperature, system_prompt, chunk_size, chunk_overlap)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                user_id,
+                settings.get("default_model", "llama-70b"),
+                settings.get("temperature", 0.1),
+                settings.get("system_prompt", ""),
+                settings.get("chunk_size", 800),
+                settings.get("chunk_overlap", 100)
+            ))
+        conn.commit()
+
 

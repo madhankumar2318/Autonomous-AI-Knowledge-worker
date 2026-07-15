@@ -370,8 +370,27 @@ export default function ChatAssistant({
     setSelectedModel(model);
     if (typeof window !== "undefined") {
       localStorage.setItem("ak_selected_model", model);
+      localStorage.setItem("ak_selected_model_modified", "true");
     }
   };
+
+  useEffect(() => {
+    if (username && username !== "guest") {
+      fetch(`${API_BASE_URL}/settings/`, { credentials: "include" })
+        .then((res) => {
+          if (res.ok) return res.json();
+          throw new Error();
+        })
+        .then((data) => {
+          if (data && data.default_model) {
+            if (typeof window !== "undefined" && !localStorage.getItem("ak_selected_model_modified")) {
+              setSelectedModel(data.default_model);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [username]);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {

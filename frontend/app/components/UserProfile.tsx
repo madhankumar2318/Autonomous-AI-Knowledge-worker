@@ -49,6 +49,64 @@ export default function UserProfile({
   const [editEmail, setEditEmail] = useState("");
   const [editMobile, setEditMobile] = useState("");
 
+  const [activeTab, setActiveTab] = useState<"profile" | "ai_settings">("profile");
+
+  // AI settings state
+  const [defaultModel, setDefaultModel] = useState("llama-70b");
+  const [temperature, setTemperature] = useState(0.1);
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [chunkSize, setChunkSize] = useState(800);
+  const [chunkOverlap, setChunkOverlap] = useState(100);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [username]);
+
+  async function fetchSettings() {
+    setSettingsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/settings/`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setDefaultModel(data.default_model || "llama-70b");
+        setTemperature(data.temperature ?? 0.1);
+        setSystemPrompt(data.system_prompt || "");
+        setChunkSize(data.chunk_size ?? 800);
+        setChunkOverlap(data.chunk_overlap ?? 100);
+      }
+    } catch (err) {
+      console.error("Failed to load user settings:", err);
+    } finally {
+      setSettingsLoading(false);
+    }
+  }
+
+  async function handleSaveSettings() {
+    setSettingsSaving(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/settings/`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          default_model: defaultModel,
+          temperature,
+          system_prompt: systemPrompt,
+          chunk_size: chunkSize,
+          chunk_overlap: chunkOverlap
+        })
+      });
+      if (!res.ok) throw new Error();
+      showToast("AI Settings updated successfully!", "ok");
+    } catch {
+      showToast("Failed to save AI Settings.", "err");
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
+
   // ── Change Password state ─────────────────────────────────────────
   const [showPwForm, setShowPwForm] = useState(false);
   const [oldPw, setOldPw] = useState("");
@@ -586,17 +644,213 @@ export default function UserProfile({
               </div>
             </div>
 
-            {/* ════ BODY ════ */}
-            <div style={{ flex: 1, padding: "24px" }}>
-              {/* Session card */}
-              <div
+            {/* Tab Swapper */}
+            <div
+              style={{
+                display: "flex",
+                background: "rgba(255,255,255,0.02)",
+                borderBottom: "1px solid var(--border-light)",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                onClick={() => setActiveTab("profile")}
                 style={{
-                  borderRadius: "16px",
-                  overflow: "hidden",
-                  border: "1px solid var(--border-light)",
-                  marginBottom: "20px",
+                  flex: 1,
+                  padding: "14px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${activeTab === "profile" ? "#22d3ee" : "transparent"}`,
+                  color: activeTab === "profile" ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
                 }}
               >
+                👤 Profile Details
+              </button>
+              <button
+                onClick={() => setActiveTab("ai_settings")}
+                style={{
+                  flex: 1,
+                  padding: "14px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${activeTab === "ai_settings" ? "#22d3ee" : "transparent"}`,
+                  color: activeTab === "ai_settings" ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontWeight: 700,
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                ⚙️ AI Tuning Panel
+              </button>
+            </div>
+
+            {/* ════ BODY ════ */}
+            <div style={{ flex: 1, padding: "24px" }}>
+              {activeTab === "ai_settings" ? (
+                settingsLoading ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px" }}>
+                    <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "2px solid rgba(34,211,238,0.2)", borderTopColor: "#22d3ee", animation: "spin 0.7s linear infinite" }} />
+                    <span style={{ marginTop: "12px", fontSize: "14px", color: "var(--text-secondary)" }}>Loading tuning panel...</span>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                    {/* Default LLM Model */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "8px", letterSpacing: "1px" }}>Default LLM Model</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px" }}>
+                        {[
+                          { id: "llama-70b", name: "Llama 3.3 70b (Groq)", desc: "Hyper-fast versatile reasoning agent" },
+                          { id: "gemini-flash", name: "Gemini 2.5 Flash", desc: "Balanced model optimized for speed" },
+                          { id: "gemini-pro", name: "Gemini 2.5 Pro", desc: "Deep analytical model for complex RAG tasks" }
+                        ].map((m) => {
+                          const isSel = defaultModel === m.id;
+                          return (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setDefaultModel(m.id)}
+                              style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "flex-start",
+                                padding: "12px 16px",
+                                borderRadius: "12px",
+                                background: isSel ? "rgba(34, 211, 238, 0.08)" : "var(--bg-secondary)",
+                                border: `1px solid ${isSel ? "rgba(34, 211, 238, 0.35)" : "var(--border-light)"}`,
+                                cursor: "pointer",
+                                textAlign: "left",
+                                transition: "all 0.2s ease"
+                              }}
+                            >
+                              <span style={{ fontSize: "14px", fontWeight: 700, color: isSel ? "#22d3ee" : "var(--text-primary)" }}>{m.name}</span>
+                              <span style={{ fontSize: "11px", color: "var(--text-muted)", marginTop: "2px" }}>{m.desc}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Temperature Slider */}
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                        <label style={{ fontSize: "13px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "1px" }}>Temperature (Creativity)</label>
+                        <span style={{ fontSize: "13px", fontWeight: 700, color: "#22d3ee", background: "rgba(34, 211, 238, 0.1)", padding: "2px 6px", borderRadius: "4px" }}>{temperature.toFixed(1)}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.0"
+                        max="1.0"
+                        step="0.1"
+                        value={temperature}
+                        onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                        style={{ width: "100%", accentColor: "#22d3ee", cursor: "pointer" }}
+                      />
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--text-muted)", marginTop: "4px" }}>
+                        <span>Analytical (0.0)</span>
+                        <span>Balanced (0.5)</span>
+                        <span>Creative (1.0)</span>
+                      </div>
+                    </div>
+
+                    {/* System Prompt Customizer */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "8px", letterSpacing: "1px" }}>System Instructions Override</label>
+                      <textarea
+                        value={systemPrompt}
+                        onChange={(e) => setSystemPrompt(e.target.value)}
+                        placeholder="Leave empty to use default assistant instructions..."
+                        rows={4}
+                        style={{
+                          width: "100%",
+                          background: "var(--bg-secondary)",
+                          border: "1px solid var(--border-light)",
+                          borderRadius: "12px",
+                          padding: "12px 14px",
+                          color: "var(--text-primary)",
+                          fontSize: "14px",
+                          outline: "none",
+                          resize: "vertical",
+                          fontFamily: "inherit"
+                        }}
+                      />
+                    </div>
+
+                    {/* RAG Settings */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "12px", letterSpacing: "1px" }}>RAG Document Ingestion</label>
+                      
+                      {/* Chunk Size */}
+                      <div style={{ marginBottom: "16px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Chunk Size (Characters)</span>
+                          <span style={{ fontSize: "12px", fontWeight: 700, color: "#22d3ee" }}>{chunkSize} chars</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="200"
+                          max="2000"
+                          step="50"
+                          value={chunkSize}
+                          onChange={(e) => setChunkSize(parseInt(e.target.value))}
+                          style={{ width: "100%", accentColor: "#22d3ee", cursor: "pointer" }}
+                        />
+                      </div>
+
+                      {/* Chunk Overlap */}
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Chunk Overlap (Characters)</span>
+                          <span style={{ fontSize: "12px", fontWeight: 700, color: "#22d3ee" }}>{chunkOverlap} chars</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="500"
+                          step="10"
+                          value={chunkOverlap}
+                          onChange={(e) => setChunkOverlap(parseInt(e.target.value))}
+                          style={{ width: "100%", accentColor: "#22d3ee", cursor: "pointer" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Save Buttons */}
+                    <button
+                      onClick={handleSaveSettings}
+                      disabled={settingsSaving}
+                      style={{
+                        width: "100%",
+                        padding: "12px",
+                        borderRadius: "12px",
+                        background: "linear-gradient(135deg, #22d3ee 0%, #0891b2 100%)",
+                        color: "white",
+                        fontWeight: 700,
+                        border: "none",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 16px rgba(34,211,238,0.25)",
+                        transition: "all 0.2s"
+                      }}
+                    >
+                      {settingsSaving ? "Saving Tuning..." : "Save AI Configuration"}
+                    </button>
+                  </div>
+                )
+              ) : (
+                <>
+                  {/* Session card */}
+                  <div
+                    style={{
+                      borderRadius: "16px",
+                      overflow: "hidden",
+                      border: "1px solid var(--border-light)",
+                      marginBottom: "20px",
+                    }}
+                  >
                 <div
                   style={{
                     display: "flex",
@@ -1301,7 +1555,9 @@ export default function UserProfile({
                   </p>
                 </div>
               </button>
-            </div>
+            </>
+          )}
+        </div>
 
             {/* Footer */}
             <div
