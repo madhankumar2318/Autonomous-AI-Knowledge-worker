@@ -469,27 +469,6 @@ export default function Home_Page() {
         />
       )}
 
-      {/* Mobile Bottom Navigation */}
-      <div className="mobile-bottom-nav">
-        {NAV_TABS.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => tab.id === "settings" ? setShowProfile(true) : setActiveTab(tab.id)}
-              className={`mobile-nav-item ${isActive ? "mobile-nav-active" : ""}`}
-              style={{
-                "--tab-accent": tab.accent,
-              } as React.CSSProperties}
-            >
-              <Icon className="mobile-nav-icon" size={18} />
-              <span className="mobile-nav-label">{tab.shortLabel}</span>
-            </button>
-          );
-        })}
-      </div>
 
       <style>{`
         /* ── APP SHELL ── */
