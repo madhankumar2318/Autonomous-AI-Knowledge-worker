@@ -60,6 +60,7 @@ export default function DocumentWorkspace({
 }: DocumentWorkspaceProps) {
   const ext = getFileExt(file.filename);
   const isPDF = ext === "pdf";
+  const isSpreadsheet = ext === "csv" || ext === "xlsx";
   const fileUrl = `${API_BASE_URL}/upload/download/${encodeURIComponent(file.filename)}`;
   
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
@@ -82,8 +83,20 @@ export default function DocumentWorkspace({
   const [editedContent, setEditedContent] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Spreadsheet state
+  const [gridData, setGridData] = useState<{
+    sheet_names: string[];
+    active_sheet: string;
+    headers: string[];
+    rows: string[][];
+  } | null>(null);
+  const [gridLoading, setGridLoading] = useState(false);
+  const [gridError, setGridError] = useState<string | null>(null);
+  const [activeSheet, setActiveSheet] = useState<string>("");
+  const [gridSearch, setGridSearch] = useState("");
+
   useEffect(() => {
-    if (isPDF) return;
+    if (isPDF || isSpreadsheet) return;
     setTextLoading(true);
     setTextError(null);
     fetch(fileUrl, { credentials: "include" })
@@ -97,7 +110,28 @@ export default function DocumentWorkspace({
       })
       .catch((err) => setTextError(String(err)))
       .finally(() => setTextLoading(false));
-  }, [fileUrl, isPDF]);
+  }, [fileUrl, isPDF, isSpreadsheet]);
+
+  useEffect(() => {
+    if (!isSpreadsheet) return;
+    setGridLoading(true);
+    setGridError(null);
+    const url = `${API_BASE_URL}/upload/parse-table/${encodeURIComponent(file.filename)}` + 
+      (activeSheet ? `?sheet_name=${encodeURIComponent(activeSheet)}` : "");
+    fetch(url, { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Failed to parse spreadsheet (${r.status})`);
+        return r.json();
+      })
+      .then((data) => {
+        setGridData(data);
+        if (!activeSheet && data.active_sheet) {
+          setActiveSheet(data.active_sheet);
+        }
+      })
+      .catch((err) => setGridError(String(err)))
+      .finally(() => setGridLoading(false));
+  }, [file.filename, isSpreadsheet, activeSheet]);
 
   useEffect(() => {
     if (!isPDF) return;
@@ -594,6 +628,117 @@ export default function DocumentWorkspace({
           .dw-viewer { border-right: none; border-bottom: 1px solid var(--border-light, rgba(255,255,255,0.08)); min-height: 50vh; }
           .dw-chat-panel { width: 100%; height: 50vh; }
         }
+
+        /* ── Spreadsheet Layout ── */
+        .dw-spreadsheet-container {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          background: #060913;
+        }
+        .dw-spreadsheet-bar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 16px;
+          background: rgba(255, 255, 255, 0.02);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          gap: 12px;
+          flex-shrink: 0;
+        }
+        .dw-sheet-tabs {
+          display: flex;
+          gap: 4px;
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        .dw-sheet-tabs::-webkit-scrollbar { display: none; }
+        .dw-sheet-tab {
+          padding: 5px 12px;
+          font-size: 12px;
+          font-weight: 700;
+          color: var(--text-secondary);
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+        }
+        .dw-sheet-tab:hover {
+          color: var(--text-primary);
+          background: rgba(255, 255, 255, 0.04);
+        }
+        .dw-sheet-tab-active {
+          color: #22d3ee !important;
+          background: rgba(34, 211, 238, 0.1) !important;
+          border-color: rgba(34, 211, 238, 0.3) !important;
+        }
+        .dw-spreadsheet-search {
+          background: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 8px;
+          padding: 5px 12px;
+          color: var(--text-primary);
+          font-size: 12px;
+          outline: none;
+          width: 220px;
+          transition: all 0.2s;
+        }
+        .dw-spreadsheet-search:focus {
+          border-color: rgba(34, 211, 238, 0.4);
+          background: rgba(0, 0, 0, 0.5);
+          box-shadow: 0 0 10px rgba(34, 211, 238, 0.1);
+        }
+
+        /* Grid Table Styling */
+        .dw-grid-wrapper {
+          flex: 1;
+          overflow: auto;
+          position: relative;
+        }
+        .dw-grid-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+          color: var(--text-secondary);
+        }
+        .dw-grid-table th {
+          position: sticky;
+          top: 0;
+          background: #090c18;
+          z-index: 10;
+          font-weight: 700;
+          text-align: left;
+          padding: 8px 12px;
+          border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+          border-right: 1px solid rgba(255, 255, 255, 0.04);
+          color: var(--text-primary);
+          white-space: nowrap;
+        }
+        .dw-grid-table td {
+          padding: 8px 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+          border-right: 1px solid rgba(255, 255, 255, 0.02);
+          white-space: nowrap;
+          max-width: 260px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .dw-grid-table tr:hover {
+          background: rgba(255, 255, 255, 0.02);
+        }
+        .dw-grid-row-num {
+          font-family: monospace;
+          background: rgba(0, 0, 0, 0.15);
+          text-align: center !important;
+          color: var(--text-muted) !important;
+          width: 48px;
+          border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+          user-select: none;
+        }
       `}</style>
 
       {/* ── Top Bar ── */}
@@ -659,7 +804,7 @@ export default function DocumentWorkspace({
                 </button>
               </div>
             ) : (
-              !textLoading && !textError && textContent !== null && (
+              !isSpreadsheet && !textLoading && !textError && textContent !== null && (
                 <div className="dw-zoom-controls">
                   {isEditing ? (
                     <>
@@ -729,6 +874,71 @@ export default function DocumentWorkspace({
                 disabled={saving}
                 placeholder="Type your edits here..."
               />
+            ) : isSpreadsheet ? (
+              gridLoading ? (
+                <div className="dw-loading">
+                  <div className="dw-spinner" />
+                  <span>Parsing spreadsheet cells…</span>
+                </div>
+              ) : gridError ? (
+                <div className="dw-error">⚠️ {gridError}</div>
+              ) : gridData ? (
+                <div className="dw-spreadsheet-container">
+                  {/* Search and Sheet Selector Bar */}
+                  <div className="dw-spreadsheet-bar">
+                    {gridData.sheet_names && gridData.sheet_names.length > 1 && (
+                      <div className="dw-sheet-tabs">
+                        {gridData.sheet_names.map((sheet) => (
+                          <button
+                            key={sheet}
+                            onClick={() => setActiveSheet(sheet)}
+                            className={`dw-sheet-tab ${activeSheet === sheet ? "dw-sheet-tab-active" : ""}`}
+                          >
+                            {sheet}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      placeholder="Search rows..."
+                      value={gridSearch}
+                      onChange={(e) => setGridSearch(e.target.value)}
+                      className="dw-spreadsheet-search"
+                    />
+                  </div>
+
+                  {/* Grid Table */}
+                  <div className="dw-grid-wrapper">
+                    <table className="dw-grid-table">
+                      <thead>
+                        <tr>
+                          <th className="dw-grid-row-num">#</th>
+                          {gridData.headers.map((h, i) => (
+                            <th key={i}>{h || `Column ${i + 1}`}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gridData.rows
+                          .filter((row) =>
+                            row.some((cell) =>
+                              cell.toLowerCase().includes(gridSearch.toLowerCase())
+                            )
+                          )
+                          .map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                              <td className="dw-grid-row-num">{rowIndex + 1}</td>
+                              {row.map((cell, cellIndex) => (
+                                <td key={cellIndex}>{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null
             ) : (
               <div className="dw-text-content">
                 {renderTextWithHighlight(textContent || "", highlightPhrase)}

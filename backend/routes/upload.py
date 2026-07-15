@@ -464,10 +464,129 @@ def download_file(
             media_type=mime_type,
             headers={"Content-Disposition": f"inline; filename=\"{filename}\""}
         )
+@router.get("/parse-table/{filename}")
+def parse_table_file(
+    filename: str,
+    sheet_name: Optional[str] = Query(None),
+    token: Optional[str] = Query(None),
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None)
+):
+    try:
+        filename = os.path.basename(filename)
+        token_to_decode = access_token or token
+        if not token_to_decode and authorization:
+            parts = authorization.split(" ")
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token_to_decode = parts[1]
+
+        if not token_to_decode:
+            raise HTTPException(status_code=401, detail="Authentication token required")
+
+        username = _decode_access_token(token_to_decode)
+        user_id = get_user_id(username)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="User session invalid")
+
+        # Verify file ownership from relational records
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(cur, "SELECT filepath FROM uploads WHERE filename = ? AND user_id = ?", (filename, user_id))
+            row = cur.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
+
+        db_filepath = row["filepath"]
+        local_path = os.path.join(UPLOAD_DIR, username, filename)
+
+        # Download from S3 if missing locally
+        if IS_S3 and db_filepath.startswith("s3://") and not os.path.exists(local_path):
+            try:
+                s3_client = get_s3_client()
+                user_folder = os.path.join(UPLOAD_DIR, username)
+                os.makedirs(user_folder, exist_ok=True)
+                s3_client.download_file(S3_BUCKET, f"{username}/{filename}", local_path)
+            except Exception as e:
+                raise HTTPException(status_code=404, detail=f"File not found on cloud storage: {e}")
+
+        if not os.path.exists(local_path):
+            raise HTTPException(status_code=404, detail="File not found")
+
+        _, ext = os.path.splitext(filename.lower())
+        
+        sheet_names = []
+        active_sheet = ""
+        headers = []
+        rows = []
+
+        if ext == ".csv":
+            # Read CSV
+            try:
+                content = ""
+                # Try UTF-8 encoding
+                try:
+                    with open(local_path, "r", encoding="utf-8") as f:
+                        content = f.read()
+                except UnicodeDecodeError:
+                    # Fallback to latin-1
+                    with open(local_path, "r", encoding="latin-1") as f:
+                        content = f.read()
+                
+                f_io = io.StringIO(content)
+                reader = csv.reader(f_io)
+                all_rows = list(reader)
+                if all_rows:
+                    headers = [h.strip() for h in all_rows[0]]
+                    for r in all_rows[1:]:
+                        rows.append([val.strip() for val in r])
+            except Exception as csv_err:
+                raise HTTPException(status_code=400, detail=f"Failed to parse CSV file: {csv_err}")
+
+        elif ext == ".xlsx":
+            # Read XLSX
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(local_path, data_only=True)
+                sheet_names = wb.sheetnames
+                
+                # Determine active sheet
+                if sheet_name and sheet_name in sheet_names:
+                    active_sheet = sheet_name
+                else:
+                    active_sheet = sheet_names[0] if sheet_names else ""
+                
+                if active_sheet:
+                    sheet = wb[active_sheet]
+                    raw_rows = []
+                    for row in sheet.iter_rows(values_only=True):
+                        # Filter out fully empty rows
+                        if not any(val is not None for val in row):
+                            continue
+                        raw_rows.append([str(val).strip() if val is not None else "" for val in row])
+                    
+                    if raw_rows:
+                        headers = raw_rows[0]
+                        rows = raw_rows[1:]
+            except Exception as xlsx_err:
+                raise HTTPException(status_code=400, detail=f"Failed to parse Excel file: {xlsx_err}")
+        else:
+            raise HTTPException(status_code=400, detail="Only CSV and XLSX formats can be parsed as grids.")
+
+        return {
+            "sheet_names": sheet_names,
+            "active_sheet": active_sheet,
+            "headers": headers,
+            "rows": rows
+        }
+
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
 
 
 class EditFileRequest(BaseModel):
