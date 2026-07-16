@@ -22,6 +22,11 @@ from routes.auth import _get_username_from_auth_header, _decode_access_token
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
+def estimate_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, len(text) // 4)
+
 # ── Request / Response Models ────────────────────────────────────────────────
 class ChatMessage(BaseModel):
     role: str  # 'user' or 'ai'
@@ -1099,6 +1104,11 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
         effective_instruction = system_prompt_choice
 
     async def run_chat():
+        import time
+        start_time = time.time()
+        accumulated_input_tokens = 0
+        accumulated_output_tokens = 0
+        
         # Log the incoming query
         try:
             insert_history(username, "chat_query", req.message)
@@ -1195,6 +1205,14 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             insert_history(username, "chat_response", reply)
                         except Exception as err:
                             print(f"Failed to log Groq chat response: {err}")
+                        
+                        latency_ms = int((time.time() - start_time) * 1000)
+                        if username != "guest":
+                            try:
+                                from db import log_token_usage
+                                log_token_usage(username, "llama-70b", accumulated_input_tokens, accumulated_output_tokens, latency_ms)
+                            except Exception as e:
+                                print(f"Error logging Groq token usage: {e}")
                         return {"reply": reply}
 
                 except Exception as groq_err:
@@ -1211,6 +1229,8 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             return {"reply": reply}
 
         try:
+            import time
+            gemini_start = time.time()
             # Construct Gemini request contents with history (excluding latest message)
             contents = []
             for msg in req.history:
@@ -1286,6 +1306,19 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             except Exception as err:
                 print(f"Failed to log chat response: {err}")
                 
+            latency_ms = int((time.time() - gemini_start) * 1000)
+            if username != "guest":
+                try:
+                    from db import log_token_usage
+                    input_tokens = 0
+                    output_tokens = 0
+                    if hasattr(response, "usage_metadata") and response.usage_metadata:
+                        input_tokens = response.usage_metadata.prompt_token_count or 0
+                        output_tokens = response.usage_metadata.candidates_token_count or 0
+                    log_token_usage(username, selected_model or "gemini-flash", input_tokens, output_tokens, latency_ms)
+                except Exception as e:
+                    print(f"Error logging Gemini token usage: {e}")
+                    
             return {"reply": reply}
 
         except Exception as e:
@@ -1477,6 +1510,11 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         messages.append({"role": role, "content": msg.content})
                     messages.append({"role": "user", "content": resolved_message})
 
+                    import time
+                    groq_start = time.time()
+                    accumulated_input_tokens = 0
+                    accumulated_output_tokens = 0
+
                     groq_final_text = None
 
                     # Tool-calling loop (non-streaming) up to 5 iterations
@@ -1494,6 +1532,9 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                             tool_choice="auto",
                             temperature=temperature_choice,
                         )
+                        if hasattr(tool_response, "usage") and tool_response.usage:
+                            accumulated_input_tokens += tool_response.usage.prompt_tokens
+                            accumulated_output_tokens += tool_response.usage.completion_tokens
                         response_message = tool_response.choices[0].message
                         tool_calls = response_message.tool_calls
 
@@ -1616,6 +1657,18 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         except Exception as err:
                             print(f"[WARN] Failed to log Groq stream response: {err}")
                         _persist_thread_messages(groq_final_text)
+                        
+                        latency_ms = int((time.time() - groq_start) * 1000)
+                        if resolved_username != "guest":
+                            try:
+                                from db import log_token_usage
+                                hist_text = " ".join([m.get("content", "") for m in messages if isinstance(m, dict)])
+                                est_in = estimate_tokens(hist_text)
+                                est_out = estimate_tokens(groq_final_text)
+                                log_token_usage(resolved_username, "llama-70b", accumulated_input_tokens + est_in, accumulated_output_tokens + est_out, latency_ms)
+                            except Exception as e:
+                                print(f"Error logging Groq stream token usage: {e}")
+                                
                         yield _sse_done()
                         return
 
@@ -1680,6 +1733,8 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         if await request.is_disconnected():
                             return
                         try:
+                            import time
+                            gemini_start = time.time()
                             yield _sse_event("model_used", friendly_name)
                             # ── Unified Gemini Tool-Streaming Loop ──
                             for loop_idx in range(5):
@@ -1700,9 +1755,13 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                     )
                                 )
 
+                                final_usage = None
                                 for chunk in gemini_stream:
                                     if await request.is_disconnected():
                                         return
+                                    
+                                    if hasattr(chunk, "usage_metadata") and chunk.usage_metadata:
+                                        final_usage = chunk.usage_metadata
                                     
                                     # Collect function calls if present
                                     if chunk.function_calls:
@@ -1822,6 +1881,25 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     except Exception as err:
                         print(f"[WARN] Failed to log Gemini stream response: {err}")
                 _persist_thread_messages(accumulated_reply)
+                
+                # Log token usage
+                if accumulated_reply:
+                    latency_ms = int((time.time() - gemini_start) * 1000)
+                    if resolved_username != "guest":
+                        try:
+                            from db import log_token_usage
+                            input_tokens = final_usage.prompt_token_count if (final_usage and hasattr(final_usage, "prompt_token_count")) else 0
+                            output_tokens = final_usage.candidates_token_count if (final_usage and hasattr(final_usage, "candidates_token_count")) else 0
+                            
+                            if input_tokens == 0:
+                                input_tokens = estimate_tokens(resolved_message)
+                            if output_tokens == 0:
+                                output_tokens = estimate_tokens(accumulated_reply)
+                                
+                            log_token_usage(resolved_username, selected_model or "gemini-flash", input_tokens, output_tokens, latency_ms)
+                        except Exception as e:
+                            print(f"Error logging Gemini stream token usage: {e}")
+                            
                 yield _sse_done()
 
             except Exception as e:

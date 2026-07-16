@@ -243,6 +243,18 @@ def init_db():
         chunk_overlap INTEGER DEFAULT 100
     )
     """)
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS token_usage (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(255) NOT NULL,
+        model VARCHAR(100) NOT NULL,
+        input_tokens INTEGER DEFAULT 0,
+        output_tokens INTEGER DEFAULT 0,
+        latency_ms INTEGER DEFAULT 0,
+        estimated_cost_usd REAL DEFAULT 0.000000,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
 
 
     # ── Migrations ──────────────────────────────────────────────────────────────
@@ -272,6 +284,7 @@ def init_db():
         cur.execute("ALTER TABLE chat_threads ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;")
         cur.execute("ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;")
+        cur.execute("ALTER TABLE token_usage ENABLE ROW LEVEL SECURITY;")
     except Exception as e:
         print(f"[WARN] Failed to enable RLS: {e}")
 
@@ -405,5 +418,39 @@ def save_user_settings(user_id: int, settings: dict):
                 settings.get("chunk_overlap", 100)
             ))
         conn.commit()
+
+
+def log_token_usage(username: str, model: str, input_tokens: int, output_tokens: int, latency_ms: int):
+    """
+    Log token usage and calculate estimated cost.
+    """
+    model_lower = model.lower()
+    in_rate = 0.0
+    out_rate = 0.0
+    
+    if "llama" in model_lower:
+        in_rate = 0.59 / 1_000_000
+        out_rate = 0.79 / 1_000_000
+    elif "pro" in model_lower:
+        in_rate = 1.25 / 1_000_000
+        out_rate = 5.00 / 1_000_000
+    else: # Default is gemini-flash
+        in_rate = 0.075 / 1_000_000
+        out_rate = 0.30 / 1_000_000
+        
+    cost = (input_tokens * in_rate) + (output_tokens * out_rate)
+    
+    try:
+        with get_conn() as conn:
+            cur = get_cursor(conn)
+            execute_sql(
+                cur,
+                "INSERT INTO token_usage (username, model, input_tokens, output_tokens, latency_ms, estimated_cost_usd) VALUES (?, ?, ?, ?, ?, ?)",
+                (username, model, input_tokens, output_tokens, latency_ms, cost)
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"[DB] Error logging token usage: {e}")
+
 
 

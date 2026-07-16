@@ -49,7 +49,7 @@ export default function UserProfile({
   const [editEmail, setEditEmail] = useState("");
   const [editMobile, setEditMobile] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"profile" | "ai_settings">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "ai_settings" | "analytics">("profile");
 
   // AI settings state
   const [defaultModel, setDefaultModel] = useState("llama-70b");
@@ -59,6 +59,36 @@ export default function UserProfile({
   const [chunkOverlap, setChunkOverlap] = useState(100);
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState<{
+    daily_usage: Array<{ day: string; model: string; total_in: number; total_out: number; total_cost: number }>;
+    model_distribution: Array<{ model: string; tokens: number; cost: number }>;
+    total_cost: number;
+    average_latency: Record<string, number>;
+  } | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "analytics") {
+      fetchAnalytics();
+    }
+  }, [activeTab]);
+
+  async function fetchAnalytics() {
+    setAnalyticsLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/settings/analytics`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setAnalyticsData(data);
+      }
+    } catch (err) {
+      console.error("Failed to load analytics:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }
 
   useEffect(() => {
     fetchSettings();
@@ -657,41 +687,209 @@ export default function UserProfile({
                 onClick={() => setActiveTab("profile")}
                 style={{
                   flex: 1,
-                  padding: "14px",
+                  padding: "14px 10px",
                   background: "transparent",
                   border: "none",
                   borderBottom: `2px solid ${activeTab === "profile" ? "#22d3ee" : "transparent"}`,
                   color: activeTab === "profile" ? "var(--text-primary)" : "var(--text-secondary)",
                   fontWeight: 700,
-                  fontSize: "14px",
+                  fontSize: "13px",
                   cursor: "pointer",
                   transition: "all 0.2s",
                 }}
               >
-                👤 Profile Details
+                👤 Profile
               </button>
               <button
                 onClick={() => setActiveTab("ai_settings")}
                 style={{
                   flex: 1,
-                  padding: "14px",
+                  padding: "14px 10px",
                   background: "transparent",
                   border: "none",
                   borderBottom: `2px solid ${activeTab === "ai_settings" ? "#22d3ee" : "transparent"}`,
                   color: activeTab === "ai_settings" ? "var(--text-primary)" : "var(--text-secondary)",
                   fontWeight: 700,
-                  fontSize: "14px",
+                  fontSize: "13px",
                   cursor: "pointer",
                   transition: "all 0.2s",
                 }}
               >
-                ⚙️ AI Tuning Panel
+                ⚙️ AI Tuning
+              </button>
+              <button
+                onClick={() => setActiveTab("analytics")}
+                style={{
+                  flex: 1,
+                  padding: "14px 10px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${activeTab === "analytics" ? "#22d3ee" : "transparent"}`,
+                  color: activeTab === "analytics" ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                📊 Analytics
               </button>
             </div>
 
             {/* ════ BODY ════ */}
             <div style={{ flex: 1, padding: "24px" }}>
-              {activeTab === "ai_settings" ? (
+              {activeTab === "analytics" ? (
+                analyticsLoading ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", border: "2.5px solid rgba(34,211,238,0.2)", borderTopColor: "#22d3ee", animation: "spin 0.7s linear infinite" }} />
+                    <span style={{ marginTop: "12px", fontSize: "14px", color: "var(--text-secondary)" }}>Calculating token costs...</span>
+                  </div>
+                ) : !analyticsData || analyticsData.daily_usage.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px", textAlign: "center" }}>
+                    <div style={{ fontSize: "40px", marginBottom: "16px" }}>📈</div>
+                    <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--text-primary)" }}>No analytics records found yet</span>
+                    <span style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "6px", maxWidth: "260px" }}>Start chatting with the assistant to track token counts, spending, and model response times.</span>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+                    {/* Hero Spend Widget */}
+                    <div
+                      style={{
+                        position: "relative",
+                        overflow: "hidden",
+                        padding: "24px",
+                        borderRadius: "18px",
+                        background: "linear-gradient(135deg, rgba(37,99,235,0.08) 0%, rgba(13,148,136,0.05) 100%)",
+                        border: "1px solid var(--border-medium)",
+                        boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+                        textAlign: "center"
+                      }}
+                    >
+                      <div style={{ position: "absolute", top: "-50px", left: "-50px", width: "150px", height: "150px", borderRadius: "50%", background: "radial-gradient(circle, rgba(34,211,238,0.15) 0%, transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
+                      <div style={{ position: "absolute", bottom: "-50px", right: "-50px", width: "150px", height: "150px", borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
+                      
+                      <span style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", letterSpacing: "1.5px", marginBottom: "8px" }}>Estimated API Investment</span>
+                      <h3 style={{ margin: 0, fontSize: "38px", fontWeight: 900, color: "#22d3ee", letterSpacing: "-1px" }}>
+                        ${analyticsData.total_cost.toFixed(5)}
+                      </h3>
+                      <span style={{ display: "block", fontSize: "12px", color: "var(--text-muted)", marginTop: "6px" }}>Cumulative spend based on token weights</span>
+                    </div>
+
+                    {/* Latency Gauges */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "12px", letterSpacing: "1px" }}>Average Response Latency</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                        {[
+                          { key: "llama-70b", name: "Llama 3.3 (Groq)", color: "#c084fc" },
+                          { key: "gemini-flash", name: "Gemini Flash", color: "#34d399" },
+                          { key: "gemini-pro", name: "Gemini Pro", color: "#60a5fa" }
+                        ].map((m) => {
+                          const lat = analyticsData.average_latency[m.key] || null;
+                          return (
+                            <div
+                              key={m.key}
+                              style={{
+                                padding: "14px",
+                                borderRadius: "12px",
+                                background: "var(--bg-secondary)",
+                                border: "1px solid var(--border-light)",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                justifyContent: "center"
+                              }}
+                            >
+                              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", marginBottom: "4px" }}>{m.name}</span>
+                              <span style={{ fontSize: "18px", fontWeight: 800, color: m.color }}>
+                                {lat ? `${lat.toFixed(0)}ms` : "—"}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Model Token Share */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "8px", letterSpacing: "1px" }}>Model Token Allocation</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        {analyticsData.model_distribution.map((d) => {
+                          const totalTokens = analyticsData.model_distribution.reduce((acc, curr) => acc + curr.tokens, 0);
+                          const percent = totalTokens > 0 ? (d.tokens / totalTokens) * 100 : 0;
+                          const color = d.model.includes("llama") ? "#c084fc" : d.model.includes("pro") ? "#60a5fa" : "#34d399";
+                          return (
+                            <div key={d.model} style={{ background: "var(--bg-secondary)", padding: "12px 14px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", fontWeight: 700, marginBottom: "6px" }}>
+                                <span style={{ color: "var(--text-primary)" }}>{d.model.includes("llama") ? "Llama 3.3 70B" : d.model.includes("pro") ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash"}</span>
+                                <span style={{ color }}>{percent.toFixed(0)}% ({d.tokens.toLocaleString()} tokens)</span>
+                              </div>
+                              <div style={{ width: "100%", height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
+                                <div style={{ width: `${percent}%`, height: "100%", background: color, borderRadius: "3px" }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Daily Ingestion / Chat Activity (Last 14 Days) */}
+                    <div>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", color: "var(--text-secondary)", marginBottom: "12px", letterSpacing: "1px" }}>Daily Usage Trend (Last 14 Days)</label>
+                      <div style={{ background: "var(--bg-secondary)", padding: "16px", borderRadius: "16px", border: "1px solid var(--border-light)" }}>
+                        {(() => {
+                          const daysMap: Record<string, Record<string, number>> = {};
+                          for (const row of analyticsData.daily_usage) {
+                            if (!daysMap[row.day]) daysMap[row.day] = {};
+                            daysMap[row.day][row.model] = (row.total_in + row.total_out);
+                          }
+                          const daysList = Object.keys(daysMap).sort();
+                          const maxTokens = Math.max(...Object.values(daysMap).map(m => Object.values(m).reduce((a, b) => a + b, 0)), 100);
+
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                              {daysList.slice(-7).map((day) => {
+                                const models = daysMap[day];
+                                const formattedDate = new Date(day + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                                return (
+                                  <div key={day} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                    <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-muted)", width: "50px", flexShrink: 0 }}>{formattedDate}</span>
+                                    <div style={{ flex: 1, height: "12px", display: "flex", background: "rgba(255,255,255,0.03)", borderRadius: "6px", overflow: "hidden" }}>
+                                      {Object.entries(models).map(([model, tokens]) => {
+                                        const pct = (tokens / maxTokens) * 100;
+                                        const color = model.includes("llama") ? "#c084fc" : model.includes("pro") ? "#60a5fa" : "#34d399";
+                                        return (
+                                          <div
+                                            key={model}
+                                            title={`${model}: ${tokens.toLocaleString()} tokens`}
+                                            style={{
+                                              width: `${pct}%`,
+                                              height: "100%",
+                                              background: color,
+                                              transition: "width 0.3s ease"
+                                            }}
+                                          />
+                                        );
+                                      })}
+                                    </div>
+                                    <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-secondary)", width: "60px", textAlign: "right" }}>
+                                      {Object.values(models).reduce((a, b) => a + b, 0).toLocaleString()}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                        <div style={{ display: "flex", gap: "14px", marginTop: "14px", justifyContent: "center", fontSize: "10px", fontWeight: 600 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#c084fc" }} /><span>Llama 70B</span></div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#34d399" }} /><span>Gemini Flash</span></div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}><div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#60a5fa" }} /><span>Gemini Pro</span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : activeTab === "ai_settings" ? (
                 settingsLoading ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px" }}>
                     <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "2px solid rgba(34,211,238,0.2)", borderTopColor: "#22d3ee", animation: "spin 0.7s linear infinite" }} />
