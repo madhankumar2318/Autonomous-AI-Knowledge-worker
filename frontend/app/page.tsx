@@ -449,7 +449,7 @@ export default function Home_Page() {
       </div>
 
       {/* Floating AI Chat */}
-      <ChatAssistant username={loggedInUser} inline={false} />
+      {!showProfile && <ChatAssistant username={loggedInUser} inline={false} />}
       {/* User Profile Panel */}
       {showProfile && (
         <UserProfile
