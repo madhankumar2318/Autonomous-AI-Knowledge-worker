@@ -1092,7 +1092,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 - If `search_knowledge_base` returns no results or says "RAG Pending", IMMEDIATELY call `read_uploaded_file` with filename `{req.filename}` to read the file directly.
 - Focus your answers EXCLUSIVELY on the content of this file.
 - Do NOT reference other documents or files unless the user explicitly asks.
-- Always cite with [Source: {req.filename}].
+- Always cite with [Source: {req.filename}, Page: X] where X is the exact page number from the search results metadata (or '0' if not available).
 - NEVER say you cannot access the file — always try both tools before giving up.
 """
     else:
@@ -1413,7 +1413,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 - If `search_knowledge_base` returns no results or says "RAG Pending", IMMEDIATELY call `read_uploaded_file` with filename `{req.filename}` to read the file directly.
 - Focus your answers EXCLUSIVELY on the content of this file.
 - Do NOT reference other documents or files unless the user explicitly asks.
-- Always cite with [Source: {req.filename}].
+- Always cite with [Source: {req.filename}, Page: X] where X is the exact page number from the search results metadata (or '0' if not available).
 - NEVER say you cannot access the file — always try both tools before giving up.
 """
         else:

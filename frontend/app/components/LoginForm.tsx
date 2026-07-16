@@ -135,13 +135,13 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setLoading(false);
         return;
       }
-      if (password.length < 6) {
-        setError("Password must be at least 6 characters long.");
+      if (password.length < 8) {
+        setError("Password must be at least 8 characters long.");
         setLoading(false);
         return;
       }
-      if (password.length > 15) {
-        setError("Password must be at most 15 characters long.");
+      if (password.length > 128) {
+        setError("Password must be at most 128 characters long.");
         setLoading(false);
         return;
       }
@@ -578,7 +578,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                         : "Strong & Secure"}
                     </span>
                     <span style={{ opacity: 0.7 }}>
-                      {password.length}/15 chars
+                      {password.length}/128 chars
                     </span>
                   </div>
                 </div>

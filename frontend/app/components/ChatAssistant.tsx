@@ -704,9 +704,9 @@ export default function ChatAssistant({
     return segments;
   };
 
-  const handleCitationClick = (filename: string, phrase: string) => {
+  const handleCitationClick = (filename: string, phrase: string, pageNum?: number) => {
     const event = new CustomEvent("open-rag-document", {
-      detail: { filename, phrase }
+      detail: { filename, phrase, pageNum }
     });
     window.dispatchEvent(event);
   };
@@ -737,16 +737,17 @@ export default function ChatAssistant({
         );
       }
       if (part.startsWith("[Source:") && part.includes("]")) {
-        const match = part.match(/\[Source:\s*([^\]]+)\](?:\s*\(\s*Relevancy:\s*(\d+%)\s*\))?/);
+        const match = part.match(/\[Source:\s*([^,\]]+)(?:,\s*Page:\s*(\d+))?\](?:\s*\(\s*Relevancy:\s*(\d+%)\s*\))?/);
         if (match) {
           const filename = match[1].trim();
-          const relevancy = match[2] ? match[2].trim() : null;
+          const pageNum = match[2] ? parseInt(match[2].trim(), 10) : undefined;
+          const relevancy = match[3] ? match[3].trim() : null;
           const phrase = getPrecedingPhrase(lineText, lineText.indexOf(part));
           return (
             <button
               key={index}
               type="button"
-              onClick={() => handleCitationClick(filename, phrase)}
+              onClick={() => handleCitationClick(filename, phrase, pageNum)}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -776,7 +777,7 @@ export default function ChatAssistant({
               }}
             >
               <FolderOpen size={10} />
-              <span>{filename}</span>
+              <span>{filename}{pageNum ? `, Page ${pageNum}` : ""}</span>
               {relevancy && <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: "2px" }}>({relevancy})</span>}
             </button>
           );

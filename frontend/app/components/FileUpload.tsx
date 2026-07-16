@@ -59,6 +59,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<UploadedFile | null>(null);
   const [workspaceHighlightPhrase, setWorkspaceHighlightPhrase] = useState<string>("");
+  const [workspaceHighlightPage, setWorkspaceHighlightPage] = useState<number | null>(null);
   const dragCounter = useRef(0);
   const [reindexingFiles, setReindexingFiles] = useState<Set<string>>(new Set());
 
@@ -81,9 +82,10 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
 
   useEffect(() => {
     const handleOpenDocument = (e: Event) => {
-      const customEvent = e as CustomEvent<{ filename: string; phrase?: string }>;
-      const { filename, phrase } = customEvent.detail;
+      const customEvent = e as CustomEvent<{ filename: string; phrase?: string; pageNum?: number }>;
+      const { filename, phrase, pageNum } = customEvent.detail;
       setWorkspaceHighlightPhrase(phrase || "");
+      setWorkspaceHighlightPage(pageNum || null);
       const matched = uploads.find((u) => u.filename === filename);
       if (matched) {
         setActiveWorkspaceFile(matched);
@@ -262,8 +264,10 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           onClose={() => {
             setActiveWorkspaceFile(null);
             setWorkspaceHighlightPhrase("");
+            setWorkspaceHighlightPage(null);
           }}
           highlightPhrase={workspaceHighlightPhrase}
+          targetPage={workspaceHighlightPage}
         />
       )}
 

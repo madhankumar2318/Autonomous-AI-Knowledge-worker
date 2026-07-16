@@ -31,6 +31,7 @@ interface DocumentWorkspaceProps {
   username: string;
   onClose: () => void;
   highlightPhrase?: string;
+  targetPage?: number | null;
 }
 
 function formatSize(bytes: number): string {
@@ -57,6 +58,7 @@ export default function DocumentWorkspace({
   username,
   onClose,
   highlightPhrase = "",
+  targetPage = null,
 }: DocumentWorkspaceProps) {
   const ext = getFileExt(file.filename);
   const isPDF = ext === "pdf";
@@ -69,8 +71,15 @@ export default function DocumentWorkspace({
   const [pdfZoom, setPdfZoom] = useState(100);
 
   let pdfUrl = pdfBlobUrl || "";
-  if (pdfUrl && highlightPhrase) {
-    pdfUrl += `#search="${encodeURIComponent(highlightPhrase)}"`;
+  let pdfHash = "";
+  if (targetPage) {
+    pdfHash = `page=${targetPage}`;
+  }
+  if (highlightPhrase) {
+    pdfHash = pdfHash ? `${pdfHash}&search="${encodeURIComponent(highlightPhrase)}"` : `search="${encodeURIComponent(highlightPhrase)}"`;
+  }
+  if (pdfUrl && pdfHash) {
+    pdfUrl += `#${pdfHash}`;
   }
 
   // For text-based files: fetch and display content

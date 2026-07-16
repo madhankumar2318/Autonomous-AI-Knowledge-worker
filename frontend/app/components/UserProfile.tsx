@@ -198,8 +198,8 @@ export default function UserProfile({
   async function handleChangePassword() {
     setPwError("");
     if (!oldPw) return setPwError("Please enter your current password.");
-    if (newPw.length < 4)
-      return setPwError("New password must be at least 4 characters.");
+    if (newPw.length < 8)
+      return setPwError("New password must be at least 8 characters.");
     if (newPw !== confirmPw) return setPwError("New passwords do not match.");
     setPwSaving(true);
     try {
