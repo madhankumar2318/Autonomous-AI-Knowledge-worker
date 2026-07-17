@@ -9,6 +9,7 @@ import {
   Phone,
   UserPlus,
   ArrowLeft,
+  ArrowRight,
   Globe,
   ChevronDown,
 } from "lucide-react";
@@ -729,7 +730,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 marginTop: "12px",
               }}
             >
-              Continue to Step 2 <UserPlus size={16} />
+              Next: Setup Security <ArrowRight size={16} />
             </button>
           ) : (
             <button
@@ -970,7 +971,32 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
 
         .auth-submit-btn {
+          position: relative !important;
+          overflow: hidden !important;
           transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.2s ease, filter 0.2s ease;
+        }
+
+        .auth-submit-btn::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -150%;
+          width: 50%;
+          height: 100%;
+          background: linear-gradient(
+            to right,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.25) 50%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          transform: skewX(-25deg);
+          animation: shimmer-sweep 3.5s infinite ease-in-out;
+        }
+
+        @keyframes shimmer-sweep {
+          0% { left: -150%; }
+          50% { left: 150%; }
+          100% { left: 150%; }
         }
 
         .auth-submit-btn:hover:not(:disabled) {
