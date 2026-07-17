@@ -205,24 +205,24 @@ export default function Home_Page() {
   if (!isLoggedIn) {
     return (
       <div style={{
-        height: "100dvh",
+        minHeight: "100dvh",
         width: "100vw",
         background: "#030f1a",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         alignItems: "center",
         position: "relative",
-        padding: "16px",
+        padding: "40px 16px",
         boxSizing: "border-box",
-        overflow: "hidden"
+        overflowY: "auto"
       }}>
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none filter blur-[120px] saturate-[1.8]">
           <div className="absolute top-[-20%] left-[-15%] w-[80vw] h-[80vw] rounded-full mix-blend-screen bg-[#7c3aed] opacity-45 animate-liquid-1" />
           <div className="absolute top-[15%] right-[-20%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#ec4899] opacity-30 animate-liquid-2" />
           <div className="absolute bottom-[-30%] left-[10%] w-[75vw] h-[75vw] rounded-full mix-blend-screen bg-[#06b6d4] opacity-35 animate-liquid-3" />
         </div>
-        <div style={{ position: "relative", zIndex: 10, width: "100%", display: "flex", justifyContent: "center", margin: 0 }}>
+        <div style={{ position: "relative", zIndex: 10, width: "100%", display: "flex", justifyContent: "center", margin: "auto 0" }}>
           <div className="auth-glow-backing" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1 }} />
           <LoginForm onLoginSuccess={(username, _token) => {
             setIsLoggedIn(true);
