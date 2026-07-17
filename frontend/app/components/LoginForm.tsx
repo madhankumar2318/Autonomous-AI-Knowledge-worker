@@ -908,9 +908,20 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           transform: translateY(0.5px) scale(0.985);
         }
 
+        .link-btn {
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
         .link-btn:hover {
-          color: #d8b4fe !important;
-          text-decoration: underline;
+          color: #22d3ee !important;
+          background: rgba(34,211,238,0.12) !important;
+          border-color: rgba(34,211,238,0.3) !important;
+          box-shadow: 0 0 12px rgba(34,211,238,0.15) !important;
+          transform: translateY(-1px);
+        }
+
+        .link-btn:active {
+          transform: translateY(0.5px);
         }
 
         .back-btn {
