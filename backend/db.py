@@ -18,10 +18,16 @@ _pool_lock = threading.Lock()
 
 
 def _build_db_url():
-    """Normalize DATABASE_URL to postgresql:// scheme."""
+    """Normalize DATABASE_URL to postgresql:// scheme and append keepalive options."""
     url = DATABASE_URL or ""
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql://", 1)
+    if url.startswith("postgresql://"):
+        if "?" in url:
+            if "keepalives" not in url:
+                url += "&keepalives=1&keepalives_idle=60&keepalives_interval=10&keepalives_count=5"
+        else:
+            url += "?keepalives=1&keepalives_idle=60&keepalives_interval=10&keepalives_count=5"
     return url
 
 
@@ -31,7 +37,6 @@ def _get_pool():
     if _pool is not None:
         return _pool
     with _pool_lock:
-        # Double-checked locking: another thread may have created it while we waited
         if _pool is not None:
             return _pool
         url = _build_db_url()
@@ -82,16 +87,30 @@ class PooledConnectionWrapper:
 def get_conn():
     """
     Check out a connection from the thread-safe pool.
-
-    The returned wrapper behaves exactly like a real psycopg2 connection.
-    Calling .close() returns it to the pool for reuse, eliminating the
-    TCP/SSL handshake overhead on every single query.
+    Verifies that the database connection is alive before returning.
     """
     if not DATABASE_URL:
         raise ValueError("DATABASE_URL is not set in the environment variables.")
     try:
         pool = _get_pool()
         raw_conn = pool.getconn()
+        
+        # Connection liveness check
+        stale = False
+        try:
+            with raw_conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        except Exception:
+            stale = True
+            
+        if stale:
+            print("[DB] Stale connection detected. Discarding and establishing fresh connection...")
+            try:
+                pool.putconn(raw_conn, close=True)
+            except Exception:
+                pass
+            raw_conn = pool.getconn()
+            
         raw_conn.autocommit = False
         return PooledConnectionWrapper(raw_conn, pool)
     except psycopg2.pool.PoolError as e:
