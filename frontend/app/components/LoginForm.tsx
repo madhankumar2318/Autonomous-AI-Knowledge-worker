@@ -713,16 +713,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           </button>
 
           {/* Footer Action Links */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginTop: "16px",
-              padding: "0 4px",
-              gap: "16px",
-            }}
-          >
+          <div className="auth-footer-container">
             {!isRegistering ? (
               <>
                 <label
@@ -794,7 +785,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           </div>
         </form>
 
-        <div className="auth-footer" style={{ textAlign: "center", marginTop: "32px", borderTop: "1px solid rgba(255,255,255,0.04)", paddingTop: "20px" }}>
+        <div className="auth-card-footer">
           <p
             style={{
               margin: 0,
@@ -991,6 +982,31 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           box-sizing: border-box;
         }
 
+        .header-icon-badge {
+          animation: float-badge 3s ease-in-out infinite;
+        }
+
+        @keyframes float-badge {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+
+        .auth-footer-container {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 16px;
+          padding: 0 4px;
+          gap: 16px;
+        }
+
+        .auth-card-footer {
+          text-align: center;
+          margin-top: 32px;
+          border-top: 1px solid rgba(255,255,255,0.04);
+          padding-top: 20px;
+        }
+
         .login-stack {
           display: flex;
           flex-direction: column;
@@ -1022,8 +1038,17 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           .auth-card h1 {
             font-size: 24px !important;
           }
-          .auth-card .auth-footer {
+        }
+
+        @media (max-width: 480px) {
+          .auth-footer-container {
+            flex-direction: column !important;
+            align-items: center !important;
+            gap: 14px !important;
             margin-top: 20px !important;
+          }
+          .auth-card-footer {
+            margin-top: 24px !important;
             padding-top: 16px !important;
           }
         }
