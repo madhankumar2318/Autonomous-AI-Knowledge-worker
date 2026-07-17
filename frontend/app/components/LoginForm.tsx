@@ -110,7 +110,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
-
+  const [registerStep, setRegisterStep] = useState(1);
 
   const handleCountrySelect = (code: string) => {
     setCountry(code);
@@ -122,6 +122,23 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   };
 
   const firstInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleNextStep = () => {
+    setError("");
+    if (!name.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (!username.trim()) {
+      setError("Please enter a username.");
+      return;
+    }
+    if (!email.trim() || !email.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    setRegisterStep(2);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,6 +275,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setPhonePlaceholder("(555) 000-0000");
     setMobile("");
     setIsCountryDropdownOpen(false);
+    setRegisterStep(1);
     firstInputRef.current?.focus();
   }, [isRegistering]);
 
@@ -311,16 +329,36 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           </h1>
           <p style={{ margin: 0, fontSize: "14px", color: "var(--text-secondary)", fontWeight: 500 }}>
             {isRegistering
-              ? "Join the AI Knowledge Dashboard"
+              ? `Step ${registerStep} of 2`
               : "Sign in to your AI Knowledge Dashboard"}
           </p>
+          {isRegistering && (
+            <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "16px" }}>
+              <div style={{
+                width: "40px",
+                height: "6px",
+                borderRadius: "3px",
+                background: registerStep >= 1 ? "linear-gradient(90deg, #8b5cf6, #06b6d4)" : "rgba(255,255,255,0.12)",
+                boxShadow: registerStep >= 1 ? "0 0 8px rgba(139,92,246,0.3)" : "none",
+                transition: "all 0.3s ease"
+              }} />
+              <div style={{
+                width: "40px",
+                height: "6px",
+                borderRadius: "3px",
+                background: registerStep >= 2 ? "linear-gradient(90deg, #8b5cf6, #06b6d4)" : "rgba(255,255,255,0.12)",
+                boxShadow: registerStep >= 2 ? "0 0 8px rgba(139,92,246,0.3)" : "none",
+                transition: "all 0.3s ease"
+              }} />
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           <div className={isRegistering ? "register-grid" : "login-stack"}>
             
             {/* Full Name Field (Register Only) */}
-            {isRegistering && (
+            {isRegistering && registerStep === 1 && (
               <div className="animate-fade-in">
                 <label className="auth-label" htmlFor="auth-name">
                   Full Name
@@ -335,34 +373,36 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Full name"
                     className="auth-input"
-                    required={isRegistering}
+                    required={isRegistering && registerStep === 1}
                   />
                 </div>
               </div>
             )}
 
             {/* Username Field */}
-            <div>
-              <label className="auth-label" htmlFor="auth-username">
-                Username
-              </label>
-              <div className="input-wrapper">
-                <User size={18} className="input-icon" />
-                <input
-                  id="auth-username"
-                  ref={!isRegistering ? firstInputRef : null}
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={isRegistering ? "Choose username" : "Username"}
-                  className="auth-input"
-                  required
-                />
+            {(!isRegistering || (isRegistering && registerStep === 1)) && (
+              <div>
+                <label className="auth-label" htmlFor="auth-username">
+                  Username
+                </label>
+                <div className="input-wrapper">
+                  <User size={18} className="input-icon" />
+                  <input
+                    id="auth-username"
+                    ref={!isRegistering ? firstInputRef : null}
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder={isRegistering ? "Choose username" : "Username"}
+                    className="auth-input"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Email Field (Register Only) */}
-            {isRegistering && (
+            {isRegistering && registerStep === 1 && (
               <div className="animate-fade-in">
                 <label className="auth-label" htmlFor="auth-email">
                   Email Address
@@ -376,14 +416,14 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@email.com"
                     className="auth-input"
-                    required={isRegistering}
+                    required={isRegistering && registerStep === 1}
                   />
                 </div>
               </div>
             )}
 
             {/* Country Field (Register Only) */}
-            {isRegistering && (
+            {isRegistering && registerStep === 2 && (
               <div className="animate-fade-in custom-dropdown-container">
                 <label className="auth-label" htmlFor="auth-country">
                   Country
@@ -453,7 +493,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             )}
 
             {/* Mobile Field (Register Only) */}
-            {isRegistering && (
+            {isRegistering && registerStep === 2 && (
               <div className="animate-fade-in col-span-full">
                 <label className="auth-label" htmlFor="auth-mobile">
                   Mobile Number
@@ -493,100 +533,102 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             )}
 
             {/* Password Field */}
-            <div>
-              <label className="auth-label" htmlFor="auth-password">
-                Password
-              </label>
-              <div className="input-wrapper">
-                <Lock size={18} className="input-icon" />
-                <input
-                  id="auth-password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={
-                    isRegistering
-                      ? "Create a secure password"
-                      : "Enter your password"
-                  }
-                  className="auth-input"
-                  style={{
-                    paddingRight: "46px",
-                    letterSpacing: showPassword ? "normal" : "2px",
-                  }}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="input-action-btn"
-                >
-                  {showPassword ? (
-                    <EyeOff size={18} />
-                  ) : (
-                    <Eye size={18} />
-                  )}
-                </button>
-              </div>
-
-              {/* Password Strength Indicator (Register Only) */}
-              {isRegistering && password && (
-                <div className="animate-fade-in" style={{ marginTop: "8px", padding: "0 4px" }}>
-                  <div style={{ display: "flex", gap: "4px", height: "4px", borderRadius: "2px", overflow: "hidden", background: "rgba(255,255,255,0.08)" }}>
-                    {[...Array(5)].map((_, i) => {
-                      const score = getPasswordScore(password);
-                      const active = i < score;
-                      let bg = "transparent";
-                      if (active) {
-                        if (score <= 2) bg = "#ef4444"; // Weak (red)
-                        else if (score <= 4) bg = "#f59e0b"; // Medium (amber)
-                        else bg = "#10b981"; // Strong (green)
-                      }
-                      return (
-                        <div
-                          key={i}
-                          style={{
-                            flex: 1,
-                            background: bg,
-                            transition: "background-color 0.3s ease",
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                  <div
+            {(!isRegistering || (isRegistering && registerStep === 2)) && (
+              <div>
+                <label className="auth-label" htmlFor="auth-password">
+                  Password
+                </label>
+                <div className="input-wrapper">
+                  <Lock size={18} className="input-icon" />
+                  <input
+                    id="auth-password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={
+                      isRegistering
+                        ? "Create a secure password"
+                        : "Enter your password"
+                    }
+                    className="auth-input"
                     style={{
-                      fontSize: "11px",
-                      color:
-                        getPasswordScore(password) <= 2
-                          ? "#ef4444"
-                          : getPasswordScore(password) <= 4
-                          ? "#fbbf24"
-                          : "#34d399",
-                      marginTop: "6px",
-                      fontWeight: 600,
-                      display: "flex",
-                      justifyContent: "space-between",
+                      paddingRight: "46px",
+                      letterSpacing: showPassword ? "normal" : "2px",
                     }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="input-action-btn"
                   >
-                    <span>
-                      {getPasswordScore(password) <= 2
-                        ? "Weak Password"
-                        : getPasswordScore(password) <= 4
-                        ? "Medium Security"
-                        : "Strong & Secure"}
-                    </span>
-                    <span style={{ opacity: 0.7 }}>
-                      {password.length}/128 chars
-                    </span>
-                  </div>
+                    {showPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
+                  </button>
                 </div>
-              )}
-            </div>
+
+                {/* Password Strength Indicator (Register Only) */}
+                {isRegistering && password && (
+                  <div className="animate-fade-in" style={{ marginTop: "8px", padding: "0 4px" }}>
+                    <div style={{ display: "flex", gap: "4px", height: "4px", borderRadius: "2px", overflow: "hidden", background: "rgba(255,255,255,0.08)" }}>
+                      {[...Array(5)].map((_, i) => {
+                        const score = getPasswordScore(password);
+                        const active = i < score;
+                        let bg = "transparent";
+                        if (active) {
+                          if (score <= 2) bg = "#ef4444"; // Weak (red)
+                          else if (score <= 4) bg = "#f59e0b"; // Medium (amber)
+                          else bg = "#10b981"; // Strong (green)
+                        }
+                        return (
+                          <div
+                            key={i}
+                            style={{
+                              flex: 1,
+                              background: bg,
+                              transition: "background-color 0.3s ease",
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color:
+                          getPasswordScore(password) <= 2
+                            ? "#ef4444"
+                            : getPasswordScore(password) <= 4
+                            ? "#fbbf24"
+                            : "#34d399",
+                        marginTop: "6px",
+                        fontWeight: 600,
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span>
+                        {getPasswordScore(password) <= 2
+                          ? "Weak Password"
+                          : getPasswordScore(password) <= 4
+                          ? "Medium Security"
+                          : "Strong & Secure"}
+                      </span>
+                      <span style={{ opacity: 0.7 }}>
+                        {password.length}/128 chars
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Confirm Password Field (Register Only) */}
-            {isRegistering && (
+            {isRegistering && registerStep === 2 && (
               <div className="animate-fade-in">
                 <label className="auth-label" htmlFor="auth-confirm-password">
                   Confirm Password
@@ -604,7 +646,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       paddingRight: "46px",
                       letterSpacing: showConfirmPassword ? "normal" : "2px",
                     }}
-                    required={isRegistering}
+                    required={isRegistering && registerStep === 2}
                   />
                   <button
                     type="button"
@@ -664,53 +706,80 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           )}
 
           {/* Submit Action Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-submit-btn"
-            style={{
-              width: "100%",
-              height: "52px",
-              borderRadius: "14px",
-              border: "none",
-              background: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)",
-              color: "#ffffff",
-              fontSize: "15px",
-              fontWeight: 800,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              cursor: loading ? "wait" : "pointer",
-              boxShadow: "0 8px 24px rgba(139, 92, 246, 0.25)",
-              marginTop: "12px",
-            }}
-          >
-            {loading ? (
-              <>
-                <div
-                  className="auth-spinner"
-                  style={{
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "50%",
-                    border: "2px solid rgba(255,255,255,0.25)",
-                    borderTopColor: "#ffffff",
-                    animation: "spin 0.6s linear infinite",
-                  }}
-                />
-                {isRegistering ? "Creating Account..." : "Securing Connection..."}
-              </>
-            ) : isRegistering ? (
-              <>
-                <UserPlus size={16} /> Create Account
-              </>
-            ) : (
-              <>
-                <LogIn size={16} /> Secure Login
-              </>
-            )}
-          </button>
+          {isRegistering && registerStep === 1 ? (
+            <button
+              type="button"
+              onClick={handleNextStep}
+              className="auth-submit-btn animate-fade-in"
+              style={{
+                width: "100%",
+                height: "52px",
+                borderRadius: "14px",
+                border: "none",
+                background: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)",
+                color: "#ffffff",
+                fontSize: "15px",
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                cursor: "pointer",
+                boxShadow: "0 8px 24px rgba(139, 92, 246, 0.25)",
+                marginTop: "12px",
+              }}
+            >
+              Continue to Step 2 <UserPlus size={16} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading}
+              className="auth-submit-btn"
+              style={{
+                width: "100%",
+                height: "52px",
+                borderRadius: "14px",
+                border: "none",
+                background: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)",
+                color: "#ffffff",
+                fontSize: "15px",
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                cursor: loading ? "wait" : "pointer",
+                boxShadow: "0 8px 24px rgba(139, 92, 246, 0.25)",
+                marginTop: "12px",
+              }}
+            >
+              {loading ? (
+                <>
+                  <div
+                    className="auth-spinner"
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "50%",
+                      border: "2px solid rgba(255,255,255,0.25)",
+                      borderTopColor: "#ffffff",
+                      animation: "spin 0.6s linear infinite",
+                    }}
+                  />
+                  {isRegistering ? "Creating Account..." : "Securing Connection..."}
+                </>
+              ) : isRegistering ? (
+                <>
+                  <UserPlus size={16} /> Create Account
+                </>
+              ) : (
+                <>
+                  <LogIn size={16} /> Secure Login
+                </>
+              )}
+            </button>
+          )}
 
           {/* Footer Action Links */}
           <div className="auth-footer-container">
@@ -774,8 +843,14 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             ) : (
               <button
                 type="button"
-                className="back-btn"
-                onClick={() => setIsRegistering(false)}
+                className="back-btn animate-fade-in"
+                onClick={() => {
+                  if (registerStep === 2) {
+                    setRegisterStep(1);
+                  } else {
+                    setIsRegistering(false);
+                  }
+                }}
                 style={{
                   width: "100%",
                   height: "42px",
@@ -792,7 +867,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   cursor: "pointer",
                 }}
               >
-                <ArrowLeft size={14} /> Return to Login screen
+                <ArrowLeft size={14} /> {registerStep === 2 ? "Back to Step 1" : "Return to Login screen"}
               </button>
             )}
           </div>
