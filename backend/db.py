@@ -100,6 +100,7 @@ def get_conn():
         try:
             with raw_conn.cursor() as cur:
                 cur.execute("SELECT 1")
+            raw_conn.rollback()
         except Exception:
             stale = True
             
