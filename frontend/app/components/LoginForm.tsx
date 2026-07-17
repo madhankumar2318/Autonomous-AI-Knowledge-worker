@@ -404,7 +404,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
             {/* Email Field (Register Only) */}
             {isRegistering && registerStep === 1 && (
-              <div className="animate-fade-in">
+              <div className="animate-fade-in col-span-full">
                 <label className="auth-label" htmlFor="auth-email">
                   Email Address
                 </label>
@@ -495,7 +495,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
             {/* Mobile Field (Register Only) */}
             {isRegistering && registerStep === 2 && (
-              <div className="animate-fade-in col-span-full">
+              <div className="animate-fade-in">
                 <label className="auth-label" htmlFor="auth-mobile">
                   Mobile Number
                 </label>
