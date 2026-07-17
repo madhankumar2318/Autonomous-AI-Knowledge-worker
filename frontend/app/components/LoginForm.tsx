@@ -716,46 +716,59 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           <div className="auth-footer-container">
             {!isRegistering ? (
               <>
-                <label
+                <div 
+                  onClick={() => setRememberMe(!rememberMe)}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "8px",
+                    gap: "10px",
                     fontSize: "13px",
-                    fontWeight: 500,
+                    fontWeight: 600,
                     color: "var(--text-secondary)",
                     cursor: "pointer",
                     userSelect: "none",
                   }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    style={{
-                      width: "15px",
-                      height: "15px",
-                      accentColor: "#22d3ee",
-                      cursor: "pointer",
-                    }}
-                  />
+                  <div style={{
+                    width: "18px",
+                    height: "18px",
+                    borderRadius: "6px",
+                    border: rememberMe ? "1.5px solid #22d3ee" : "1.5px solid rgba(255,255,255,0.2)",
+                    background: rememberMe ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.02)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "all 0.2s ease",
+                    boxShadow: rememberMe ? "0 0 10px rgba(34,211,238,0.25)" : "none"
+                  }}>
+                    {rememberMe && (
+                      <svg width="10px" height="8px" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 4.5L3.5 7L9 1" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
                   Remember device
-                </label>
+                </div>
                 <button
                   type="button"
                   className="link-btn"
                   onClick={() => setIsRegistering(true)}
                   style={{
-                    background: "none",
-                    border: "none",
+                    background: "rgba(34,211,238,0.06)",
+                    border: "1px solid rgba(34,211,238,0.15)",
+                    borderRadius: "20px",
+                    padding: "8px 18px",
                     color: "#22d3ee",
-                    fontSize: "13px",
+                    fontSize: "12px",
                     fontWeight: 700,
                     cursor: "pointer",
-                    padding: 0,
+                    transition: "all 0.2s ease",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
                   }}
                 >
-                  Create new account
+                  Create new account <span>→</span>
                 </button>
               </>
             ) : (
