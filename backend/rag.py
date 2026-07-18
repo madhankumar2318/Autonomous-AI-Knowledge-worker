@@ -378,6 +378,98 @@ def extract_pdf_content_via_gemini(filepath: str) -> List[Dict[str, Any]]:
         return []
 
 
+def extract_pdf_visual_summaries_via_gemini(filepath: str) -> List[Dict[str, Any]]:
+    """
+    Multi-modal visual analysis of a PDF using Gemini 2.5 Flash.
+    Extracts semantic descriptions of charts, graphs, diagrams, maps, and
+    infographics embedded in the document that pdfplumber cannot parse as text.
+
+    Each returned block has:
+        {text: <visual description>, chunk_type: 'image', page_num: <int>}
+
+    The PDF file is temporarily uploaded to the Gemini File API and deleted
+    immediately after analysis completes.
+    """
+    client = get_gemini_client()
+    if not client:
+        print("[RAG] Gemini client not configured. Skipping visual PDF analysis.")
+        return []
+
+    print(f"[RAG] Uploading PDF to Gemini File API for visual analysis: {os.path.basename(filepath)}...")
+    temp_file_name = None
+    try:
+        pdf_file = client.files.upload(file=filepath)
+        temp_file_name = pdf_file.name  # type: ignore
+        print(f"[RAG] Visual analysis upload complete. Temp name: {temp_file_name}")
+
+        # Wait for file to become ACTIVE (up to 20 seconds)
+        import time as _time
+        for _ in range(20):
+            if pdf_file.state.name == "ACTIVE":  # type: ignore
+                break
+            _time.sleep(1)
+            pdf_file = client.files.get(name=temp_file_name)  # type: ignore
+
+        if pdf_file.state.name != "ACTIVE":  # type: ignore
+            print(f"[RAG] Gemini File stuck in state: {pdf_file.state.name}. Skipping visual analysis.")  # type: ignore
+            return []
+
+        print("[RAG] Running multi-modal visual analysis via gemini-2.5-flash...")
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                pdf_file,
+                (
+                    "Analyze this PDF document for visual content only. "
+                    "For every page that contains charts, graphs, diagrams, maps, flowcharts, "
+                    "infographics, or images with meaningful data, write a detailed semantic description. "
+                    "Format your response strictly as follows — one entry per page: "
+                    "[Page X] <your description here>. "
+                    "If a page has NO visual content (text-only), skip it entirely. "
+                    "Be specific: describe trends, labels, axis values, data relationships, and key insights visible in each visual."
+                )
+            ]
+        )
+
+        visual_text = response.text or ""
+        blocks: List[Dict[str, Any]] = []
+
+        # Parse [Page X] sections from the response
+        page_sections = re.split(r'\[Page\s+(\d+)\]', visual_text)
+        if len(page_sections) > 1:
+            for i in range(1, len(page_sections), 2):
+                page_num = int(page_sections[i])
+                description = page_sections[i + 1].strip() if (i + 1) < len(page_sections) else ""
+                if description:
+                    blocks.append({
+                        "text": f"[Visual Content — Page {page_num}]\n{description}",
+                        "chunk_type": "image",
+                        "page_num": page_num
+                    })
+        elif visual_text.strip():
+            # Fallback: no page markers found but model returned something
+            blocks.append({
+                "text": f"[Visual Content]\n{visual_text.strip()}",
+                "chunk_type": "image",
+                "page_num": 0
+            })
+
+        print(f"[RAG] Visual analysis complete. Found {len(blocks)} visual block(s) across document.")
+        return blocks
+
+    except Exception as e:
+        print(f"[RAG] Visual PDF analysis failed (non-fatal, text-only indexing will continue): {e}")
+        return []
+    finally:
+        # Always clean up the temporary file from Gemini storage
+        if temp_file_name:
+            try:
+                client.files.delete(name=temp_file_name)  # type: ignore
+                print("[RAG] Temporary visual analysis file cleaned up from Gemini API storage.")
+            except Exception as del_err:
+                print(f"[RAG] Warning: failed to delete temp visual file {temp_file_name}: {del_err}")
+
+
 def extract_pdf_content(filepath: str) -> List[Dict[str, Any]]:
     """
     Extract text and tables from a PDF using standard parsers,
@@ -786,6 +878,17 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
     if not content_blocks:
         return {"filename": filename, "status": "empty", "chunks": 0}
 
+    # 2b. For PDFs: append multi-modal visual summaries (charts, graphs, diagrams)
+    ext_lower = filename.split(".")[-1].lower()
+    if ext_lower == "pdf":
+        try:
+            visual_blocks = extract_pdf_visual_summaries_via_gemini(filepath)
+            if visual_blocks:
+                print(f"[RAG] Appending {len(visual_blocks)} visual block(s) to indexing queue for '{filename}'.")
+                content_blocks.extend(visual_blocks)
+        except Exception as vis_err:
+            print(f"[RAG] Visual indexing skipped due to error: {vis_err}")
+
     # 3. Apply smart chunking to each block
     all_chunks: List[Dict[str, Any]] = []
     for block in content_blocks:
@@ -807,6 +910,14 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
                 all_chunks.append({
                     "text": block_text.strip(),
                     "chunk_type": "header",
+                    "page_num": block_page
+                })
+        elif block_type == "image":
+            # Visual summaries are always kept as single non-splittable chunks
+            if block_text.strip():
+                all_chunks.append({
+                    "text": block_text.strip(),
+                    "chunk_type": "image",
                     "page_num": block_page
                 })
         else:
@@ -835,8 +946,8 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
         print(f"[RAG] Warning: Embedding generation failed for '{filename}': {emb_err}")
         print(f"[RAG] Storing chunks without embeddings — keyword search will still work.")
         embeddings_available = False
-        # Use zero-vectors so the documents are stored and retrievable by keyword
-        EMBEDDING_DIM = 768  # text-embedding-004 dimension
+        # Use correct zero-vector dimension: pgvector schema uses 3072, ChromaDB uses 768
+        EMBEDDING_DIM = 3072 if is_postgres_active() else 768
         embeddings = [[0.0] * EMBEDDING_DIM for _ in chunk_texts]
 
     # 5. Insert into vector store with enriched metadata
