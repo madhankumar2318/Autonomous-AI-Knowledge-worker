@@ -4,7 +4,7 @@ import re
 import csv
 import json
 import traceback
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import chromadb
 from google import genai
 import contextvars
