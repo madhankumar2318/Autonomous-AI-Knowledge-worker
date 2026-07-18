@@ -41,8 +41,13 @@ def get_chroma_collection() -> Any:
 
 def init_rag():
     """
-    Called at startup to initialize ChromaDB.
+    Called at startup to initialize the vector database.
+    Skips ChromaDB client load if in PostgreSQL mode to optimize RAM.
     """
+    if is_postgres_active():
+        print("[RAG] RAG Engine Initialized in PostgreSQL Mode (pgvector). ChromaDB client loading skipped to save RAM.")
+        return
+
     col = get_chroma_collection()
     if col is not None:
         print(f"RAG Engine Initialized. ChromaDB collection '{COLLECTION_NAME}' loaded. Total items: {col.count()}")
