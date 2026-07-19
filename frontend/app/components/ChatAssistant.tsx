@@ -1584,6 +1584,16 @@ export default function ChatAssistant({
         </div>
       )}
 
+      {/* FAB */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        title="AI Assistant"
+        className={`chat-fab ${isOpen ? "chat-fab-active" : "fab-pulse-glow"}`}
+      >
+        {isOpen ? <X size={22} color="#fff" /> : <MessageSquare size={22} color="#fff" />}
+      </button>
+
       <style>{`
         .chat-floating-wrapper { position: fixed; bottom: 32px; right: 32px; z-index: 100; }
 
