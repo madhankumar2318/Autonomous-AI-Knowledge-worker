@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import {
   Bot,
   Clock,
@@ -47,14 +47,14 @@ interface ChatAssistantProps {
 }
 
 
-// ThinkingLogsAccordion extracted → ./ThinkingLogsAccordion.tsx
-// chatFormatters extracted → ./chatFormatters.tsx
+// ThinkingLogsAccordion extracted â†’ ./ThinkingLogsAccordion.tsx
+// chatFormatters extracted â†’ ./chatFormatters.tsx
 
 const QUICK_PROMPTS = [
-  "📊 Summarize today's top news",
-  "📈 What are the best performing stocks?",
-  "🔍 Analyze market sentiment",
-  "💡 What should I know today?",
+  "ðŸ“Š Summarize today's top news",
+  "ðŸ“ˆ What are the best performing stocks?",
+  "ðŸ” Analyze market sentiment",
+  "ðŸ’¡ What should I know today?",
 ];
 
 
@@ -101,7 +101,7 @@ export default function ChatAssistant({
     {
       role: "ai",
       content: activeDocumentFilename
-        ? `📄 **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document — I'll search it and give you precise, cited answers.`
+        ? `ðŸ“„ **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document â€” I'll search it and give you precise, cited answers.`
         : "Hi! I'm your AI Knowledge Worker. I can help you analyze news, check stock data, summarize documents, and answer questions. What can I do for you today?",
     },
   ]);
@@ -109,7 +109,7 @@ export default function ChatAssistant({
   const [loading, setLoading] = useState(false);
   const [streamingStatus, setStreamingStatus] = useState<string>("");
 
-  // ── Thread History State ──
+  // â”€â”€ Thread History State â”€â”€
   const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showThreadSidebar, setShowThreadSidebar] = useState(false);
@@ -123,11 +123,11 @@ export default function ChatAssistant({
   const welcomeMessage = (): ChatMessage => ({
     role: "ai",
     content: activeDocumentFilename
-      ? `📄 **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document — I'll search it and give you precise, cited answers.`
+      ? `ðŸ“„ **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document â€” I'll search it and give you precise, cited answers.`
       : "Hi! I'm your AI Knowledge Worker. I can help you analyze news, check stock data, summarize documents, and answer questions. What can I do for you today?",
   });
 
-  // ── Thread CRUD Helpers ──
+  // â”€â”€ Thread CRUD Helpers â”€â”€
   const fetchThreads = async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/chat/threads?username=${encodeURIComponent(username)}`, { credentials: "include" });
@@ -247,7 +247,7 @@ export default function ChatAssistant({
     }
   }, [inline]);
 
-  // Citation click — fires a custom DOM event so the PDF viewer can scroll to the page
+  // Citation click â€” fires a custom DOM event so the PDF viewer can scroll to the page
   const handleCitationClick = (filename: string, phrase: string, pageNum?: number) => {
     const event = new CustomEvent("open-rag-document", {
       detail: { filename, phrase, pageNum },
@@ -455,7 +455,7 @@ export default function ChatAssistant({
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
-        // User stopped generation — finalize the partial message as-is
+        // User stopped generation â€” finalize the partial message as-is
         setStreamingStatus("");
       } else {
         showToast("error", "Failed to connect to AI server.");
@@ -480,7 +480,7 @@ export default function ChatAssistant({
     }
   };
 
-  // ── INLINE (full-page tab) MODE ──
+  // â”€â”€ INLINE (full-page tab) MODE â”€â”€
   if (inline) {
     return (
       <div className="chat-inline-root">
@@ -504,7 +504,7 @@ export default function ChatAssistant({
                 background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399"),
                 boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399")
               }} />
-              <span>Online · {selectedModel === "llama-70b" ? "Llama 3.3 70B (Groq)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
+              <span>Online Â· {selectedModel === "llama-70b" ? "Llama 3.3 70B (Groq)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
             </div>
           </div>
           <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -630,7 +630,7 @@ export default function ChatAssistant({
                         {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
                         {msg.model && (
                           <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.8 }}>
-                            ⚡ {msg.model}
+                            âš¡ {msg.model}
                           </div>
                         )}
                       </>
@@ -654,9 +654,9 @@ export default function ChatAssistant({
           <div className="chat-quick-prompts">
             {(activeDocumentFilename
               ? [
-                  "📝 Summarize this document",
-                  "💡 Key takeaways & insights",
-                  "🔍 Find action items/decisions",
+                  "ðŸ“ Summarize this document",
+                  "ðŸ’¡ Key takeaways & insights",
+                  "ðŸ” Find action items/decisions",
                 ]
               : QUICK_PROMPTS
             ).map((prompt, i) => (
@@ -683,7 +683,7 @@ export default function ChatAssistant({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything about news, stocks, or your files…"
+              placeholder="Ask me anything about news, stocks, or your filesâ€¦"
               className="chat-input-field"
               disabled={loading}
               id="chat-inline-input"
@@ -709,7 +709,7 @@ export default function ChatAssistant({
           </form>
           <div className="chat-input-hint">
             <Zap className="w-3 h-3" />
-            Powered by Gemini AI · Your conversations are private
+            Powered by Gemini AI Â· Your conversations are private
           </div>
         </div>
           </div>{/* /chat-inline-main */}
@@ -1072,7 +1072,7 @@ export default function ChatAssistant({
             40% { transform: scale(1); opacity: 1; }
           }
 
-          /* ── QUICK PROMPTS ── */
+          /* â”€â”€ QUICK PROMPTS â”€â”€ */
           .chat-quick-prompts {
             display: flex;
             flex-wrap: wrap;
@@ -1097,7 +1097,7 @@ export default function ChatAssistant({
             color: #67e8f9;
           }
 
-          /* ── INPUT ── */
+          /* â”€â”€ INPUT â”€â”€ */
           .chat-inline-input {
             padding: 16px 20px;
             border-top: 1px solid var(--border-light);
@@ -1225,119 +1225,75 @@ export default function ChatAssistant({
   return (
     <div className="chat-floating-wrapper">
       {isOpen && (
-        <div className="chat-floating-window scale-in-smooth">
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 14px 16px 12px", borderBottom: "1px solid var(--border-light)", background: "linear-gradient(to right, rgba(34,211,238,0.06), transparent)", flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1, marginRight: "12px" }}>
-              <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "linear-gradient(135deg, rgba(34,211,238,0.25), rgba(14,165,233,0.15))", border: "1px solid rgba(34,211,238,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Sparkles size={15} color="#67e8f9" />
-              </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ color: "var(--text-primary)", fontWeight: 700, fontSize: "15px", lineHeight: "1.2", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>AI Assistant</div>
-                <div style={{ color: "var(--text-secondary)", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", marginTop: "3px", whiteSpace: "nowrap" }}>
-                  <span className="chat-status-dot" style={{
-                    width: "6px",
-                    height: "6px",
-                    borderRadius: "50%",
-                    background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399"),
-                    boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399"),
-                    flexShrink: 0,
-                    animation: "pulse 2s ease-in-out infinite"
-                  }} />
-                  <span style={{ lineHeight: "12px" }}>Online</span>
-                </div>
+        <div className={`chat-floating-window scale-in-smooth ${showThreadSidebar ? "chat-window-expanded" : ""}`}>
+
+          {/* ── Header ── */}
+          <div className="cfab-header">
+            <button
+              type="button"
+              className={`cfab-icon-btn ${showThreadSidebar ? "cfab-icon-btn--active" : ""}`}
+              onClick={() => setShowThreadSidebar(!showThreadSidebar)}
+              title={showThreadSidebar ? "Hide history" : "Chat History"}
+            >
+              <History size={14} />
+            </button>
+            <div className="cfab-avatar">
+              <Sparkles size={14} color="#67e8f9" />
+            </div>
+            <div className="cfab-title-block">
+              <div className="cfab-title">AI Assistant</div>
+              <div className="cfab-subtitle">
+                <span
+                  className="cfab-dot"
+                  style={{
+                    background: selectedModel === "llama-70b" ? "#c084fc" : selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399",
+                    boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399",
+                  }}
+                />
+                Online
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => setShowThreadSidebar(!showThreadSidebar)}
-                style={{
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "8px",
-                  background: showThreadSidebar ? "rgba(34, 211, 238, 0.15)" : "var(--bg-surface)",
-                  border: showThreadSidebar ? "1px solid rgba(34, 211, 238, 0.3)" : "1px solid var(--border-light)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  color: showThreadSidebar ? "#22d3ee" : "var(--text-secondary)",
-                  outline: "none"
-                }}
-                title="Chat History"
-              >
-                <History size={14} />
-              </button>
-              <select
-                value={selectedModel}
-                onChange={(e) => handleModelChange(e.target.value)}
-                className="chat-model-select"
-              >
-                <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Llama 3.3 (Groq)</option>
-                <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini Pro</option>
-                <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Gemini Flash</option>
+            <div className="cfab-header-actions">
+              <select value={selectedModel} onChange={(e) => handleModelChange(e.target.value)} className="chat-model-select">
+                <option value="llama-70b" style={{ background: "#080814", color: "#fff" }}>Llama 3.3 (Groq)</option>
+                <option value="gemini-pro" style={{ background: "#080814", color: "#fff" }}>Gemini Pro</option>
+                <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Gemini Flash</option>
               </select>
-              <button type="button" onClick={() => setIsOpen(false)} style={{ width: "28px", height: "28px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-secondary)" }}>
+              <button type="button" className="cfab-icon-btn" onClick={() => setIsOpen(false)} title="Close">
                 <X size={14} />
               </button>
             </div>
           </div>
 
-          {/* Floating Thread History Overlay */}
-          {showThreadSidebar && (
-            <div style={{
-              position: "absolute",
-              top: "67px",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "#080814",
-              zIndex: 50,
-              display: "flex",
-              flexDirection: "column",
-              borderTop: "1px solid var(--border-light)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--border-light)" }}>
-                <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>Chat History ({threads.length})</span>
-                <button
-                  type="button"
-                  onClick={async () => { await startNewChat(); setShowThreadSidebar(false); }}
-                  style={{
-                    background: "rgba(34,211,238,0.1)",
-                    border: "1px solid rgba(34,211,238,0.2)",
-                    borderRadius: "6px",
-                    color: "#22d3ee",
-                    fontSize: "11px",
-                    padding: "4px 8px",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px"
-                  }}
-                >
-                  <Plus size={12} /> New Chat
+          {/* ── Body: rail + chat side-by-side ── */}
+          <div className="cfab-body">
+
+            {/* LEFT RAIL */}
+            <div className={`cfab-rail ${showThreadSidebar ? "cfab-rail--open" : ""}`}>
+              <div className="cfab-rail-header">
+                <span className="cfab-rail-label">History</span>
+                <button type="button" className="cfab-new-btn" onClick={async () => { await startNewChat(); }} title="New chat">
+                  <Plus size={11} />
                 </button>
               </div>
-              <div className="chat-thread-list" style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+              <div className="cfab-rail-list">
                 {threads.length === 0 && (
-                  <div className="chat-thread-empty">
-                    <MessageSquare size={20} style={{ opacity: 0.3 }} />
-                    <span>No conversations yet</span>
+                  <div className="cfab-rail-empty">
+                    <MessageSquare size={16} style={{ opacity: 0.25 }} />
+                    <span>No chats yet</span>
                   </div>
                 )}
                 {threads.map((thread) => (
                   <div
                     key={thread.id}
-                    className={`chat-thread-item ${activeThreadId === thread.id ? "chat-thread-active" : ""}`}
-                    onClick={() => { switchThread(thread.id); setShowThreadSidebar(false); }}
+                    className={`cfab-rail-item ${activeThreadId === thread.id ? "cfab-rail-item--active" : ""}`}
+                    onClick={() => switchThread(thread.id)}
+                    title={thread.title}
                   >
                     {renamingThreadId === thread.id ? (
                       <input
                         type="text"
-                        className="chat-thread-rename-input"
+                        className="cfab-rename-input"
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onBlur={() => renameThread(thread.id, renameValue)}
@@ -1347,23 +1303,14 @@ export default function ChatAssistant({
                       />
                     ) : (
                       <>
-                        <div className="chat-thread-info">
-                          <span className="chat-thread-title">{thread.title}</span>
-                          <span className="chat-thread-time">
-                            <Clock size={10} />
-                            {timeAgo(thread.updated_at)}
-                          </span>
+                        <div className="cfab-rail-item-inner">
+                          <span className="cfab-rail-title">{thread.title}</span>
+                          <span className="cfab-rail-time"><Clock size={9} />{timeAgo(thread.updated_at)}</span>
                         </div>
-                        <div className="chat-thread-actions" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" title="Rename" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}>
-                            <Pencil size={11} />
-                          </button>
-                          <button type="button" title="Export" onClick={() => { switchThread(thread.id); setTimeout(() => exportThread(thread), 300); }}>
-                            <Download size={11} />
-                          </button>
-                          <button type="button" title="Delete" className="chat-thread-delete" onClick={() => deleteThread(thread.id)}>
-                            <Trash2 size={11} />
-                          </button>
+                        <div className="cfab-rail-actions" onClick={(e) => e.stopPropagation()}>
+                          <button type="button" title="Rename" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}><Pencil size={10} /></button>
+                          <button type="button" title="Export" onClick={() => { switchThread(thread.id); setTimeout(() => exportThread(thread), 300); }}><Download size={10} /></button>
+                          <button type="button" title="Delete" className="cfab-del-btn" onClick={() => deleteThread(thread.id)}><Trash2 size={10} /></button>
                         </div>
                       </>
                     )}
@@ -1371,321 +1318,256 @@ export default function ChatAssistant({
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "18px", display: "flex", flexDirection: "column", gap: "14px" }}>
-            {messages.map((msg, idx) => {
-              const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
-              return (
-                <div key={idx} className="animate-message-bubble" style={{ display: "flex", gap: "10px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
-                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0, background: msg.role === "user" ? "var(--bg-hover)" : "rgba(34,211,238,0.12)", border: msg.role === "user" ? "1px solid var(--border-light)" : "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {msg.role === "user" ? <User size={13} color="#fff" /> : <Bot size={13} color="#67e8f9" />}
-                  </div>
-                  <div style={{ background: msg.role === "user" ? "rgba(34,211,238,0.15)" : "var(--bg-surface)", border: msg.role === "user" ? "1px solid rgba(34,211,238,0.25)" : "1px solid var(--border-light)", padding: "10px 14px", borderRadius: "14px", borderTopRightRadius: msg.role === "user" ? "4px" : "14px", borderTopLeftRadius: msg.role === "ai" ? "4px" : "14px", color: "var(--text-primary)", fontSize: "0.95rem", lineHeight: "1.55", maxWidth: "80%" }}>
-                    {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
-                      <ThinkingLogsAccordion
-                        logs={msg.thinkingLogs || []}
-                        toolLogs={msg.toolLogs}
-                        isGenerating={isLastAi}
-                      />
-                    )}
-                    {msg.content === "" && isLastAi ? (
-                      <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                        <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                        <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                        <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
-                      </span>
-                    ) : (
-                      <>
-                        {renderMessage(msg.content)}
-                        {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                        {msg.model && (
-                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.8 }}>
-                            ⚡ {msg.model}
-                          </div>
+            {/* RIGHT CHAT */}
+            <div className="cfab-chat">
+              <div className="cfab-messages">
+                {messages.map((msg, idx) => {
+                  const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
+                  return (
+                    <div key={idx} className="animate-message-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+                      <div className={`cfab-avatar-sm ${msg.role === "user" ? "cfab-avatar-user" : "cfab-avatar-ai"}`}>
+                        {msg.role === "user" ? <User size={12} color="#fff" /> : <Bot size={12} color="#67e8f9" />}
+                      </div>
+                      <div className={`cfab-bubble ${msg.role === "user" ? "cfab-bubble-user" : "cfab-bubble-ai"}`}>
+                        {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
+                          <ThinkingLogsAccordion logs={msg.thinkingLogs || []} toolLogs={msg.toolLogs} isGenerating={isLastAi} />
                         )}
-                      </>
-                    )}
+                        {msg.content === "" && isLastAi ? (
+                          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
+                            <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
+                            <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
+                          </span>
+                        ) : (
+                          <>
+                            {renderMessage(msg.content)}
+                            {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
+                            {msg.model && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>⚡ {msg.model}</div>}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {loading && streamingStatus && (
+                  <div className="cfab-status-pill">
+                    <span className="cfab-status-dot" />
+                    {streamingStatus}
                   </div>
-                </div>
-              );
-            })}
-            {loading && streamingStatus && (
-              <div style={{ display: "flex", alignItems: "center", gap: "7px", alignSelf: "flex-start", background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.2)", borderRadius: "20px", padding: "5px 12px", fontSize: "12px", color: "rgba(103,232,249,0.85)" }}>
-                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#22d3ee", flexShrink: 0, animation: "pulse 1.2s ease-in-out infinite" }} />
-                {streamingStatus}
+                )}
+                <div ref={messagesEndRef} />
               </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
 
-          {/* Input */}
-          <div style={{ padding: "14px 16px", borderTop: "1px solid var(--border-light)", background: "var(--bg-secondary)" }}>
-            <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }} style={{ display: "flex", gap: "10px" }}>
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask me anything…"
-                disabled={loading}
-                style={{ flex: 1, background: "var(--bg-surface)", border: "1px solid var(--border-light)", borderRadius: "12px", padding: "9px 13px", color: "var(--text-primary)", fontSize: "0.95rem", outline: "none", opacity: loading ? 0.6 : 1 }}
-                onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--border-light)")}
-              />
-              {loading ? (
-                <button
-                  type="button"
-                  onClick={stopGeneration}
-                  style={{ width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0, background: "rgba(239,68,68,0.18)", border: "1px solid rgba(239,68,68,0.45)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#f87171", transition: "all 0.2s ease" }}
-                  title="Stop generation"
-                >
-                  <Square size={14} fill="currentColor" />
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  style={{ width: "40px", height: "40px", borderRadius: "12px", flexShrink: 0, background: input.trim() ? "linear-gradient(135deg, #22d3ee, #0891b2)" : "var(--bg-surface)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: input.trim() ? "pointer" : "not-allowed", color: input.trim() ? "#030f1a" : "var(--text-muted)", transition: "all 0.2s ease" }}
-                >
-                  <Send size={15} />
-                </button>
-              )}
-            </form>
+              {/* Input */}
+              <div className="cfab-input-bar">
+                <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }} className="cfab-input-form">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Ask me anything…"
+                    disabled={loading}
+                    className="cfab-input-field"
+                    onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--border-light)")}
+                  />
+                  {loading ? (
+                    <button type="button" onClick={stopGeneration} className="cfab-send-btn cfab-stop" title="Stop">
+                      <Square size={13} fill="currentColor" />
+                    </button>
+                  ) : (
+                    <button type="submit" disabled={!input.trim()} className={`cfab-send-btn ${input.trim() ? "cfab-send-active" : ""}`}>
+                      <Send size={13} />
+                    </button>
+                  )}
+                </form>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* FAB */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        title="AI Assistant"
-        className={`chat-fab ${isOpen ? "chat-fab-active" : "fab-pulse-glow"}`}
-      >
+      <button type="button" onClick={() => setIsOpen(!isOpen)} title="AI Assistant" className={`chat-fab ${isOpen ? "chat-fab-active" : "fab-pulse-glow"}`}>
         {isOpen ? <X size={22} color="#fff" /> : <MessageSquare size={22} color="#fff" />}
       </button>
 
       <style>{`
-        .chat-floating-wrapper {
-          position: fixed;
-          bottom: 32px;
-          right: 32px;
-          z-index: 100;
+        .chat-floating-wrapper { position: fixed; bottom: 32px; right: 32px; z-index: 100; }
+
+        .chat-floating-window {
+          position: absolute; bottom: 68px; right: 0;
+          width: 400px; height: 540px;
+          background: var(--bg-sidebar);
+          backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+          border: 1px solid var(--border-medium); border-radius: 20px;
+          box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(34,211,238,0.08);
+          display: flex; flex-direction: column; overflow: hidden;
+          transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
         }
+        .chat-window-expanded { width: 540px; }
 
         .chat-fab {
-          width: 56px;
-          height: 56px;
-          border-radius: 18px;
+          width: 56px; height: 56px; border-radius: 18px;
           background: linear-gradient(135deg, #22d3ee, #0891b2);
-          border: 1px solid rgba(255, 255, 255, 0.15);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 8px 24px rgba(34, 211, 238, 0.4);
-          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-          outline: none;
-          will-change: transform, box-shadow;
+          border: 1px solid rgba(255,255,255,0.15); cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 8px 24px rgba(34,211,238,0.4);
+          transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1); outline: none;
         }
-        .chat-fab:hover {
-          transform: scale(1.1) translateY(-2px);
-          box-shadow: 0 12px 28px rgba(34, 211, 238, 0.55), 0 0 15px rgba(34, 211, 238, 0.2);
-        }
+        .chat-fab:hover { transform: scale(1.1) translateY(-2px); box-shadow: 0 12px 28px rgba(34,211,238,0.55); }
         .chat-fab-active {
           background: linear-gradient(135deg, #0891b2, #0369a1) !important;
-          box-shadow: 0 8px 32px rgba(8, 145, 178, 0.6), 0 0 0 4px rgba(34, 211, 238, 0.15) !important;
+          box-shadow: 0 8px 32px rgba(8,145,178,0.6), 0 0 0 4px rgba(34,211,238,0.15) !important;
           transform: rotate(180deg) scale(1.05) !important;
         }
 
-        .chat-floating-window {
-          position: absolute;
-          bottom: 68px;
-          right: 0;
-          width: 380px;
-          height: 530px;
-          background: var(--bg-sidebar);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border: 1px solid var(--border-medium);
-          border-radius: 20px;
-          box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(34,211,238,0.08);
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
+        /* Header */
+        .cfab-header {
+          display: flex; align-items: center; gap: 8px;
+          padding: 11px 13px; flex-shrink: 0;
+          border-bottom: 1px solid var(--border-light);
+          background: linear-gradient(to right, rgba(34,211,238,0.06), transparent);
+        }
+        .cfab-icon-btn {
+          width: 28px; height: 28px; border-radius: 8px;
+          background: var(--bg-surface); border: 1px solid var(--border-light);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: var(--text-secondary); flex-shrink: 0;
+          outline: none; transition: all 0.15s ease;
+        }
+        .cfab-icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .cfab-icon-btn--active { background: rgba(34,211,238,0.15) !important; border-color: rgba(34,211,238,0.35) !important; color: #22d3ee !important; }
+        .cfab-avatar {
+          width: 30px; height: 30px; border-radius: 9px;
+          background: linear-gradient(135deg, rgba(34,211,238,0.22), rgba(14,165,233,0.14));
+          border: 1px solid rgba(34,211,238,0.28);
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .cfab-title-block { flex: 1; min-width: 0; }
+        .cfab-title { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+        .cfab-subtitle { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+        .cfab-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; animation: cfab-pulse 2s ease-in-out infinite; }
+        @keyframes cfab-pulse { 0%,100%{opacity:1} 50%{opacity:0.45} }
+        .cfab-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-left: auto; }
+
+        /* Body */
+        .cfab-body { display: flex; flex: 1; overflow: hidden; }
+
+        /* Rail */
+        .cfab-rail {
+          width: 0; overflow: hidden; flex-shrink: 0;
+          display: flex; flex-direction: column;
+          background: rgba(6,6,18,0.65);
+          border-right: 0px solid var(--border-light);
+          transition: width 0.3s cubic-bezier(0.4,0,0.2,1), border-right-width 0.1s ease;
+        }
+        .cfab-rail--open { width: 140px; border-right-width: 1px; }
+        .cfab-rail-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 9px 9px 7px; flex-shrink: 0;
+          border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .cfab-rail-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); white-space: nowrap; }
+        .cfab-new-btn {
+          width: 20px; height: 20px; border-radius: 5px;
+          background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.2);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: #22d3ee; flex-shrink: 0; transition: all 0.15s ease;
+        }
+        .cfab-new-btn:hover { background: rgba(34,211,238,0.2); }
+        .cfab-rail-list { flex: 1; overflow-y: auto; padding: 5px; display: flex; flex-direction: column; gap: 2px; }
+        .cfab-rail-list::-webkit-scrollbar { width: 3px; }
+        .cfab-rail-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 4px; }
+        .cfab-rail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 28px 8px; color: var(--text-muted); font-size: 10.5px; text-align: center; }
+        .cfab-rail-item {
+          padding: 7px 7px; border-radius: 7px; cursor: pointer;
+          transition: all 0.15s ease; border: 1px solid transparent;
+          position: relative; min-width: 0;
+        }
+        .cfab-rail-item:hover { background: var(--bg-surface); border-color: var(--border-light); }
+        .cfab-rail-item--active { background: rgba(34,211,238,0.09) !important; border-color: rgba(34,211,238,0.25) !important; }
+        .cfab-rail-item-inner { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .cfab-rail-title { font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .cfab-rail-time { font-size: 9.5px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; white-space: nowrap; margin-top: 1px; }
+        .cfab-rail-actions {
+          display: none; position: absolute; bottom: 3px; right: 3px;
+          background: var(--bg-sidebar); border: 1px solid var(--border-light);
+          border-radius: 5px; padding: 2px; gap: 1px; align-items: center;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .cfab-rail-item:hover .cfab-rail-actions { display: flex; }
+        .cfab-rail-actions button {
+          background: none; border: none; cursor: pointer; color: var(--text-secondary);
+          padding: 3px; border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+        }
+        .cfab-rail-actions button:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .cfab-del-btn:hover { background: rgba(239,68,68,0.15) !important; color: #f87171 !important; }
+        .cfab-rename-input {
+          width: 100%; background: var(--bg-sidebar); border: 1px solid rgba(34,211,238,0.4);
+          border-radius: 5px; padding: 3px 5px; color: var(--text-primary); font-size: 11px; outline: none; font-family: inherit;
         }
 
-        @keyframes slideUpFade {
-          from { opacity: 0; transform: translateY(12px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
+        /* Chat panel */
+        .cfab-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .cfab-messages { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 11px; scroll-behavior: smooth; }
+        .cfab-messages::-webkit-scrollbar { width: 3px; }
+        .cfab-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 4px; }
+        .cfab-avatar-sm { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+        .cfab-avatar-user { background: var(--bg-hover); border: 1px solid var(--border-light); }
+        .cfab-avatar-ai  { background: rgba(34,211,238,0.12); border: 1px solid rgba(34,211,238,0.25); }
+        .cfab-bubble { padding: 8px 12px; border-radius: 13px; font-size: 0.88rem; line-height: 1.55; max-width: 84%; }
+        .cfab-bubble-user { background: rgba(34,211,238,0.13); border: 1px solid rgba(34,211,238,0.25); border-top-right-radius: 4px; color: #ecfeff; }
+        .cfab-bubble-ai  { background: var(--bg-surface); border: 1px solid var(--border-light); border-top-left-radius: 4px; color: var(--text-primary); }
+        .cfab-status-pill { display: flex; align-items: center; gap: 7px; align-self: flex-start; background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.2); border-radius: 20px; padding: 4px 10px; font-size: 11px; color: rgba(103,232,249,0.85); }
+        .cfab-status-dot { width: 5px; height: 5px; border-radius: 50%; background: #22d3ee; animation: cfab-pulse 1.2s ease-in-out infinite; flex-shrink: 0; }
+
+        /* Input */
+        .cfab-input-bar { padding: 9px 11px; border-top: 1px solid var(--border-light); background: var(--bg-secondary); flex-shrink: 0; }
+        .cfab-input-form { display: flex; gap: 7px; align-items: center; }
+        .cfab-input-field {
+          flex: 1; background: var(--bg-surface); border: 1px solid var(--border-light);
+          border-radius: 11px; padding: 7px 11px; font-size: 0.88rem; color: var(--text-primary);
+          outline: none; transition: border-color 0.2s ease; font-family: inherit;
         }
-        .chat-typing-dot {
-          width: 6px; height: 6px; border-radius: 50%;
-          background: #67e8f9; display: inline-block;
-          animation: typingBounce 1.4s infinite ease-in-out both;
+        .cfab-input-field::placeholder { color: var(--text-muted); }
+        .cfab-input-field:disabled { opacity: 0.5; }
+        .cfab-send-btn {
+          width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+          background: var(--bg-surface); border: 1px solid var(--border-light);
+          display: flex; align-items: center; justify-content: center;
+          cursor: not-allowed; color: var(--text-muted); outline: none;
+          transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
         }
-        @keyframes typingBounce {
-          0%, 80%, 100% { transform: scale(0.5); opacity: 0.4; }
-          40% { transform: scale(1); opacity: 1; }
-        }
+        .cfab-send-active { background: linear-gradient(135deg,#22d3ee,#0891b2) !important; border-color: transparent !important; color: #030f1a !important; cursor: pointer !important; box-shadow: 0 4px 14px rgba(34,211,238,0.35); }
+        .cfab-send-active:hover { transform: scale(1.08); box-shadow: 0 6px 18px rgba(34,211,238,0.5); }
+        .cfab-stop { background: rgba(239,68,68,0.15) !important; border-color: rgba(239,68,68,0.4) !important; color: #f87171 !important; cursor: pointer !important; }
+        .cfab-stop:hover { background: rgba(239,68,68,0.25) !important; }
+
+        /* Shared */
         .chat-model-select {
-          background: #080814;
-          border: 1px solid var(--border-light);
-          border-radius: 8px;
-          color: var(--text-primary);
-          font-size: 11px;
-          height: 28px;
-          padding: 0 24px 0 8px;
-          font-weight: 600;
-          outline: none;
-          cursor: pointer;
-          appearance: none;
-          -webkit-appearance: none;
-          -moz-appearance: none;
+          background: #080814; border: 1px solid var(--border-light); border-radius: 8px;
+          color: var(--text-primary); font-size: 11px; height: 28px; padding: 0 24px 0 8px;
+          font-weight: 600; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none;
           background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-          background-repeat: no-repeat;
-          background-position: right 8px center;
-          background-size: 12px;
-          transition: border-color 0.15s ease;
+          background-repeat: no-repeat; background-position: right 8px center; background-size: 12px; transition: border-color 0.15s ease;
         }
-        .chat-model-select:hover {
-          border-color: rgba(34, 211, 238, 0.4);
-        }
+        .chat-model-select:hover { border-color: rgba(34,211,238,0.4); }
 
-        /* Thread styling inside FAB mode overlay */
-        .chat-thread-list {
-          overflow-y: auto;
-          padding: 8px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .chat-thread-list::-webkit-scrollbar {
-          width: 4px;
-        }
-        .chat-thread-list::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.08);
-          border-radius: 4px;
-        }
-        .chat-thread-empty {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 60px 16px;
-          color: var(--text-muted);
-          font-size: 13px;
-          text-align: center;
-        }
-        .chat-thread-item {
-          display: flex;
-          align-items: center;
-          padding: 10px 12px;
-          border-radius: 10px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          position: relative;
-          border: 1px solid transparent;
-        }
-        .chat-thread-item:hover {
-          background: var(--bg-surface);
-          border-color: var(--border-light);
-        }
-        .chat-thread-active {
-          background: rgba(34, 211, 238, 0.08) !important;
-          border-color: rgba(34, 211, 238, 0.25) !important;
-        }
-        .chat-thread-info {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          flex: 1;
-          min-width: 0;
-          text-align: left;
-        }
-        .chat-thread-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: var(--text-primary);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .chat-thread-time {
-          font-size: 11px;
-          color: var(--text-muted);
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .chat-thread-actions {
-          display: none;
-          align-items: center;
-          gap: 4px;
-          position: absolute;
-          right: 8px;
-          top: 50%;
-          transform: translateY(-50%);
-          background: var(--bg-surface);
-          padding: 4px;
-          border-radius: 6px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-        .chat-thread-active .chat-thread-actions {
-          background: rgb(15, 15, 35);
-        }
-        .chat-thread-item:hover .chat-thread-actions {
-          display: flex;
-        }
-        .chat-thread-actions button {
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: var(--text-secondary);
-          padding: 4px;
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.15s ease;
-        }
-        .chat-thread-actions button:hover {
-          background: var(--bg-hover);
-          color: var(--text-primary);
-        }
-        .chat-thread-actions button.chat-thread-delete:hover {
-          background: rgba(239, 68, 68, 0.15);
-          color: #f87171;
-        }
-        .chat-thread-rename-input {
-          width: 100%;
-          background: var(--bg-sidebar);
-          border: 1px solid rgba(34, 211, 238, 0.4);
-          border-radius: 6px;
-          padding: 4px 8px;
-          color: var(--text-primary);
-          font-size: 13px;
-          outline: none;
-          font-family: inherit;
-        }
+        /* Animations */
+        @keyframes slideUpFade { from{opacity:0;transform:translateY(12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        .chat-typing-dot { width:6px;height:6px;border-radius:50%;background:#67e8f9;display:inline-block;animation:typingBounce 1.4s infinite ease-in-out both; }
+        @keyframes typingBounce { 0%,80%,100%{transform:scale(0.5);opacity:0.4} 40%{transform:scale(1);opacity:1} }
+        .chat-stream-cursor { display:inline-block;color:#22d3ee;animation:cursorBlink 0.9s step-end infinite;margin-left:1px; }
+        @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-        @media (max-width: 600px) {
-          .chat-floating-wrapper {
-            bottom: 24px !important;
-            right: 20px !important;
-          }
-          .chat-floating-window {
-            position: fixed !important;
-            bottom: 88px !important;
-            right: 16px !important;
-            left: 16px !important;
-            width: auto !important;
-            height: calc(100dvh - 110px) !important;
-            max-height: 100% !important;
-            box-shadow: 0 16px 48px rgba(0,0,0,0.85) !important;
-            border-radius: 18px !important;
+        @media (max-width:600px) {
+          .chat-floating-wrapper { bottom:24px !important; right:20px !important; }
+          .chat-floating-window, .chat-window-expanded {
+            position:fixed !important; bottom:88px !important; right:16px !important; left:16px !important;
+            width:auto !important; height:calc(100dvh - 110px) !important; max-height:100% !important;
+            box-shadow:0 16px 48px rgba(0,0,0,0.85) !important; border-radius:18px !important;
           }
         }
       `}</style>
