@@ -1621,18 +1621,19 @@ export default function ChatAssistant({
           top: 10px;
           left: 12px;
           right: 12px;
-          height: 310px;
-          background: rgba(8, 8, 20, 0.85);
-          backdrop-filter: blur(18px) saturate(180%);
-          -webkit-backdrop-filter: blur(18px) saturate(180%);
-          border: 1px solid rgba(34, 211, 238, 0.18);
+          max-height: 320px;
+          height: auto;
+          background: rgba(10, 10, 26, 0.98);
+          backdrop-filter: blur(20px) saturate(190%);
+          -webkit-backdrop-filter: blur(20px) saturate(190%);
+          border: 1px solid rgba(34, 211, 238, 0.22);
           border-radius: 14px;
           z-index: 90;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.6), 
-                      0 0 0 1px rgba(255, 255, 255, 0.05);
-          animation: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 20px 48px -6px rgba(0, 0, 0, 0.8), 
+                      0 0 0 1px rgba(255, 255, 255, 0.06);
+          animation: slideDownFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         
         .cfab-dropdown-header {
