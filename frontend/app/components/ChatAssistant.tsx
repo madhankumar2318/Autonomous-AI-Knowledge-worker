@@ -1317,15 +1317,7 @@ export default function ChatAssistant({
   }
 
   // ── FLOATING FAB MODE (default) ──
-  // Calculate dynamic width based on toggles for premium UX
-  let windowWidthClass = "";
-  if (showThreadSidebar && showParamsPanel) {
-    windowWidthClass = "cfab-window-expanded-both";
-  } else if (showThreadSidebar) {
-    windowWidthClass = "cfab-window-expanded-left";
-  } else if (showParamsPanel) {
-    windowWidthClass = "cfab-window-expanded-right";
-  }
+  const windowWidthClass = showThreadSidebar ? "cfab-window-expanded-left" : "";
 
   return (
     <div className="chat-floating-wrapper">
@@ -1347,19 +1339,7 @@ export default function ChatAssistant({
               <History size={14} />
             </button>
 
-            {/* Parameters sidebar toggle */}
-            <button
-              type="button"
-              className={`cfab-icon-btn ${showParamsPanel ? "cfab-icon-btn--active" : ""}`}
-              onClick={() => {
-                setShowParamsPanel(!showParamsPanel);
-                if (!showParamsPanel) setShowThreadSidebar(false); // keep it clean
-              }}
-              style={{ marginLeft: "4px" }}
-              title="Parameters & Presets"
-            >
-              <Sliders size={13} />
-            </button>
+
 
             <div className="cfab-avatar" style={{ marginLeft: "6px" }}>
               <Sparkles size={14} color="#67e8f9" />
@@ -1519,73 +1499,7 @@ export default function ChatAssistant({
               </div>
             </div>
 
-            {/* RIGHT RAIL (Parameters & Presets) */}
-            <div className={`cfab-rail-right ${showParamsPanel ? "cfab-rail-right--open" : ""}`}>
-              <div className="cfab-rail-header">
-                <span className="cfab-rail-label">Parameters</span>
-              </div>
-              <div className="cfab-params-content">
-                {/* Document Workspace focus indicator */}
-                {activeDocumentFilename && (
-                  <div className="cfab-doc-badge" title={activeDocumentFilename}>
-                    <div style={{ fontWeight: 700, fontSize: "9px", textTransform: "uppercase", color: "#f59e0b", marginBottom: "3px" }}>RAG Anchor Active</div>
-                    <div style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>📄 {activeDocumentFilename}</div>
-                  </div>
-                )}
 
-                {/* Preset Picker */}
-                <div className="cfab-param-section">
-                  <div className="cfab-param-title">AI Persona</div>
-                  <div className="cfab-preset-list">
-                    {(Object.keys(PRESETS) as Array<keyof typeof PRESETS>).map((key) => {
-                      const p = PRESETS[key];
-                      const active = activePreset === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          className={`cfab-preset-card ${active ? "cfab-preset-card--active" : ""}`}
-                          onClick={() => {
-                            setActivePreset(key);
-                            setTemperature(p.temp);
-                            showToast("info", `Switched to ${p.name}`);
-                          }}
-                        >
-                          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                            <span style={{ fontSize: "14px" }}>{p.icon}</span>
-                            <div style={{ textAlign: "left", minWidth: 0 }}>
-                              <div style={{ fontWeight: 700, fontSize: "11px", color: "var(--text-primary)" }}>{p.name}</div>
-                              <div style={{ fontSize: "9px", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", marginTop: "1px" }}>{p.desc}</div>
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Temperature Slider */}
-                <div className="cfab-param-section" style={{ marginTop: "12px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                    <span className="cfab-param-title">Temperature</span>
-                    <span style={{ color: "#22d3ee", fontWeight: 700, fontSize: "10px" }}>{temperature.toFixed(1)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.0"
-                    max="1.0"
-                    step="0.1"
-                    value={temperature}
-                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                    className="cfab-slider"
-                  />
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>
-                    <span>Factual</span>
-                    <span>Creative</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}
