@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import {
   Bot,
   Clock,
@@ -16,12 +16,48 @@ import {
   User,
   X,
   Zap,
+  Sliders,
+  Mic,
+  MicOff,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 import ThinkingLogsAccordion, { type ToolLog } from "./ThinkingLogsAccordion";
 import { formatMessage } from "./chatFormatters";
+
+// ── Assistant Presets ─────────────────────────────────────────────────────────
+export const PRESETS = {
+  default: {
+    name: "Balanced",
+    prompt: "",
+    temp: 0.1,
+    icon: "🤖",
+    desc: "General purpose helper",
+  },
+  finance: {
+    name: "Finance Guru",
+    prompt: "You are a professional Financial Analyst. Present stock comparisons, news, and stats in structured tables. Emphasize price variations, market capitalization, daily percentage changes, and key trends. Provide short, bulleted summaries followed by a clear, bold market takeaway at the end.",
+    temp: 0.1,
+    icon: "📊",
+    desc: "Optimized for market & stock analysis",
+  },
+  research: {
+    name: "Scholar",
+    prompt: "You are a thorough Research Scholar. Focus on detailed, long-form explanations with clear academic citation of source files. When referencing knowledge base data, always mention the document and the relevance percentage inline. Structure your answer with clear headers, bullet lists, and a final insight summary.",
+    temp: 0.2,
+    icon: "🔍",
+    desc: "Long-form detailed answers with RAG",
+  },
+  code: {
+    name: "Code Wizard",
+    prompt: "You are an expert Software Engineer. Write clean, commented, and syntactically correct code blocks. Walk through the logic step-by-step using ordered bullet lists. Highlight security best practices and optimization suggestions.",
+    temp: 0.1,
+    icon: "💻",
+    desc: "Optimized for programming & code design",
+  }
+};
+
 
 interface ChatMessage {
   role: "user" | "ai";
@@ -115,6 +151,63 @@ export default function ChatAssistant({
   const [showThreadSidebar, setShowThreadSidebar] = useState(false);
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+
+  // ── Parameters & Preset Settings state ──
+  const [temperature, setTemperature] = useState(0.1);
+  const [activePreset, setActivePreset] = useState<keyof typeof PRESETS>("default");
+  const [showParamsPanel, setShowParamsPanel] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Speech Recognition hook
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
+
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            setInput((prev) => (prev ? prev + " " + transcript : transcript));
+            showToast("success", `Voice input: "${transcript}"`);
+          }
+        };
+        recognition.onerror = (event: any) => {
+          console.error("Speech recognition error:", event.error);
+          showToast("error", "Voice input failed or was denied.");
+          setIsListening(false);
+        };
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+        recognitionRef.current = recognition;
+      }
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      showToast("error", "Speech recognition not supported in this browser. Use Chrome or Safari.");
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      try {
+        recognitionRef.current.start();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -306,6 +399,8 @@ export default function ChatAssistant({
           history: chatHistory,
           model: selectedModel,
           thread_id: threadId,
+          temperature,
+          system_prompt: PRESETS[activePreset].prompt || undefined,
           ...(activeDocumentFilename ? { filename: activeDocumentFilename } : {}),
         }),
       });
@@ -1222,22 +1317,51 @@ export default function ChatAssistant({
   }
 
   // ── FLOATING FAB MODE (default) ──
+  // Calculate dynamic width based on toggles for premium UX
+  let windowWidthClass = "";
+  if (showThreadSidebar && showParamsPanel) {
+    windowWidthClass = "cfab-window-expanded-both";
+  } else if (showThreadSidebar) {
+    windowWidthClass = "cfab-window-expanded-left";
+  } else if (showParamsPanel) {
+    windowWidthClass = "cfab-window-expanded-right";
+  }
+
   return (
     <div className="chat-floating-wrapper">
       {isOpen && (
-        <div className={`chat-floating-window scale-in-smooth ${showThreadSidebar ? "chat-window-expanded" : ""}`}>
+        <div className={`chat-floating-window scale-in-smooth ${windowWidthClass}`}>
 
           {/* ── Header ── */}
           <div className="cfab-header">
+            {/* History rail toggle */}
             <button
               type="button"
               className={`cfab-icon-btn ${showThreadSidebar ? "cfab-icon-btn--active" : ""}`}
-              onClick={() => setShowThreadSidebar(!showThreadSidebar)}
+              onClick={() => {
+                setShowThreadSidebar(!showThreadSidebar);
+                if (!showThreadSidebar) setShowParamsPanel(false); // keep it clean
+              }}
               title={showThreadSidebar ? "Hide history" : "Chat History"}
             >
               <History size={14} />
             </button>
-            <div className="cfab-avatar">
+
+            {/* Parameters sidebar toggle */}
+            <button
+              type="button"
+              className={`cfab-icon-btn ${showParamsPanel ? "cfab-icon-btn--active" : ""}`}
+              onClick={() => {
+                setShowParamsPanel(!showParamsPanel);
+                if (!showParamsPanel) setShowThreadSidebar(false); // keep it clean
+              }}
+              style={{ marginLeft: "4px" }}
+              title="Parameters & Presets"
+            >
+              <Sliders size={13} />
+            </button>
+
+            <div className="cfab-avatar" style={{ marginLeft: "6px" }}>
               <Sparkles size={14} color="#67e8f9" />
             </div>
             <div className="cfab-title-block">
@@ -1265,10 +1389,10 @@ export default function ChatAssistant({
             </div>
           </div>
 
-          {/* ── Body: rail + chat side-by-side ── */}
+          {/* ── Body: rails + chat side-by-side ── */}
           <div className="cfab-body">
 
-            {/* LEFT RAIL */}
+            {/* LEFT RAIL (History) */}
             <div className={`cfab-rail ${showThreadSidebar ? "cfab-rail--open" : ""}`}>
               <div className="cfab-rail-header">
                 <span className="cfab-rail-label">History</span>
@@ -1319,7 +1443,7 @@ export default function ChatAssistant({
               </div>
             </div>
 
-            {/* RIGHT CHAT */}
+            {/* MIDDLE PANEL (Chat) */}
             <div className="cfab-chat">
               <div className="cfab-messages">
                 {messages.map((msg, idx) => {
@@ -1362,11 +1486,21 @@ export default function ChatAssistant({
               {/* Input */}
               <div className="cfab-input-bar">
                 <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }} className="cfab-input-form">
+                  {/* Hands-free Voice Input toggle */}
+                  <button
+                    type="button"
+                    className={`cfab-mic-btn ${isListening ? "cfab-mic-btn--active" : ""}`}
+                    onClick={toggleListening}
+                    title={isListening ? "Listening... Click to stop" : "Voice Input (Speech-to-Text)"}
+                  >
+                    {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+                  </button>
+
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask me anything…"
+                    placeholder={isListening ? "Listening to your voice..." : "Ask me anything…"}
                     disabled={loading}
                     className="cfab-input-field"
                     onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
@@ -1382,6 +1516,74 @@ export default function ChatAssistant({
                     </button>
                   )}
                 </form>
+              </div>
+            </div>
+
+            {/* RIGHT RAIL (Parameters & Presets) */}
+            <div className={`cfab-rail-right ${showParamsPanel ? "cfab-rail-right--open" : ""}`}>
+              <div className="cfab-rail-header">
+                <span className="cfab-rail-label">Parameters</span>
+              </div>
+              <div className="cfab-params-content">
+                {/* Document Workspace focus indicator */}
+                {activeDocumentFilename && (
+                  <div className="cfab-doc-badge" title={activeDocumentFilename}>
+                    <div style={{ fontWeight: 700, fontSize: "9px", textTransform: "uppercase", color: "#f59e0b", marginBottom: "3px" }}>RAG Anchor Active</div>
+                    <div style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", width: "100%" }}>📄 {activeDocumentFilename}</div>
+                  </div>
+                )}
+
+                {/* Preset Picker */}
+                <div className="cfab-param-section">
+                  <div className="cfab-param-title">AI Persona</div>
+                  <div className="cfab-preset-list">
+                    {(Object.keys(PRESETS) as Array<keyof typeof PRESETS>).map((key) => {
+                      const p = PRESETS[key];
+                      const active = activePreset === key;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          className={`cfab-preset-card ${active ? "cfab-preset-card--active" : ""}`}
+                          onClick={() => {
+                            setActivePreset(key);
+                            setTemperature(p.temp);
+                            showToast("info", `Switched to ${p.name}`);
+                          }}
+                        >
+                          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                            <span style={{ fontSize: "14px" }}>{p.icon}</span>
+                            <div style={{ textAlign: "left", minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: "11px", color: "var(--text-primary)" }}>{p.name}</div>
+                              <div style={{ fontSize: "9px", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", marginTop: "1px" }}>{p.desc}</div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Temperature Slider */}
+                <div className="cfab-param-section" style={{ marginTop: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <span className="cfab-param-title">Temperature</span>
+                    <span style={{ color: "#22d3ee", fontWeight: 700, fontSize: "10px" }}>{temperature.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.0"
+                    max="1.0"
+                    step="0.1"
+                    value={temperature}
+                    onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                    className="cfab-slider"
+                  />
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "9px", color: "var(--text-muted)", marginTop: "2px" }}>
+                    <span>Factual</span>
+                    <span>Creative</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1406,7 +1608,10 @@ export default function ChatAssistant({
           display: flex; flex-direction: column; overflow: hidden;
           transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
         }
-        .chat-window-expanded { width: 540px; }
+        /* Dynamic width classes */
+        .cfab-window-expanded-left { width: 540px; }
+        .cfab-window-expanded-right { width: 550px; }
+        .cfab-window-expanded-both { width: 690px; }
 
         .chat-fab {
           width: 56px; height: 56px; border-radius: 18px;
@@ -1561,6 +1766,100 @@ export default function ChatAssistant({
         @keyframes typingBounce { 0%,80%,100%{transform:scale(0.5);opacity:0.4} 40%{transform:scale(1);opacity:1} }
         .chat-stream-cursor { display:inline-block;color:#22d3ee;animation:cursorBlink 0.9s step-end infinite;margin-left:1px; }
         @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+        /* Right Parameters Rail */
+        .cfab-rail-right {
+          width: 0; overflow: hidden; flex-shrink: 0;
+          display: flex; flex-direction: column;
+          background: rgba(6,6,18,0.72);
+          border-left: 0px solid var(--border-light);
+          transition: width 0.3s cubic-bezier(0.4,0,0.2,1), border-left-width 0.1s ease;
+        }
+        .cfab-rail-right--open {
+          width: 150px;
+          border-left-width: 1px;
+        }
+        .cfab-params-content {
+          flex: 1; overflow-y: auto; padding: 10px;
+          display: flex; flex-direction: column; gap: 12px;
+        }
+        .cfab-params-content::-webkit-scrollbar { width: 3px; }
+        .cfab-params-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 4px; }
+        
+        .cfab-param-section {
+          display: flex; flex-direction: column; gap: 4px;
+        }
+        .cfab-param-title {
+          font-size: 10px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.05em;
+          color: var(--text-muted);
+        }
+        
+        /* Preset cards list */
+        .cfab-preset-list {
+          display: flex; flex-direction: column; gap: 4px;
+        }
+        .cfab-preset-card {
+          padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);
+          background: rgba(255,255,255,0.01); cursor: pointer;
+          transition: all 0.15s ease; width: 100%; outline: none;
+        }
+        .cfab-preset-card:hover {
+          background: rgba(255,255,255,0.04);
+          border-color: rgba(255,255,255,0.1);
+        }
+        .cfab-preset-card--active {
+          background: rgba(34,211,238,0.08) !important;
+          border-color: rgba(34,211,238,0.3) !important;
+        }
+        
+        /* Range slider style */
+        .cfab-slider {
+          -webkit-appearance: none; width: 100%; height: 4px;
+          border-radius: 2px; background: rgba(255,255,255,0.15);
+          outline: none; transition: background 0.15s ease;
+        }
+        .cfab-slider::-webkit-slider-thumb {
+          -webkit-appearance: none; appearance: none;
+          width: 12px; height: 12px; border-radius: 50%;
+          background: #22d3ee; cursor: pointer;
+          box-shadow: 0 0 6px rgba(34,211,238,0.8);
+          transition: transform 0.15s ease;
+        }
+        .cfab-slider::-webkit-slider-thumb:hover {
+          transform: scale(1.2);
+        }
+        
+        /* Mic/Voice Input button */
+        .cfab-mic-btn {
+          width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+          background: var(--bg-surface); border: 1px solid var(--border-light);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; color: var(--text-secondary); outline: none;
+          transition: all 0.2s ease;
+        }
+        .cfab-mic-btn:hover {
+          background: var(--bg-hover); color: var(--text-primary);
+        }
+        .cfab-mic-btn--active {
+          background: rgba(239,68,68,0.15) !important;
+          border-color: rgba(239,68,68,0.4) !important;
+          color: #ef4444 !important;
+          animation: mic-pulse 1.4s infinite ease-in-out;
+        }
+        @keyframes mic-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.7; transform: scale(0.96); }
+        }
+        
+        /* Doc tag workspace badge */
+        .cfab-doc-badge {
+          background: rgba(245,158,11,0.06);
+          border: 1px solid rgba(245,158,11,0.22);
+          border-radius: 8px; padding: 6px 8px;
+          font-size: 10px; color: var(--text-primary);
+          line-height: 1.3;
+        }
 
         @media (max-width:600px) {
           .chat-floating-wrapper { bottom:24px !important; right:20px !important; }
