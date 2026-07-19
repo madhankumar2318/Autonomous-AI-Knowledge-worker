@@ -166,33 +166,37 @@ export default function ChatAssistant({
   // Speech Recognition hook
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = "en-US";
+      try {
+        const SpeechRecognition =
+          (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          const recognition = new SpeechRecognition();
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = "en-US";
 
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
-        recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          if (transcript) {
-            setInput((prev) => (prev ? prev + " " + transcript : transcript));
-            showToast("success", `Voice input: "${transcript}"`);
-          }
-        };
-        recognition.onerror = (event: any) => {
-          console.error("Speech recognition error:", event.error);
-          showToast("error", "Voice input failed or was denied.");
-          setIsListening(false);
-        };
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-        recognitionRef.current = recognition;
+          recognition.onstart = () => {
+            setIsListening(true);
+          };
+          recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            if (transcript) {
+              setInput((prev) => (prev ? prev + " " + transcript : transcript));
+              showToast("success", `Voice input: "${transcript}"`);
+            }
+          };
+          recognition.onerror = (event: any) => {
+            console.error("Speech recognition error:", event.error);
+            showToast("error", "Voice input failed or was denied.");
+            setIsListening(false);
+          };
+          recognition.onend = () => {
+            setIsListening(false);
+          };
+          recognitionRef.current = recognition;
+        }
+      } catch (e) {
+        console.warn("Speech Recognition failed to initialize:", e);
       }
     }
   }, []);
@@ -316,16 +320,17 @@ export default function ChatAssistant({
     setMessages([welcomeMessage()]);
   };
 
-  const timeAgo = (dateStr: string) => {
+  const timeAgo = (dateStr: any) => {
     if (!dateStr) return "Just now";
+    const str = String(dateStr);
     
     // Normalise spaces to 'T' for full ISO-8601 browser parse compatibility
-    const isoStr = dateStr.includes(" ") ? dateStr.replace(" ", "T") : dateStr;
+    const isoStr = str.includes(" ") ? str.replace(" ", "T") : str;
     const parsed = new Date(isoStr);
     
     if (isNaN(parsed.getTime())) {
       // Fallback for custom formats
-      const epoch = Date.parse(dateStr);
+      const epoch = Date.parse(str);
       if (isNaN(epoch)) return "Recent";
       return "Recent";
     }
