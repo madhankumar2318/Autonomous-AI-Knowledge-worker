@@ -1317,12 +1317,11 @@ export default function ChatAssistant({
   }
 
   // ── FLOATING FAB MODE (default) ──
-  const windowWidthClass = showThreadSidebar ? "cfab-window-expanded-left" : "";
 
   return (
     <div className="chat-floating-wrapper">
       {isOpen && (
-        <div className={`chat-floating-window scale-in-smooth ${windowWidthClass}`}>
+        <div className="chat-floating-window scale-in-smooth">
 
           {/* ── Header ── */}
           <div className="cfab-header">
@@ -1330,10 +1329,7 @@ export default function ChatAssistant({
             <button
               type="button"
               className={`cfab-icon-btn ${showThreadSidebar ? "cfab-icon-btn--active" : ""}`}
-              onClick={() => {
-                setShowThreadSidebar(!showThreadSidebar);
-                if (!showThreadSidebar) setShowParamsPanel(false); // keep it clean
-              }}
+              onClick={() => setShowThreadSidebar(!showThreadSidebar)}
               title={showThreadSidebar ? "Hide history" : "Chat History"}
             >
               <History size={14} />
@@ -1369,61 +1365,106 @@ export default function ChatAssistant({
             </div>
           </div>
 
-          {/* ── Body: rails + chat side-by-side ── */}
-          <div className="cfab-body">
+          {/* ── Body ── */}
+          <div className="cfab-body" style={{ position: "relative" }}>
 
-            {/* LEFT RAIL (History) */}
-            <div className={`cfab-rail ${showThreadSidebar ? "cfab-rail--open" : ""}`}>
-              <div className="cfab-rail-header">
-                <span className="cfab-rail-label">History</span>
-                <button type="button" className="cfab-new-btn" onClick={async () => { await startNewChat(); }} title="New chat">
-                  <Plus size={11} />
-                </button>
-              </div>
-              <div className="cfab-rail-list">
-                {threads.length === 0 && (
-                  <div className="cfab-rail-empty">
-                    <MessageSquare size={16} style={{ opacity: 0.25 }} />
-                    <span>No chats yet</span>
-                  </div>
-                )}
-                {threads.map((thread) => (
-                  <div
-                    key={thread.id}
-                    className={`cfab-rail-item ${activeThreadId === thread.id ? "cfab-rail-item--active" : ""}`}
-                    onClick={() => switchThread(thread.id)}
-                    title={thread.title}
+            {/* Glassmorphic Dropdown History Panel overlay */}
+            {showThreadSidebar && (
+              <div className="cfab-history-dropdown scale-in-smooth">
+                <div className="cfab-dropdown-header">
+                  <span>Chat History ({threads.length})</span>
+                  <button
+                    type="button"
+                    className="cfab-dropdown-new"
+                    onClick={async () => {
+                      await startNewChat();
+                      setShowThreadSidebar(false);
+                    }}
+                    title="New Conversation"
                   >
-                    {renamingThreadId === thread.id ? (
-                      <input
-                        type="text"
-                        className="cfab-rename-input"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onBlur={() => renameThread(thread.id, renameValue)}
-                        onKeyDown={(e) => { if (e.key === "Enter") renameThread(thread.id, renameValue); if (e.key === "Escape") setRenamingThreadId(null); }}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    ) : (
-                      <>
-                        <div className="cfab-rail-item-inner">
-                          <span className="cfab-rail-title">{thread.title}</span>
-                          <span className="cfab-rail-time"><Clock size={9} />{timeAgo(thread.updated_at)}</span>
-                        </div>
-                        <div className="cfab-rail-actions" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" title="Rename" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}><Pencil size={10} /></button>
-                          <button type="button" title="Export" onClick={() => { switchThread(thread.id); setTimeout(() => exportThread(thread), 300); }}><Download size={10} /></button>
-                          <button type="button" title="Delete" className="cfab-del-btn" onClick={() => deleteThread(thread.id)}><Trash2 size={10} /></button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                    <Plus size={11} />
+                    <span>New Chat</span>
+                  </button>
+                </div>
+                <div className="cfab-dropdown-list">
+                  {threads.length === 0 && (
+                    <div className="cfab-dropdown-empty">
+                      <MessageSquare size={16} style={{ opacity: 0.3, marginBottom: "4px" }} />
+                      <span>No conversations yet</span>
+                    </div>
+                  )}
+                  {threads.map((thread) => (
+                    <div
+                      key={thread.id}
+                      className={`cfab-dropdown-item ${activeThreadId === thread.id ? "cfab-dropdown-item--active" : ""}`}
+                      onClick={() => {
+                        switchThread(thread.id);
+                        setShowThreadSidebar(false);
+                      }}
+                    >
+                      {renamingThreadId === thread.id ? (
+                        <input
+                          type="text"
+                          className="cfab-rename-input"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onBlur={() => renameThread(thread.id, renameValue)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renameThread(thread.id, renameValue);
+                            if (e.key === "Escape") setRenamingThreadId(null);
+                          }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ padding: "2px 6px" }}
+                        />
+                      ) : (
+                        <>
+                          <div className="cfab-dropdown-info">
+                            <span className="cfab-dropdown-title">{thread.title}</span>
+                            <span className="cfab-dropdown-time">
+                              <Clock size={9} />
+                              {timeAgo(thread.updated_at)}
+                            </span>
+                          </div>
+                          <div className="cfab-dropdown-actions" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              title="Rename"
+                              onClick={() => {
+                                setRenamingThreadId(thread.id);
+                                setRenameValue(thread.title);
+                              }}
+                            >
+                              <Pencil size={9} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Export"
+                              onClick={() => {
+                                switchThread(thread.id);
+                                setTimeout(() => exportThread(thread), 300);
+                              }}
+                            >
+                              <Download size={9} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete"
+                              className="cfab-dropdown-del"
+                              onClick={() => deleteThread(thread.id)}
+                            >
+                              <Trash2 size={9} />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* MIDDLE PANEL (Chat) */}
+            {/* CHAT PANEL */}
             <div className="cfab-chat">
               <div className="cfab-messages">
                 {messages.map((msg, idx) => {
@@ -1573,6 +1614,167 @@ export default function ChatAssistant({
 
         /* Body */
         .cfab-body { display: flex; flex: 1; overflow: hidden; }
+        
+        /* Premium Glassmorphic Dropdown Panel */
+        .cfab-history-dropdown {
+          position: absolute;
+          top: 10px;
+          left: 12px;
+          right: 12px;
+          height: 310px;
+          background: rgba(8, 8, 20, 0.85);
+          backdrop-filter: blur(18px) saturate(180%);
+          -webkit-backdrop-filter: blur(18px) saturate(180%);
+          border: 1px solid rgba(34, 211, 238, 0.18);
+          border-radius: 14px;
+          z-index: 90;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.6), 
+                      0 0 0 1px rgba(255, 255, 255, 0.05);
+          animation: slideDownFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .cfab-dropdown-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 10px 14px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          flex-shrink: 0;
+        }
+        .cfab-dropdown-header span {
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--text-secondary);
+        }
+        .cfab-dropdown-new {
+          background: linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(8, 145, 178, 0.05));
+          border: 1px solid rgba(34, 211, 238, 0.3);
+          border-radius: 6px;
+          color: #22d3ee;
+          font-size: 10.5px;
+          font-weight: 600;
+          padding: 3.5px 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          transition: all 0.15s ease;
+        }
+        .cfab-dropdown-new:hover {
+          background: rgba(34, 211, 238, 0.25);
+          border-color: rgba(34, 211, 238, 0.45);
+        }
+        
+        .cfab-dropdown-list {
+          flex: 1;
+          overflow-y: auto;
+          padding: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .cfab-dropdown-list::-webkit-scrollbar { width: 3px; }
+        .cfab-dropdown-list::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.07);
+          border-radius: 4px;
+        }
+        .cfab-dropdown-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 16px;
+          color: var(--text-muted);
+          font-size: 11px;
+        }
+        
+        .cfab-dropdown-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
+          border-radius: 10px;
+          cursor: pointer;
+          border: 1px solid transparent;
+          position: relative;
+          transition: all 0.15s ease;
+        }
+        .cfab-dropdown-item:hover {
+          background: rgba(255, 255, 255, 0.03);
+          border-color: rgba(255, 255, 255, 0.06);
+        }
+        .cfab-dropdown-item--active {
+          background: rgba(34, 211, 238, 0.06) !important;
+          border-color: rgba(34, 211, 238, 0.2) !important;
+        }
+        .cfab-dropdown-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+          flex: 1;
+        }
+        .cfab-dropdown-title {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-align: left;
+        }
+        .cfab-dropdown-time {
+          font-size: 10px;
+          color: var(--text-muted);
+          display: flex;
+          align-items: center;
+          gap: 4.5px;
+          margin-top: 1px;
+        }
+        
+        /* Hover actions inside dropdown items */
+        .cfab-dropdown-actions {
+          display: none;
+          align-items: center;
+          gap: 3px;
+          background: #080814;
+          border: 1px solid rgba(255,255,255,0.06);
+          padding: 2.5px;
+          border-radius: 6px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        .cfab-dropdown-item:hover .cfab-dropdown-actions {
+          display: flex;
+        }
+        .cfab-dropdown-actions button {
+          background: none;
+          border: none;
+          cursor: pointer;
+          color: var(--text-secondary);
+          padding: 3.5px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.12s ease;
+        }
+        .cfab-dropdown-actions button:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+        .cfab-dropdown-del:hover {
+          background: rgba(239, 68, 68, 0.15) !important;
+          color: #f87171 !important;
+        }
+
 
         /* Rail */
         .cfab-rail {
