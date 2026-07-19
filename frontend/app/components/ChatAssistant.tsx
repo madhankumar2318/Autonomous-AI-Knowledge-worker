@@ -309,7 +309,20 @@ export default function ChatAssistant({
   };
 
   const timeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
+    if (!dateStr) return "Just now";
+    
+    // Normalise spaces to 'T' for full ISO-8601 browser parse compatibility
+    const isoStr = dateStr.includes(" ") ? dateStr.replace(" ", "T") : dateStr;
+    const parsed = new Date(isoStr);
+    
+    if (isNaN(parsed.getTime())) {
+      // Fallback for custom formats
+      const epoch = Date.parse(dateStr);
+      if (isNaN(epoch)) return "Recent";
+      return "Recent";
+    }
+
+    const diff = Date.now() - parsed.getTime();
     const mins = Math.floor(diff / 60000);
     if (mins < 1) return "Just now";
     if (mins < 60) return `${mins}m ago`;
@@ -317,7 +330,7 @@ export default function ChatAssistant({
     if (hrs < 24) return `${hrs}h ago`;
     const days = Math.floor(hrs / 24);
     if (days < 7) return `${days}d ago`;
-    return new Date(dateStr).toLocaleDateString();
+    return parsed.toLocaleDateString();
   };
 
   // Load threads on mount
