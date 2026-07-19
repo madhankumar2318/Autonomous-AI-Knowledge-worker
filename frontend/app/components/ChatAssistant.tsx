@@ -230,7 +230,11 @@ export default function ChatAssistant({
       const res = await fetch(`${API_BASE_URL}/chat/threads?username=${encodeURIComponent(username)}`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        setThreads(data);
+        if (Array.isArray(data)) {
+          setThreads(data);
+        } else {
+          setThreads([]);
+        }
       }
     } catch { /* silent */ }
   };
