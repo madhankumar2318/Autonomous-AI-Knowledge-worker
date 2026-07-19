@@ -232,6 +232,10 @@ def init_db():
     ON document_embeddings (filename, username);
     """)
     cur.execute("""
+    CREATE INDEX IF NOT EXISTS document_embeddings_fts_gin_idx
+    ON document_embeddings USING gin(to_tsvector('english', content));
+    """)
+    cur.execute("""
     CREATE TABLE IF NOT EXISTS chat_threads (
         id          TEXT PRIMARY KEY,
         username    VARCHAR(255) NOT NULL,
