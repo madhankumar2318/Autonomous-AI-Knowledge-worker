@@ -19,6 +19,7 @@ import {
   Sliders,
   Mic,
   MicOff,
+  ArrowLeft,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
@@ -151,6 +152,9 @@ export default function ChatAssistant({
   const [showThreadSidebar, setShowThreadSidebar] = useState(false);
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+
+  // ── Home Portal Navigation State ──
+  const [showHomePortal, setShowHomePortal] = useState(true);
 
   // ── Parameters & Preset Settings state ──
   const [temperature, setTemperature] = useState(0.1);
@@ -1338,21 +1342,26 @@ export default function ChatAssistant({
 
           {/* ── Header ── */}
           <div className="cfab-header">
-            {/* History rail toggle */}
-            <button
-              type="button"
-              className={`cfab-icon-btn ${showThreadSidebar ? "cfab-icon-btn--active" : ""}`}
-              onClick={() => setShowThreadSidebar(!showThreadSidebar)}
-              title={showThreadSidebar ? "Hide history" : "Chat History"}
-            >
-              <History size={14} />
-            </button>
+            {/* Back button (Only shown when inside a chat feed) */}
+            {!showHomePortal ? (
+              <button
+                type="button"
+                className="cfab-icon-btn"
+                onClick={() => {
+                  setShowHomePortal(true);
+                  fetchThreads(); // refresh threads when going home
+                }}
+                title="Go to Home"
+                style={{ marginRight: "4px" }}
+              >
+                <ArrowLeft size={14} />
+              </button>
+            ) : (
+              <div className="cfab-avatar" style={{ marginRight: "6px" }}>
+                <Sparkles size={14} color="#67e8f9" />
+              </div>
+            )}
 
-
-
-            <div className="cfab-avatar" style={{ marginLeft: "6px" }}>
-              <Sparkles size={14} color="#67e8f9" />
-            </div>
             <div className="cfab-title-block">
               <div className="cfab-title">AI Assistant</div>
               <div className="cfab-subtitle">
@@ -1367,11 +1376,13 @@ export default function ChatAssistant({
               </div>
             </div>
             <div className="cfab-header-actions">
-              <select value={selectedModel} onChange={(e) => handleModelChange(e.target.value)} className="chat-model-select">
-                <option value="llama-70b" style={{ background: "#080814", color: "#fff" }}>Llama 3.3 (Groq)</option>
-                <option value="gemini-pro" style={{ background: "#080814", color: "#fff" }}>Gemini Pro</option>
-                <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Gemini Flash</option>
-              </select>
+              {!showHomePortal && (
+                <select value={selectedModel} onChange={(e) => handleModelChange(e.target.value)} className="chat-model-select">
+                  <option value="llama-70b" style={{ background: "#080814", color: "#fff" }}>Llama 3.3 (Groq)</option>
+                  <option value="gemini-pro" style={{ background: "#080814", color: "#fff" }}>Gemini Pro</option>
+                  <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Gemini Flash</option>
+                </select>
+              )}
               <button type="button" className="cfab-icon-btn" onClick={() => setIsOpen(false)} title="Close">
                 <X size={14} />
               </button>
@@ -1381,65 +1392,83 @@ export default function ChatAssistant({
           {/* ── Body ── */}
           <div className="cfab-body" style={{ position: "relative" }}>
 
-            {/* Glassmorphic Dropdown History Panel overlay */}
-            {showThreadSidebar && (
-              <div className="cfab-history-dropdown scale-in-smooth">
-                <div className="cfab-dropdown-header">
-                  <span>Chat History ({threads.length})</span>
-                  <button
-                    type="button"
-                    className="cfab-dropdown-new"
-                    onClick={async () => {
-                      await startNewChat();
-                      setShowThreadSidebar(false);
-                    }}
-                    title="New Conversation"
-                  >
-                    <Plus size={11} />
-                    <span>New Chat</span>
-                  </button>
+            {showHomePortal ? (
+              /* HOME SCREEN PORTAL VIEW */
+              <div className="cfab-home-portal">
+                {/* Header Welcome banner */}
+                <div className="cfab-home-welcome">
+                  <div className="cfab-home-sparkle">
+                    <Sparkles size={24} color="#67e8f9" />
+                  </div>
+                  <h2>Hello!</h2>
+                  <p>How can I help you today?</p>
                 </div>
-                <div className="cfab-dropdown-list">
-                  {threads.length === 0 && (
-                    <div className="cfab-dropdown-empty">
-                      <MessageSquare size={16} style={{ opacity: 0.3, marginBottom: "4px" }} />
-                      <span>No conversations yet</span>
-                    </div>
-                  )}
-                  {threads.map((thread) => (
-                    <div
-                      key={thread.id}
-                      className={`cfab-dropdown-item ${activeThreadId === thread.id ? "cfab-dropdown-item--active" : ""}`}
-                      onClick={() => {
-                        switchThread(thread.id);
-                        setShowThreadSidebar(false);
-                      }}
-                    >
-                      {renamingThreadId === thread.id ? (
-                        <input
-                          type="text"
-                          className="cfab-rename-input"
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onBlur={() => renameThread(thread.id, renameValue)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") renameThread(thread.id, renameValue);
-                            if (e.key === "Escape") setRenamingThreadId(null);
+
+                {/* Big primary CTA to start a new chat */}
+                <button
+                  type="button"
+                  className="cfab-home-cta"
+                  onClick={async () => {
+                    await startNewChat();
+                    setShowHomePortal(false);
+                  }}
+                >
+                  <Plus size={14} style={{ marginRight: "6px" }} />
+                  Start a New Chat
+                </button>
+
+                {/* Recent Chats list */}
+                <div className="cfab-home-section">
+                  <div className="cfab-home-section-title">Recent conversations</div>
+                  <div className="cfab-home-list">
+                    {threads.length === 0 ? (
+                      <div className="cfab-home-empty">
+                        <MessageSquare size={18} style={{ opacity: 0.25, marginBottom: "6px" }} />
+                        <span>No recent conversations</span>
+                      </div>
+                    ) : (
+                      threads.slice(0, 4).map((thread) => (
+                        <div
+                          key={thread.id}
+                          className={`cfab-home-item ${activeThreadId === thread.id ? "cfab-home-item--active" : ""}`}
+                          onClick={() => {
+                            switchThread(thread.id);
+                            setShowHomePortal(false);
                           }}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ padding: "2px 6px" }}
-                        />
-                      ) : (
-                        <>
-                          <div className="cfab-dropdown-info">
-                            <span className="cfab-dropdown-title">{thread.title}</span>
-                            <span className="cfab-dropdown-time">
-                              <Clock size={9} />
-                              {timeAgo(thread.updated_at)}
-                            </span>
+                        >
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center", minWidth: 0, flex: 1 }}>
+                            <div className="cfab-home-item-avatar">
+                              <MessageSquare size={12} color="#22d3ee" />
+                            </div>
+                            <div style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
+                              {renamingThreadId === thread.id ? (
+                                <input
+                                  type="text"
+                                  className="cfab-rename-input"
+                                  value={renameValue}
+                                  onChange={(e) => setRenameValue(e.target.value)}
+                                  onBlur={() => renameThread(thread.id, renameValue)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") renameThread(thread.id, renameValue);
+                                    if (e.key === "Escape") setRenamingThreadId(null);
+                                  }}
+                                  autoFocus
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ padding: "1px 5px", width: "90%" }}
+                                />
+                              ) : (
+                                <>
+                                  <div className="cfab-home-item-title">{thread.title}</div>
+                                  <div className="cfab-home-item-time">
+                                    <Clock size={8} />
+                                    {timeAgo(thread.updated_at)}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div className="cfab-dropdown-actions" onClick={(e) => e.stopPropagation()}>
+                          {/* Hover action bar */}
+                          <div className="cfab-home-item-actions" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               title="Rename"
@@ -1452,116 +1481,99 @@ export default function ChatAssistant({
                             </button>
                             <button
                               type="button"
-                              title="Export"
-                              onClick={() => {
-                                switchThread(thread.id);
-                                setTimeout(() => exportThread(thread), 300);
-                              }}
-                            >
-                              <Download size={9} />
-                            </button>
-                            <button
-                              type="button"
                               title="Delete"
-                              className="cfab-dropdown-del"
+                              className="cfab-home-item-del"
                               onClick={() => deleteThread(thread.id)}
                             >
                               <Trash2 size={9} />
                             </button>
                           </div>
-                        </>
-                      )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ACTIVE CONVERSATION FEED */
+              <div className="cfab-chat">
+                <div className="cfab-messages">
+                  {messages.map((msg, idx) => {
+                    const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
+                    return (
+                      <div key={idx} className="animate-message-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
+                        <div className={`cfab-avatar-sm ${msg.role === "user" ? "cfab-avatar-user" : "cfab-avatar-ai"}`}>
+                          {msg.role === "user" ? <User size={12} color="#fff" /> : <Bot size={12} color="#67e8f9" />}
+                        </div>
+                        <div className={`cfab-bubble ${msg.role === "user" ? "cfab-bubble-user" : "cfab-bubble-ai"}`}>
+                          {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
+                            <ThinkingLogsAccordion logs={msg.thinkingLogs || []} toolLogs={msg.toolLogs} isGenerating={isLastAi} />
+                          )}
+                          {msg.content === "" && isLastAi ? (
+                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
+                              <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
+                              <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
+                            </span>
+                          ) : (
+                            <>
+                              {renderMessage(msg.content)}
+                              {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
+                              {msg.model && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>⚡ {msg.model}</div>}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {loading && streamingStatus && (
+                    <div className="cfab-status-pill">
+                      <span className="cfab-status-dot" />
+                      {streamingStatus}
                     </div>
-                  ))}
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input bar */}
+                <div className="cfab-input-bar">
+                  <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }} className="cfab-input-form">
+                    {/* Hands-free Voice Input toggle */}
+                    <button
+                      type="button"
+                      className={`cfab-mic-btn ${isListening ? "cfab-mic-btn--active" : ""}`}
+                      onClick={toggleListening}
+                      title={isListening ? "Listening... Click to stop" : "Voice Input (Speech-to-Text)"}
+                    >
+                      {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+                    </button>
+
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder={isListening ? "Listening to your voice..." : "Ask me anything…"}
+                      disabled={loading}
+                      className="cfab-input-field"
+                      onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
+                      onBlur={(e) => (e.target.style.borderColor = "var(--border-light)")}
+                    />
+                    {loading ? (
+                      <button type="button" onClick={stopGeneration} className="cfab-send-btn cfab-stop" title="Stop">
+                        <Square size={13} fill="currentColor" />
+                      </button>
+                    ) : (
+                      <button type="submit" disabled={!input.trim()} className={`cfab-send-btn ${input.trim() ? "cfab-send-active" : ""}`}>
+                        <Send size={13} />
+                      </button>
+                    )}
+                  </form>
                 </div>
               </div>
             )}
-
-            {/* CHAT PANEL */}
-            <div className="cfab-chat">
-              <div className="cfab-messages">
-                {messages.map((msg, idx) => {
-                  const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
-                  return (
-                    <div key={idx} className="animate-message-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
-                      <div className={`cfab-avatar-sm ${msg.role === "user" ? "cfab-avatar-user" : "cfab-avatar-ai"}`}>
-                        {msg.role === "user" ? <User size={12} color="#fff" /> : <Bot size={12} color="#67e8f9" />}
-                      </div>
-                      <div className={`cfab-bubble ${msg.role === "user" ? "cfab-bubble-user" : "cfab-bubble-ai"}`}>
-                        {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
-                          <ThinkingLogsAccordion logs={msg.thinkingLogs || []} toolLogs={msg.toolLogs} isGenerating={isLastAi} />
-                        )}
-                        {msg.content === "" && isLastAi ? (
-                          <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                            <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                            <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                            <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
-                          </span>
-                        ) : (
-                          <>
-                            {renderMessage(msg.content)}
-                            {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                            {msg.model && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>⚡ {msg.model}</div>}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {loading && streamingStatus && (
-                  <div className="cfab-status-pill">
-                    <span className="cfab-status-dot" />
-                    {streamingStatus}
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input */}
-              <div className="cfab-input-bar">
-                <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }} className="cfab-input-form">
-                  {/* Hands-free Voice Input toggle */}
-                  <button
-                    type="button"
-                    className={`cfab-mic-btn ${isListening ? "cfab-mic-btn--active" : ""}`}
-                    onClick={toggleListening}
-                    title={isListening ? "Listening... Click to stop" : "Voice Input (Speech-to-Text)"}
-                  >
-                    {isListening ? <MicOff size={14} /> : <Mic size={14} />}
-                  </button>
-
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder={isListening ? "Listening to your voice..." : "Ask me anything…"}
-                    disabled={loading}
-                    className="cfab-input-field"
-                    onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
-                    onBlur={(e) => (e.target.style.borderColor = "var(--border-light)")}
-                  />
-                  {loading ? (
-                    <button type="button" onClick={stopGeneration} className="cfab-send-btn cfab-stop" title="Stop">
-                      <Square size={13} fill="currentColor" />
-                    </button>
-                  ) : (
-                    <button type="submit" disabled={!input.trim()} className={`cfab-send-btn ${input.trim() ? "cfab-send-active" : ""}`}>
-                      <Send size={13} />
-                    </button>
-                  )}
-                </form>
-              </div>
-            </div>
-
-
           </div>
         </div>
       )}
-
-      {/* FAB */}
-      <button type="button" onClick={() => setIsOpen(!isOpen)} title="AI Assistant" className={`chat-fab ${isOpen ? "chat-fab-active" : "fab-pulse-glow"}`}>
-        {isOpen ? <X size={22} color="#fff" /> : <MessageSquare size={22} color="#fff" />}
-      </button>
 
       <style>{`
         .chat-floating-wrapper { position: fixed; bottom: 32px; right: 32px; z-index: 100; }
@@ -1574,12 +1586,7 @@ export default function ChatAssistant({
           border: 1px solid var(--border-medium); border-radius: 20px;
           box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 40px rgba(34,211,238,0.08);
           display: flex; flex-direction: column; overflow: hidden;
-          transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
         }
-        /* Dynamic width classes */
-        .cfab-window-expanded-left { width: 540px; }
-        .cfab-window-expanded-right { width: 550px; }
-        .cfab-window-expanded-both { width: 690px; }
 
         .chat-fab {
           width: 56px; height: 56px; border-radius: 18px;
@@ -1615,10 +1622,10 @@ export default function ChatAssistant({
         .cfab-avatar {
           width: 30px; height: 30px; border-radius: 9px;
           background: linear-gradient(135deg, rgba(34,211,238,0.22), rgba(14,165,233,0.14));
-          border: 1px solid rgba(34,211,238,0.28);
+          border: 1px solid rgba(34, 211, 238, 0.28);
           display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .cfab-title-block { flex: 1; min-width: 0; }
+        .cfab-title-block { flex: 1; min-width: 0; text-align: left; }
         .cfab-title { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
         .cfab-subtitle { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
         .cfab-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; animation: cfab-pulse 2s ease-in-out infinite; }
@@ -1627,221 +1634,179 @@ export default function ChatAssistant({
 
         /* Body */
         .cfab-body { display: flex; flex: 1; overflow: hidden; }
-        
-        /* Premium Glassmorphic Dropdown Panel */
-        .cfab-history-dropdown {
-          position: absolute;
-          top: 10px;
-          left: 12px;
-          right: 12px;
-          max-height: 320px;
-          height: auto;
-          background: rgba(10, 10, 26, 0.98);
-          backdrop-filter: blur(20px) saturate(190%);
-          -webkit-backdrop-filter: blur(20px) saturate(190%);
-          border: 1px solid rgba(34, 211, 238, 0.22);
-          border-radius: 14px;
-          z-index: 90;
+
+        /* Premium Home Portal View */
+        .cfab-home-portal {
+          flex: 1;
           display: flex;
           flex-direction: column;
-          box-shadow: 0 20px 48px -6px rgba(0, 0, 0, 0.8), 
-                      0 0 0 1px rgba(255, 255, 255, 0.06);
-          animation: slideDownFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          padding: 24px 20px;
+          overflow-y: auto;
+          background: var(--bg-sidebar);
         }
-        
-        .cfab-dropdown-header {
+        .cfab-home-welcome {
+          text-align: center;
+          margin-bottom: 24px;
+          margin-top: 8px;
+        }
+        .cfab-home-sparkle {
+          width: 50px;
+          height: 50px;
+          border-radius: 16px;
+          background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(14, 165, 233, 0.1));
+          border: 1px solid rgba(34, 211, 238, 0.3);
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          padding: 10px 14px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-          flex-shrink: 0;
+          justify-content: center;
+          margin: 0 auto 14px;
+          box-shadow: 0 8px 24px rgba(34, 211, 238, 0.15);
         }
-        .cfab-dropdown-header span {
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
+        .cfab-home-welcome h2 {
+          font-size: 24px;
+          font-weight: 800;
+          color: var(--text-primary);
+          margin: 0;
+          letter-spacing: -0.02em;
+        }
+        .cfab-home-welcome p {
+          font-size: 13px;
           color: var(--text-secondary);
+          margin: 6px 0 0;
         }
-        .cfab-dropdown-new {
-          background: linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(8, 145, 178, 0.05));
-          border: 1px solid rgba(34, 211, 238, 0.3);
-          border-radius: 6px;
-          color: #22d3ee;
-          font-size: 10.5px;
-          font-weight: 600;
-          padding: 3.5px 8px;
+        .cfab-home-cta {
+          width: 100%;
+          background: linear-gradient(135deg, #22d3ee, #0891b2);
+          border: none;
+          border-radius: 14px;
+          color: #03101c;
+          font-size: 13.5px;
+          font-weight: 700;
+          padding: 12px 16px;
           cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 4px;
-          transition: all 0.15s ease;
+          justify-content: center;
+          box-shadow: 0 8px 24px rgba(34, 211, 238, 0.35);
+          transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .cfab-dropdown-new:hover {
-          background: rgba(34, 211, 238, 0.25);
-          border-color: rgba(34, 211, 238, 0.45);
+        .cfab-home-cta:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 28px rgba(34, 211, 238, 0.5);
         }
         
-        .cfab-dropdown-list {
-          flex: 1;
-          overflow-y: auto;
-          padding: 8px;
+        .cfab-home-section {
+          margin-top: 28px;
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 10px;
         }
-        .cfab-dropdown-list::-webkit-scrollbar { width: 3px; }
-        .cfab-dropdown-list::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.07);
-          border-radius: 4px;
+        .cfab-home-section-title {
+          font-size: 10px;
+          font-weight: 750;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: var(--text-muted);
+          text-align: left;
         }
-        .cfab-dropdown-empty {
+        .cfab-home-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .cfab-home-empty {
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 40px 16px;
+          padding: 28px 16px;
           color: var(--text-muted);
-          font-size: 11px;
+          font-size: 12px;
+          border: 1px dashed rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.01);
         }
-        
-        .cfab-dropdown-item {
+        .cfab-home-item {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 8px 12px;
-          border-radius: 10px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.03);
           cursor: pointer;
-          border: 1px solid transparent;
           position: relative;
-          transition: all 0.15s ease;
+          transition: all 0.18s ease;
         }
-        .cfab-dropdown-item:hover {
-          background: rgba(255, 255, 255, 0.03);
-          border-color: rgba(255, 255, 255, 0.06);
+        .cfab-home-item:hover {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.08);
+          transform: translateX(2px);
         }
-        .cfab-dropdown-item--active {
-          background: rgba(34, 211, 238, 0.06) !important;
-          border-color: rgba(34, 211, 238, 0.2) !important;
-        }
-        .cfab-dropdown-info {
+        .cfab-home-item-avatar {
+          width: 24px;
+          height: 24px;
+          border-radius: 8px;
+          background: rgba(34, 211, 238, 0.1);
+          border: 1px solid rgba(34, 211, 238, 0.2);
           display: flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
-          flex: 1;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
         }
-        .cfab-dropdown-title {
-          font-size: 12px;
+        .cfab-home-item-title {
+          font-size: 12.5px;
           font-weight: 600;
           color: var(--text-primary);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          text-align: left;
         }
-        .cfab-dropdown-time {
+        .cfab-home-item-time {
           font-size: 10px;
           color: var(--text-muted);
           display: flex;
           align-items: center;
-          gap: 4.5px;
-          margin-top: 1px;
+          gap: 4px;
+          margin-top: 2px;
         }
         
-        /* Hover actions inside dropdown items */
-        .cfab-dropdown-actions {
+        /* Action buttons inside home items */
+        .cfab-home-item-actions {
           display: none;
           align-items: center;
           gap: 3px;
-          background: #080814;
-          border: 1px solid rgba(255,255,255,0.06);
-          padding: 2.5px;
+          background: #0b0b1e;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          padding: 3px;
           border-radius: 6px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
           position: absolute;
           right: 8px;
           top: 50%;
           transform: translateY(-50%);
         }
-        .cfab-dropdown-item:hover .cfab-dropdown-actions {
+        .cfab-home-item:hover .cfab-home-item-actions {
           display: flex;
         }
-        .cfab-dropdown-actions button {
+        .cfab-home-item-actions button {
           background: none;
           border: none;
           cursor: pointer;
           color: var(--text-secondary);
-          padding: 3.5px;
+          padding: 3px;
           border-radius: 4px;
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.12s ease;
         }
-        .cfab-dropdown-actions button:hover {
+        .cfab-home-item-actions button:hover {
           background: var(--bg-hover);
           color: var(--text-primary);
         }
-        .cfab-dropdown-del:hover {
+        .cfab-home-item-del:hover {
           background: rgba(239, 68, 68, 0.15) !important;
           color: #f87171 !important;
-        }
-
-
-        /* Rail */
-        .cfab-rail {
-          width: 0; overflow: hidden; flex-shrink: 0;
-          display: flex; flex-direction: column;
-          background: rgba(6,6,18,0.65);
-          border-right: 0px solid var(--border-light);
-          transition: width 0.3s cubic-bezier(0.4,0,0.2,1), border-right-width 0.1s ease;
-        }
-        .cfab-rail--open { width: 140px; border-right-width: 1px; }
-        .cfab-rail-header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 9px 9px 7px; flex-shrink: 0;
-          border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-        .cfab-rail-label { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); white-space: nowrap; }
-        .cfab-new-btn {
-          width: 20px; height: 20px; border-radius: 5px;
-          background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.2);
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; color: #22d3ee; flex-shrink: 0; transition: all 0.15s ease;
-        }
-        .cfab-new-btn:hover { background: rgba(34,211,238,0.2); }
-        .cfab-rail-list { flex: 1; overflow-y: auto; padding: 5px; display: flex; flex-direction: column; gap: 2px; }
-        .cfab-rail-list::-webkit-scrollbar { width: 3px; }
-        .cfab-rail-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 4px; }
-        .cfab-rail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 28px 8px; color: var(--text-muted); font-size: 10.5px; text-align: center; }
-        .cfab-rail-item {
-          padding: 7px 7px; border-radius: 7px; cursor: pointer;
-          transition: all 0.15s ease; border: 1px solid transparent;
-          position: relative; min-width: 0;
-        }
-        .cfab-rail-item:hover { background: var(--bg-surface); border-color: var(--border-light); }
-        .cfab-rail-item--active { background: rgba(34,211,238,0.09) !important; border-color: rgba(34,211,238,0.25) !important; }
-        .cfab-rail-item-inner { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .cfab-rail-title { font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-        .cfab-rail-time { font-size: 9.5px; color: var(--text-muted); display: flex; align-items: center; gap: 3px; white-space: nowrap; margin-top: 1px; }
-        .cfab-rail-actions {
-          display: none; position: absolute; bottom: 3px; right: 3px;
-          background: var(--bg-sidebar); border: 1px solid var(--border-light);
-          border-radius: 5px; padding: 2px; gap: 1px; align-items: center;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-        }
-        .cfab-rail-item:hover .cfab-rail-actions { display: flex; }
-        .cfab-rail-actions button {
-          background: none; border: none; cursor: pointer; color: var(--text-secondary);
-          padding: 3px; border-radius: 3px; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
-        }
-        .cfab-rail-actions button:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .cfab-del-btn:hover { background: rgba(239,68,68,0.15) !important; color: #f87171 !important; }
-        .cfab-rename-input {
-          width: 100%; background: var(--bg-sidebar); border: 1px solid rgba(34,211,238,0.4);
-          border-radius: 5px; padding: 3px 5px; color: var(--text-primary); font-size: 11px; outline: none; font-family: inherit;
         }
 
         /* Chat panel */
@@ -1890,76 +1855,6 @@ export default function ChatAssistant({
         }
         .chat-model-select:hover { border-color: rgba(34,211,238,0.4); }
 
-        /* Animations */
-        @keyframes slideUpFade { from{opacity:0;transform:translateY(12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-        .chat-typing-dot { width:6px;height:6px;border-radius:50%;background:#67e8f9;display:inline-block;animation:typingBounce 1.4s infinite ease-in-out both; }
-        @keyframes typingBounce { 0%,80%,100%{transform:scale(0.5);opacity:0.4} 40%{transform:scale(1);opacity:1} }
-        .chat-stream-cursor { display:inline-block;color:#22d3ee;animation:cursorBlink 0.9s step-end infinite;margin-left:1px; }
-        @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
-
-        /* Right Parameters Rail */
-        .cfab-rail-right {
-          width: 0; overflow: hidden; flex-shrink: 0;
-          display: flex; flex-direction: column;
-          background: rgba(6,6,18,0.72);
-          border-left: 0px solid var(--border-light);
-          transition: width 0.3s cubic-bezier(0.4,0,0.2,1), border-left-width 0.1s ease;
-        }
-        .cfab-rail-right--open {
-          width: 150px;
-          border-left-width: 1px;
-        }
-        .cfab-params-content {
-          flex: 1; overflow-y: auto; padding: 10px;
-          display: flex; flex-direction: column; gap: 12px;
-        }
-        .cfab-params-content::-webkit-scrollbar { width: 3px; }
-        .cfab-params-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 4px; }
-        
-        .cfab-param-section {
-          display: flex; flex-direction: column; gap: 4px;
-        }
-        .cfab-param-title {
-          font-size: 10px; font-weight: 700;
-          text-transform: uppercase; letter-spacing: 0.05em;
-          color: var(--text-muted);
-        }
-        
-        /* Preset cards list */
-        .cfab-preset-list {
-          display: flex; flex-direction: column; gap: 4px;
-        }
-        .cfab-preset-card {
-          padding: 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.03);
-          background: rgba(255,255,255,0.01); cursor: pointer;
-          transition: all 0.15s ease; width: 100%; outline: none;
-        }
-        .cfab-preset-card:hover {
-          background: rgba(255,255,255,0.04);
-          border-color: rgba(255,255,255,0.1);
-        }
-        .cfab-preset-card--active {
-          background: rgba(34,211,238,0.08) !important;
-          border-color: rgba(34,211,238,0.3) !important;
-        }
-        
-        /* Range slider style */
-        .cfab-slider {
-          -webkit-appearance: none; width: 100%; height: 4px;
-          border-radius: 2px; background: rgba(255,255,255,0.15);
-          outline: none; transition: background 0.15s ease;
-        }
-        .cfab-slider::-webkit-slider-thumb {
-          -webkit-appearance: none; appearance: none;
-          width: 12px; height: 12px; border-radius: 50%;
-          background: #22d3ee; cursor: pointer;
-          box-shadow: 0 0 6px rgba(34,211,238,0.8);
-          transition: transform 0.15s ease;
-        }
-        .cfab-slider::-webkit-slider-thumb:hover {
-          transform: scale(1.2);
-        }
-        
         /* Mic/Voice Input button */
         .cfab-mic-btn {
           width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
@@ -1981,19 +1876,17 @@ export default function ChatAssistant({
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.7; transform: scale(0.96); }
         }
-        
-        /* Doc tag workspace badge */
-        .cfab-doc-badge {
-          background: rgba(245,158,11,0.06);
-          border: 1px solid rgba(245,158,11,0.22);
-          border-radius: 8px; padding: 6px 8px;
-          font-size: 10px; color: var(--text-primary);
-          line-height: 1.3;
-        }
+
+        /* Animations */
+        @keyframes slideUpFade { from{opacity:0;transform:translateY(12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
+        .chat-typing-dot { width:6px;height:6px;border-radius:50%;background:#67e8f9;display:inline-block;animation:typingBounce 1.4s infinite ease-in-out both; }
+        @keyframes typingBounce { 0%,80%,100%{transform:scale(0.5);opacity:0.4} 40%{transform:scale(1);opacity:1} }
+        .chat-stream-cursor { display:inline-block;color:#22d3ee;animation:cursorBlink 0.9s step-end infinite;margin-left:1px; }
+        @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
 
         @media (max-width:600px) {
           .chat-floating-wrapper { bottom:24px !important; right:20px !important; }
-          .chat-floating-window, .chat-window-expanded {
+          .chat-floating-window {
             position:fixed !important; bottom:88px !important; right:16px !important; left:16px !important;
             width:auto !important; height:calc(100dvh - 110px) !important; max-height:100% !important;
             box-shadow:0 16px 48px rgba(0,0,0,0.85) !important; border-radius:18px !important;
