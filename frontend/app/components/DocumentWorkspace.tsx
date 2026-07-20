@@ -70,13 +70,40 @@ export default function DocumentWorkspace({
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfZoom, setPdfZoom] = useState(100);
 
+  // Local state initialized with props for RAG passage scroll/highlight synchronization
+  const [localHighlightPhrase, setLocalHighlightPhrase] = useState(highlightPhrase);
+  const [localTargetPage, setLocalTargetPage] = useState<number | null>(targetPage);
+
+  useEffect(() => {
+    setLocalHighlightPhrase(highlightPhrase);
+    setLocalTargetPage(targetPage);
+  }, [highlightPhrase, targetPage]);
+
+  useEffect(() => {
+    const handleOpenDocument = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.filename === file.filename) {
+        if (customEvent.detail.phrase) {
+          setLocalHighlightPhrase(customEvent.detail.phrase);
+        }
+        if (customEvent.detail.pageNum) {
+          setLocalTargetPage(customEvent.detail.pageNum);
+        }
+      }
+    };
+    window.addEventListener("open-rag-document", handleOpenDocument);
+    return () => {
+      window.removeEventListener("open-rag-document", handleOpenDocument);
+    };
+  }, [file.filename]);
+
   let pdfUrl = pdfBlobUrl || "";
   let pdfHash = "";
-  if (targetPage) {
-    pdfHash = `page=${targetPage}`;
+  if (localTargetPage) {
+    pdfHash = `page=${localTargetPage}`;
   }
-  if (highlightPhrase) {
-    pdfHash = pdfHash ? `${pdfHash}&search="${encodeURIComponent(highlightPhrase)}"` : `search="${encodeURIComponent(highlightPhrase)}"`;
+  if (localHighlightPhrase) {
+    pdfHash = pdfHash ? `${pdfHash}&search="${encodeURIComponent(localHighlightPhrase)}"` : `search="${encodeURIComponent(localHighlightPhrase)}"`;
   }
   if (pdfUrl && pdfHash) {
     pdfUrl += `#${pdfHash}`;
@@ -170,7 +197,7 @@ export default function DocumentWorkspace({
 
   // Scroll to highlighted text segment if specified
   useEffect(() => {
-    if (highlightPhrase && !isPDF && textContent) {
+    if (localHighlightPhrase && !isPDF && textContent) {
       const timer = setTimeout(() => {
         const markedElement = document.querySelector(".dw-text-content mark");
         if (markedElement) {
@@ -179,7 +206,7 @@ export default function DocumentWorkspace({
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [highlightPhrase, textContent, isPDF]);
+  }, [localHighlightPhrase, textContent, isPDF]);
 
   const escapeRegExp = (str: string) => {
     return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -950,7 +977,7 @@ export default function DocumentWorkspace({
               ) : null
             ) : (
               <div className="dw-text-content">
-                {renderTextWithHighlight(textContent || "", highlightPhrase)}
+                {renderTextWithHighlight(textContent || "", localHighlightPhrase)}
               </div>
             )}
           </div>

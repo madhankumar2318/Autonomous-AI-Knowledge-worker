@@ -101,6 +101,62 @@
   color-scheme: light;
 }
 
+/* ========================================
+   🖤 OLED HIGH-CONTRAST THEME OVERRIDES
+   ======================================== */
+:root[data-theme="oled"] {
+  /* Backgrounds */
+  --bg-primary: #000000;
+  --bg-secondary: #000000;
+  --bg-surface: rgba(255, 255, 255, 0.03);
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-card: #000000;
+
+  /* Accent Colors */
+  --accent-primary: #22d3ee;
+  --accent-secondary: #3b82f6;
+
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-muted: #52525b;
+  --text-inverse: #000000;
+
+  /* Borders */
+  --border-light: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.12);
+  --border-dark: rgba(255, 255, 255, 0.18);
+
+  /* Shadows */
+  --shadow-glow: 0 0 15px rgba(34, 211, 238, 0.15);
+  --shadow-base: 0 4px 30px rgba(0, 0, 0, 0.9);
+
+  /* Layout Overrides */
+  --bg-header: #000000;
+  --bg-sidebar: #000000;
+  --bg-topbar: #000000;
+  --border-header: rgba(255, 255, 255, 0.08);
+  --border-sidebar: rgba(255, 255, 255, 0.08);
+  --border-topbar: rgba(255, 255, 255, 0.06);
+
+  color-scheme: dark;
+}
+
+:root[data-theme="oled"] body {
+  background: #000000 !important;
+}
+
+:root[data-theme="oled"] body::before {
+  display: none !important;
+}
+
+:root[data-theme="oled"] .card,
+:root[data-theme="oled"] .card-compact,
+:root[data-theme="oled"] .card-sm {
+  background: #000000 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
 :root[data-theme="light"] body {
   background: var(--bg-primary);
 }

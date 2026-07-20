@@ -22,6 +22,7 @@ import StockSection from "./components/StockSection";
 import ThemeToggle from "./components/ThemeToggle";
 import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
+import CmdKPalette from "./components/CmdKPalette";
 import { API_BASE_URL } from "./config";
 
 const NewspaperIconCustom = ({ size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) => (
@@ -102,6 +103,19 @@ export default function Home_Page() {
   const [loggedInUser, setLoggedInUser] = useState("");
   const [showProfile, setShowProfile] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [isCmdKOpen, setIsCmdKOpen] = useState(false);
+
+  // Toggle Command Palette with Cmd+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setIsCmdKOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("ak_active_tab") || "news";
@@ -450,6 +464,10 @@ export default function Home_Page() {
 
       {/* Floating AI Chat */}
       {!showProfile && <ChatAssistant username={loggedInUser} inline={false} />}
+      
+      {/* Command Palette */}
+      <CmdKPalette isOpen={isCmdKOpen} onClose={() => setIsCmdKOpen(false)} />
+
       {/* User Profile Panel */}
       {showProfile && (
         <UserProfile

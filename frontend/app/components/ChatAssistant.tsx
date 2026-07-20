@@ -26,6 +26,8 @@ import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 import ThinkingLogsAccordion, { type ToolLog } from "./ThinkingLogsAccordion";
 import { formatMessage } from "./chatFormatters";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { useChatStream, ChatMessage, ChatThread } from "../hooks/useChatStream";
 
 // ── Assistant Presets ─────────────────────────────────────────────────────────
 export const PRESETS = {
@@ -60,22 +62,6 @@ export const PRESETS = {
 };
 
 
-interface ChatMessage {
-  role: "user" | "ai";
-  content: string;
-  thinkingLogs?: string[];
-  toolLogs?: ToolLog[];
-  model?: string;
-}
-
-interface ChatThread {
-  id: string;
-  username: string;
-  title: string;
-  model: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 interface ChatAssistantProps {
   username?: string;
@@ -134,172 +120,70 @@ export default function ChatAssistant({
     }
   }, [username]);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "ai",
-      content: activeDocumentFilename
-        ? `ðŸ“„ **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document â€” I'll search it and give you precise, cited answers.`
-        : "Hi! I'm your AI Knowledge Worker. I can help you analyze news, check stock data, summarize documents, and answer questions. What can I do for you today?",
-    },
-  ]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [streamingStatus, setStreamingStatus] = useState<string>("");
-
-  // â”€â”€ Thread History State â”€â”€
-  const [threads, setThreads] = useState<ChatThread[]>([]);
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [showThreadSidebar, setShowThreadSidebar] = useState(false);
   const [renamingThreadId, setRenamingThreadId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
-
-  // ── Home Portal Navigation State ──
   const [showHomePortal, setShowHomePortal] = useState(true);
 
-  // ── Parameters & Preset Settings state ──
   const [temperature, setTemperature] = useState(0.1);
   const [activePreset, setActivePreset] = useState<keyof typeof PRESETS>("default");
   const [showParamsPanel, setShowParamsPanel] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
 
-  // Speech Recognition hook
+  // Hook up useChatStream
+  const {
+    messages,
+    threads,
+    activeThreadId,
+    loading,
+    streamingStatus,
+    fetchThreads,
+    switchThread,
+    renameThread,
+    deleteThread,
+    startNewChat,
+    sendMessage,
+    stopGeneration,
+    welcomeMessage,
+  } = useChatStream({
+    username,
+    activeDocumentFilename,
+    selectedModel,
+    setSelectedModel,
+    activePreset,
+    temperature,
+  });
+
+  // Hook up useSpeechRecognition
+  const { isListening, toggleListening } = useSpeechRecognition({
+    onTranscript: (text) => setInput((prev) => (prev ? prev + " " + text : text)),
+  });
+
+  // Listen to command palette model updates
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const SpeechRecognition =
-          (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-        if (SpeechRecognition) {
-          const recognition = new SpeechRecognition();
-          recognition.continuous = false;
-          recognition.interimResults = false;
-          recognition.lang = "en-US";
-
-          recognition.onstart = () => {
-            setIsListening(true);
-          };
-          recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            if (transcript) {
-              setInput((prev) => (prev ? prev + " " + transcript : transcript));
-              showToast("success", `Voice input: "${transcript}"`);
-            }
-          };
-          recognition.onerror = (event: any) => {
-            console.error("Speech recognition error:", event.error);
-            showToast("error", "Voice input failed or was denied.");
-            setIsListening(false);
-          };
-          recognition.onend = () => {
-            setIsListening(false);
-          };
-          recognitionRef.current = recognition;
-        }
-      } catch (e) {
-        console.warn("Speech Recognition failed to initialize:", e);
+    const handleModelEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setSelectedModel(customEvent.detail);
       }
-    }
+    };
+    window.addEventListener("ak-model-changed", handleModelEvent);
+    return () => window.removeEventListener("ak-model-changed", handleModelEvent);
   }, []);
-
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      showToast("error", "Speech recognition not supported in this browser. Use Chrome or Safari.");
-      return;
-    }
-    if (isListening) {
-      recognitionRef.current.stop();
-    } else {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  };
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const welcomeMessage = (): ChatMessage => ({
-    role: "ai",
-    content: activeDocumentFilename
-      ? `ðŸ“„ **Document Workspace Ready**\n\nI'm analysing **${activeDocumentFilename}** for you. Ask me anything about this document â€” I'll search it and give you precise, cited answers.`
-      : "Hi! I'm your AI Knowledge Worker. I can help you analyze news, check stock data, summarize documents, and answer questions. What can I do for you today?",
-  });
 
   // â”€â”€ Thread CRUD Helpers â”€â”€
-  const fetchThreads = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/chat/threads?username=${encodeURIComponent(username)}`, { credentials: "include" });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setThreads(data);
-        } else {
-          setThreads([]);
-        }
-      }
-    } catch { /* silent */ }
-  };
 
-  const createThread = async (firstMessage?: string) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/chat/threads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ username, title: firstMessage ? firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "") : "New Chat", model: selectedModel }),
-      });
-      if (res.ok) {
-        const thread = await res.json();
-        setThreads((prev) => [thread, ...prev]);
-        setActiveThreadId(thread.id);
-        return thread.id as string;
-      }
-    } catch { /* silent */ }
-    return null;
-  };
 
-  const switchThread = async (threadId: string) => {
-    if (threadId === activeThreadId) return;
-    setActiveThreadId(threadId);
-    try {
-      const res = await fetch(`${API_BASE_URL}/chat/threads/${threadId}/messages`, { credentials: "include" });
-      if (res.ok) {
-        const msgs = await res.json();
-        if (msgs.length === 0) {
-          setMessages([welcomeMessage()]);
-        } else {
-          setMessages(msgs.map((m: { role: string; content: string }) => ({ role: m.role as "user" | "ai", content: m.content })));
-        }
-      }
-    } catch { setMessages([welcomeMessage()]); }
-  };
 
-  const renameThread = async (threadId: string, title: string) => {
-    try {
-      await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title }),
-      });
-      setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, title } : t));
-    } catch { /* silent */ }
-    setRenamingThreadId(null);
-  };
 
-  const deleteThread = async (threadId: string) => {
-    try {
-      await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, { method: "DELETE", credentials: "include" });
-      setThreads((prev) => prev.filter((t) => t.id !== threadId));
-      if (activeThreadId === threadId) {
-        setActiveThreadId(null);
-        setMessages([welcomeMessage()]);
-      }
-    } catch { /* silent */ }
-  };
+
+
+
+
 
   const exportThread = (thread: ChatThread) => {
     let md = `# ${thread.title}\n\n`;
@@ -315,10 +199,7 @@ export default function ChatAssistant({
     URL.revokeObjectURL(url);
   };
 
-  const startNewChat = async () => {
-    setActiveThreadId(null);
-    setMessages([welcomeMessage()]);
-  };
+
 
   const timeAgo = (dateStr: any) => {
     if (!dateStr) return "Just now";
@@ -377,229 +258,7 @@ export default function ChatAssistant({
   // Bind citation handler into the imported formatter so call-sites stay simple
   const renderMessage = (text: string) => formatMessage(text, handleCitationClick);
 
-  const stopGeneration = () => {
 
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-  };
-
-  const sendMessage = async (text?: string) => {
-    const userMessage = (text ?? input).trim();
-    if (!userMessage || loading) return;
-    setInput("");
-    setStreamingStatus("");
-
-    // Auto-create a thread if none is active
-    let threadId = activeThreadId;
-    if (!threadId) {
-      threadId = await createThread(userMessage);
-    }
-
-    // Append user message + empty AI placeholder
-    const chatHistory = messages.map((msg) => ({
-      role: msg.role === "ai" ? "ai" : "user",
-      content: msg.content,
-    }));
-
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", content: userMessage } as ChatMessage,
-      { role: "ai", content: "" } as ChatMessage,
-    ]);
-    setLoading(true);
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/chat/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        signal: controller.signal,
-        body: JSON.stringify({
-          message: userMessage,
-          username,
-          history: chatHistory,
-          model: selectedModel,
-          thread_id: threadId,
-          temperature,
-          system_prompt: PRESETS[activePreset].prompt || undefined,
-          ...(activeDocumentFilename ? { filename: activeDocumentFilename } : {}),
-        }),
-      });
-
-      if (!res.ok || !res.body) {
-        throw new Error(`Server error: ${res.status}`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Process all complete SSE lines in the buffer
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? ""; // keep the last (possibly incomplete) line
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data:")) continue;
-
-          const payload = trimmed.slice(5).trim();
-          if (payload === "[DONE]") {
-            // Stream complete
-            setStreamingStatus("");
-            break;
-          }
-
-          try {
-            const event = JSON.parse(payload) as { type: string; content: string };
-            if (event.type === "token") {
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last && last.role === "ai") {
-                  updated[updated.length - 1] = {
-                    ...last,
-                    content: last.content + event.content,
-                  };
-                }
-                return updated;
-              });
-            } else if (event.type === "model_used") {
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last && last.role === "ai") {
-                  updated[updated.length - 1] = {
-                    ...last,
-                    model: event.content,
-                  };
-                }
-                return updated;
-              });
-            } else if (event.type === "status") {
-              setStreamingStatus(event.content);
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last && last.role === "ai") {
-                  const logs = last.thinkingLogs ? [...last.thinkingLogs] : [];
-                  if (!logs.includes(event.content)) {
-                    logs.push(event.content);
-                  }
-                  updated[updated.length - 1] = {
-                    ...last,
-                    thinkingLogs: logs,
-                  };
-                }
-                return updated;
-              });
-            } else if (event.type === "tool_start") {
-              try {
-                const startData = JSON.parse(event.content) as { id: string; name: string; arguments?: string };
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last && last.role === "ai") {
-                    const tools = last.toolLogs ? [...last.toolLogs] : [];
-                    if (!tools.some((t) => t.id === startData.id)) {
-                      tools.push({
-                        id: startData.id,
-                        name: startData.name,
-                        arguments: startData.arguments,
-                        status: "executing",
-                      });
-                    }
-                    updated[updated.length - 1] = {
-                      ...last,
-                      toolLogs: tools,
-                    };
-                  }
-                  return updated;
-                });
-              } catch (e) {
-                console.error("Failed to parse tool_start SSE event", e);
-              }
-            } else if (event.type === "tool_end") {
-              try {
-                const endData = JSON.parse(event.content) as { id: string; name: string; status: "success" | "error"; output?: string };
-                setMessages((prev) => {
-                  const updated = [...prev];
-                  const last = updated[updated.length - 1];
-                  if (last && last.role === "ai") {
-                    const tools = last.toolLogs ? last.toolLogs.map((t) => {
-                      if (t.id === endData.id) {
-                        return {
-                          ...t,
-                          status: endData.status,
-                          output: endData.output,
-                        };
-                      }
-                      return t;
-                    }) : [];
-                    updated[updated.length - 1] = {
-                      ...last,
-                      toolLogs: tools,
-                    };
-                  }
-                  return updated;
-                });
-              } catch (e) {
-                console.error("Failed to parse tool_end SSE event", e);
-              }
-            } else if (event.type === "error") {
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last && last.role === "ai") {
-                  updated[updated.length - 1] = {
-                    ...last,
-                    content: event.content,
-                  };
-                }
-                return updated;
-              });
-            }
-          } catch {
-            // Skip malformed SSE frames
-          }
-        }
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        // User stopped generation â€” finalize the partial message as-is
-        setStreamingStatus("");
-      } else {
-        showToast("error", "Failed to connect to AI server.");
-        setMessages((prev) => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last && last.role === "ai" && last.content === "") {
-            updated[updated.length - 1] = {
-              ...last,
-              content: "Sorry, I'm currently offline. Please check if the backend server is running.",
-            };
-          }
-          return updated;
-        });
-      }
-    } finally {
-      setLoading(false);
-      setStreamingStatus("");
-      abortControllerRef.current = null;
-      // Refresh threads to pick up auto-title and updated_at changes
-      fetchThreads();
-    }
-  };
 
   // â”€â”€ INLINE (full-page tab) MODE â”€â”€
   if (inline) {
@@ -796,7 +455,7 @@ export default function ChatAssistant({
         {/* Input */}
         <div className="chat-inline-input">
           <form
-            onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }}
+            onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(input, () => setInput("")); } }}
             className="chat-input-form"
           >
             <input
@@ -1546,7 +1205,7 @@ export default function ChatAssistant({
 
                 {/* Input bar */}
                 <div className="cfab-input-bar">
-                  <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(); } }} className="cfab-input-form">
+                  <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(input, () => setInput("")); } }} className="cfab-input-form">
                     {/* Hands-free Voice Input toggle */}
                     <button
                       type="button"
