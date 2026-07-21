@@ -12,7 +12,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import ChatAssistant from "./components/ChatAssistant";
 import FileUpload from "./components/FileUpload";
 import LoginForm from "./components/LoginForm";
@@ -23,6 +23,7 @@ import ThemeToggle from "./components/ThemeToggle";
 import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
 import CmdKPalette from "./components/CmdKPalette";
+import NotificationDropdown, { NotificationItem } from "./components/NotificationDropdown";
 import { API_BASE_URL } from "./config";
 
 const NewspaperIconCustom = ({ size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) => (
@@ -104,6 +105,93 @@ export default function Home_Page() {
   const [showProfile, setShowProfile] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isCmdKOpen, setIsCmdKOpen] = useState(false);
+
+  // Live activity notifications state
+  const [notifications, setNotifications] = useState<NotificationItem[]>([
+    {
+      id: "welcome",
+      type: "info",
+      title: "Welcome Back!",
+      message: "Press Ctrl+K to toggle the command palette, or select any tab to begin.",
+      timestamp: new Date(),
+      read: false,
+    }
+  ]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  const addNotification = useCallback((title: string, message: string, type: "info" | "success" | "warning" = "info") => {
+    const item: NotificationItem = {
+      id: String(Math.random() + Date.now()),
+      type,
+      title,
+      message,
+      timestamp: new Date(),
+      read: false,
+    };
+    setNotifications((prev) => [item, ...prev]);
+  }, []);
+
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  const markNotificationRead = (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  };
+
+  const deleteNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  // Intercept system notifications
+  useEffect(() => {
+    const handleAddNotif = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        addNotification(
+          customEvent.detail.title || "Notification",
+          customEvent.detail.message || "",
+          customEvent.detail.type || "info"
+        );
+      }
+    };
+    window.addEventListener("ak-add-notification", handleAddNotif);
+    return () => window.removeEventListener("ak-add-notification", handleAddNotif);
+  }, [addNotification]);
+
+  // Intercept themes/models changes to display notifications
+  useEffect(() => {
+    const handleThemeNotif = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        addNotification(
+          "Theme Updated",
+          `Workspace theme changed to "${customEvent.detail.toUpperCase()}".`,
+          "info"
+        );
+      }
+    };
+    const handleModelNotif = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        addNotification(
+          "AI Model Swapped",
+          `Active chatbot reasoning model updated to "${customEvent.detail}".`,
+          "info"
+        );
+      }
+    };
+    window.addEventListener("ak-theme-changed", handleThemeNotif);
+    window.addEventListener("ak-model-changed", handleModelNotif);
+    return () => {
+      window.removeEventListener("ak-theme-changed", handleThemeNotif);
+      window.removeEventListener("ak-model-changed", handleModelNotif);
+    };
+  }, [addNotification]);
 
   // Toggle Command Palette with Cmd+K / Ctrl+K
   useEffect(() => {
@@ -295,14 +383,30 @@ export default function Home_Page() {
           <div className="header-actions">
             <ThemeToggle />
             <div className="header-divider" />
-            <button
-              type="button"
-              className="header-notification-btn"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="notification-dot" />
-            </button>
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setIsNotifOpen((prev) => !prev)}
+                className="header-notification-btn"
+                title="Notifications"
+                style={{ position: "relative" }}
+              >
+                <Bell className="w-4 h-4" />
+                {notifications.some((n) => !n.read) && (
+                  <span className="notification-dot" />
+                )}
+              </button>
+
+              <NotificationDropdown
+                isOpen={isNotifOpen}
+                onClose={() => setIsNotifOpen(false)}
+                notifications={notifications}
+                onMarkAllRead={markAllRead}
+                onClearAll={clearAllNotifications}
+                onMarkRead={markNotificationRead}
+                onDelete={deleteNotification}
+              />
+            </div>
             <button
               type="button"
               onClick={() => setShowProfile(true)}

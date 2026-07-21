@@ -182,12 +182,24 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           
           if (data.rag_status === "success") {
             showToast("success", `"${file.name}" uploaded & RAG indexed successfully!`);
+            window.dispatchEvent(new CustomEvent("ak-add-notification", {
+              detail: { title: "RAG Document Indexed", message: `"${file.name}" has been fully parsed and indexed for semantic searches.`, type: "success" }
+            }));
           } else if (data.rag_status === "keyword_only") {
             showToast("success", `"${file.name}" uploaded & indexed! (Keyword search active — semantic search needs Gemini API key.)`);
+            window.dispatchEvent(new CustomEvent("ak-add-notification", {
+              detail: { title: "Document Keyword-Indexed", message: `"${file.name}" indexed for keyword matching. Connect a Gemini key to activate semantic searches.`, type: "info" }
+            }));
           } else if (data.rag_status === "failed") {
             showToast("warning", `Uploaded "${file.name}", but indexing failed: ${data.error || "Check server logs."}`);
+            window.dispatchEvent(new CustomEvent("ak-add-notification", {
+              detail: { title: "Document Indexing Failed", message: `"${file.name}" uploaded but indexing failed: ${data.error || "unknown error"}`, type: "warning" }
+            }));
           } else {
             showToast("success", `"${file.name}" uploaded successfully!`);
+            window.dispatchEvent(new CustomEvent("ak-add-notification", {
+              detail: { title: "File Uploaded", message: `"${file.name}" uploaded successfully to workspace.`, type: "success" }
+            }));
           }
           fetchUploads();
         }, 500);
@@ -216,14 +228,26 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       if (res.ok) {
         if (data.rag_status === "success") {
           showToast("success", `"${filename}" re-indexed successfully with ${data.chunks} chunks!`);
+          window.dispatchEvent(new CustomEvent("ak-add-notification", {
+            detail: { title: "Document Re-indexed", message: `"${filename}" re-parsed successfully into ${data.chunks} chunks.`, type: "success" }
+          }));
         } else if (data.rag_status === "keyword_only") {
           showToast("success", `"${filename}" indexed for keyword search (${data.chunks} chunks).`);
+          window.dispatchEvent(new CustomEvent("ak-add-notification", {
+            detail: { title: "Document Keyword-Indexed", message: `"${filename}" re-indexed for keyword search. Connect Gemini key to activate semantic index.`, type: "info" }
+          }));
         } else {
           showToast("warning", `Re-indexing failed: ${data.error || "Unknown error"}`);
+          window.dispatchEvent(new CustomEvent("ak-add-notification", {
+            detail: { title: "Re-indexing Failed", message: `Failed to re-index "${filename}": ${data.error}`, type: "warning" }
+          }));
         }
         fetchUploads();
       } else {
         showToast("error", data.detail || "Re-indexing failed.");
+        window.dispatchEvent(new CustomEvent("ak-add-notification", {
+          detail: { title: "Re-indexing Failed", message: `Server error during re-indexing: ${data.detail}`, type: "warning" }
+        }));
       }
     } catch (_err) {
       showToast("error", "Connection error during re-indexing.");
@@ -245,9 +269,15 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       });
       if (res.ok) {
         showToast("success", `"${filename}" removed.`);
+        window.dispatchEvent(new CustomEvent("ak-add-notification", {
+          detail: { title: "Document Removed", message: `"${filename}" deleted from workspace permanently.`, type: "info" }
+        }));
         fetchUploads();
       } else {
         showToast("error", "Failed to delete file.");
+        window.dispatchEvent(new CustomEvent("ak-add-notification", {
+          detail: { title: "Deletion Failed", message: `Failed to delete file "${filename}" from server storage.`, type: "warning" }
+        }));
       }
     } catch (_err) {
       showToast("error", "Connection error during file deletion.");
