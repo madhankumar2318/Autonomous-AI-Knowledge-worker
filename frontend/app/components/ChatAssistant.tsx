@@ -171,6 +171,23 @@ export default function ChatAssistant({
     return () => window.removeEventListener("ak-model-changed", handleModelEvent);
   }, []);
 
+  // Listen to One-Click AI Analysis Bridge prompt events
+  useEffect(() => {
+    const handlePromptEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail && customEvent.detail.prompt) {
+        setIsOpen(true);
+        setShowHomePortal(false);
+        setInput(customEvent.detail.prompt);
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 100);
+      }
+    };
+    window.addEventListener("ak-set-chat-prompt", handlePromptEvent);
+    return () => window.removeEventListener("ak-set-chat-prompt", handlePromptEvent);
+  }, []);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 

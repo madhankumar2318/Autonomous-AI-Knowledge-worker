@@ -1,5 +1,5 @@
 "use client";
-import { Activity, BarChart2, RefreshCw, TrendingDown, TrendingUp, Zap } from "lucide-react";
+import { Activity, BarChart2, RefreshCw, TrendingDown, TrendingUp, Zap, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
@@ -235,6 +235,23 @@ export default function StockSection({ compact = false }: { compact?: boolean })
     );
   }
 
+  const handleAnalyzeStock = (stock: StockQuote) => {
+    const isPos = (stock.change_percent ?? 0) >= 0;
+    const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
+    
+    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", {
+      detail: { prompt }
+    }));
+    
+    window.dispatchEvent(new CustomEvent("ak-add-notification", {
+      detail: {
+        title: "Stock Checkup Triggered",
+        message: `Sent ${stock.symbol} metrics to AI Analyst.`,
+        type: "info"
+      }
+    }));
+  };
+
   // ── FULL TAB MODE ──
   if (loading) {
     return (
@@ -412,16 +429,30 @@ export default function StockSection({ compact = false }: { compact?: boolean })
                           {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ?? ""}
                         </div>
                       </div>
-                      <div
-                        className="stocks-change-badge"
-                        style={{
-                          background: isPos ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)",
-                          borderColor: isPos ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)",
-                          color: isPos ? "#34d399" : "#f87171",
-                        }}
-                      >
-                        {isPos ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                        {pctStr}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAnalyzeStock(s);
+                          }}
+                          title={`Perform AI checkup on ${s.symbol}`}
+                          className="news-ai-action-btn-sm"
+                          style={{ padding: "2px 6px" }}
+                        >
+                          <Sparkles className="w-3 h-3" />
+                        </button>
+                        <div
+                          className="stocks-change-badge"
+                          style={{
+                            background: isPos ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)",
+                            borderColor: isPos ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)",
+                            color: isPos ? "#34d399" : "#f87171",
+                          }}
+                        >
+                          {isPos ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {pctStr}
+                        </div>
                       </div>
                     </div>
 

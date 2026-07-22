@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 import {
   X,
   TrendingUp,
   TrendingDown,
   Activity,
   BarChart2,
+  Sparkles,
 } from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
@@ -351,9 +352,41 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
               </div>
             </div>
           </div>
-          <button className="sc-close-btn" onClick={onClose} title="Close (Esc)">
-            <X size={16} />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={() => {
+                const isPos = (stock.change_percent ?? 0) >= 0;
+                const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
+                window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
+                window.dispatchEvent(new CustomEvent("ak-add-notification", {
+                  detail: { title: "Stock Checkup Triggered", message: `Sent ${stock.symbol} metrics to AI Analyst.`, type: "info" }
+                }));
+                onClose();
+              }}
+              title="Analyze this stock with AI"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "10px",
+                background: "rgba(34, 211, 238, 0.12)",
+                border: "1px solid rgba(34, 211, 238, 0.3)",
+                color: "#22d3ee",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <Sparkles size={14} />
+              <span>AI Checkup</span>
+            </button>
+            <button className="sc-close-btn" onClick={onClose} title="Close (Esc)">
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Timeframe + Indicators */}

@@ -1,5 +1,5 @@
 "use client";
-import { Clock, ExternalLink, Newspaper, RefreshCw, Search, SearchX, Zap } from "lucide-react";
+import { Clock, ExternalLink, Newspaper, RefreshCw, Search, SearchX, Zap, Sparkles } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
@@ -133,6 +133,25 @@ export default function NewsSection({
     },
     [topic, category]
   );
+
+  const handleAnalyzeArticle = (e: React.MouseEvent, art: Article) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const prompt = `Analyze the market implications and key takeaways of this news article:\n\nTitle: "${art.title}"\nSource: ${art.source || "News"}\nDescription: ${art.description || art.title}\n\nWhat are the potential financial and strategic impacts?`;
+    
+    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", {
+      detail: { prompt }
+    }));
+    
+    window.dispatchEvent(new CustomEvent("ak-add-notification", {
+      detail: {
+        title: "AI Analysis Triggered",
+        message: `Sent "${art.title.slice(0, 45)}..." to AI Analyst.`,
+        type: "info"
+      }
+    }));
+  };
 
   useEffect(() => {
     const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/live";
@@ -361,9 +380,20 @@ export default function NewsSection({
                       <Clock className="w-3 h-3" />
                       {timeAgo(featuredArticle.publishedAt)}
                     </span>
-                    <span className="news-read-link">
-                      Read full story <ExternalLink className="w-3 h-3" />
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <button
+                        type="button"
+                        onClick={(e) => handleAnalyzeArticle(e, featuredArticle)}
+                        title="Analyze this breaking news with AI"
+                        className="news-ai-action-btn"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        <span>Analyze with AI</span>
+                      </button>
+                      <span className="news-read-link">
+                        Read full story <ExternalLink className="w-3 h-3" />
+                      </span>
+                    </div>
                   </div>
                 </div>
               </a>
@@ -476,7 +506,18 @@ export default function NewsSection({
                         <Clock className="w-3 h-3" />
                         {timeAgo(article.publishedAt)}
                       </span>
-                      <ExternalLink className="w-3 h-3 news-card-ext" />
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleAnalyzeArticle(e, article)}
+                          title="Analyze this article with AI"
+                          className="news-ai-action-btn-sm"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>Analyze</span>
+                        </button>
+                        <ExternalLink className="w-3 h-3 news-card-ext" />
+                      </div>
                     </div>
                   </div>
                 </a>
@@ -1012,6 +1053,46 @@ export default function NewsSection({
           font-size: 14px;
           color: rgba(255,255,255,0.3);
         }
+        .news-ai-action-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          border-radius: 8px;
+          background: rgba(34, 211, 238, 0.1);
+          border: 1px solid rgba(34, 211, 238, 0.25);
+          color: #22d3ee;
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .news-ai-action-btn:hover {
+          background: rgba(34, 211, 238, 0.22);
+          border-color: rgba(34, 211, 238, 0.5);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(34, 211, 238, 0.2);
+        }
+        .news-ai-action-btn-sm {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 3px 8px;
+          border-radius: 6px;
+          background: rgba(34, 211, 238, 0.08);
+          border: 1px solid rgba(34, 211, 238, 0.2);
+          color: #22d3ee;
+          font-size: 10px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.18s ease;
+        }
+        .news-ai-action-btn-sm:hover {
+          background: rgba(34, 211, 238, 0.2);
+          border-color: rgba(34, 211, 238, 0.45);
+          transform: translateY(-1px);
+        }
+
         .news-load-more-wrap {
           display: flex;
           justify-content: center;
