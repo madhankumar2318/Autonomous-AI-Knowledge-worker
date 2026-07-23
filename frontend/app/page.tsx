@@ -1184,6 +1184,7 @@ export default function Home_Page() {
           .app-body { height: calc(100dvh - 58px) !important; min-height: 0 !important; }
           .content-body {
             padding: 16px !important;
+            padding-bottom: 80px !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
             -webkit-overflow-scrolling: touch !important;

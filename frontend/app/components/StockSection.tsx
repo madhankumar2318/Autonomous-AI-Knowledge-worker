@@ -796,6 +796,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           .stocks-root {
             padding-left: 12px !important;
             padding-right: 12px !important;
+            padding-bottom: 140px !important;
             overflow: visible !important;
             height: auto !important;
             max-height: none !important;
