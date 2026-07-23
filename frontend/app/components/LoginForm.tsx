@@ -321,7 +321,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               fontSize: "28px",
               fontWeight: 800,
               letterSpacing: "-0.5px",
-              background: "linear-gradient(135deg, var(--text-primary) 30%, #a855f7 100%)",
+              background: "linear-gradient(135deg, #ffffff 40%, #c084fc 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -893,12 +893,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
       <style>{`
         .auth-label {
           display: block;
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 700;
-          color: var(--text-secondary);
+          color: rgba(255, 255, 255, 0.75) !important;
           margin-bottom: 8px;
           padding-left: 4px;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.6px;
           text-transform: uppercase;
         }
 
@@ -911,7 +911,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         .input-icon {
           position: absolute;
           left: 15px;
-          color: var(--text-muted);
+          color: rgba(255, 255, 255, 0.45) !important;
           pointer-events: none;
           transition: color 0.25s ease, filter 0.25s ease;
         }
@@ -922,9 +922,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           padding-left: 46px;
           padding-right: 16px;
           border-radius: 14px;
-          background: var(--bg-surface);
-          border: 1px solid var(--border-medium);
-          color: var(--text-primary);
+          background: rgba(0, 0, 0, 0.35) !important;
+          border: 1px solid rgba(255, 255, 255, 0.14) !important;
+          color: #ffffff !important;
           font-size: 14px;
           font-weight: 500;
           outline: none;
@@ -933,23 +933,23 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
 
         .auth-input::placeholder {
-          color: var(--text-muted);
+          color: rgba(255, 255, 255, 0.35) !important;
           font-weight: 400;
         }
 
         .auth-input:hover {
-          border-color: rgba(168, 85, 247, 0.4) !important;
+          border-color: rgba(168, 85, 247, 0.45) !important;
         }
 
         .auth-input:focus {
           border-color: #a855f7 !important;
-          background: var(--bg-hover);
-          box-shadow: 0 0 16px rgba(168, 85, 247, 0.2) !important;
+          background: rgba(0, 0, 0, 0.55) !important;
+          box-shadow: 0 0 18px rgba(168, 85, 247, 0.35) !important;
         }
 
         .input-wrapper:focus-within .input-icon {
-          color: #a855f7 !important;
-          filter: drop-shadow(0 0 4px rgba(168, 85, 247, 0.4)) !important;
+          color: #c084fc !important;
+          filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.5)) !important;
         }
 
         .input-action-btn {
@@ -957,7 +957,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           right: 15px;
           background: none;
           border: none;
-          color: var(--text-muted);
+          color: rgba(255, 255, 255, 0.45) !important;
           cursor: pointer;
           padding: 0;
           display: flex;
@@ -967,7 +967,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
 
         .input-action-btn:hover {
-          color: var(--text-primary);
+          color: #ffffff !important;
         }
 
         .auth-submit-btn {
@@ -1043,13 +1043,13 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           top: calc(100% + 6px);
           left: 0;
           width: 100%;
-          background: var(--bg-card) !important;
-          backdrop-filter: blur(20px) !important;
-          -webkit-backdrop-filter: blur(20px) !important;
-          border: 1px solid var(--border-medium) !important;
+          background: rgba(13, 11, 28, 0.92) !important;
+          backdrop-filter: blur(24px) !important;
+          -webkit-backdrop-filter: blur(24px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.16) !important;
           border-radius: 14px;
           z-index: 50;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25) !important;
+          box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7) !important;
           padding: 6px;
           display: flex;
           flex-direction: column;
@@ -1082,16 +1082,16 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           cursor: pointer;
           font-size: 14px;
           font-weight: 500;
-          color: var(--text-secondary);
+          color: rgba(255, 255, 255, 0.7) !important;
           transition: all 0.15s ease;
         }
         .custom-dropdown-item:hover {
-          background: rgba(34, 211, 238, 0.08);
-          color: var(--text-primary);
+          background: rgba(34, 211, 238, 0.12) !important;
+          color: #ffffff !important;
         }
         .custom-dropdown-item.active {
-          background: rgba(34, 211, 238, 0.12);
-          color: #22d3ee;
+          background: rgba(34, 211, 238, 0.18) !important;
+          color: #22d3ee !important;
           font-weight: 700;
         }
 
@@ -1099,11 +1099,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           transition: max-width 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s ease;
           padding: 48px 40px;
           border-radius: 28px;
-          border: 1px solid var(--border-medium) !important;
-          background: var(--bg-card) !important;
-          backdrop-filter: blur(32px) !important;
-          -webkit-backdrop-filter: blur(32px) !important;
-          box-shadow: 0 24px 60px -12px rgba(0,0,0,0.18), 0 0 40px rgba(168, 85, 247, 0.08) !important;
+          border: 1px solid rgba(255, 255, 255, 0.16) !important;
+          background: rgba(13, 11, 28, 0.55) !important;
+          backdrop-filter: blur(36px) !important;
+          -webkit-backdrop-filter: blur(36px) !important;
+          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.75), 0 0 50px rgba(168, 85, 247, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
           box-sizing: border-box;
         }
 
