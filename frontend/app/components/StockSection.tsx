@@ -88,13 +88,16 @@ function Sparkline({ data, isPos, width = 80, height = 28 }: { data?: number[]; 
 
 // Sector accent colors
 const SECTOR_COLORS: Record<string, { color: string; bg: string }> = {
-  "Technology": { color: "#818cf8", bg: "rgba(129,140,248,0.12)" },
-  "Finance": { color: "#34d399", bg: "rgba(52,211,153,0.12)" },
-  "Healthcare": { color: "#f472b6", bg: "rgba(244,114,182,0.12)" },
-  "Energy": { color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
-  "Consumer": { color: "#60a5fa", bg: "rgba(96,165,250,0.12)" },
-  "Index": { color: "#22d3ee", bg: "rgba(34,211,238,0.1)" },
-  default: { color: "#94a3b8", bg: "rgba(148,163,184,0.1)" },
+  "All": { color: "#22d3ee", bg: "rgba(34,211,238,0.18)" },
+  "Technology": { color: "#818cf8", bg: "rgba(129,140,248,0.18)" },
+  "Consumer Tech": { color: "#a855f7", bg: "rgba(168,85,247,0.18)" },
+  "Finance": { color: "#34d399", bg: "rgba(52,211,153,0.18)" },
+  "Healthcare": { color: "#f472b6", bg: "rgba(244,114,182,0.18)" },
+  "Energy": { color: "#fbbf24", bg: "rgba(251,191,36,0.18)" },
+  "Consumer": { color: "#60a5fa", bg: "rgba(96,165,250,0.18)" },
+  "Industrial": { color: "#f97316", bg: "rgba(249,115,22,0.18)" },
+  "ETFs": { color: "#38bdf8", bg: "rgba(56,189,248,0.18)" },
+  default: { color: "#22d3ee", bg: "rgba(34,211,238,0.18)" },
 };
 
 function getSectorStyle(sector: string) {
@@ -388,7 +391,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
               type="button"
               onClick={() => setSelectedSector(sector)}
               className={`stocks-sector-pill ${selectedSector === sector ? "stocks-sector-active" : ""}`}
-              style={selectedSector === sector ? { background: style.bg, borderColor: `${style.color}60`, color: style.color } : undefined}
+              style={selectedSector === sector ? { background: style.bg, borderColor: style.color, color: style.color } : undefined}
             >
               {sector}
             </button>
