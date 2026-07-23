@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { API_BASE_URL } from "../config";
 import { showToast } from "./Toast";
 
@@ -215,12 +216,19 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
     return { label: "Neutral", color: "#fbbf24" };
   };
   const rsiSignal = getRSISignal(displayRSI);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  return (
-    <div className="sc-overlay">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="sc-overlay" onClick={onClose}>
       <style>{`
         .sc-overlay {
-          position: fixed; inset: 0; z-index: 1100;
+          position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+          width: 100vw; height: 100dvh; z-index: 9999;
           display: flex; align-items: center; justify-content: center;
           background: rgba(10, 11, 16, 0.87);
           backdrop-filter: blur(14px);
@@ -235,9 +243,45 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           box-shadow: 0 28px 72px rgba(0,0,0,0.65), 0 0 60px rgba(${themeRgb}, 0.06);
           animation: scScaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
           display: flex; flex-direction: column;
-          max-height: 94vh; overflow-y: auto;
+          max-height: 90vh; overflow-y: auto;
         }
         @keyframes scScaleIn { from { transform: scale(0.94) translateY(12px); } to { transform: scale(1) translateY(0); } }
+
+        @media (max-width: 640px) {
+          .sc-overlay {
+            padding: 8px !important;
+            align-items: flex-end !important;
+          }
+          .sc-container {
+            max-height: 88dvh !important;
+            border-radius: 18px 18px 0 0 !important;
+            width: 100% !important;
+          }
+          .sc-header {
+            padding: 14px 16px !important;
+          }
+          .sc-symbol {
+            font-size: 20px !important;
+          }
+          .sc-price {
+            font-size: 22px !important;
+          }
+          .sc-name {
+            max-width: 130px !important;
+            font-size: 11px !important;
+          }
+          .sc-grid-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            padding: 12px 14px !important;
+            gap: 10px !important;
+          }
+          .sc-controls-row {
+            padding: 8px 12px !important;
+          }
+          .sc-chart-wrap {
+            padding: 8px 10px !important;
+          }
+        }
         .sc-header {
           display: flex; align-items: flex-start; justify-content: space-between;
           padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -332,7 +376,7 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         .sc-empty { display: flex; align-items: center; justify-content: center; height: 240px; color: #475569; font-size: 12px; gap: 8px; }
       `}</style>
 
-      <div className="sc-container">
+      <div className="sc-container" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="sc-header">
           <div className="sc-title-block">
@@ -670,6 +714,7 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
