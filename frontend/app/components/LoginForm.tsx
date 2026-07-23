@@ -321,7 +321,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               fontSize: "28px",
               fontWeight: 800,
               letterSpacing: "-0.5px",
-              background: "linear-gradient(135deg, #ffffff 40%, #ebd5ff 100%)",
+              background: "linear-gradient(135deg, var(--text-primary) 30%, #a855f7 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
             }}
@@ -922,8 +922,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           padding-left: 46px;
           padding-right: 16px;
           border-radius: 14px;
-          background: rgba(0, 0, 0, 0.35);
-          border: 1px solid var(--border-light);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-medium);
           color: var(--text-primary);
           font-size: 14px;
           font-weight: 500;
@@ -938,12 +938,12 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
 
         .auth-input:hover {
-          border-color: rgba(168, 85, 247, 0.3) !important;
+          border-color: rgba(168, 85, 247, 0.4) !important;
         }
 
         .auth-input:focus {
           border-color: #a855f7 !important;
-          background: rgba(0, 0, 0, 0.55);
+          background: var(--bg-hover);
           box-shadow: 0 0 16px rgba(168, 85, 247, 0.2) !important;
         }
 
@@ -1043,13 +1043,13 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           top: calc(100% + 6px);
           left: 0;
           width: 100%;
-          background: rgba(8, 10, 19, 0.85) !important;
+          background: var(--bg-card) !important;
           backdrop-filter: blur(20px) !important;
           -webkit-backdrop-filter: blur(20px) !important;
-          border: 1px solid rgba(255, 255, 255, 0.1) !important;
+          border: 1px solid var(--border-medium) !important;
           border-radius: 14px;
           z-index: 50;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6) !important;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25) !important;
           padding: 6px;
           display: flex;
           flex-direction: column;
@@ -1099,11 +1099,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           transition: max-width 0.4s cubic-bezier(0.25, 1, 0.5, 1), padding 0.4s ease;
           padding: 48px 40px;
           border-radius: 28px;
-          border: 1px solid rgba(255, 255, 255, 0.12) !important;
-          background: rgba(10, 12, 24, 0.55) !important;
+          border: 1px solid var(--border-medium) !important;
+          background: var(--bg-card) !important;
           backdrop-filter: blur(32px) !important;
           -webkit-backdrop-filter: blur(32px) !important;
-          box-shadow: 0 24px 60px -12px rgba(0,0,0,0.85), 0 0 50px rgba(34, 211, 238, 0.04), inset 0 1px 0 rgba(255,255,255,0.08) !important;
+          box-shadow: 0 24px 60px -12px rgba(0,0,0,0.18), 0 0 40px rgba(168, 85, 247, 0.08) !important;
           box-sizing: border-box;
         }
 
