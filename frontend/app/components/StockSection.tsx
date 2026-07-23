@@ -118,11 +118,15 @@ export default function StockSection({ compact = false }: { compact?: boolean })
     setManualRefreshing(true);
     try {
       const res = await fetch(`${API_BASE_URL}/stock/multiple`);
-      const d: StockResponse = await res.json();
-      setData(d);
-      setLastUpdated(new Date().toLocaleTimeString());
+      if (res.ok) {
+        const d: StockResponse = await res.json();
+        if (d && Array.isArray(d.stocks)) {
+          setData(d);
+          setLastUpdated(new Date().toLocaleTimeString());
+        }
+      }
     } catch (e) {
-      console.error(e);
+      console.error("Error fetching stocks:", e);
     } finally {
       setLoading(false);
       setManualRefreshing(false);
@@ -266,7 +270,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
     );
   }
 
-  if (!data) {
+  if (!data || !Array.isArray(data.stocks) || !data.sectors) {
     return (
       <div className="stocks-error">
         <BarChart2 className="w-10 h-10 text-white/20" />
