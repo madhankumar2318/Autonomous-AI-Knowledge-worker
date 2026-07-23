@@ -594,10 +594,8 @@ export default function NewsSection({
           gap: 12px;
           flex-wrap: wrap;
           flex-shrink: 0;
-          position: sticky;
-          top: 0;
-          z-index: 10;
-          background: var(--bg-primary);
+          position: relative;
+          z-index: 1;
           padding-top: 4px;
           padding-bottom: 12px;
         }
