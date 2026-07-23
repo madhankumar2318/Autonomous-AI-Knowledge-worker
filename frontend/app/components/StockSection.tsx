@@ -613,6 +613,8 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           display: flex;
           gap: 6px;
           flex-wrap: wrap;
+          max-width: 100%;
+          padding-bottom: 2px;
         }
         .stocks-sector-pill {
           padding: 5px 14px;
@@ -790,6 +792,11 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           .stocks-root {
             padding-left: 12px !important;
             padding-right: 12px !important;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0 !important;
+            flex: none !important;
           }
           .stocks-overview {
             display: grid !important;
@@ -818,17 +825,23 @@ export default function StockSection({ compact = false }: { compact?: boolean })
             margin-top: 4px !important;
           }
           .stocks-sector-pills {
+            display: flex !important;
+            width: 100% !important;
+            max-width: 100% !important;
             overflow-x: auto !important;
+            overflow-y: hidden !important;
             flex-wrap: nowrap !important;
             -webkit-overflow-scrolling: touch !important;
             scrollbar-width: none !important;
-            padding-bottom: 4px !important;
+            padding-bottom: 6px !important;
+            gap: 8px !important;
           }
           .stocks-sector-pills::-webkit-scrollbar {
             display: none !important;
           }
           .stocks-sector-pill {
             flex-shrink: 0 !important;
+            white-space: nowrap !important;
           }
         }
       `}</style>

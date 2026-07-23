@@ -1182,7 +1182,19 @@ export default function Home_Page() {
           .avatar-info { display: none !important; }
           .brand-text { display: none !important; }
           .app-body { height: calc(100dvh - 58px) !important; min-height: 0 !important; }
-          .content-body { padding: 16px !important; }
+          .content-body {
+            padding: 16px !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
+          }
+          .tab-content-wrapper {
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0 !important;
+            flex: none !important;
+          }
 
           .header-inner {
             justify-content: space-between !important;
