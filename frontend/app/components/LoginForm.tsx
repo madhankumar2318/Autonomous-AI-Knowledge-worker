@@ -328,7 +328,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           >
             {isRegistering ? "Create Account" : "Welcome Back"}
           </h1>
-          <p style={{ margin: 0, fontSize: "14px", color: "var(--text-secondary)", fontWeight: 500 }}>
+          <p style={{ margin: 0, fontSize: "14px", color: "rgba(255, 255, 255, 0.65)", fontWeight: 500 }}>
             {isRegistering
               ? `Step ${registerStep} of 2`
               : "Sign in to your AI Knowledge Dashboard"}
@@ -507,7 +507,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       left: "42px",
                       top: "50%",
                       transform: "translateY(-50%)",
-                      color: "var(--text-primary)",
+                      color: "#ffffff",
                       fontWeight: "600",
                       fontSize: "14px",
                       pointerEvents: "none",
@@ -794,7 +794,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     gap: "10px",
                     fontSize: "13px",
                     fontWeight: 600,
-                    color: "var(--text-secondary)",
+                    color: "rgba(255, 255, 255, 0.85)",
                     cursor: "pointer",
                     userSelect: "none",
                   }}
@@ -856,9 +856,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   width: "100%",
                   height: "42px",
                   borderRadius: "20px",
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border-light)",
-                  color: "var(--text-primary)",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  color: "#ffffff",
                   fontSize: "13px",
                   fontWeight: 700,
                   display: "flex",
@@ -880,7 +880,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               margin: 0,
               fontSize: "11px",
               fontWeight: 800,
-              color: "var(--text-muted)",
+              color: "rgba(255, 255, 255, 0.4)",
               letterSpacing: "3px",
               textTransform: "uppercase",
             }}
@@ -916,7 +916,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           transition: color 0.25s ease, filter 0.25s ease;
         }
 
-        .auth-input {
+        .auth-input,
+        .auth-input:focus,
+        .auth-input:active,
+        .auth-input:valid {
           width: 100%;
           height: 50px;
           padding-left: 46px;
@@ -925,6 +928,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           background: rgba(0, 0, 0, 0.35) !important;
           border: 1px solid rgba(255, 255, 255, 0.14) !important;
           color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
+          caret-color: #ffffff !important;
           font-size: 14px;
           font-weight: 500;
           outline: none;
@@ -932,8 +937,19 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           transition: border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
         }
 
+        .auth-input:-webkit-autofill,
+        .auth-input:-webkit-autofill:hover,
+        .auth-input:-webkit-autofill:focus,
+        .auth-input:-webkit-autofill:active {
+          -webkit-text-fill-color: #ffffff !important;
+          -webkit-box-shadow: 0 0 0px 1000px rgba(10, 8, 25, 0.95) inset !important;
+          transition: background-color 5000s ease-in-out 0s !important;
+          caret-color: #ffffff !important;
+        }
+
         .auth-input::placeholder {
           color: rgba(255, 255, 255, 0.35) !important;
+          -webkit-text-fill-color: rgba(255, 255, 255, 0.35) !important;
           font-weight: 400;
         }
 
@@ -945,6 +961,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           border-color: #a855f7 !important;
           background: rgba(0, 0, 0, 0.55) !important;
           box-shadow: 0 0 18px rgba(168, 85, 247, 0.35) !important;
+          color: #ffffff !important;
+          -webkit-text-fill-color: #ffffff !important;
         }
 
         .input-wrapper:focus-within .input-icon {
