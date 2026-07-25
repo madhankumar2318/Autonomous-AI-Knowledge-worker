@@ -67,11 +67,13 @@ export default function NotificationDropdown({
   return (
     <div
       ref={dropdownRef}
+      className="notif-dropdown-panel"
       style={{
         position: "absolute",
         top: "50px",
         right: "0px",
         width: "360px",
+        maxWidth: "90vw",
         background: "rgba(10, 10, 26, 0.94)",
         border: "1px solid rgba(34, 211, 238, 0.22)",
         borderRadius: "14px",
@@ -176,7 +178,7 @@ export default function NotificationDropdown({
       )}
 
       {/* Notifications scroll body */}
-      <div style={{ maxHeight: "280px", overflowY: "auto" }}>
+      <div className="notif-dropdown-body" style={{ maxHeight: "280px", overflowY: "auto" }}>
         {notifications.length === 0 ? (
           <div
             style={{
@@ -301,6 +303,22 @@ export default function NotificationDropdown({
         @keyframes dropdown-fade-in {
           from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 640px) {
+          .notif-dropdown-panel {
+            position: fixed !important;
+            top: 64px !important;
+            left: 12px !important;
+            right: 12px !important;
+            width: auto !important;
+            max-width: calc(100vw - 24px) !important;
+            z-index: 99999 !important;
+            margin: 0 auto !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(34, 211, 238, 0.15) !important;
+          }
+          .notif-dropdown-body {
+            max-height: 380px !important;
+          }
         }
       `}</style>
     </div>
