@@ -344,24 +344,25 @@ export default function Home_Page() {
       {/* ── PREMIUM TOP HEADER ── */}
       <header className="app-header">
         <div className="header-inner">
-          {/* Mobile Menu Toggle */}
-          <button
-            type="button"
-            className="mobile-nav-toggle"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-          >
-            {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
+          {/* Header Left Section: Menu Toggle + Brand */}
+          <div className="header-left-group">
+            <button
+              type="button"
+              className="mobile-nav-toggle"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            >
+              {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+            </button>
 
-          {/* Brand */}
-          <div className="header-brand">
-            <div className="brand-logo">
-              <Brain className="w-5 h-5 text-white" />
-            </div>
-            <div className="brand-text">
-              <span className="brand-name">AI Workspace</span>
-              <span className="brand-sub">Autonomous Knowledge Worker</span>
+            <div className="header-brand">
+              <div className="brand-logo">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div className="brand-text">
+                <span className="brand-name">AI Workspace</span>
+                <span className="brand-sub">Autonomous Knowledge Worker</span>
+              </div>
             </div>
           </div>
 
@@ -622,6 +623,12 @@ export default function Home_Page() {
           display: flex;
           align-items: center;
           gap: 16px;
+        }
+        .header-left-group {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
         }
         .header-brand {
           display: flex;
@@ -1180,7 +1187,25 @@ export default function Home_Page() {
 
           .header-search { display: none !important; }
           .avatar-info { display: none !important; }
-          .brand-text { display: none !important; }
+          .brand-text { display: flex !important; flex-direction: column !important; }
+          .brand-sub { display: none !important; }
+          .brand-name {
+            font-size: 13.5px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.3px !important;
+            white-space: nowrap !important;
+          }
+          .header-brand {
+            gap: 8px !important;
+          }
+          .brand-logo {
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 10px !important;
+          }
+          .header-left-group {
+            gap: 8px !important;
+          }
           .app-body { height: calc(100dvh - 58px) !important; min-height: 0 !important; }
           .content-body {
             padding: 16px !important;
