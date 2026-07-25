@@ -176,17 +176,18 @@ export default function ChatAssistant({
     const handlePromptEvent = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail && customEvent.detail.prompt) {
+        const textPrompt = customEvent.detail.prompt;
         setIsOpen(true);
         setShowHomePortal(false);
-        setInput(customEvent.detail.prompt);
+        setInput("");
         setTimeout(() => {
-          inputRef.current?.focus();
-        }, 100);
+          sendMessage(textPrompt);
+        }, 120);
       }
     };
     window.addEventListener("ak-set-chat-prompt", handlePromptEvent);
     return () => window.removeEventListener("ak-set-chat-prompt", handlePromptEvent);
-  }, []);
+  }, [sendMessage]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1204,7 +1205,7 @@ export default function ChatAssistant({
                             <>
                               {renderMessage(msg.content)}
                               {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                              {msg.model && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>⚡ {msg.model}</div>}
+                              {msg.role === "ai" && msg.model && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>⚡ {msg.model}</div>}
                             </>
                           )}
                         </div>
