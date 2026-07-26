@@ -10,6 +10,7 @@ No API keys required for Tier 1 & 2. Always returns results.
 
 import os
 import re
+import html
 import requests
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus
@@ -52,8 +53,9 @@ def _google_news_rss(query: str, max_results: int = 5) -> list[dict]:
             desc  = item.findtext("description", default="").strip()
             pub   = item.findtext("pubDate", default="").strip()
 
-            # Clean HTML tags from description
+            # Clean HTML tags and decode HTML entities from description
             desc_clean = re.sub(r"<[^>]+>", "", desc).strip()
+            desc_clean = html.unescape(desc_clean)  # decode &nbsp; &amp; etc.
 
             # Prefix snippet with freshness timestamp
             snippet = f"🕐 {pub} — {desc_clean}" if pub else desc_clean

@@ -223,19 +223,34 @@ export default function SearchSection({
             >
               <div className="flex items-start gap-3">
                 <div className="flex-1">
-                  {/* Title row with LIVE badge */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", flexWrap: "wrap" }}>
+                  {/* Title row with LIVE badge + clickable link */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "6px", flexWrap: "wrap" }}>
                     {r.fresh && (
                       <span style={{ fontSize: "9px", fontWeight: 800, padding: "1px 6px", borderRadius: "5px", background: "rgba(239,68,68,0.22)", color: "#f87171", border: "1px solid rgba(239,68,68,0.4)", letterSpacing: "0.5px", flexShrink: 0 }}>
                         🔴 LIVE
                       </span>
                     )}
-                    <h3 className="font-semibold text-sm text-accent group-hover:underline line-clamp-2">
-                      {r.title}
-                    </h3>
+                    <a
+                      href={r.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ flex: 1 }}
+                    >
+                      <h3 className="font-semibold text-sm text-accent group-hover:underline line-clamp-2">
+                        {r.title}
+                      </h3>
+                    </a>
                   </div>
-                  <p className="text-xs text-secondary line-clamp-2">
-                    {r.snippet}
+                  <p className="text-xs text-secondary line-clamp-3" style={{ lineHeight: "1.6" }}>
+                    {r.snippet
+                      .replace(/&nbsp;/g, " ")
+                      .replace(/&amp;/g, "&")
+                      .replace(/&lt;/g, "<")
+                      .replace(/&gt;/g, ">")
+                      .replace(/&quot;/g, '"')
+                      .replace(/&#39;/g, "'")
+                      .replace(/<[^>]+>/g, "")
+                      .trim()}
                   </p>
                 </div>
 
