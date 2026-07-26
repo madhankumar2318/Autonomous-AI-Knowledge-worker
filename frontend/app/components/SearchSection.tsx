@@ -187,51 +187,7 @@ export default function SearchSection({
       {/* Results */}
       {results.length > 0 && (
         <div className="space-y-3 pr-1">
-          {/* AI Synthesis Header Banner */}
-          <div
-            onClick={handleSynthesizeAll}
-            style={{
-              padding: "12px 16px",
-              borderRadius: "14px",
-              background: "linear-gradient(135deg, rgba(168,85,247,0.16) 0%, rgba(34,211,238,0.14) 100%)",
-              border: "1px solid rgba(168,85,247,0.35)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: "0 4px 20px rgba(168,85,247,0.12)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "linear-gradient(135deg, #a855f7, #06b6d4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Sparkles size={16} color="#ffffff" />
-              </div>
-              <div>
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
-                  Generate AI Web Overview for "{query}"
-                </div>
-                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>
-                  Synthesize key facts, timeline, and takeaways across search results
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              style={{
-                background: "#a855f7",
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 700,
-                padding: "6px 14px",
-                borderRadius: "10px",
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              Analyze with AI ✨
-            </button>
-          </div>
+
 
           {/* Engine Status Bar */}
           {engines.length > 0 && (
@@ -281,11 +237,6 @@ export default function SearchSection({
                   <p className="text-xs text-secondary line-clamp-2">
                     {r.snippet}
                   </p>
-                  {r.source && (
-                    <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "4px", display: "block" }}>
-                      via {r.source}
-                    </span>
-                  )}
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
