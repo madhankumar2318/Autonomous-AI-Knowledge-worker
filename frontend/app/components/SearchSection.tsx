@@ -1,5 +1,5 @@
 "use client";
-import { AlertCircle, ExternalLink, Search } from "lucide-react";
+import { AlertCircle, ExternalLink, Search, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
 
@@ -81,6 +81,32 @@ export default function SearchSection({
     fetchSearch(query, 1);
   };
 
+  const handleSparklesClick = (e: React.MouseEvent, resultTitle: string, snippet: string) => {
+    e.stopPropagation();
+    const prompt = `Perform a comprehensive research breakdown and clean summary on:\nTopic: "${query}"\nHeadline: "${resultTitle}"\nDetails: ${snippet}\nWhat are the main key takeaways, background context, and key facts?`;
+
+    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", {
+      detail: { prompt }
+    }));
+
+    window.dispatchEvent(new CustomEvent("ak-add-notification", {
+      detail: {
+        type: "info",
+        title: "Web Research Triggered",
+        message: `Sent "${resultTitle.slice(0, 40)}..." to AI Assistant.`,
+      }
+    }));
+  };
+
+  const handleSynthesizeAll = () => {
+    const topSnippets = results.slice(0, 4).map(r => `• ${r.title}: ${r.snippet}`).join("\n");
+    const prompt = `Perform an in-depth clean AI research summary and breakdown for query: "${query}" based on live web search results:\n\n${topSnippets}\n\nPlease summarize the key findings, timeline/facts, and strategic takeaways in a clean structured format.`;
+
+    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", {
+      detail: { prompt }
+    }));
+  };
+
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (!infiniteScroll || loading) return;
     const bottom =
@@ -153,30 +179,119 @@ export default function SearchSection({
         </div>
       )}
 
-      {/* Results — max height so they don't push other cards away */}
+      {/* Results */}
       {results.length > 0 && (
-        <div className="space-y-2 pr-1">
+        <div className="space-y-3 pr-1">
+          {/* AI Synthesis Header Banner */}
+          <div
+            onClick={handleSynthesizeAll}
+            style={{
+              padding: "12px 16px",
+              borderRadius: "14px",
+              background: "linear-gradient(135deg, rgba(168,85,247,0.16) 0%, rgba(34,211,238,0.14) 100%)",
+              border: "1px solid rgba(168,85,247,0.35)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: "0 4px 20px rgba(168,85,247,0.12)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "linear-gradient(135deg, #a855f7, #06b6d4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Sparkles size={16} color="#ffffff" />
+              </div>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: "#ffffff" }}>
+                  Generate AI Web Overview for "{query}"
+                </div>
+                <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.7)" }}>
+                  Synthesize key facts, timeline, and takeaways across search results
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              style={{
+                background: "#a855f7",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 700,
+                padding: "6px 14px",
+                borderRadius: "10px",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Analyze with AI ✨
+            </button>
+          </div>
+
+          {/* Search Result Cards */}
           {results.map((r, _i) => (
             <div
               key={`${r.link}-${_i}`}
-              className="card-compact hover:border-accent transition-all group"
+              className="card-compact hover:border-accent transition-all group relative"
+              style={{ position: "relative" }}
             >
-              <a
-                href={r.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-start gap-2 group"
-              >
-                <div className="flex-1">
+              <div className="flex items-start gap-3">
+                <a
+                  href={r.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 group"
+                >
                   <h3 className="font-semibold text-sm text-accent group-hover:underline line-clamp-2 mb-1">
                     {r.title}
                   </h3>
                   <p className="text-xs text-secondary line-clamp-2">
                     {r.snippet}
                   </p>
+                </a>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => handleSparklesClick(e, r.title, r.snippet)}
+                    title="Analyze this result with AI"
+                    style={{
+                      background: "rgba(168, 85, 247, 0.12)",
+                      border: "1px solid rgba(168, 85, 247, 0.3)",
+                      borderRadius: "8px",
+                      padding: "6px 10px",
+                      color: "#c084fc",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#a855f7";
+                      e.currentTarget.style.color = "#ffffff";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(168, 85, 247, 0.12)";
+                      e.currentTarget.style.color = "#c084fc";
+                    }}
+                  >
+                    <Sparkles size={12} />
+                    AI Summary
+                  </button>
+
+                  <a
+                    href={r.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg hover:bg-surface text-muted hover:text-primary transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </a>
                 </div>
-                <ExternalLink className="w-4 h-4 text-muted flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </a>
+              </div>
             </div>
           ))}
         </div>
