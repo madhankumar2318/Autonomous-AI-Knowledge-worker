@@ -366,19 +366,7 @@ export default function Home_Page() {
             </div>
           </div>
 
-          {/* Global Search */}
-          <form onSubmit={handleGlobalSearch} className="header-search">
-            <Search className="search-icon" />
-            <input
-              type="text"
-              value={globalSearchQuery}
-              onChange={(e) => setGlobalSearchQuery(e.target.value)}
-              placeholder="Search news, stocks, files…"
-              className="search-input"
-              id="global-search-input"
-            />
-            <kbd className="search-kbd">⌘K</kbd>
-          </form>
+
 
           {/* Actions */}
           <div className="header-actions">
@@ -622,6 +610,7 @@ export default function Home_Page() {
           height: 58px;
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 16px;
         }
         .header-left-group {
