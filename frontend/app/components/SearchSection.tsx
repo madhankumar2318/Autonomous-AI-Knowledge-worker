@@ -7,6 +7,8 @@ interface SearchResult {
   title: string;
   link: string;
   snippet: string;
+  source?: string;
+  fresh?: boolean;
 }
 
 export default function SearchSection({
@@ -18,6 +20,7 @@ export default function SearchSection({
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [engines, setEngines] = useState<string[]>([]);
   const [_page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -55,6 +58,7 @@ export default function SearchSection({
 
       if (data.results) {
         setResults((prev) => [...prev, ...data.results]);
+        if (data.engines) setEngines(data.engines);
       } else {
         setResults([]);
       }
@@ -75,6 +79,7 @@ export default function SearchSection({
       return;
     }
     setResults([]);
+    setEngines([]);
     setPage(1);
     setError("");
     setHasSearched(true);
@@ -154,7 +159,7 @@ export default function SearchSection({
       {loading && results.length === 0 && (
         <div className="flex flex-col items-center justify-center py-6">
           <div className="spinner mb-3" />
-          <p className="text-sm text-muted">Searching...</p>
+          <p className="text-sm text-muted">Searching across Google News & Web...</p>
         </div>
       )}
 
@@ -228,6 +233,31 @@ export default function SearchSection({
             </button>
           </div>
 
+          {/* Engine Status Bar */}
+          {engines.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>Sources:</span>
+              {engines.includes("google_news_rss") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "6px", background: "rgba(239,68,68,0.18)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}>
+                  🔴 Google News Live
+                </span>
+              )}
+              {engines.includes("duckduckgo") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "6px", background: "rgba(251,146,60,0.18)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.3)" }}>
+                  🌐 DuckDuckGo Web
+                </span>
+              )}
+              {engines.includes("serpapi") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "6px", background: "rgba(34,211,238,0.18)", color: "#22d3ee", border: "1px solid rgba(34,211,238,0.3)" }}>
+                  🔵 Google Search
+                </span>
+              )}
+              <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginLeft: "4px" }}>
+                {results.length} results found
+              </span>
+            </div>
+          )}
+
           {/* Search Result Cards */}
           {results.map((r, _i) => (
             <div
@@ -236,19 +266,27 @@ export default function SearchSection({
               style={{ position: "relative" }}
             >
               <div className="flex items-start gap-3">
-                <a
-                  href={r.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 group"
-                >
-                  <h3 className="font-semibold text-sm text-accent group-hover:underline line-clamp-2 mb-1">
-                    {r.title}
-                  </h3>
+                <div className="flex-1">
+                  {/* Title row with LIVE badge */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px", flexWrap: "wrap" }}>
+                    {r.fresh && (
+                      <span style={{ fontSize: "9px", fontWeight: 800, padding: "1px 6px", borderRadius: "5px", background: "rgba(239,68,68,0.22)", color: "#f87171", border: "1px solid rgba(239,68,68,0.4)", letterSpacing: "0.5px", flexShrink: 0 }}>
+                        🔴 LIVE
+                      </span>
+                    )}
+                    <h3 className="font-semibold text-sm text-accent group-hover:underline line-clamp-2">
+                      {r.title}
+                    </h3>
+                  </div>
                   <p className="text-xs text-secondary line-clamp-2">
                     {r.snippet}
                   </p>
-                </a>
+                  {r.source && (
+                    <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "4px", display: "block" }}>
+                      via {r.source}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
