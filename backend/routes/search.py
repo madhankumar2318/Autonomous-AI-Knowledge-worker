@@ -174,6 +174,7 @@ def global_search(query: str = Query(...), page: int = 1):
     """
     combined: list[dict] = []
     engine_used: list[str] = []
+    failed_engines: list[str] = []
 
     # ── Tier 3: SerpAPI if key configured ──
     if SERPAPI_KEY and len(SERPAPI_KEY.strip()) > 10:
@@ -183,19 +184,19 @@ def global_search(query: str = Query(...), page: int = 1):
             engine_used.append("serpapi")
             print(f"[Search] SerpAPI ✅ — {len(serp_results)} results")
         except Exception as e:
+            failed_engines.append("serpapi")
             print(f"[Search] SerpAPI ❌ — {e}")
 
     # ── Tier 1: Google News RSS (real-time, always attempted) ──
-    # For page 1 or news-style queries, prepend fresh RSS results
     if page == 1:
         try:
             news_count = 6 if _is_news_query(query) else 4
             rss_results = _google_news_rss(query, max_results=news_count)
-            # Prepend news results at the top for freshness
             combined = rss_results + combined
             engine_used.append("google_news_rss")
             print(f"[Search] Google News RSS ✅ — {len(rss_results)} results")
         except Exception as e:
+            failed_engines.append("google_news_rss")
             print(f"[Search] Google News RSS ❌ — {e}")
 
     # ── Tier 2: DuckDuckGo (full web — always attempted) ──
@@ -205,22 +206,31 @@ def global_search(query: str = Query(...), page: int = 1):
         engine_used.append("duckduckgo")
         print(f"[Search] DuckDuckGo ✅ — {len(ddg_results)} results")
     except Exception as e:
+        failed_engines.append("duckduckgo")
         print(f"[Search] DuckDuckGo ❌ — {e}")
 
     # ── Deduplicate and return ──
     final_results = _deduplicate(combined)
 
     if not final_results:
+        # All engines failed — hard error
         return {
             "query":   query,
             "results": [],
             "engines": engine_used,
-            "error":   "All search providers failed. Please try again later.",
+            "error":   "All search sources failed. Please try again later.",
         }
 
     print(f"[Search] ✅ Final: {len(final_results)} results via {engine_used}")
-    return {
+
+    response: dict = {
         "query":   query,
         "results": final_results,
         "engines": engine_used,
     }
+
+    # Soft warning: some engines failed but we still have results
+    if failed_engines:
+        response["error"] = f"Some sources unavailable ({', '.join(failed_engines)}) — showing partial results."
+
+    return response

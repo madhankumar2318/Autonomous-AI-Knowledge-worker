@@ -120,14 +120,18 @@ export default function SearchSection({
         `${API_BASE_URL}/search?query=${encodeURIComponent(q)}&page=${pageNum}`
       );
       const data = await res.json();
-      if (data.error) {
-        setError(data.message || "Search failed. Please try again.");
-        setLoading(false);
-        return;
-      }
-      if (data.results) {
+
+      // Has results — use them regardless of partial engine errors
+      if (data.results && data.results.length > 0) {
         setResults((prev) => [...prev, ...data.results]);
         if (data.engines) setEngines(data.engines);
+        // If there was also an error (partial failure), set a soft warning
+        if (data.error) {
+          setError("⚠️ Some sources timed out — showing partial results.");
+        }
+      } else if (data.error) {
+        // No results at all
+        setError("Search failed. Please try again.");
       } else {
         setResults([]);
       }
@@ -260,11 +264,25 @@ export default function SearchSection({
         </div>
       )}
 
-      {/* ── Error ── */}
-      {error && (
+      {/* ── Error: full failure — no results ── */}
+      {error && results.length === 0 && (
         <div className="alert alert-error flex items-start gap-2">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      {/* ── Warning: partial failure — results still showing ── */}
+      {error && results.length > 0 && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: "8px",
+          padding: "7px 12px", borderRadius: "8px",
+          background: "rgba(251,191,36,0.08)",
+          border: "1px solid rgba(251,191,36,0.2)",
+          fontSize: "11px", color: "rgba(251,191,36,0.85)",
+        }}>
+          <AlertCircle size={13} style={{ flexShrink: 0 }} />
+          One search source timed out — showing available results.
         </div>
       )}
 
