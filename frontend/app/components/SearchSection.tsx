@@ -255,14 +255,19 @@ export default function SearchSection({
                 🔴 Google News
               </span>
             )}
-            {engines.includes("duckduckgo") && (
-              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(251,146,60,0.15)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.25)" }}>
-                🌐 DuckDuckGo
-              </span>
-            )}
             {engines.includes("bing_news_rss") && (
               <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(14,165,233,0.15)", color: "#38bdf8", border: "1px solid rgba(14,165,233,0.25)" }}>
                 🔵 Bing News
+              </span>
+            )}
+            {engines.includes("duckduckgo_web") && (
+              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(251,146,60,0.15)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.25)" }}>
+                🌐 Web
+              </span>
+            )}
+            {engines.includes("wikipedia") && (
+              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(168,85,247,0.15)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.25)" }}>
+                📖 Wikipedia
               </span>
             )}
           </span>

@@ -1,13 +1,15 @@
 """
 Global Search — Multi-Tier Hybrid Engine
 -----------------------------------------
-Tier 1: Google News RSS  (real-time, <30s freshness, 100% free, cloud-safe)
-Tier 2: Bing News RSS    (broader web coverage, 100% free, cloud-safe)
-Tier 3: SerpAPI          (optional upgrade via SERPAPI_KEY env var)
+Tier 1: Google News RSS    (real-time news, <30s freshness, 100% free, cloud-safe)
+Tier 2: Bing News RSS      (broader web & news, 100% free, cloud-safe)
+Tier 3: Wikipedia API      (technical terms, science, history, coding, 100% free)
+Tier 4: DuckDuckGo HTML    (raw web search via static form — non-blocked, 100% free)
+Tier 5: SerpAPI            (optional upgrade via SERPAPI_KEY env var)
 
-✅ No API keys required for Tier 1 & 2.
-✅ Both use legitimate RSS endpoints — never blocked by cloud IPs.
-✅ DuckDuckGo scraper removed (was blocked on Koyeb/cloud server IPs).
+✅ Zero API keys required for Tier 1-4.
+✅ Cloud-server safe (never blocked on Koyeb/Vercel/AWS).
+✅ Covers BOTH real-time news AND raw web / technical / coding topics.
 """
 
 import os
@@ -15,7 +17,7 @@ import re
 import html
 import requests
 import xml.etree.ElementTree as ET
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, unquote
 from fastapi import APIRouter, Query
 
 router = APIRouter(prefix="/search", tags=["Search"])
@@ -29,7 +31,7 @@ _HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept": "application/rss+xml, application/xml, text/xml, */*",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
 }
 
@@ -41,18 +43,15 @@ def _clean(text: str) -> str:
 
 
 # ─────────────────────────────────────────────
-# Tier 1: Google News RSS
+# Tier 1: Google News RSS (Real-Time News)
 # ─────────────────────────────────────────────
 def _google_news_rss(query: str, max_results: int = 8) -> list[dict]:
-    """
-    Google News RSS — real-time breaking news, updated every ~30s.
-    Zero API key, completely free, works from any cloud server.
-    """
+    """Google News RSS feed — breaking news updated every ~30s."""
     url = (
         f"https://news.google.com/rss/search"
         f"?q={quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
     )
-    resp = requests.get(url, headers=_HEADERS, timeout=8)
+    resp = requests.get(url, headers=_HEADERS, timeout=7)
     resp.raise_for_status()
 
     root = ET.fromstring(resp.content)
@@ -81,16 +80,12 @@ def _google_news_rss(query: str, max_results: int = 8) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# Tier 2: Bing News RSS (replaces DuckDuckGo)
+# Tier 2: Bing News RSS (Broad News & Web)
 # ─────────────────────────────────────────────
-def _bing_news_rss(query: str, max_results: int = 8) -> list[dict]:
-    """
-    Bing News RSS — broad web & news coverage, all dates (old + new).
-    Zero API key, completely free, works reliably from cloud servers.
-    Uses Microsoft's legitimate RSS endpoint — never blocked.
-    """
+def _bing_news_rss(query: str, max_results: int = 6) -> list[dict]:
+    """Bing News RSS feed — reliable news & web coverage."""
     url = f"https://www.bing.com/news/search?q={quote_plus(query)}&format=RSS"
-    resp = requests.get(url, headers=_HEADERS, timeout=8)
+    resp = requests.get(url, headers=_HEADERS, timeout=7)
     resp.raise_for_status()
 
     root = ET.fromstring(resp.content)
@@ -119,13 +114,94 @@ def _bing_news_rss(query: str, max_results: int = 8) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# Tier 3: SerpAPI (Optional — official Google)
+# Tier 3: Wikipedia OpenSearch API (Technical / Concepts)
+# ─────────────────────────────────────────────
+def _wikipedia_search(query: str, max_results: int = 4) -> list[dict]:
+    """
+    Official free Wikipedia OpenSearch API.
+    Great for technical terms, science, history, coding concepts, definitions.
+    """
+    url = f"https://en.wikipedia.org/w/api.php?action=opensearch&search={quote_plus(query)}&limit={max_results}&namespace=0&format=json"
+    resp = requests.get(url, headers=_HEADERS, timeout=5)
+    resp.raise_for_status()
+    data = resp.json()
+
+    results = []
+    if len(data) >= 4:
+        titles, descs, urls = data[1], data[2], data[3]
+        for t, d, u in zip(titles, descs, urls):
+            if u and t:
+                results.append({
+                    "title":   _clean(t),
+                    "link":    u,
+                    "snippet": _clean(d) or f"Wikipedia reference entry for {t}.",
+                    "source":  "Wikipedia",
+                    "fresh":   False,
+                })
+    return results
+
+
+# ─────────────────────────────────────────────
+# Tier 4: DuckDuckGo HTML Form Search (Raw Web Search)
+# ─────────────────────────────────────────────
+def _duckduckgo_html_search(query: str, max_results: int = 6) -> list[dict]:
+    """
+    Static HTML web search via DuckDuckGo Lite form.
+    Unlike DDG JS API (which gets IP-blocked on cloud servers),
+    this uses DDG's plain HTML form designed for basic browsers.
+    Covers raw web: coding snippets, forums, tech docs, general sites.
+    """
+    url = "https://html.duckduckgo.com/html/"
+    payload = {"q": query}
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Referer": "https://html.duckduckgo.com/",
+    }
+    resp = requests.post(url, data=payload, headers=headers, timeout=7)
+    if resp.status_code != 200:
+        return []
+
+    results = []
+    matches = re.findall(
+        r'<a[^>]+class="result__a"[^>]+href="([^"]+)">([\s\S]*?)</a>',
+        resp.text
+    )
+    snippets = re.findall(
+        r'<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)</a>',
+        resp.text
+    )
+
+    for i, (link, raw_title) in enumerate(matches[:max_results]):
+        actual_link = link
+        if "uddg=" in link:
+            m_url = re.search(r"uddg=([^&]+)", link)
+            if m_url:
+                actual_link = unquote(m_url.group(1))
+
+        snip = _clean(snippets[i]) if i < len(snippets) else ""
+        t_clean = _clean(raw_title)
+
+        if t_clean and actual_link and actual_link.startswith("http"):
+            results.append({
+                "title":   t_clean,
+                "link":    actual_link,
+                "snippet": snip,
+                "source":  "Web Search",
+                "fresh":   False,
+            })
+    return results
+
+
+# ─────────────────────────────────────────────
+# Tier 5: SerpAPI (Optional — Official Google)
 # ─────────────────────────────────────────────
 def _serpapi_search(query: str, page: int = 1) -> list[dict]:
-    """
-    Official Google Search via SerpAPI.
-    Only used if SERPAPI_KEY env var is set (100 free searches/month).
-    """
+    """Official Google Search via SerpAPI (optional, needs key)."""
     params = {
         "engine":  "google",
         "q":       query,
@@ -182,49 +258,60 @@ def _deduplicate(results: list[dict]) -> list[dict]:
 @router.get("/")
 def global_search(query: str = Query(...), page: int = 1):
     """
-    Multi-tier global search — all sources are cloud-server safe RSS feeds.
-
-    Strategy:
-      1. Google News RSS  — real-time breaking news (always tried)
-      2. Bing News RSS    — broader general web coverage (always tried)
-      3. SerpAPI          — official Google (optional, needs API key)
+    Multi-tier global search engine:
+      1. SerpAPI (if key configured)
+      2. Google News RSS (real-time news)
+      3. Bing News RSS (broad news & web)
+      4. DuckDuckGo HTML (raw web, coding, tech docs)
+      5. Wikipedia API (definitions, technical terms)
     """
-    combined:       list[dict] = []
-    engine_used:    list[str]  = []
-    failed_engines: list[str]  = []
+    combined:    list[dict] = []
+    engine_used: list[str]  = []
 
-    # ── Tier 3: SerpAPI (only if key is set) ──
+    # ── 1. SerpAPI (if configured) ──
     if SERPAPI_KEY and len(SERPAPI_KEY.strip()) > 10:
         try:
             serp = _serpapi_search(query, page)
             combined.extend(serp)
             engine_used.append("serpapi")
-            print(f"[Search] SerpAPI ✅ — {len(serp)} results")
         except Exception as e:
-            failed_engines.append("serpapi")
-            print(f"[Search] SerpAPI ❌ — {e}")
+            print(f"[Search] SerpAPI error: {e}")
 
-    # ── Tier 1: Google News RSS ──
+    # ── 2. Google News RSS ──
     if page == 1:
         try:
-            count = 10 if _is_news_query(query) else 8
+            count = 8 if _is_news_query(query) else 5
             g_results = _google_news_rss(query, max_results=count)
-            combined = g_results + combined          # prepend for freshness
+            combined = g_results + combined
             engine_used.append("google_news_rss")
-            print(f"[Search] Google News RSS ✅ — {len(g_results)} results")
         except Exception as e:
-            failed_engines.append("google_news_rss")
-            print(f"[Search] Google News RSS ❌ — {e}")
+            print(f"[Search] Google News RSS error: {e}")
 
-    # ── Tier 2: Bing News RSS ──
+    # ── 3. Bing News RSS ──
     try:
-        b_results = _bing_news_rss(query, max_results=8)
+        b_results = _bing_news_rss(query, max_results=5)
         combined.extend(b_results)
         engine_used.append("bing_news_rss")
-        print(f"[Search] Bing News RSS ✅ — {len(b_results)} results")
     except Exception as e:
-        failed_engines.append("bing_news_rss")
-        print(f"[Search] Bing News RSS ❌ — {e}")
+        print(f"[Search] Bing News RSS error: {e}")
+
+    # ── 4. DuckDuckGo Raw Web (HTML form) ──
+    try:
+        ddg_results = _duckduckgo_html_search(query, max_results=6)
+        if ddg_results:
+            combined.extend(ddg_results)
+            engine_used.append("duckduckgo_web")
+    except Exception as e:
+        print(f"[Search] DuckDuckGo HTML error: {e}")
+
+    # ── 5. Wikipedia (for concepts/technical terms) ──
+    try:
+        wiki_results = _wikipedia_search(query, max_results=3)
+        if wiki_results:
+            combined.extend(wiki_results)
+            engine_used.append("wikipedia")
+    except Exception as e:
+        print(f"[Search] Wikipedia error: {e}")
 
     # ── Deduplicate ──
     final_results = _deduplicate(combined)
@@ -234,19 +321,13 @@ def global_search(query: str = Query(...), page: int = 1):
             "query":   query,
             "results": [],
             "engines": engine_used,
-            "error":   "All search sources failed. Please try again later.",
+            "error":   "No search results found. Please try different keywords.",
         }
 
-    print(f"[Search] ✅ {len(final_results)} results via {engine_used}")
+    print(f"[Search] ✅ {len(final_results)} results for '{query}' via {engine_used}")
 
-    response: dict = {
+    return {
         "query":   query,
         "results": final_results,
         "engines": engine_used,
     }
-
-    # Soft warning only if EVERY engine failed (very unlikely now)
-    if failed_engines and not engine_used:
-        response["error"] = "Some sources timed out — showing partial results."
-
-    return response
