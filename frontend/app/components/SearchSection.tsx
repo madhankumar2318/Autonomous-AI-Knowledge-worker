@@ -260,6 +260,11 @@ export default function SearchSection({
                 🌐 DuckDuckGo
               </span>
             )}
+            {engines.includes("bing_news_rss") && (
+              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(14,165,233,0.15)", color: "#38bdf8", border: "1px solid rgba(14,165,233,0.25)" }}>
+                🔵 Bing News
+              </span>
+            )}
           </span>
         </div>
       )}
