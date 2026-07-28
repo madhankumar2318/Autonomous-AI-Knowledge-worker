@@ -355,13 +355,9 @@ export default function Home_Page() {
               {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
 
-            <div className="header-brand">
+            <div className="header-brand" title="AI Workspace">
               <div className="brand-logo">
                 <Brain className="w-5 h-5 text-white" />
-              </div>
-              <div className="brand-text">
-                <span className="brand-name">AI Workspace</span>
-                <span className="brand-sub">Autonomous Knowledge Worker</span>
               </div>
             </div>
           </div>
@@ -1176,14 +1172,6 @@ export default function Home_Page() {
 
           .header-search { display: none !important; }
           .avatar-info { display: none !important; }
-          .brand-text { display: flex !important; flex-direction: column !important; }
-          .brand-sub { display: none !important; }
-          .brand-name {
-            font-size: 13.5px !important;
-            font-weight: 800 !important;
-            letter-spacing: -0.3px !important;
-            white-space: nowrap !important;
-          }
           .header-brand {
             gap: 8px !important;
           }
