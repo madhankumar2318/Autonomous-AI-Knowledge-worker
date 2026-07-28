@@ -1036,6 +1036,9 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         @media (max-width: 768px) {
           .fw-root {
             padding-bottom: 96px !important;
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
           }
           .fw-header {
             padding: 12px 14px;

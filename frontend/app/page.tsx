@@ -1055,8 +1055,11 @@ export default function Home_Page() {
           flex: 1;
           min-height: 0;
           height: 100%;
-          overflow: hidden;
+          overflow-y: auto;
+          overflow-x: hidden;
           max-height: 100%;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
         }
         .tab-content-no-scroll {
           overflow: hidden !important;
