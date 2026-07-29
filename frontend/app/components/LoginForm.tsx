@@ -1228,6 +1228,45 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           .auth-label {
             margin-bottom: 4px !important;
           }
+          .login-stack {
+            gap: 14px !important;
+          }
+        }
+
+        @media (max-height: 640px) {
+          .auth-card {
+            padding: 14px 14px !important;
+            border-radius: 14px !important;
+          }
+          .auth-card h1 {
+            font-size: 18px !important;
+            margin-bottom: 2px !important;
+          }
+          .auth-card > div:first-child {
+            margin-bottom: 16px !important;
+          }
+          .header-icon-badge {
+            width: 40px !important;
+            height: 40px !important;
+            margin-bottom: 8px !important;
+          }
+          .login-stack {
+            gap: 10px !important;
+          }
+          .auth-input {
+            height: 40px !important;
+          }
+          .auth-submit-btn {
+            height: 40px !important;
+            margin-top: 4px !important;
+          }
+          .auth-footer-container {
+            margin-top: 8px !important;
+          }
+          .auth-card-footer {
+            margin-top: 10px !important;
+            padding-top: 10px !important;
+          }
         }
       `}</style>
     </>

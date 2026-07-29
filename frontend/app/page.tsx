@@ -318,7 +318,11 @@ export default function Home_Page() {
         position: "fixed",
         top: 0,
         left: 0,
+        right: 0,
+        bottom: 0,
         overflow: "hidden",
+        overscrollBehavior: "none",
+        touchAction: "none",
         boxSizing: "border-box",
       }}>
         {/* Background blobs — clipped inside fixed container */}
@@ -327,22 +331,20 @@ export default function Home_Page() {
           <div className="absolute top-[15%] right-[-20%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#ec4899] opacity-30 animate-liquid-2" />
           <div className="absolute bottom-[-30%] left-[10%] w-[75vw] h-[75vw] rounded-full mix-blend-screen bg-[#06b6d4] opacity-35 animate-liquid-3" />
         </div>
-        {/* Scrollable inner wrapper — allows form scroll only on very small screens */}
+        {/* Form wrapper — centered, no scroll, fully locked */}
         <div style={{
           position: "relative",
           zIndex: 10,
           width: "100%",
           maxWidth: "100vw",
-          maxHeight: "100dvh",
-          overflowY: "auto",
-          overflowX: "hidden",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          padding: "24px 16px",
+          padding: "16px",
           boxSizing: "border-box",
-          WebkitOverflowScrolling: "touch",
+          overflow: "hidden",
+          touchAction: "none",
         }}>
           <div className="auth-glow-backing" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1 }} />
           <LoginForm onLoginSuccess={(username, _token) => {
