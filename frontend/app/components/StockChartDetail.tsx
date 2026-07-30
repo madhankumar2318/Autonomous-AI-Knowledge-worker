@@ -62,31 +62,42 @@ function formatVolume(v?: number) {
 
 // ── Technical Indicator Calculations ─────────────────────────────────────
 function calcSMA(prices: number[], period: number): (number | null)[] {
+  if (!prices || prices.length === 0) return [];
+  // For datasets shorter than requested period (e.g. 1MO with 20 points where SMA 50 would be all null),
+  // adaptively scale lookback window so indicator renders properly on all timeframes.
+  const effPeriod = prices.length >= period
+    ? period
+    : Math.max(2, Math.min(period, Math.floor(prices.length * 0.45)));
+
   return prices.map((_, i) => {
-    if (i < period - 1) return null;
-    const slice = prices.slice(i - period + 1, i + 1);
-    return slice.reduce((a, b) => a + b, 0) / period;
+    if (i < effPeriod - 1) return null;
+    const slice = prices.slice(i - effPeriod + 1, i + 1);
+    return slice.reduce((a, b) => a + b, 0) / effPeriod;
   });
 }
 
 function calcRSI(prices: number[], period = 14): (number | null)[] {
-  if (prices.length < period + 1) return prices.map(() => null);
-  const rsi: (number | null)[] = new Array(period).fill(null);
+  if (!prices || prices.length < 3) return prices ? prices.map(() => null) : [];
+  const effPeriod = prices.length >= period + 1
+    ? period
+    : Math.max(2, Math.min(period, prices.length - 1));
+
+  const rsi: (number | null)[] = new Array(effPeriod).fill(null);
   let gains = 0, losses = 0;
-  for (let i = 1; i <= period; i++) {
+  for (let i = 1; i <= effPeriod; i++) {
     const diff = prices[i] - prices[i - 1];
     if (diff >= 0) gains += diff; else losses -= diff;
   }
-  let avgGain = gains / period;
-  let avgLoss = losses / period;
+  let avgGain = gains / effPeriod;
+  let avgLoss = losses / effPeriod;
   const getRS = (g: number, l: number) => (l === 0 ? 100 : g / l);
   rsi.push(100 - 100 / (1 + getRS(avgGain, avgLoss)));
-  for (let i = period + 1; i < prices.length; i++) {
+  for (let i = effPeriod + 1; i < prices.length; i++) {
     const diff = prices[i] - prices[i - 1];
     const gain = diff >= 0 ? diff : 0;
     const loss = diff < 0 ? -diff : 0;
-    avgGain = (avgGain * (period - 1) + gain) / period;
-    avgLoss = (avgLoss * (period - 1) + loss) / period;
+    avgGain = (avgGain * (effPeriod - 1) + gain) / effPeriod;
+    avgLoss = (avgLoss * (effPeriod - 1) + loss) / effPeriod;
     rsi.push(100 - 100 / (1 + getRS(avgGain, avgLoss)));
   }
   return rsi;
@@ -595,15 +606,15 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
 
                 {/* SMA 20 */}
                 {showSMA20 && sma20Path && (
-                  <path d={sma20Path} fill="none" stroke="#fbbf24" strokeWidth="1.6"
-                    strokeLinecap="round" strokeDasharray="5 2"
-                    style={{ filter: "drop-shadow(0 0 5px rgba(251,191,36,0.55))" }} />
+                  <path d={sma20Path} fill="none" stroke="#fbbf24" strokeWidth="1.8"
+                    strokeLinecap="round" strokeDasharray="5 2.5"
+                    style={{ filter: "drop-shadow(0 0 6px rgba(251,191,36,0.65))" }} />
                 )}
                 {/* SMA 50 */}
                 {showSMA50 && sma50Path && (
-                  <path d={sma50Path} fill="none" stroke="#93c5fd" strokeWidth="1.6"
-                    strokeLinecap="round" strokeDasharray="7 3"
-                    style={{ filter: "drop-shadow(0 0 5px rgba(147,197,253,0.55))" }} />
+                  <path d={sma50Path} fill="none" stroke="#60a5fa" strokeWidth="1.8"
+                    strokeLinecap="round" strokeDasharray="4 2"
+                    style={{ filter: "drop-shadow(0 0 6px rgba(96,165,250,0.65))" }} />
                 )}
 
                 {/* Volume Bars */}
