@@ -258,17 +258,33 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
             width: 100% !important;
           }
           .sc-header {
-            padding: 14px 16px !important;
+            padding: 12px 14px !important;
+            gap: 6px !important;
           }
           .sc-symbol {
-            font-size: 20px !important;
+            font-size: 18px !important;
           }
           .sc-price {
             font-size: 22px !important;
           }
           .sc-name {
-            max-width: 130px !important;
+            max-width: 100px !important;
             font-size: 11px !important;
+          }
+          .sc-change-badge {
+            font-size: 11px !important;
+            padding: 2px 7px !important;
+          }
+          .sc-ai-btn {
+            padding: 4px 8px !important;
+            font-size: 11px !important;
+            border-radius: 8px !important;
+            gap: 4px !important;
+          }
+          .sc-close-btn {
+            width: 30px !important;
+            height: 30px !important;
+            border-radius: 8px !important;
           }
           .sc-grid-grid {
             grid-template-columns: repeat(2, 1fr) !important;
@@ -283,20 +299,39 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           }
         }
         .sc-header {
-          display: flex; align-items: flex-start; justify-content: space-between;
-          padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.05);
+          display: flex; flex-direction: column; gap: 8px;
+          padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.05);
           background: linear-gradient(to right, rgba(${themeRgb}, 0.04), transparent);
         }
-        .sc-title-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .sc-symbol-row { display: flex; align-items: center; gap: 10px; }
-        .sc-symbol { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-        .sc-name { font-size: 13px; color: #64748b; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
-        .sc-price-row { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
-        .sc-price { font-size: 30px; font-weight: 800; color: #fff; font-family: monospace; letter-spacing: -1px; }
+        .sc-header-top-row {
+          display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px;
+        }
+        .sc-symbol-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .sc-symbol { font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -0.5px; line-height: 1; }
+        .sc-name { font-size: 12px; color: #64748b; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+        .sc-price-row { display: flex; align-items: center; gap: 10px; }
+        .sc-price { font-size: 28px; font-weight: 800; color: #fff; font-family: monospace; letter-spacing: -1px; line-height: 1; }
         .sc-change-badge {
-          display: flex; align-items: center; gap: 4px;
-          font-size: 13px; font-weight: 700; padding: 3px 10px;
-          border-radius: 8px; border: 1px solid;
+          display: inline-flex; align-items: center; gap: 4px;
+          font-size: 12px; font-weight: 700; padding: 3px 9px;
+          border-radius: 8px; border: 1px solid; flex-shrink: 0;
+        }
+        .sc-header-actions {
+          display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+        }
+        .sc-ai-btn {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 6px 12px; border-radius: 10px;
+          background: rgba(34, 211, 238, 0.12);
+          border: 1px solid rgba(34, 211, 238, 0.3);
+          color: #22d3ee; font-size: 12px; font-weight: 600;
+          cursor: pointer; transition: all 0.2s ease;
+          white-space: nowrap; flex-shrink: 0;
+        }
+        .sc-ai-btn:hover {
+          background: rgba(34, 211, 238, 0.22);
+          border-color: rgba(34, 211, 238, 0.5);
+          transform: translateY(-1px);
         }
         .sc-close-btn {
           width: 34px; height: 34px; border-radius: 10px;
@@ -379,57 +414,44 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
       <div className="sc-container" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="sc-header">
-          <div className="sc-title-block">
+          <div className="sc-header-top-row">
             <div className="sc-symbol-row">
               <span className="sc-symbol">{stock.symbol}</span>
               <span className="sc-name" title={stock.name}>{stock.name}</span>
             </div>
-            <div className="sc-price-row">
-              <span className="sc-price">{formatPrice(stock.price)}</span>
-              <div className="sc-change-badge" style={{
-                background: isPos ? "rgba(52,211,153,0.09)" : "rgba(248,113,113,0.09)",
-                borderColor: isPos ? "rgba(52,211,153,0.28)" : "rgba(248,113,113,0.28)",
-                color: themeColor,
-              }}>
-                {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {formatChange(stock.change_percent)}
-              </div>
+            <div className="sc-header-actions">
+              <button
+                type="button"
+                className="sc-ai-btn"
+                onClick={() => {
+                  const isPos = (stock.change_percent ?? 0) >= 0;
+                  const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
+                  window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
+                  window.dispatchEvent(new CustomEvent("ak-add-notification", {
+                    detail: { title: "Stock Checkup Triggered", message: `Sent ${stock.symbol} metrics to AI Analyst.`, type: "info" }
+                  }));
+                  onClose();
+                }}
+                title="Analyze this stock with AI"
+              >
+                <Sparkles size={13} />
+                <span>AI Checkup</span>
+              </button>
+              <button className="sc-close-btn" onClick={onClose} title="Close (Esc)">
+                <X size={16} />
+              </button>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button
-              type="button"
-              onClick={() => {
-                const isPos = (stock.change_percent ?? 0) >= 0;
-                const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
-                window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
-                window.dispatchEvent(new CustomEvent("ak-add-notification", {
-                  detail: { title: "Stock Checkup Triggered", message: `Sent ${stock.symbol} metrics to AI Analyst.`, type: "info" }
-                }));
-                onClose();
-              }}
-              title="Analyze this stock with AI"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                borderRadius: "10px",
-                background: "rgba(34, 211, 238, 0.12)",
-                border: "1px solid rgba(34, 211, 238, 0.3)",
-                color: "#22d3ee",
-                fontSize: "12px",
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-              }}
-            >
-              <Sparkles size={14} />
-              <span>AI Checkup</span>
-            </button>
-            <button className="sc-close-btn" onClick={onClose} title="Close (Esc)">
-              <X size={16} />
-            </button>
+          <div className="sc-price-row">
+            <span className="sc-price">{formatPrice(stock.price)}</span>
+            <div className="sc-change-badge" style={{
+              background: isPos ? "rgba(52,211,153,0.09)" : "rgba(248,113,113,0.09)",
+              borderColor: isPos ? "rgba(52,211,153,0.28)" : "rgba(248,113,113,0.28)",
+              color: themeColor,
+            }}>
+              {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {formatChange(stock.change_percent)}
+            </div>
           </div>
         </div>
 
