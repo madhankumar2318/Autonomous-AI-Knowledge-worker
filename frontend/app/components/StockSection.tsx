@@ -230,7 +230,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
         {data.stocks.slice(0, 6).filter(s => !s.error).map((s) => {
           const isPos = (s.change_percent ?? 0) >= 0;
           return (
-            <div key={s.symbol} className={`${priceFlash[s.symbol] === "up" ? "flash-price-up" : ""} ${priceFlash[s.symbol] === "down" ? "flash-price-down" : ""}`} style={{ display: "grid", gridTemplateColumns: "48px 1fr 50px 50px", gap: "6px", padding: "6px 8px", borderRadius: "8px", alignItems: "center", background: "var(--bg-secondary)", border: "1px solid var(--border-light)", transition: "background-color 0.8s ease" }}>
+            <div key={s.symbol} style={{ display: "grid", gridTemplateColumns: "48px 1fr 50px 50px", gap: "6px", padding: "6px 8px", borderRadius: "8px", alignItems: "center", background: "var(--bg-secondary)", border: "1px solid var(--border-light)", transition: "background-color 0.8s ease" }}>
               <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)" }}>{s.symbol}</span>
               <Sparkline data={s.history} isPos={isPos} width={50} height={18} />
               <span style={{ fontSize: "10px", fontWeight: 700, color: isPos ? "#34d399" : "#f87171", textAlign: "right" }}>{formatChange(s.change_percent)}</span>
@@ -424,7 +424,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
                 return (
                   <div
                     key={s.symbol}
-                    className={`stocks-card premium-card-hover ${priceFlash[s.symbol] === "up" ? "flash-price-up" : ""} ${priceFlash[s.symbol] === "down" ? "flash-price-down" : ""}`}
+                    className="stocks-card premium-card-hover"
                     style={{ "--stock-color": isPos ? "#34d399" : "#f87171" } as React.CSSProperties}
                     onClick={() => setActiveStockChart(s.symbol)}
                   >
@@ -470,7 +470,7 @@ export default function StockSection({ compact = false }: { compact?: boolean })
 
                     {/* Price + volume */}
                     <div className="stocks-card-footer">
-                      <div className="stocks-card-price" style={{ color: isPos ? "#34d399" : "#f87171" }}>
+                      <div className="stocks-card-price" style={{ color: "var(--text-primary, #ffffff)" }}>
                         {formatPrice(s.price)}
                       </div>
                       {s.volume && (
