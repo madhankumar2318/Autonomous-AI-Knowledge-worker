@@ -136,27 +136,32 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
 
-  // ── SVG Dimensions ──────────────────────────────────────────────────────
+  // ── SVG Dimensions & Responsive Scaling ─────────────────────────────────
   const width = 640;
   const paddingLeft = 20;
   const paddingRight = 65;
-  const paddingTop = 20;
-  const paddingBottom = 40;
+  const paddingTop = 12;
+  const paddingBottom = 28;
   const chartWidth = width - paddingLeft - paddingRight;
 
-  const priceChartHeight = showRSI ? 120 : 155;
-  const volumeChartHeight = 38;
-  const rsiChartHeight = 68;
-  const volumeTop = paddingTop + priceChartHeight + 12;
-  const rsiTop = volumeTop + volumeChartHeight + 18;
+  const priceChartHeight = showRSI ? 115 : 145;
+  const volumeChartHeight = 36;
+  const rsiChartHeight = 64;
+  const volumeTop = paddingTop + priceChartHeight + 10;
+  const rsiTop = volumeTop + volumeChartHeight + 16;
   const totalHeight = showRSI
     ? rsiTop + rsiChartHeight + paddingBottom
-    : paddingTop + priceChartHeight + volumeChartHeight + 12 + paddingBottom;
+    : paddingTop + priceChartHeight + volumeChartHeight + 10 + paddingBottom;
 
   const prices = chartData.map((d) => d.price);
-  const minVal = prices.length ? Math.min(...prices) : 0;
-  const maxVal = prices.length ? Math.max(...prices) : 1;
-  const valRange = maxVal - minVal || 1;
+  const rawMin = prices.length ? Math.min(...prices) : 0;
+  const rawMax = prices.length ? Math.max(...prices) : 1;
+  const rawRange = rawMax - rawMin || 1;
+  // 3% padding buffer so line is nicely aligned without wasted top/bottom space
+  const minVal = rawMin - rawRange * 0.03;
+  const maxVal = rawMax + rawRange * 0.03;
+  const valRange = maxVal - minVal;
+
   const volumes = chartData.map((d) => d.volume ?? 0);
   const maxVolume = Math.max(...volumes) || 1;
 
@@ -198,17 +203,31 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
     ? `${pricePathD} L ${pricePoints[pricePoints.length - 1].x} ${paddingTop + priceChartHeight} L ${pricePoints[0].x} ${paddingTop + priceChartHeight} Z`
     : "";
 
-  const priceTicks = [maxVal, minVal + valRange * 0.66, minVal + valRange * 0.33, minVal];
+  const priceTicks = [rawMax, rawMin + rawRange * 0.66, rawMin + rawRange * 0.33, rawMin];
   const dateTickIndices = chartData.length > 1
     ? [0, Math.floor((chartData.length - 1) * 0.33), Math.floor((chartData.length - 1) * 0.66), chartData.length - 1]
     : [0];
 
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
+  // ── Precise Mouse & Touch Point Scrubbing ──────────────────────────────
+  const updateHoverIndex = (clientX: number) => {
     if (!chartData.length || !svgRef.current) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const pct = Math.max(0, Math.min(1, (x - (paddingLeft / rect.width) * rect.width) / ((chartWidth / rect.width) * rect.width)));
-    setHoverIndex(Math.max(0, Math.min(chartData.length - 1, Math.round(pct * (chartData.length - 1)))));
+    if (rect.width <= 0) return;
+    const scale = width / rect.width;
+    const svgX = (clientX - rect.left) * scale;
+    const pct = Math.max(0, Math.min(1, (svgX - paddingLeft) / chartWidth));
+    const idx = Math.max(0, Math.min(chartData.length - 1, Math.round(pct * (chartData.length - 1))));
+    setHoverIndex(idx);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
+    updateHoverIndex(e.clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (e.touches && e.touches[0]) {
+      updateHoverIndex(e.touches[0].clientX);
+    }
   };
 
   const activePoint = hoverIndex !== null ? chartData[hoverIndex] : null;
@@ -306,7 +325,7 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
             padding: 8px 12px !important;
           }
           .sc-chart-wrap {
-            padding: 8px 10px !important;
+            padding: 4px 6px !important;
           }
         }
         .sc-header {
@@ -378,7 +397,7 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         }
         .sc-ind-pill:hover { transform: translateY(-1px); filter: brightness(1.1); }
         .sc-chart-wrap {
-          padding: 12px 20px 14px 20px;
+          padding: 6px 14px 8px 14px;
           background: rgba(0,0,0,0.22); position: relative;
         }
         .sc-svg-container { width: 100%; overflow: visible; cursor: crosshair; display: block; }
@@ -520,8 +539,8 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
               {/* Tooltip */}
               {activePoint && hoverIndex !== null && (
                 <div className="sc-tooltip" style={{
-                  left: `${hoverX > chartWidth / 2 + paddingLeft ? hoverX - 178 : hoverX + 16}px`,
-                  top: `${Math.max(8, Math.min(priceChartHeight - 90, hoverY - 32))}px`,
+                  left: `${hoverX > chartWidth / 2 + paddingLeft ? Math.max(10, hoverX - 175) : Math.min(width - 175, hoverX + 16)}px`,
+                  top: `${Math.max(6, hoverY < 75 ? hoverY + 16 : hoverY - 72)}px`,
                 }}>
                   <span className="sc-tooltip-date">{activePoint.date}</span>
                   <div className="sc-tooltip-row">
@@ -557,9 +576,12 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
               <svg ref={svgRef}
                 viewBox={`0 0 ${width} ${totalHeight}`}
                 className="sc-svg-container"
-                style={{ height: totalHeight }}
+                style={{ height: totalHeight, touchAction: "none" }}
                 onMouseMove={handleMouseMove}
-                onMouseLeave={() => setHoverIndex(null)}>
+                onMouseLeave={() => setHoverIndex(null)}
+                onTouchStart={handleTouchMove}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={() => setHoverIndex(null)}>
                 <defs>
                   <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={themeColor} stopOpacity="1" />
