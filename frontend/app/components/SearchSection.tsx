@@ -1,6 +1,6 @@
 "use client";
-import { AlertCircle, Search, Sparkles, ExternalLink } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, Search, Sparkles, ExternalLink, TrendingUp, Clock, X, ArrowUpRight, Trash2 } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
 
 interface SearchResult {
@@ -41,20 +41,13 @@ function cleanSnippet(raw: string): string {
     .trim();
 }
 
-/**
- * Parse the raw timestamp from the snippet and strip it so the snippet
- * shows only the clean description text.
- * Format from backend: "🕐 Thu, 24 Jul 2026 10:24:00 GMT — actual snippet"
- */
 function parseTimestamp(snippet: string): { time: string; text: string } {
-  // Match: optional clock emoji + date string + em-dash separator
   const match = snippet.match(
     /^🕐\s*([\w,\s:]+(?:GMT|UTC|EST|PST|IST)?)\s*—\s*([\s\S]*)$/
   );
   if (match) {
     const rawTime = match[1].trim();
     const text = cleanSnippet(match[2]);
-    // Convert to relative or human-friendly date
     try {
       const date = new Date(rawTime);
       const now = Date.now();
@@ -98,6 +91,85 @@ export default function SearchSection({
   const [hasSearched, setHasSearched] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterTab>("all");
 
+  // ── Suggestions & Trending State ──
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [trending, setTrending] = useState<string[]>([
+    "Apple (AAPL) Stock Performance",
+    "Nvidia AI Microchips & Earnings",
+    "Federal Reserve Interest Rate Outlook",
+    "Global Market Trends",
+    "Quantum Computing Breakthroughs",
+    "Tesla EV Market Share",
+  ]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load recent searches from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ak_recent_searches");
+      if (saved) setRecentSearches(JSON.parse(saved));
+    } catch (e) {
+      console.error("Failed to load recent searches:", e);
+    }
+  }, []);
+
+  // Save to recent searches
+  const saveRecentSearch = (term: string) => {
+    if (!term || !term.trim()) return;
+    const clean = term.trim();
+    setRecentSearches((prev) => {
+      const filtered = prev.filter((item) => item.toLowerCase() !== clean.toLowerCase());
+      const updated = [clean, ...filtered].slice(0, 6);
+      try {
+        localStorage.setItem("ak_recent_searches", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const clearRecentSearches = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRecentSearches([]);
+    localStorage.removeItem("ak_recent_searches");
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(e.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Debounced fetch for suggestions
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/search/suggestions?q=${encodeURIComponent(query.trim())}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.suggestions) setSuggestions(data.suggestions);
+          if (data.trending && data.trending.length > 0) setTrending(data.trending);
+        }
+      } catch (err) {
+        console.error("Failed to fetch suggestions:", err);
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
   useEffect(() => {
     if (initialQuery) {
       setQuery(initialQuery);
@@ -115,22 +187,21 @@ export default function SearchSection({
     if (!q) return;
     setLoading(true);
     setError("");
+    saveRecentSearch(q);
+    setShowDropdown(false);
     try {
       const res = await fetch(
         `${API_BASE_URL}/search?query=${encodeURIComponent(q)}&page=${pageNum}`
       );
       const data = await res.json();
 
-      // Has results — use them regardless of partial engine errors
       if (data.results && data.results.length > 0) {
         setResults((prev) => [...prev, ...data.results]);
         if (data.engines) setEngines(data.engines);
-        // If there was also an error (partial failure), set a soft warning
         if (data.error) {
           setError("⚠️ Some sources timed out — showing partial results.");
         }
       } else if (data.error) {
-        // No results at all
         setError("Search failed. Please try again.");
       } else {
         setResults([]);
@@ -142,16 +213,58 @@ export default function SearchSection({
     }
   };
 
-  const handleSearch = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!query.trim()) { setError("Please enter a search query"); return; }
+  const executeSearch = (targetQuery: string) => {
+    const clean = targetQuery.trim();
+    if (!clean) return;
+    setQuery(clean);
     setResults([]);
     setEngines([]);
     setPage(1);
     setError("");
     setHasSearched(true);
     setActiveFilter("all");
-    fetchSearch(query, 1);
+    fetchSearch(clean, 1);
+  };
+
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    executeSearch(query);
+  };
+
+  // Build combined list of current suggestions for keyboard navigation
+  const isQueryEmpty = !query.trim();
+  const allListItems: { text: string; type: "suggestion" | "trending" | "recent" }[] = [];
+
+  if (isQueryEmpty) {
+    recentSearches.forEach((s) => allListItems.push({ text: s, type: "recent" }));
+    trending.forEach((s) => allListItems.push({ text: s, type: "trending" }));
+  } else {
+    suggestions.forEach((s) => allListItems.push({ text: s, type: "suggestion" }));
+    trending.forEach((s) => allListItems.push({ text: s, type: "trending" }));
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showDropdown || allListItems.length === 0) {
+      if (e.key === "Enter") handleSearch();
+      return;
+    }
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % allListItems.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + allListItems.length) % allListItems.length);
+    } else if (e.key === "Escape") {
+      setShowDropdown(false);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0 && selectedIndex < allListItems.length) {
+        executeSearch(allListItems[selectedIndex].text);
+      } else {
+        handleSearch();
+      }
+    }
   };
 
   const handleSparklesClick = (
@@ -177,7 +290,6 @@ export default function SearchSection({
     }
   };
 
-  // Filter results by tab
   const filteredResults = results.filter((r) => {
     if (activeFilter === "news") return r.fresh === true;
     if (activeFilter === "web") return !r.fresh;
@@ -190,24 +302,246 @@ export default function SearchSection({
   return (
     <div className="search-root" onScroll={handleScroll}>
 
-      {/* ── Search Form ── */}
-      <form onSubmit={handleSearch} className="flex gap-2">
-        <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search anything..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="input input-with-icon-left"
-            disabled={loading}
-          />
-        </div>
-        <button type="submit" disabled={loading} className="btn btn-primary">
-          {loading ? <div className="spinner" /> : "Search"}
-        </button>
-      </form>
+      {/* ── Search Form with Google/Chrome Suggestions Dropdown ── */}
+      <div ref={searchContainerRef} className="relative w-full z-30">
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search anything (e.g., AAPL stock, AI tools, Market trends)..."
+              value={query}
+              onFocus={() => setShowDropdown(true)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSelectedIndex(-1);
+                setShowDropdown(true);
+              }}
+              onKeyDown={handleKeyDown}
+              className="input input-with-icon-left pr-9"
+              disabled={loading}
+              autoComplete="off"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  setSelectedIndex(-1);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-200 transition-colors"
+                title="Clear input"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <button type="submit" disabled={loading} className="btn btn-primary">
+            {loading ? <div className="spinner" /> : "Search"}
+          </button>
+        </form>
+
+        {/* ── Suggestions Dropdown Card ── */}
+        {showDropdown && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(100% + 6px)",
+              left: 0,
+              right: 0,
+              background: "rgba(13, 16, 24, 0.96)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              borderRadius: "16px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.75)",
+              overflow: "hidden",
+              zIndex: 99,
+              padding: "10px 0",
+              animation: "scFadeIn 0.15s ease-out",
+            }}
+          >
+            {/* 1. Real-time Autocomplete Suggestions */}
+            {!isQueryEmpty && suggestions.length > 0 && (
+              <div style={{ padding: "4px 0" }}>
+                <div style={{
+                  padding: "6px 16px",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  color: "#64748b",
+                  letterSpacing: "0.8px",
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  <Search size={11} style={{ color: "#a855f7" }} />
+                  Suggestions
+                </div>
+                {suggestions.map((item, idx) => {
+                  const globalIdx = idx;
+                  const isHighlighted = selectedIndex === globalIdx;
+                  return (
+                    <div
+                      key={`sug-${idx}`}
+                      onClick={() => executeSearch(item)}
+                      onMouseEnter={() => setSelectedIndex(globalIdx)}
+                      style={{
+                        padding: "9px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: isHighlighted ? "#f1f5f9" : "#cbd5e1",
+                        background: isHighlighted ? "rgba(168, 85, 247, 0.16)" : "transparent",
+                        borderLeft: isHighlighted ? "3px solid #c084fc" : "3px solid transparent",
+                        transition: "all 0.12s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <Search size={13} style={{ color: isHighlighted ? "#c084fc" : "#64748b" }} />
+                        <span>{item}</span>
+                      </div>
+                      <ArrowUpRight size={12} style={{ color: "#475569", opacity: isHighlighted ? 1 : 0.4 }} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 2. Recent Searches (when query empty or focused) */}
+            {isQueryEmpty && recentSearches.length > 0 && (
+              <div style={{ padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                <div style={{
+                  padding: "6px 16px",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  color: "#64748b",
+                  letterSpacing: "0.8px",
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Clock size={11} style={{ color: "#38bdf8" }} />
+                    Recent Searches
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearRecentSearches}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#475569",
+                      fontSize: "10px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "3px"
+                    }}
+                    title="Clear search history"
+                  >
+                    <Trash2 size={10} /> Clear
+                  </button>
+                </div>
+                {recentSearches.map((item, idx) => {
+                  const globalIdx = idx;
+                  const isHighlighted = selectedIndex === globalIdx;
+                  return (
+                    <div
+                      key={`rec-${idx}`}
+                      onClick={() => executeSearch(item)}
+                      onMouseEnter={() => setSelectedIndex(globalIdx)}
+                      style={{
+                        padding: "9px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: isHighlighted ? "#f1f5f9" : "#cbd5e1",
+                        background: isHighlighted ? "rgba(56, 189, 248, 0.14)" : "transparent",
+                        borderLeft: isHighlighted ? "3px solid #38bdf8" : "3px solid transparent",
+                        transition: "all 0.12s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <Clock size={13} style={{ color: isHighlighted ? "#38bdf8" : "#64748b" }} />
+                        <span>{item}</span>
+                      </div>
+                      <ArrowUpRight size={12} style={{ color: "#475569", opacity: isHighlighted ? 1 : 0.4 }} />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 3. Trending Searches */}
+            {trending.length > 0 && (
+              <div style={{ padding: "4px 0" }}>
+                <div style={{
+                  padding: "6px 16px",
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  color: "#64748b",
+                  letterSpacing: "0.8px",
+                  textTransform: "uppercase",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}>
+                  <TrendingUp size={11} style={{ color: "#f43f5e" }} />
+                  Trending Searches
+                </div>
+                {trending.map((item, idx) => {
+                  const offset = isQueryEmpty ? recentSearches.length : suggestions.length;
+                  const globalIdx = offset + idx;
+                  const isHighlighted = selectedIndex === globalIdx;
+                  return (
+                    <div
+                      key={`trend-${idx}`}
+                      onClick={() => executeSearch(item)}
+                      onMouseEnter={() => setSelectedIndex(globalIdx)}
+                      style={{
+                        padding: "9px 16px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        cursor: "pointer",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: isHighlighted ? "#f1f5f9" : "#cbd5e1",
+                        background: isHighlighted ? "rgba(244, 63, 94, 0.14)" : "transparent",
+                        borderLeft: isHighlighted ? "3px solid #f43f5e" : "3px solid transparent",
+                        transition: "all 0.12s ease",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <TrendingUp size={13} style={{ color: isHighlighted ? "#f43f5e" : "#64748b" }} />
+                        <span>{item}</span>
+                      </div>
+                      <span style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        padding: "2px 7px",
+                        borderRadius: "10px",
+                        background: "rgba(244, 63, 94, 0.12)",
+                        color: "#fb7185",
+                        border: "1px solid rgba(244, 63, 94, 0.25)"
+                      }}>
+                        HOT
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── Filter Pills (only after search) ── */}
       {hasSearched && results.length > 0 && (

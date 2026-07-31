@@ -331,3 +331,67 @@ def global_search(query: str = Query(...), page: int = 1):
         "results": final_results,
         "engines": engine_used,
     }
+
+
+# ─────────────────────────────────────────────
+# Real-Time Autocomplete & Trending Suggestions
+# ─────────────────────────────────────────────
+TRENDING_SEARCHES = [
+    "Apple (AAPL) Stock Performance",
+    "Nvidia AI Microchips & Earnings",
+    "Federal Reserve Interest Rate Outlook",
+    "Global Market Trends",
+    "Quantum Computing Breakthroughs",
+    "Tesla EV Market Share",
+    "Artificial Intelligence Agent Tools",
+    "US Inflation & Economic Data"
+]
+
+
+@router.get("/suggestions")
+def search_suggestions(q: str = Query("")):
+    """
+    Real-time Google/DuckDuckGo autocomplete suggestions + curated trending search keywords.
+    """
+    query_str = q.strip()
+    if not query_str:
+        return {
+            "query": "",
+            "suggestions": [],
+            "trending": TRENDING_SEARCHES
+        }
+
+    suggestions: list[str] = []
+
+    # 1. Fetch live Google Chrome Autocomplete suggestions
+    try:
+        url = f"https://suggestqueries.google.com/complete/search?client=chrome&q={quote_plus(query_str)}"
+        resp = requests.get(url, headers=_HEADERS, timeout=4)
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
+                suggestions = [str(item) for item in data[1][:8]]
+    except Exception as e:
+        print(f"[Suggestions] Google suggest error: {e}")
+
+    # 2. Fallback to DuckDuckGo if Google yields no results
+    if not suggestions:
+        try:
+            url = f"https://duckduckgo.com/ac/?q={quote_plus(query_str)}&type=list"
+            resp = requests.get(url, headers=_HEADERS, timeout=4)
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list) and len(data) > 1 and isinstance(data[1], list):
+                    suggestions = [str(item) for item in data[1][:8]]
+        except Exception as e:
+            print(f"[Suggestions] DuckDuckGo suggest error: {e}")
+
+    # Filter out empty strings
+    suggestions = [s for s in suggestions if s.strip()]
+
+    return {
+        "query": query_str,
+        "suggestions": suggestions,
+        "trending": [t for t in TRENDING_SEARCHES if query_str.lower() in t.lower()][:4]
+    }
+
