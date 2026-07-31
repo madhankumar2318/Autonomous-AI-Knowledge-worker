@@ -138,8 +138,8 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
 
   // ── SVG Dimensions & Responsive Scaling ─────────────────────────────────
   const width = 640;
-  const paddingLeft = 20;
-  const paddingRight = 65;
+  const paddingLeft = 45;
+  const paddingRight = 45;
   const paddingTop = 12;
   const paddingBottom = 28;
   const chartWidth = width - paddingLeft - paddingRight;
@@ -315,8 +315,16 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           }
           .sc-close-btn {
             width: 30px !important;
-            height:           .sc-chart-wrap {
+            height: 30px !important;
+            border-radius: 8px !important;
+          }
+          .sc-chart-wrap {
             padding: 4px 6px !important;
+          }
+          .sc-grid-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            padding: 12px 14px !important;
+            gap: 10px !important;
           }
           .sc-tooltip {
             padding: 6px 10px !important;
