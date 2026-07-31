@@ -313,19 +313,20 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           }
           .sc-close-btn {
             width: 30px !important;
-            height: 30px !important;
-            border-radius: 8px !important;
-          }
-          .sc-grid-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-            padding: 12px 14px !important;
-            gap: 10px !important;
-          }
-          .sc-controls-row {
-            padding: 8px 12px !important;
-          }
-          .sc-chart-wrap {
+            height:           .sc-chart-wrap {
             padding: 4px 6px !important;
+          }
+          .sc-tooltip {
+            padding: 6px 10px !important;
+            border-radius: 10px !important;
+            font-size: 10px !important;
+            min-width: 120px !important;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.55) !important;
+          }
+          .sc-tooltip-date {
+            font-size: 9px !important;
+            padding-bottom: 3px !important;
+            margin-bottom: 2px !important;
           }
         }
         .sc-header {
@@ -406,18 +407,18 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           background: rgba(10, 12, 18, 0.97);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255,255,255,0.09);
-          border-radius: 13px; padding: 10px 14px;
+          border-radius: 13px; padding: 8px 12px;
           pointer-events: none;
           box-shadow: 0 16px 40px rgba(0,0,0,0.65);
-          display: flex; flex-direction: column; gap: 5px;
-          font-size: 11px; font-weight: 500; min-width: 160px;
+          display: flex; flex-direction: column; gap: 4px;
+          font-size: 11px; font-weight: 500; min-width: 130px;
         }
         .sc-tooltip-date {
           color: #64748b; font-size: 10px; font-weight: 600;
           border-bottom: 1px solid rgba(255,255,255,0.05);
-          padding-bottom: 5px; margin-bottom: 2px;
+          padding-bottom: 4px; margin-bottom: 2px;
         }
-        .sc-tooltip-row { display: flex; justify-content: space-between; gap: 14px; }
+        .sc-tooltip-row { display: flex; justify-content: space-between; gap: 12px; }
         .sc-grid-label { font-size: 10px; font-family: monospace; fill: #475569; font-weight: 500; }
         .sc-axis-label-y { font-size: 10px; font-weight: 700; fill: #ffffff; }
         .sc-axis-label-x { font-size: 10px; font-weight: 700; fill: #ffffff; }
@@ -537,40 +538,45 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           ) : (
             <>
               {/* Tooltip */}
-              {activePoint && hoverIndex !== null && (
-                <div className="sc-tooltip" style={{
-                  left: `${hoverX > chartWidth / 2 + paddingLeft ? Math.max(10, hoverX - 175) : Math.min(width - 175, hoverX + 16)}px`,
-                  top: `${Math.max(6, hoverY < 75 ? hoverY + 16 : hoverY - 72)}px`,
-                }}>
-                  <span className="sc-tooltip-date">{activePoint.date}</span>
-                  <div className="sc-tooltip-row">
-                    <span style={{ color: "#64748b" }}>Price</span>
-                    <span style={{ color: themeColor, fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(activePoint.price)}</span>
+              {activePoint && hoverIndex !== null && (() => {
+                const hoverPct = (hoverX / width) * 100;
+                const isRightHalf = hoverPct > 50;
+                return (
+                  <div className="sc-tooltip" style={{
+                    left: isRightHalf ? "auto" : `${Math.max(2, hoverPct + 2)}%`,
+                    right: isRightHalf ? `${Math.max(2, 100 - hoverPct + 2)}%` : "auto",
+                    top: "8px",
+                  }}>
+                    <span className="sc-tooltip-date">{activePoint.date}</span>
+                    <div className="sc-tooltip-row">
+                      <span style={{ color: "#64748b" }}>Price</span>
+                      <span style={{ color: themeColor, fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(activePoint.price)}</span>
+                    </div>
+                    <div className="sc-tooltip-row">
+                      <span style={{ color: "#64748b" }}>Volume</span>
+                      <span style={{ color: "#f1f5f9", fontFamily: "monospace", fontWeight: 700 }}>{formatVolume(activePoint.volume)}</span>
+                    </div>
+                    {showSMA20 && hoverSMA20 !== null && (
+                      <div className="sc-tooltip-row">
+                        <span style={{ color: "#64748b" }}>SMA 20</span>
+                        <span style={{ color: "#fbbf24", fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(hoverSMA20)}</span>
+                      </div>
+                    )}
+                    {showSMA50 && hoverSMA50 !== null && (
+                      <div className="sc-tooltip-row">
+                        <span style={{ color: "#64748b" }}>SMA 50</span>
+                        <span style={{ color: "#93c5fd", fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(hoverSMA50)}</span>
+                      </div>
+                    )}
+                    {showRSI && hoverRSI !== null && (
+                      <div className="sc-tooltip-row">
+                        <span style={{ color: "#64748b" }}>RSI 14</span>
+                        <span style={{ color: "#c4b5fd", fontFamily: "monospace", fontWeight: 700 }}>{hoverRSI.toFixed(1)}</span>
+                      </div>
+                    )}
                   </div>
-                  <div className="sc-tooltip-row">
-                    <span style={{ color: "#64748b" }}>Volume</span>
-                    <span style={{ color: "#f1f5f9", fontFamily: "monospace", fontWeight: 700 }}>{formatVolume(activePoint.volume)}</span>
-                  </div>
-                  {showSMA20 && hoverSMA20 !== null && (
-                    <div className="sc-tooltip-row">
-                      <span style={{ color: "#64748b" }}>SMA 20</span>
-                      <span style={{ color: "#fbbf24", fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(hoverSMA20)}</span>
-                    </div>
-                  )}
-                  {showSMA50 && hoverSMA50 !== null && (
-                    <div className="sc-tooltip-row">
-                      <span style={{ color: "#64748b" }}>SMA 50</span>
-                      <span style={{ color: "#93c5fd", fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(hoverSMA50)}</span>
-                    </div>
-                  )}
-                  {showRSI && hoverRSI !== null && (
-                    <div className="sc-tooltip-row">
-                      <span style={{ color: "#64748b" }}>RSI 14</span>
-                      <span style={{ color: "#c4b5fd", fontFamily: "monospace", fontWeight: 700 }}>{hoverRSI.toFixed(1)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
 
               {/* SVG Canvas */}
               <svg ref={svgRef}
