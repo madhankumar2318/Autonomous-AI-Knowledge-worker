@@ -144,9 +144,9 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
   const paddingBottom = 28;
   const chartWidth = width - paddingLeft - paddingRight;
 
-  const priceChartHeight = showRSI ? 115 : 145;
-  const volumeChartHeight = 36;
-  const rsiChartHeight = 64;
+  const priceChartHeight = showRSI ? 150 : 190;
+  const volumeChartHeight = 40;
+  const rsiChartHeight = 70;
   const volumeTop = paddingTop + priceChartHeight + 10;
   const rsiTop = volumeTop + volumeChartHeight + 16;
   const totalHeight = showRSI
@@ -279,13 +279,15 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
 
         @media (max-width: 640px) {
           .sc-overlay {
-            padding: 8px !important;
-            align-items: flex-end !important;
+            padding: 10px !important;
+            align-items: center !important;
+            justify-content: center !important;
           }
           .sc-container {
-            max-height: 88dvh !important;
-            border-radius: 18px 18px 0 0 !important;
+            max-height: 92dvh !important;
+            border-radius: 20px !important;
             width: 100% !important;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.85) !important;
           }
           .sc-header {
             padding: 12px 14px !important;
