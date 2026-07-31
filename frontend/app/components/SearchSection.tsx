@@ -9,9 +9,14 @@ interface SearchResult {
   snippet: string;
   source?: string;
   fresh?: boolean;
+  is_video?: boolean;
+  thumbnail?: string;
+  video_id?: string;
+  channel?: string;
+  views?: string;
 }
 
-type FilterTab = "all" | "news" | "web";
+type FilterTab = "all" | "news" | "web" | "videos";
 
 // ─── Helpers ────────────────────────────────────────────────
 function extractDomain(url: string): string {
@@ -291,13 +296,15 @@ export default function SearchSection({
   };
 
   const filteredResults = results.filter((r) => {
-    if (activeFilter === "news") return r.fresh === true;
-    if (activeFilter === "web") return !r.fresh;
+    if (activeFilter === "news") return r.fresh === true && !r.is_video;
+    if (activeFilter === "web") return !r.fresh && !r.is_video;
+    if (activeFilter === "videos") return r.is_video === true;
     return true;
   });
 
-  const newsCount = results.filter((r) => r.fresh).length;
-  const webCount = results.filter((r) => !r.fresh).length;
+  const newsCount = results.filter((r) => r.fresh && !r.is_video).length;
+  const webCount = results.filter((r) => !r.fresh && !r.is_video).length;
+  const videoCount = results.filter((r) => r.is_video === true).length;
 
   return (
     <div className="search-root" onScroll={handleScroll}>
@@ -551,6 +558,7 @@ export default function SearchSection({
               { id: "all", label: "🔍 All", count: results.length },
               { id: "news", label: "📰 News", count: newsCount },
               { id: "web", label: "🌐 Web", count: webCount },
+              { id: "videos", label: "▶️ Videos", count: videoCount },
             ] as { id: FilterTab; label: string; count: number }[]
           ).map((tab) => (
             <button
@@ -602,6 +610,11 @@ export default function SearchSection({
             {engines.includes("wikipedia") && (
               <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(168,85,247,0.15)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.25)" }}>
                 📖 Wikipedia
+              </span>
+            )}
+            {engines.includes("youtube") && (
+              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(239,68,68,0.18)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}>
+                ▶️ YouTube
               </span>
             )}
           </span>
@@ -663,6 +676,162 @@ export default function SearchSection({
             const domain = extractDomain(r.link);
             const favicon = faviconUrl(r.link);
             const { time, text } = parseTimestamp(r.snippet);
+
+            if (r.is_video) {
+              return (
+                <div
+                  key={`${r.link}-${_i}`}
+                  style={{
+                    padding: "14px 16px",
+                    borderRadius: "12px",
+                    background: "rgba(255,255,255,0.03)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                    transition: "all 0.18s ease",
+                    display: "flex",
+                    gap: "14px",
+                    alignItems: "flex-start",
+                    flexWrap: "wrap",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(239,68,68,0.06)";
+                    e.currentTarget.style.borderColor = "rgba(239,68,68,0.4)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                    e.currentTarget.style.borderColor = "rgba(239,68,68,0.2)";
+                  }}
+                >
+                  {/* Video Thumbnail */}
+                  {r.thumbnail && (
+                    <a
+                      href={r.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        position: "relative",
+                        flexShrink: 0,
+                        borderRadius: "10px",
+                        overflow: "hidden",
+                        display: "block",
+                        width: "140px",
+                        height: "78px",
+                      }}
+                    >
+                      <img
+                        src={r.thumbnail}
+                        alt={r.title}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background: "rgba(0, 0, 0, 0.35)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "28px",
+                            height: "28px",
+                            borderRadius: "50%",
+                            background: "rgba(239, 68, 68, 0.9)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#fff",
+                            fontSize: "12px",
+                            paddingLeft: "2px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+                          }}
+                        >
+                          ▶
+                        </div>
+                      </div>
+                    </a>
+                  )}
+
+                  {/* Video Details */}
+                  <div style={{ flex: 1, minWidth: "200px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 800, padding: "1px 7px", borderRadius: "5px", background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.35)" }}>
+                        ▶️ YouTube
+                      </span>
+                      {r.channel && (
+                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>
+                          {r.channel}
+                        </span>
+                      )}
+                    </div>
+
+                    <a
+                      href={r.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: "none", display: "block", marginBottom: "6px" }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: 600,
+                          color: "#f1f5f9",
+                          lineHeight: 1.4,
+                          margin: 0,
+                          transition: "color 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "#f1f5f9"; }}
+                      >
+                        {r.title}
+                      </h3>
+                    </a>
+
+                    <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.55)", margin: "0 0 10px 0" }}>
+                      {r.snippet}
+                    </p>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button
+                        type="button"
+                        onClick={(e) => handleSparklesClick(e, r.title, r.snippet)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "5px",
+                          padding: "4px 10px", borderRadius: "7px", fontSize: "11px",
+                          fontWeight: 700, cursor: "pointer",
+                          background: "rgba(168,85,247,0.12)",
+                          border: "1px solid rgba(168,85,247,0.28)",
+                          color: "#c084fc", transition: "all 0.18s ease",
+                        }}
+                      >
+                        <Sparkles size={11} />
+                        AI Summary
+                      </button>
+
+                      <a
+                        href={r.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "flex", alignItems: "center", gap: "4px",
+                          padding: "4px 10px", borderRadius: "7px", fontSize: "11px",
+                          fontWeight: 600, color: "#f87171",
+                          background: "rgba(239,68,68,0.1)",
+                          border: "1px solid rgba(239,68,68,0.25)",
+                          textDecoration: "none", transition: "all 0.18s ease",
+                        }}
+                      >
+                        Watch Video <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div

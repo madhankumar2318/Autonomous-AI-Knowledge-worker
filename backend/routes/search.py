@@ -227,6 +227,104 @@ def _serpapi_search(query: str, page: int = 1) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
+# Tier 6: YouTube Video Search
+# ─────────────────────────────────────────────
+def _youtube_search(query: str, max_results: int = 5) -> list[dict]:
+    """
+    Fetch live YouTube video search results via web renderer or news RSS.
+    Returns title, video URL, thumbnail, channel name, views, and published time.
+    """
+    url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
+    results = []
+    try:
+        resp = requests.get(url, headers=_HEADERS, timeout=6)
+        if resp.status_code == 200:
+            match = re.search(r'var ytInitialData = ({.*?});</script>', resp.text)
+            if not match:
+                match = re.search(r'window\["ytInitialData"\] = ({.*?});', resp.text)
+
+            if match:
+                import json
+                data = json.loads(match.group(1))
+                contents = (
+                    data.get("contents", {})
+                    .get("twoColumnSearchResultsRenderer", {})
+                    .get("primaryContents", {})
+                    .get("sectionListRenderer", {})
+                    .get("contents", [])
+                )
+                for section in contents:
+                    item_section = section.get("itemSectionRenderer", {}).get("contents", [])
+                    for item in item_section:
+                        video = item.get("videoRenderer")
+                        if not video:
+                            continue
+                        video_id = video.get("videoId")
+                        if not video_id:
+                            continue
+
+                        title = video.get("title", {}).get("runs", [{}])[0].get("text", "")
+                        channel = video.get("ownerText", {}).get("runs", [{}])[0].get("text", "")
+                        published = video.get("publishedTimeText", {}).get("simpleText", "")
+                        views = video.get("viewCountText", {}).get("simpleText", "")
+
+                        link = f"https://www.youtube.com/watch?v={video_id}"
+                        thumbnail = f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg"
+
+                        if title:
+                            results.append({
+                                "title": title,
+                                "link": link,
+                                "snippet": f"📺 {channel} • {views} • 🕐 {published}" if channel else f"Watch {title} on YouTube",
+                                "source": "YouTube",
+                                "fresh": False,
+                                "is_video": True,
+                                "thumbnail": thumbnail,
+                                "video_id": video_id,
+                                "channel": channel,
+                                "views": views,
+                            })
+                            if len(results) >= max_results:
+                                break
+                    if len(results) >= max_results:
+                        break
+    except Exception as e:
+        print(f"[Search] YouTube initial data error: {e}")
+
+    # Fallback to Google News YouTube RSS feed if initial data wasn't parsed
+    if not results:
+        try:
+            feed_url = f"https://news.google.com/rss/search?q=site:youtube.com+{quote_plus(query)}&hl=en-US&gl=US&ceid=US:en"
+            resp = requests.get(feed_url, headers=_HEADERS, timeout=6)
+            if resp.status_code == 200:
+                root = ET.fromstring(resp.content)
+                channel = root.find("channel")
+                if channel is not None:
+                    for item in channel.findall("item")[:max_results]:
+                        title = _clean(item.findtext("title", ""))
+                        link = item.findtext("link", "").strip()
+                        pub = item.findtext("pubDate", "").strip()
+                        v_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', link)
+                        v_id = v_match.group(1) if v_match else ""
+                        thumb = f"https://i.ytimg.com/vi/{v_id}/mqdefault.jpg" if v_id else ""
+                        if title and link:
+                            results.append({
+                                "title": title,
+                                "link": link,
+                                "snippet": f"▶️ YouTube Video • 🕐 {pub}",
+                                "source": "YouTube",
+                                "fresh": False,
+                                "is_video": True,
+                                "thumbnail": thumb,
+                                "video_id": v_id,
+                            })
+        except Exception as e:
+            print(f"[Search] YouTube RSS fallback error: {e}")
+
+    return results
+
+
+# ─────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────
 def _is_news_query(query: str) -> bool:
@@ -312,6 +410,15 @@ def global_search(query: str = Query(...), page: int = 1):
             engine_used.append("wikipedia")
     except Exception as e:
         print(f"[Search] Wikipedia error: {e}")
+
+    # ── 6. YouTube Videos ──
+    try:
+        yt_results = _youtube_search(query, max_results=5)
+        if yt_results:
+            combined.extend(yt_results)
+            engine_used.append("youtube")
+    except Exception as e:
+        print(f"[Search] YouTube search error: {e}")
 
     # ── Deduplicate ──
     final_results = _deduplicate(combined)
