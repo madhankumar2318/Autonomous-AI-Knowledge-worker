@@ -45,12 +45,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Autonomous AI Knowledge Worker", lifespan=lifespan)
 
-# CORS - Allow explicit origins to support credentials / cookies
-frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+# ── CORS ─────────────────────────────────────────────────────────────────────
+# Only allow explicitly known, trusted origins. Never use allow_origins=["*"]
+# when allow_credentials=True — that is a browser security violation.
+frontend_url = os.getenv("FRONTEND_URL", "").rstrip("/")
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+# Add any additional origins from comma-separated EXTRA_CORS_ORIGINS env var
+extra_origins = os.getenv("EXTRA_CORS_ORIGINS", "")
+for origin in extra_origins.split(","):
+    origin = origin.strip().rstrip("/")
+    if origin and origin not in allowed_origins:
+        allowed_origins.append(origin)
+# Add production frontend URL if set and not already in list
 if frontend_url and frontend_url not in allowed_origins:
     allowed_origins.append(frontend_url)
 
@@ -58,21 +67,42 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Only allow the HTTP methods the API actually uses — not wildcard
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    # Only allow the specific headers the API reads from requests
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
 )
+
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
+    # Prevent clickjacking
     response.headers["X-Frame-Options"] = "DENY"
+    # Prevent MIME-type sniffing attacks
     response.headers["X-Content-Type-Options"] = "nosniff"
+    # Control Referer header leakage
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Legacy XSS filter for older browsers
     response.headers["X-XSS-Protection"] = "1; mode=block"
-    
+    # Restrict where resources can load from (CSP)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "connect-src 'self' https:; "
+        "img-src 'self' data: https:; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "frame-ancestors 'none';"
+    )
+    # Prevent sensitive info from being cached
+    response.headers["Cache-Control"] = "no-store" if request.url.path.startswith("/auth") else response.headers.get("Cache-Control", "")
+
     is_prod = os.getenv("ENV", "development").lower() == "production" or os.getenv("SECURE_COOKIES", "false").lower() == "true"
     if is_prod:
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Force HTTPS for 1 year including subdomains
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+        # Prevent browsers from sending feature requests (geolocation, camera etc)
+        response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
     return response
 
 # Include routers

@@ -17,7 +17,51 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # List of allowed file extensions
 ALLOWED_EXTENSIONS = {".csv", ".json", ".pdf", ".txt", ".md", ".docx", ".xlsx"}
 
-# File upload size limits configuration (default: 25MB)
+# Magic-byte signatures for each allowed content type.
+# A file must start with one of these byte sequences to prove its actual format.
+# This prevents attackers from renaming a .exe or .sh to .pdf and uploading it.
+MAGIC_BYTES: dict[str, list[bytes]] = {
+    ".pdf":  [b"%PDF-"],
+    ".docx": [b"PK\x03\x04"],           # ZIP-based Office Open XML
+    ".xlsx": [b"PK\x03\x04"],           # ZIP-based Office Open XML
+    ".csv":  [],                          # Plain-text — no reliable magic bytes
+    ".txt":  [],                          # Plain-text — no reliable magic bytes
+    ".md":   [],                          # Plain-text — no reliable magic bytes
+    ".json": [],                          # Plain-text — validated by JSON parse
+}
+
+ABSOLUTE_UPLOAD_DIR = os.path.realpath(UPLOAD_DIR)
+
+
+def _safe_filepath(base_dir: str, username: str, filename: str) -> str:
+    """Return an absolute, canonical path and raise 400 if it escapes base_dir.
+    Defends against path traversal attacks like '../../../etc/passwd'.
+    """
+    candidate = os.path.realpath(os.path.join(base_dir, username, filename))
+    if not candidate.startswith(os.path.realpath(base_dir) + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid filename: path traversal detected.")
+    return candidate
+
+
+async def _validate_magic_bytes(file, ext: str) -> bytes:
+    """Read the first 8 bytes of the upload, validate them against MAGIC_BYTES,
+    then return them so the upload handler can prepend them when writing to disk.
+    Raises HTTP 400 if the file content doesn’t match the declared extension.
+    """
+    signatures = MAGIC_BYTES.get(ext, None)
+    if signatures is None:
+        # Extension not in our map at all (shouldn’t happen, caught earlier)
+        raise HTTPException(status_code=400, detail=f"Unsupported file type '{ext}'.")
+
+    header = await file.read(8)
+    if signatures:  # Only check if we have known signatures for this type
+        if not any(header.startswith(sig) for sig in signatures):
+            raise HTTPException(
+                status_code=400,
+                detail=f"File content does not match extension '{ext}'. Upload rejected for security."
+            )
+    return header
+
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", "25"))
 MAX_UPLOAD_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
 
@@ -69,16 +113,22 @@ async def upload_file(
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
 
-        filename = os.path.basename(file.filename)
+        filename = os.path.basename(file.filename or "")
+        # Remove any null bytes or whitespace that could bypass checks
+        filename = filename.replace("\x00", "").strip()
         if not filename or filename in (".", ".."):
             raise HTTPException(status_code=400, detail="Invalid filename")
         _, ext = os.path.splitext(filename.lower())
-        
+
         if ext not in ALLOWED_EXTENSIONS:
             return JSONResponse(
-                content={"error": f"Unsupported file type '{ext}'. Supported: CSV, JSON, PDF, TXT, MD."},
+                content={"error": f"Unsupported file type '{ext}'. Supported: CSV, JSON, PDF, TXT, MD, DOCX, XLSX."},
                 status_code=400
             )
+
+        # ── Fix #3: Magic-byte content validation ─────────────────────────────
+        # Read and validate the file header BEFORE touching the filesystem.
+        file_header = await _validate_magic_bytes(file, ext)
 
         # Check current total user storage size
         with get_conn() as conn:
@@ -93,16 +143,22 @@ async def upload_file(
                 detail=f"Your total storage quota limit ({MAX_USER_STORAGE_MB}MB) has been reached. Please delete some files first."
             )
 
-        # Create user-specific folder locally
+        # ── Fix #1: Path traversal protection ───────────────────────────────
+        # Resolve to an absolute canonical path and confirm it lives inside UPLOAD_DIR.
         user_upload_dir = os.path.join(UPLOAD_DIR, username)
         os.makedirs(user_upload_dir, exist_ok=True)
-        file_path = os.path.join(user_upload_dir, filename)
+        file_path = _safe_filepath(UPLOAD_DIR, username, filename)
 
         # Stream-read and write to disk in chunks to avoid memory spikes (DoS Protection)
+        # Prepend the already-read magic header bytes, then continue streaming the rest.
         size = 0
         chunk_size = 1024 * 1024  # 1MB
         try:
             with open(file_path, "wb") as f:
+                # Write the already-consumed header first
+                if file_header:
+                    f.write(file_header)
+                    size += len(file_header)
                 while True:
                     chunk = await file.read(chunk_size)
                     if not chunk:
