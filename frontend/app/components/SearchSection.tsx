@@ -203,6 +203,7 @@ export default function SearchSection({
     setError("");
     saveRecentSearch(q);
     setShowDropdown(false);
+    window.dispatchEvent(new CustomEvent("ak-search-query-changed", { detail: { query: q } }));
     try {
       const res = await fetch(
         `${API_BASE_URL}/search?query=${encodeURIComponent(q)}&page=${pageNum}`
@@ -316,7 +317,7 @@ export default function SearchSection({
   const videoCount = results.filter((r) => r.is_video === true).length;
 
   return (
-    <div className="search-root" onScroll={handleScroll}>
+    <div className="search-root" style={{ paddingBottom: "80px" }} onScroll={handleScroll}>
       <style>{`
         /* Desktop: absolute overlay dropdown */
         @media (min-width: 769px) {
@@ -610,74 +611,108 @@ export default function SearchSection({
         )}
       </div>
 
-      {/* ── Filter Pills (only after search) ── */}
+      {/* ── Filter Pills & Engine Badges (only after search) ── */}
       {hasSearched && results.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          {(
-            [
-              { id: "all", label: "🔍 All", count: results.length },
-              { id: "news", label: "📰 News", count: newsCount },
-              { id: "web", label: "🌐 Web", count: webCount },
-              { id: "videos", label: "▶️ Videos", count: videoCount },
-            ] as { id: FilterTab; label: string; count: number }[]
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveFilter(tab.id)}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "14px" }}>
+          {/* Category Filter Tabs — Single 1-Row Horizontal Touch-Scroll Bar */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              overflowX: "auto",
+              whiteSpace: "nowrap",
+              paddingBottom: "4px",
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+            }}
+            className="scrollbar-none"
+          >
+            {(
+              [
+                { id: "all", label: "🔍 All", count: results.length },
+                { id: "news", label: "📰 News", count: newsCount },
+                { id: "web", label: "🌐 Web", count: webCount },
+                { id: "videos", label: "▶️ Videos", count: videoCount },
+              ] as { id: FilterTab; label: string; count: number }[]
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveFilter(tab.id)}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  border: activeFilter === tab.id
+                    ? "1px solid rgba(168,85,247,0.7)"
+                    : "1px solid rgba(255,255,255,0.12)",
+                  background: activeFilter === tab.id
+                    ? "rgba(168,85,247,0.2)"
+                    : "rgba(255,255,255,0.05)",
+                  color: activeFilter === tab.id ? "#c084fc" : "rgba(255,255,255,0.6)",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span style={{ marginLeft: "6px", opacity: 0.75, fontSize: "11px", fontWeight: 700 }}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Subtle Engine Sources Indicator Sub-Row */}
+          {engines.length > 0 && (
+            <div
               style={{
-                padding: "5px 14px",
-                borderRadius: "20px",
-                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                overflowX: "auto",
+                whiteSpace: "nowrap",
+                fontSize: "10px",
+                color: "rgba(255,255,255,0.4)",
                 fontWeight: 600,
-                cursor: "pointer",
-                border: activeFilter === tab.id
-                  ? "1px solid rgba(168,85,247,0.7)"
-                  : "1px solid rgba(255,255,255,0.12)",
-                background: activeFilter === tab.id
-                  ? "rgba(168,85,247,0.2)"
-                  : "rgba(255,255,255,0.05)",
-                color: activeFilter === tab.id ? "#c084fc" : "rgba(255,255,255,0.6)",
-                transition: "all 0.2s ease",
+                padding: "0 0 4px 0",
               }}
+              className="scrollbar-none"
             >
-              {tab.label}
-              {tab.count > 0 && (
-                <span style={{ marginLeft: "5px", opacity: 0.7, fontSize: "10px" }}>
-                  {tab.count}
+              <span style={{ textTransform: "uppercase", letterSpacing: "0.5px", fontSize: "9px", color: "#64748b", fontWeight: 700, marginRight: "2px" }}>
+                Sources:
+              </span>
+              {engines.includes("google_news_rss") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                  🔴 Google News
                 </span>
               )}
-            </button>
-          ))}
-
-          {/* Engine badges */}
-          <span style={{ marginLeft: "auto", display: "flex", gap: "6px", alignItems: "center" }}>
-            {engines.includes("google_news_rss") && (
-              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>
-                🔴 Google News
-              </span>
-            )}
-            {engines.includes("bing_news_rss") && (
-              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(14,165,233,0.15)", color: "#38bdf8", border: "1px solid rgba(14,165,233,0.25)" }}>
-                🔵 Bing News
-              </span>
-            )}
-            {engines.includes("duckduckgo_web") && (
-              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(251,146,60,0.15)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.25)" }}>
-                🌐 Web
-              </span>
-            )}
-            {engines.includes("wikipedia") && (
-              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(168,85,247,0.15)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.25)" }}>
-                📖 Wikipedia
-              </span>
-            )}
-            {engines.includes("youtube") && (
-              <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "rgba(239,68,68,0.18)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)" }}>
-                ▶️ YouTube
-              </span>
-            )}
-          </span>
+              {engines.includes("bing_news_rss") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(14,165,233,0.12)", color: "#38bdf8", border: "1px solid rgba(14,165,233,0.2)" }}>
+                  🔵 Bing News
+                </span>
+              )}
+              {engines.includes("duckduckgo_web") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(251,146,60,0.12)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.2)" }}>
+                  🌐 Web
+                </span>
+              )}
+              {engines.includes("wikipedia") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(168,85,247,0.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.2)" }}>
+                  📖 Wikipedia
+                </span>
+              )}
+              {engines.includes("youtube") && (
+                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>
+                  ▶️ YouTube
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 

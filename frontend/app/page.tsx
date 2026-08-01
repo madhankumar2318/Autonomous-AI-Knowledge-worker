@@ -271,9 +271,17 @@ export default function Home_Page() {
     const handleOpenDocument = () => {
       setActiveTab("files");
     };
+    const handleSearchQueryChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ query: string }>;
+      if (customEvent.detail && customEvent.detail.query) {
+        setGlobalSearchTrigger(customEvent.detail.query);
+      }
+    };
     window.addEventListener("open-rag-document", handleOpenDocument);
+    window.addEventListener("ak-search-query-changed", handleSearchQueryChanged);
     return () => {
       window.removeEventListener("open-rag-document", handleOpenDocument);
+      window.removeEventListener("ak-search-query-changed", handleSearchQueryChanged);
     };
   }, []);
 
