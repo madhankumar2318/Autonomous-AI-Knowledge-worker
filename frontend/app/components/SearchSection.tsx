@@ -317,6 +317,31 @@ export default function SearchSection({
 
   return (
     <div className="search-root" onScroll={handleScroll}>
+      <style>{`
+        /* Desktop: absolute overlay dropdown */
+        @media (min-width: 769px) {
+          .sc-dropdown-card {
+            position: absolute !important;
+            top: calc(100% + 6px) !important;
+            left: 0 !important;
+            right: 0 !important;
+            max-height: 280px !important;
+          }
+        }
+        /* Mobile: in-flow card so keyboard & parent overflow cannot clip items */
+        @media (max-width: 768px) {
+          .sc-dropdown-card {
+            position: relative !important;
+            top: 0 !important;
+            margin-top: 10px !important;
+            width: 100% !important;
+            max-height: 220px !important;
+          }
+          .search-root {
+            overflow: visible !important;
+          }
+        }
+      `}</style>
 
       {/* ── Search Form with Google/Chrome Suggestions Dropdown ── */}
       <div ref={searchContainerRef} className="relative w-full z-30">
@@ -360,17 +385,13 @@ export default function SearchSection({
         {/* ── Suggestions Dropdown Card ── */}
         {showDropdown && (
           <div
+            className="sc-dropdown-card"
             style={{
-              position: "absolute",
-              top: "calc(100% + 6px)",
-              left: 0,
-              right: 0,
               background: "#11141d",
               border: "1px solid rgba(255, 255, 255, 0.15)",
               borderRadius: "16px",
               boxShadow: "0 24px 60px rgba(0, 0, 0, 0.95)",
               overflowY: "auto",
-              maxHeight: "230px",
               WebkitOverflowScrolling: "touch",
               zIndex: 9999,
               padding: "8px 0",
