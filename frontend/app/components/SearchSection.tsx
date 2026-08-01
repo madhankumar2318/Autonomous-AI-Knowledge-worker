@@ -109,6 +109,7 @@ export default function SearchSection({
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Load recent searches from localStorage
@@ -157,6 +158,12 @@ export default function SearchSection({
 
   // Debounced fetch for suggestions
   useEffect(() => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      setLoadingSuggestions(false);
+      return;
+    }
+    setLoadingSuggestions(true);
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
@@ -169,6 +176,8 @@ export default function SearchSection({
         }
       } catch (err) {
         console.error("Failed to fetch suggestions:", err);
+      } finally {
+        setLoadingSuggestions(false);
       }
     }, 120);
 
@@ -356,19 +365,28 @@ export default function SearchSection({
               top: "calc(100% + 6px)",
               left: 0,
               right: 0,
-              background: "rgba(13, 16, 24, 0.96)",
-              backdropFilter: "blur(16px)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
+              background: "#11141d",
+              border: "1px solid rgba(255, 255, 255, 0.15)",
               borderRadius: "16px",
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.75)",
-              overflow: "hidden",
-              zIndex: 99,
-              padding: "10px 0",
+              boxShadow: "0 24px 60px rgba(0, 0, 0, 0.95)",
+              overflowY: "auto",
+              maxHeight: "230px",
+              WebkitOverflowScrolling: "touch",
+              zIndex: 9999,
+              padding: "8px 0",
               animation: "scFadeIn 0.15s ease-out",
             }}
           >
+            {/* Loading Indicator */}
+            {loadingSuggestions && (
+              <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: "8px", color: "#94a3b8", fontSize: "12px" }}>
+                <div className="spinner" style={{ width: "14px", height: "14px" }} />
+                <span>Searching suggestions...</span>
+              </div>
+            )}
+
             {/* 1. Real-time Autocomplete Suggestions */}
-            {!isQueryEmpty && suggestions.length > 0 && (
+            {!isQueryEmpty && !loadingSuggestions && suggestions.length > 0 && (
               <div style={{ padding: "4px 0" }}>
                 <div style={{
                   padding: "6px 16px",
@@ -393,15 +411,15 @@ export default function SearchSection({
                       onClick={() => executeSearch(item)}
                       onMouseEnter={() => setSelectedIndex(globalIdx)}
                       style={{
-                        padding: "9px 16px",
+                        padding: "10px 16px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
                         cursor: "pointer",
                         fontSize: "13px",
                         fontWeight: 500,
-                        color: isHighlighted ? "#f1f5f9" : "#cbd5e1",
-                        background: isHighlighted ? "rgba(168, 85, 247, 0.16)" : "transparent",
+                        color: isHighlighted ? "#ffffff" : "#cbd5e1",
+                        background: isHighlighted ? "rgba(168, 85, 247, 0.2)" : "transparent",
                         borderLeft: isHighlighted ? "3px solid #c084fc" : "3px solid transparent",
                         transition: "all 0.12s ease",
                       }}
@@ -414,6 +432,27 @@ export default function SearchSection({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Default search prompt if suggestions empty */}
+            {!isQueryEmpty && !loadingSuggestions && suggestions.length === 0 && (
+              <div
+                onClick={() => executeSearch(query)}
+                style={{
+                  padding: "12px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  cursor: "pointer",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "#c084fc",
+                  background: "rgba(168, 85, 247, 0.08)",
+                }}
+              >
+                <Search size={14} />
+                <span>Search for &quot;{query}&quot;</span>
               </div>
             )}
 
@@ -462,15 +501,15 @@ export default function SearchSection({
                       onClick={() => executeSearch(item)}
                       onMouseEnter={() => setSelectedIndex(globalIdx)}
                       style={{
-                        padding: "9px 16px",
+                        padding: "10px 16px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
                         cursor: "pointer",
                         fontSize: "13px",
                         fontWeight: 500,
-                        color: isHighlighted ? "#f1f5f9" : "#cbd5e1",
-                        background: isHighlighted ? "rgba(56, 189, 248, 0.14)" : "transparent",
+                        color: isHighlighted ? "#ffffff" : "#cbd5e1",
+                        background: isHighlighted ? "rgba(56, 189, 248, 0.2)" : "transparent",
                         borderLeft: isHighlighted ? "3px solid #38bdf8" : "3px solid transparent",
                         transition: "all 0.12s ease",
                       }}
@@ -513,15 +552,15 @@ export default function SearchSection({
                       onClick={() => executeSearch(item)}
                       onMouseEnter={() => setSelectedIndex(globalIdx)}
                       style={{
-                        padding: "9px 16px",
+                        padding: "10px 16px",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
                         cursor: "pointer",
                         fontSize: "13px",
                         fontWeight: 500,
-                        color: isHighlighted ? "#f1f5f9" : "#cbd5e1",
-                        background: isHighlighted ? "rgba(244, 63, 94, 0.14)" : "transparent",
+                        color: isHighlighted ? "#ffffff" : "#cbd5e1",
+                        background: isHighlighted ? "rgba(244, 63, 94, 0.2)" : "transparent",
                         borderLeft: isHighlighted ? "3px solid #f43f5e" : "3px solid transparent",
                         transition: "all 0.12s ease",
                       }}
@@ -535,9 +574,9 @@ export default function SearchSection({
                         fontWeight: 700,
                         padding: "2px 7px",
                         borderRadius: "10px",
-                        background: "rgba(244, 63, 94, 0.12)",
+                        background: "rgba(244, 63, 94, 0.15)",
                         color: "#fb7185",
-                        border: "1px solid rgba(244, 63, 94, 0.25)"
+                        border: "1px solid rgba(244, 63, 94, 0.3)"
                       }}>
                         HOT
                       </span>
