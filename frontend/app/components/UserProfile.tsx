@@ -15,6 +15,10 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Sun,
+  Moon,
+  Monitor,
+  Palette,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
@@ -49,7 +53,23 @@ export default function UserProfile({
   const [editEmail, setEditEmail] = useState("");
   const [editMobile, setEditMobile] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"profile" | "ai_settings">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "ai_settings">("profile");
+
+  // Appearance theme state
+  const [currentTheme, setCurrentTheme] = useState("dark");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("ak_theme") || "dark";
+    setCurrentTheme(savedTheme);
+  }, []);
+
+  const handleThemeChange = (themeId: string) => {
+    setCurrentTheme(themeId);
+    localStorage.setItem("ak_theme", themeId);
+    document.documentElement.setAttribute("data-theme", themeId);
+    const themeName = themeId === "oled" ? "OLED Black" : themeId === "light" ? "Light Elegance" : "Dark Glass";
+    showToast(`Theme updated to ${themeName}! ✨`, "ok");
+  };
 
   // AI settings state
   const [defaultModel, setDefaultModel] = useState("llama-70b");
@@ -671,6 +691,23 @@ export default function UserProfile({
                 👤 Profile
               </button>
               <button
+                onClick={() => setActiveTab("appearance")}
+                style={{
+                  flex: 1,
+                  padding: "14px 10px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${activeTab === "appearance" ? "#22d3ee" : "transparent"}`,
+                  color: activeTab === "appearance" ? "var(--text-primary)" : "var(--text-secondary)",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                }}
+              >
+                🎨 Appearance
+              </button>
+              <button
                 onClick={() => setActiveTab("ai_settings")}
                 style={{
                   flex: 1,
@@ -691,7 +728,62 @@ export default function UserProfile({
 
             {/* ════ BODY ════ */}
             <div style={{ flex: 1, padding: "24px" }}>
-              {activeTab === "ai_settings" ? (
+              {activeTab === "appearance" ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Palette size={16} style={{ color: "#22d3ee" }} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>Theme Mode</h3>
+                      <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)" }}>Choose your preferred color theme</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {[
+                      { id: "dark", label: "Dark Glass", desc: "Default sleek dark mode", icon: Moon },
+                      { id: "oled", label: "OLED Pitch Black", desc: "True black, saves battery", icon: Monitor },
+                      { id: "light", label: "Light Elegance", desc: "Clean & high-contrast light mode", icon: Sun }
+                    ].map((t) => {
+                      const Icon = t.icon;
+                      const isSelected = currentTheme === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleThemeChange(t.id)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "14px 16px",
+                            borderRadius: "14px",
+                            background: isSelected ? "rgba(34, 211, 238, 0.08)" : "var(--bg-secondary)",
+                            border: `1px solid ${isSelected ? "rgba(34, 211, 238, 0.4)" : "var(--border-light)"}`,
+                            cursor: "pointer",
+                            textAlign: "left",
+                            transition: "all 0.2s ease"
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: isSelected ? "rgba(34,211,238,0.15)" : "var(--bg-surface)", border: `1px solid ${isSelected ? "rgba(34,211,238,0.3)" : "var(--border-light)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Icon size={16} style={{ color: isSelected ? "#22d3ee" : "var(--text-secondary)" }} />
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: isSelected ? "#22d3ee" : "var(--text-primary)" }}>{t.label}</p>
+                              <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</p>
+                            </div>
+                          </div>
+                          <div style={{ width: "16px", height: "16px", borderRadius: "50%", border: `2px solid ${isSelected ? "#22d3ee" : "var(--border-medium)"}`, background: isSelected ? "#22d3ee" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {isSelected && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#11141d" }} />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : activeTab === "ai_settings" ? (
                 settingsLoading ? (
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px" }}>
                     <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "2px solid rgba(34,211,238,0.2)", borderTopColor: "#22d3ee", animation: "spin 0.7s linear infinite" }} />
