@@ -72,6 +72,8 @@ export default function UserProfile({
     const savedAccent = localStorage.getItem("ak_accent") || "cyan";
     setCurrentTheme(savedTheme);
     setCurrentAccent(savedAccent);
+    const accentObj = ACCENT_COLORS.find((a) => a.id === savedAccent) || ACCENT_COLORS[0];
+    document.documentElement.style.setProperty("--accent-primary", accentObj.color);
   }, []);
 
   const handleThemeChange = (themeId: string) => {
@@ -700,7 +702,7 @@ export default function UserProfile({
                   padding: "14px 10px",
                   background: "transparent",
                   border: "none",
-                  borderBottom: `2px solid ${activeTab === "profile" ? "#22d3ee" : "transparent"}`,
+                  borderBottom: `2px solid ${activeTab === "profile" ? "var(--accent-primary, #22d3ee)" : "transparent"}`,
                   color: activeTab === "profile" ? "var(--text-primary)" : "var(--text-secondary)",
                   fontWeight: 700,
                   fontSize: "13px",
@@ -717,7 +719,7 @@ export default function UserProfile({
                   padding: "14px 10px",
                   background: "transparent",
                   border: "none",
-                  borderBottom: `2px solid ${activeTab === "appearance" ? "#22d3ee" : "transparent"}`,
+                  borderBottom: `2px solid ${activeTab === "appearance" ? "var(--accent-primary, #22d3ee)" : "transparent"}`,
                   color: activeTab === "appearance" ? "var(--text-primary)" : "var(--text-secondary)",
                   fontWeight: 700,
                   fontSize: "13px",
@@ -734,7 +736,7 @@ export default function UserProfile({
                   padding: "14px 10px",
                   background: "transparent",
                   border: "none",
-                  borderBottom: `2px solid ${activeTab === "ai_settings" ? "#22d3ee" : "transparent"}`,
+                  borderBottom: `2px solid ${activeTab === "ai_settings" ? "var(--accent-primary, #22d3ee)" : "transparent"}`,
                   color: activeTab === "ai_settings" ? "var(--text-primary)" : "var(--text-secondary)",
                   fontWeight: 700,
                   fontSize: "13px",

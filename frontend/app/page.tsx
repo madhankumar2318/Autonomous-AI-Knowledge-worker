@@ -256,7 +256,18 @@ export default function Home_Page() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
+    const savedAccent = localStorage.getItem("ak_accent") || "cyan";
+    const accentColors: Record<string, string> = {
+      cyan: "#22d3ee",
+      purple: "#a855f7",
+      emerald: "#10b981",
+      amber: "#f59e0b",
+      rose: "#f43f5e",
+    };
     document.documentElement.setAttribute("data-theme", savedTheme);
+    if (accentColors[savedAccent]) {
+      document.documentElement.style.setProperty("--accent-primary", accentColors[savedAccent]);
+    }
     fetch(`${API_BASE_URL}/auth/verify`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => { setLoggedInUser(data.username); setIsLoggedIn(true); })
