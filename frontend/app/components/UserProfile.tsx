@@ -55,12 +55,23 @@ export default function UserProfile({
 
   const [activeTab, setActiveTab] = useState<"profile" | "appearance" | "ai_settings">("profile");
 
-  // Appearance theme state
+  // Appearance theme & accent state
   const [currentTheme, setCurrentTheme] = useState("dark");
+  const [currentAccent, setCurrentAccent] = useState("cyan");
+
+  const ACCENT_COLORS = [
+    { id: "cyan", color: "#22d3ee", label: "Cyan" },
+    { id: "purple", color: "#a855f7", label: "Purple" },
+    { id: "emerald", color: "#10b981", label: "Emerald" },
+    { id: "amber", color: "#f59e0b", label: "Amber" },
+    { id: "rose", color: "#f43f5e", label: "Rose" },
+  ];
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
+    const savedAccent = localStorage.getItem("ak_accent") || "cyan";
     setCurrentTheme(savedTheme);
+    setCurrentAccent(savedAccent);
   }, []);
 
   const handleThemeChange = (themeId: string) => {
@@ -69,6 +80,15 @@ export default function UserProfile({
     document.documentElement.setAttribute("data-theme", themeId);
     const themeName = themeId === "oled" ? "OLED Black" : themeId === "light" ? "Light Elegance" : "Dark Glass";
     showToast(`Theme updated to ${themeName}! ✨`, "ok");
+  };
+
+  const handleAccentChange = (accentId: string) => {
+    const accentObj = ACCENT_COLORS.find((a) => a.id === accentId);
+    if (!accentObj) return;
+    setCurrentAccent(accentId);
+    localStorage.setItem("ak_accent", accentId);
+    document.documentElement.style.setProperty("--accent-primary", accentObj.color);
+    showToast(`Accent color updated to ${accentObj.label}! 🎨`, "ok");
   };
 
   // AI settings state
@@ -781,6 +801,44 @@ export default function UserProfile({
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Accent Color Picker */}
+                  <div style={{ marginTop: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Sparkles size={16} style={{ color: "#c084fc" }} />
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>Accent Color</h3>
+                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)" }}>Signature highlight color for buttons & badges</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                      {ACCENT_COLORS.map((a) => {
+                        const isSelected = currentAccent === a.id;
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => handleAccentChange(a.id)}
+                            title={a.label}
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "12px",
+                              background: a.color,
+                              border: isSelected ? "3px solid white" : "3px solid transparent",
+                              boxShadow: isSelected ? `0 0 0 2px ${a.color}, 0 4px 12px ${a.color}66` : "none",
+                              cursor: "pointer",
+                              transition: "all 0.2s ease",
+                              transform: isSelected ? "scale(1.1)" : "scale(1)"
+                            }}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : activeTab === "ai_settings" ? (
