@@ -1314,11 +1314,11 @@ export default function ChatAssistant({
           outline: none; transition: all 0.15s ease;
         }
         .cfab-icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .cfab-icon-btn--active { background: rgba(34,211,238,0.15) !important; border-color: rgba(34,211,238,0.35) !important; color: #22d3ee !important; }
+        .cfab-icon-btn--active { background: color-mix(in srgb, var(--accent-primary, #22d3ee) 15%, transparent) !important; border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 35%, transparent) !important; color: var(--accent-primary, #22d3ee) !important; }
         .cfab-avatar {
           width: 30px; height: 30px; border-radius: 9px;
-          background: linear-gradient(135deg, rgba(34,211,238,0.22), rgba(14,165,233,0.14));
-          border: 1px solid rgba(34, 211, 238, 0.28);
+          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 20%, transparent);
+          border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 30%, transparent);
           display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
         .cfab-title-block { flex: 1; min-width: 0; text-align: left; }
@@ -1349,13 +1349,13 @@ export default function ChatAssistant({
           width: 50px;
           height: 50px;
           border-radius: 16px;
-          background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(14, 165, 233, 0.1));
-          border: 1px solid rgba(34, 211, 238, 0.3);
+          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 20%, transparent);
+          border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 35%, transparent);
           display: flex;
           align-items: center;
           justify-content: center;
           margin: 0 auto 14px;
-          box-shadow: 0 8px 24px rgba(34, 211, 238, 0.15);
+          box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-primary, #22d3ee) 20%, transparent);
         }
         .cfab-home-welcome h2 {
           font-size: 24px;
@@ -1371,7 +1371,7 @@ export default function ChatAssistant({
         }
         .cfab-home-cta {
           width: 100%;
-          background: linear-gradient(135deg, #22d3ee, #0891b2);
+          background: var(--accent-primary, #22d3ee);
           border: none;
           border-radius: 14px;
           color: #03101c;
@@ -1536,8 +1536,8 @@ export default function ChatAssistant({
           cursor: not-allowed; color: var(--text-muted); outline: none;
           transition: all 0.2s cubic-bezier(0.34,1.56,0.64,1);
         }
-        .cfab-send-active { background: linear-gradient(135deg,#22d3ee,#0891b2) !important; border-color: transparent !important; color: #030f1a !important; cursor: pointer !important; box-shadow: 0 4px 14px rgba(34,211,238,0.35); }
-        .cfab-send-active:hover { transform: scale(1.08); box-shadow: 0 6px 18px rgba(34,211,238,0.5); }
+        .cfab-send-active { background: var(--accent-primary, #22d3ee) !important; border-color: transparent !important; color: #030f1a !important; cursor: pointer !important; box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, transparent); }
+        .cfab-send-active:hover { transform: scale(1.08); box-shadow: 0 6px 18px color-mix(in srgb, var(--accent-primary, #22d3ee) 60%, transparent); }
         .cfab-stop { background: rgba(239,68,68,0.15) !important; border-color: rgba(239,68,68,0.4) !important; color: #f87171 !important; cursor: pointer !important; }
         .cfab-stop:hover { background: rgba(239,68,68,0.25) !important; }
 
@@ -1549,7 +1549,7 @@ export default function ChatAssistant({
           background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
           background-repeat: no-repeat; background-position: right 8px center; background-size: 12px; transition: border-color 0.15s ease;
         }
-        .chat-model-select:hover { border-color: rgba(34,211,238,0.4); }
+        .chat-model-select:hover { border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, transparent); }
 
         /* Mic/Voice Input button */
         .cfab-mic-btn {
@@ -1575,9 +1575,9 @@ export default function ChatAssistant({
 
         /* Animations */
         @keyframes slideUpFade { from{opacity:0;transform:translateY(12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
-        .chat-typing-dot { width:6px;height:6px;border-radius:50%;background:#67e8f9;display:inline-block;animation:typingBounce 1.4s infinite ease-in-out both; }
+        .chat-typing-dot { width:6px;height:6px;border-radius:50%;background:var(--accent-primary, #22d3ee);display:inline-block;animation:typingBounce 1.4s infinite ease-in-out both; }
         @keyframes typingBounce { 0%,80%,100%{transform:scale(0.5);opacity:0.4} 40%{transform:scale(1);opacity:1} }
-        .chat-stream-cursor { display:inline-block;color:#22d3ee;animation:cursorBlink 0.9s step-end infinite;margin-left:1px; }
+        .chat-stream-cursor { display:inline-block;color:var(--accent-primary, #22d3ee);animation:cursorBlink 0.9s step-end infinite;margin-left:1px; }
         @keyframes cursorBlink { 0%,100%{opacity:1} 50%{opacity:0} }
 
         @media (max-width:600px) {
