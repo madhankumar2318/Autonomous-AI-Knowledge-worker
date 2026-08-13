@@ -661,9 +661,9 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           position: relative;
         }
         .fw-dropzone-dragging {
-          border-color: #22d3ee !important;
-          background: rgba(34,211,238,0.06) !important;
-          box-shadow: 0 0 24px rgba(34,211,238,0.25), inset 0 0 20px rgba(34,211,238,0.1) !important;
+          border-color: var(--accent-primary, #22d3ee) !important;
+          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 8%, transparent) !important;
+          box-shadow: 0 0 24px color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent), inset 0 0 20px color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent) !important;
           transform: scale(1.012) translateY(-1px);
         }
         .fw-dropzone-ready {
@@ -687,7 +687,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           color: var(--text-secondary);
         }
         .fw-dropzone-link {
-          color: #22d3ee;
+          color: var(--accent-primary, #22d3ee);
           font-weight: 600;
           cursor: pointer;
           text-decoration: underline;
@@ -751,13 +751,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         .fw-progress-bar {
           height: 100%;
           border-radius: 99px;
-          background: linear-gradient(90deg, #22d3ee, #0891b2);
+          background: var(--accent-primary, #22d3ee);
           transition: width 0.2s ease;
-          box-shadow: 0 0 8px rgba(34,211,238,0.5);
+          box-shadow: 0 0 8px color-mix(in srgb, var(--accent-primary, #22d3ee) 50%, transparent);
         }
         .fw-progress-label {
           font-size: 13px;
-          color: #22d3ee;
+          color: var(--accent-primary, #22d3ee);
           font-weight: 700;
           font-variant-numeric: tabular-nums;
           min-width: 60px;
@@ -773,17 +773,17 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           width: 100%;
           padding: 11px;
           border-radius: 12px;
-          background: linear-gradient(135deg, #22d3ee, #0891b2);
+          background: var(--accent-primary, #22d3ee);
           border: none;
           font-size: 15px;
           font-weight: 700;
           color: #030f1a;
           cursor: pointer;
           transition: all 0.2s ease;
-          box-shadow: 0 4px 16px rgba(34,211,238,0.3);
+          box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-primary, #22d3ee) 35%, transparent);
         }
         .fw-upload-btn:hover {
-          box-shadow: 0 6px 24px rgba(34,211,238,0.5);
+          box-shadow: 0 6px 24px color-mix(in srgb, var(--accent-primary, #22d3ee) 55%, transparent);
           transform: translateY(-1px);
         }
 

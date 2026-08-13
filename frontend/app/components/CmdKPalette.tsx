@@ -261,8 +261,8 @@ export default function CmdKPalette({
                     padding: "10px 12px",
                     borderRadius: "10px",
                     cursor: "pointer",
-                    background: isSelected ? "rgba(34, 211, 238, 0.08)" : "transparent",
-                    border: isSelected ? "1px solid rgba(34, 211, 238, 0.2)" : "1px solid transparent",
+                    background: isSelected ? "color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent)" : "transparent",
+                    border: isSelected ? "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent)" : "1px solid transparent",
                     transition: "all 0.12s ease",
                   }}
                 >
