@@ -363,15 +363,15 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         .sc-ai-btn {
           display: inline-flex; align-items: center; gap: 6px;
           padding: 6px 12px; border-radius: 10px;
-          background: rgba(34, 211, 238, 0.12);
-          border: 1px solid rgba(34, 211, 238, 0.3);
-          color: #22d3ee; font-size: 12px; font-weight: 600;
+          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 12%, transparent);
+          border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 30%, transparent);
+          color: var(--accent-primary, #22d3ee); font-size: 12px; font-weight: 600;
           cursor: pointer; transition: all 0.2s ease;
           white-space: nowrap; flex-shrink: 0;
         }
         .sc-ai-btn:hover {
-          background: rgba(34, 211, 238, 0.22);
-          border-color: rgba(34, 211, 238, 0.5);
+          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 22%, transparent);
+          border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 50%, transparent);
           transform: translateY(-1px);
         }
         .sc-close-btn {

@@ -58,6 +58,7 @@ export default function UserProfile({
   // Appearance theme & accent state
   const [currentTheme, setCurrentTheme] = useState("dark");
   const [currentAccent, setCurrentAccent] = useState("cyan");
+  const [customHex, setCustomHex] = useState("#22d3ee");
 
   const ACCENT_COLORS = [
     { id: "cyan", color: "#22d3ee", label: "Cyan" },
@@ -70,10 +71,14 @@ export default function UserProfile({
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     const savedAccent = localStorage.getItem("ak_accent") || "cyan";
+    const savedCustomHex = localStorage.getItem("ak_accent_custom_hex") || "#22d3ee";
     setCurrentTheme(savedTheme);
     setCurrentAccent(savedAccent);
-    const accentObj = ACCENT_COLORS.find((a) => a.id === savedAccent) || ACCENT_COLORS[0];
-    document.documentElement.style.setProperty("--accent-primary", accentObj.color);
+    setCustomHex(savedCustomHex);
+    const activeColor = savedAccent === "custom"
+      ? savedCustomHex
+      : (ACCENT_COLORS.find((a) => a.id === savedAccent)?.color || ACCENT_COLORS[0].color);
+    document.documentElement.style.setProperty("--accent-primary", activeColor);
   }, []);
 
   const handleThemeChange = (themeId: string) => {
@@ -91,6 +96,15 @@ export default function UserProfile({
     localStorage.setItem("ak_accent", accentId);
     document.documentElement.style.setProperty("--accent-primary", accentObj.color);
     showToast(`Accent color updated to ${accentObj.label}! 🎨`, "ok");
+  };
+
+  const handleCustomAccentChange = (hex: string) => {
+    setCustomHex(hex);
+    setCurrentAccent("custom");
+    localStorage.setItem("ak_accent", "custom");
+    localStorage.setItem("ak_accent_custom_hex", hex);
+    document.documentElement.style.setProperty("--accent-primary", hex);
+    showToast(`Custom accent color updated to ${hex.toUpperCase()}! 🎨`, "ok");
   };
 
   // AI settings state
@@ -840,6 +854,33 @@ export default function UserProfile({
                           />
                         );
                       })}
+                    </div>
+
+                    {/* Custom Color Input */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px", background: "var(--bg-secondary)", padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
+                      <label htmlFor="custom-accent-color-picker" style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", flex: 1, cursor: "pointer" }}>
+                        Custom Color Picker:
+                      </label>
+                      <input
+                        id="custom-accent-color-picker"
+                        type="color"
+                        value={customHex}
+                        onChange={(e) => handleCustomAccentChange(e.target.value)}
+                        style={{ width: "32px", height: "32px", borderRadius: "8px", border: "none", cursor: "pointer", background: "transparent" }}
+                        title="Pick any custom color"
+                      />
+                      <input
+                        type="text"
+                        value={customHex}
+                        onChange={(e) => {
+                          setCustomHex(e.target.value);
+                          if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                            handleCustomAccentChange(e.target.value);
+                          }
+                        }}
+                        placeholder="#22d3ee"
+                        style={{ width: "85px", padding: "4px 8px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-light)", color: "var(--text-primary)", fontSize: "12px", fontFamily: "monospace", textTransform: "uppercase" }}
+                      />
                     </div>
                   </div>
                 </div>
