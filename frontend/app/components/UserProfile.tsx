@@ -59,6 +59,10 @@ export default function UserProfile({
   const [currentTheme, setCurrentTheme] = useState("dark");
   const [currentAccent, setCurrentAccent] = useState("cyan");
   const [customHex, setCustomHex] = useState("#22d3ee");
+  const [currentFont, setCurrentFont] = useState("inter");
+  const [avatarEmoji, setAvatarEmoji] = useState("");
+  const [rippleId, setRippleId] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const ACCENT_COLORS = [
     { id: "cyan", color: "#22d3ee", label: "Cyan" },
@@ -68,18 +72,49 @@ export default function UserProfile({
     { id: "rose", color: "#f43f5e", label: "Rose" },
   ];
 
+  const FONT_OPTIONS = [
+    { id: "inter", label: "Inter", family: "'Inter', sans-serif", hint: "Clean & modern" },
+    { id: "dm-sans", label: "DM Sans", family: "'DM Sans', sans-serif", hint: "Geometric & friendly" },
+    { id: "sora", label: "Sora", family: "'Sora', sans-serif", hint: "Bold & futuristic" },
+    { id: "geist", label: "Geist", family: "'Geist', sans-serif", hint: "Developer-first precision" },
+  ];
+
+  const AVATAR_EMOJIS = ["🤖","🚀","🧠","⚡","🎯","🦊","🌌","🔥","💎","🐉","🎭","🦋","🌙","⭐","🎪","🏆"];
+
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     const savedAccent = localStorage.getItem("ak_accent") || "cyan";
     const savedCustomHex = localStorage.getItem("ak_accent_custom_hex") || "#22d3ee";
+    const savedFont = localStorage.getItem("ak_font") || "inter";
+    const savedEmoji = localStorage.getItem("ak_avatar_emoji") || "";
     setCurrentTheme(savedTheme);
     setCurrentAccent(savedAccent);
     setCustomHex(savedCustomHex);
+    setCurrentFont(savedFont);
+    setAvatarEmoji(savedEmoji);
     const activeColor = savedAccent === "custom"
       ? savedCustomHex
       : (ACCENT_COLORS.find((a) => a.id === savedAccent)?.color || ACCENT_COLORS[0].color);
     document.documentElement.style.setProperty("--accent-primary", activeColor);
+    applyFont(savedFont);
   }, []);
+
+  function applyFont(fontId: string) {
+    const fontObj = FONT_OPTIONS.find((f) => f.id === fontId);
+    if (!fontObj) return;
+    document.documentElement.style.setProperty("--font-family", fontObj.family);
+    document.body.style.fontFamily = fontObj.family;
+    // Inject Google Fonts link if not present
+    const linkId = `gf-${fontId}`;
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement("link");
+      link.id = linkId;
+      link.rel = "stylesheet";
+      const name = fontObj.label.replace(" ", "+");
+      link.href = `https://fonts.googleapis.com/css2?family=${name}:wght@400;500;600;700;800;900&display=swap`;
+      document.head.appendChild(link);
+    }
+  }
 
   const handleThemeChange = (themeId: string) => {
     setCurrentTheme(themeId);
@@ -92,10 +127,12 @@ export default function UserProfile({
   const handleAccentChange = (accentId: string) => {
     const accentObj = ACCENT_COLORS.find((a) => a.id === accentId);
     if (!accentObj) return;
+    setRippleId(accentId);
+    setTimeout(() => setRippleId(null), 600);
     setCurrentAccent(accentId);
     localStorage.setItem("ak_accent", accentId);
     document.documentElement.style.setProperty("--accent-primary", accentObj.color);
-    showToast(`Accent color updated to ${accentObj.label}! 🎨`, "ok");
+    showToast(`Accent updated to ${accentObj.label}! 🎨`, "ok");
   };
 
   const handleCustomAccentChange = (hex: string) => {
@@ -104,7 +141,22 @@ export default function UserProfile({
     localStorage.setItem("ak_accent", "custom");
     localStorage.setItem("ak_accent_custom_hex", hex);
     document.documentElement.style.setProperty("--accent-primary", hex);
-    showToast(`Custom accent color updated to ${hex.toUpperCase()}! 🎨`, "ok");
+    showToast(`Custom accent set to ${hex.toUpperCase()}! 🎨`, "ok");
+  };
+
+  const handleFontChange = (fontId: string) => {
+    setCurrentFont(fontId);
+    localStorage.setItem("ak_font", fontId);
+    applyFont(fontId);
+    const fontObj = FONT_OPTIONS.find((f) => f.id === fontId);
+    showToast(`Font changed to ${fontObj?.label}! 🔤`, "ok");
+  };
+
+  const handleAvatarEmoji = (emoji: string) => {
+    setAvatarEmoji(emoji);
+    localStorage.setItem("ak_avatar_emoji", emoji);
+    setShowEmojiPicker(false);
+    showToast(`Avatar updated! ${emoji}`, "ok");
   };
 
   // AI settings state
@@ -544,7 +596,7 @@ export default function UserProfile({
                 }}
               />
 
-              {/* Avatar with animated ring */}
+              {/* Avatar with animated ring + emoji picker */}
               <div
                 style={{
                   position: "relative",
@@ -557,8 +609,7 @@ export default function UserProfile({
                     position: "absolute",
                     inset: "-4px",
                     borderRadius: "28px",
-                    background:
-                      "linear-gradient(135deg, #2563eb, #0d9488, #2563eb)",
+                    background: `linear-gradient(135deg, var(--accent-primary, #22d3ee), #0d9488, var(--accent-primary, #22d3ee))`,
                     backgroundSize: "200% 200%",
                     animation: "gradientShift 3s ease infinite",
                     padding: "2px",
@@ -571,12 +622,14 @@ export default function UserProfile({
                     width: "88px",
                     height: "88px",
                     borderRadius: "24px",
-                    background:
-                      "linear-gradient(145deg, #1d4ed8 0%, #0d9488 100%)",
+                    background: avatarEmoji
+                      ? "var(--bg-secondary)"
+                      : "linear-gradient(145deg, #1d4ed8 0%, #0d9488 100%)",
+                    border: avatarEmoji ? "2px solid var(--border-medium)" : "none",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: "34px",
+                    fontSize: avatarEmoji ? "44px" : "34px",
                     fontWeight: 900,
                     color: "white",
                     letterSpacing: "-1px",
@@ -602,7 +655,7 @@ export default function UserProfile({
               </h2>
               <p
                 style={{
-                  margin: "0 0 16px",
+                  margin: "0 0 12px",
                   color: "var(--text-secondary)",
                   fontSize: "16px",
                   fontWeight: 500,
@@ -610,6 +663,25 @@ export default function UserProfile({
               >
                 @{username}
               </p>
+
+              {/* Avatar emoji picker trigger */}
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker((v) => !v)}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.5px", marginBottom: "12px", padding: "4px 10px", borderRadius: "6px", transition: "color 0.15s" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-primary, #22d3ee)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+              >
+                ✏️ Change Avatar
+              </button>
+              {showEmojiPicker && (
+                <div style={{ position: "absolute", top: "calc(100% - 60px)", left: "50%", transform: "translateX(-50%)", zIndex: 20, background: "var(--bg-card)", border: "1px solid var(--border-medium)", borderRadius: "16px", padding: "12px", boxShadow: "0 16px 48px rgba(0,0,0,0.6)", display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: "6px", backdropFilter: "blur(20px)" }}>
+                  <button type="button" onClick={() => handleAvatarEmoji("")} style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", background: "var(--bg-secondary)", border: "1px solid var(--border-light)", borderRadius: "8px", padding: "6px", cursor: "pointer" }}>ABC</button>
+                  {AVATAR_EMOJIS.map((em) => (
+                    <button key={em} type="button" onClick={() => handleAvatarEmoji(em)} style={{ fontSize: "22px", background: avatarEmoji === em ? "color-mix(in srgb, var(--accent-primary, #22d3ee) 15%, transparent)" : "transparent", border: avatarEmoji === em ? "1px solid var(--accent-primary, #22d3ee)" : "1px solid transparent", borderRadius: "8px", cursor: "pointer", padding: "4px", transition: "all 0.15s" }}>{em}</button>
+                  ))}
+                </div>
+              )}
 
               {/* Role badge */}
               <div
@@ -749,102 +821,130 @@ export default function UserProfile({
             {/* ════ BODY ════ */}
             <div style={{ flex: 1, padding: "24px" }}>
               {activeTab === "appearance" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
-                    <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(34,211,238,0.1)", border: "1px solid rgba(34,211,238,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Palette size={16} style={{ color: "#22d3ee" }} />
+                <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+
+                  {/* ── THEME MODE with animated preview cards ── */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "color-mix(in srgb, var(--accent-primary,#22d3ee) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary,#22d3ee) 25%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Palette size={16} style={{ color: "var(--accent-primary, #22d3ee)" }} />
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>Theme Mode</h3>
+                        <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)" }}>Live-preview your workspace theme</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>Theme Mode</h3>
-                      <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)" }}>Choose your preferred color theme</p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+                      {[
+                        { id: "dark", label: "Dark Glass", icon: Moon, bg: "#0a0a14", bar: "#1a1a2e", accent: "#22d3ee" },
+                        { id: "oled", label: "OLED Black", icon: Monitor, bg: "#000000", bar: "#0a0a0a", accent: "#22d3ee" },
+                        { id: "light", label: "Light", icon: Sun, bg: "#f8fafc", bar: "#e2e8f0", accent: "#0891b2" },
+                      ].map((t) => {
+                        const Icon = t.icon;
+                        const isSel = currentTheme === t.id;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => handleThemeChange(t.id)}
+                            style={{
+                              display: "flex", flexDirection: "column", gap: "8px",
+                              padding: "10px", borderRadius: "14px", cursor: "pointer", textAlign: "left",
+                              background: isSel ? "color-mix(in srgb, var(--accent-primary,#22d3ee) 10%, transparent)" : "var(--bg-secondary)",
+                              border: `2px solid ${isSel ? "var(--accent-primary, #22d3ee)" : "var(--border-light)"}`,
+                              transition: "all 0.22s ease",
+                              transform: isSel ? "scale(1.03)" : "scale(1)",
+                              boxShadow: isSel ? "0 4px 20px color-mix(in srgb, var(--accent-primary,#22d3ee) 20%, transparent)" : "none",
+                            }}
+                          >
+                            {/* Mini UI thumbnail */}
+                            <div style={{ borderRadius: "8px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)", background: t.bg, height: "54px", position: "relative", flexShrink: 0 }}>
+                              <div style={{ height: "12px", background: t.bar, display: "flex", alignItems: "center", padding: "0 6px", gap: "3px" }}>
+                                <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#ef4444", opacity: 0.8 }} />
+                                <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#f59e0b", opacity: 0.8 }} />
+                                <div style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#22c55e", opacity: 0.8 }} />
+                                <div style={{ marginLeft: "auto", width: "20px", height: "4px", borderRadius: "2px", background: t.accent, opacity: 0.7 }} />
+                              </div>
+                              <div style={{ display: "flex", gap: "4px", padding: "4px 5px" }}>
+                                <div style={{ width: "14px", borderRadius: "3px", background: t.bar, flexShrink: 0 }} />
+                                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "3px" }}>
+                                  <div style={{ height: "5px", borderRadius: "2px", background: t.id === "light" ? "#94a3b8" : "rgba(255,255,255,0.15)" }} />
+                                  <div style={{ height: "5px", borderRadius: "2px", background: t.id === "light" ? "#cbd5e1" : "rgba(255,255,255,0.08)", width: "70%" }} />
+                                  <div style={{ height: "5px", borderRadius: "2px", background: t.accent, width: "40%", opacity: 0.8 }} />
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <Icon size={12} style={{ color: isSel ? "var(--accent-primary,#22d3ee)" : "var(--text-muted)", flexShrink: 0 }} />
+                              <span style={{ fontSize: "11px", fontWeight: 700, color: isSel ? "var(--accent-primary,#22d3ee)" : "var(--text-secondary)", lineHeight: 1.2 }}>{t.label}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {[
-                      { id: "dark", label: "Dark Glass", desc: "Default sleek dark mode", icon: Moon },
-                      { id: "oled", label: "OLED Pitch Black", desc: "True black, saves battery", icon: Monitor },
-                      { id: "light", label: "Light Elegance", desc: "Clean & high-contrast light mode", icon: Sun }
-                    ].map((t) => {
-                      const Icon = t.icon;
-                      const isSelected = currentTheme === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => handleThemeChange(t.id)}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "14px 16px",
-                            borderRadius: "14px",
-                            background: isSelected ? "rgba(34, 211, 238, 0.08)" : "var(--bg-secondary)",
-                            border: `1px solid ${isSelected ? "rgba(34, 211, 238, 0.4)" : "var(--border-light)"}`,
-                            cursor: "pointer",
-                            textAlign: "left",
-                            transition: "all 0.2s ease"
-                          }}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                            <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: isSelected ? "rgba(34,211,238,0.15)" : "var(--bg-surface)", border: `1px solid ${isSelected ? "rgba(34,211,238,0.3)" : "var(--border-light)"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Icon size={16} style={{ color: isSelected ? "#22d3ee" : "var(--text-secondary)" }} />
-                            </div>
-                            <div>
-                              <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: isSelected ? "#22d3ee" : "var(--text-primary)" }}>{t.label}</p>
-                              <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)" }}>{t.desc}</p>
-                            </div>
-                          </div>
-                          <div style={{ width: "16px", height: "16px", borderRadius: "50%", border: `2px solid ${isSelected ? "#22d3ee" : "var(--border-medium)"}`, background: isSelected ? "#22d3ee" : "transparent", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            {isSelected && <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#11141d" }} />}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Accent Color Picker */}
-                  <div style={{ marginTop: "8px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                  {/* ── ACCENT COLOR with ripple + live preview strip ── */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
                       <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(168,85,247,0.1)", border: "1px solid rgba(168,85,247,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <Sparkles size={16} style={{ color: "#c084fc" }} />
                       </div>
                       <div>
-                        <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--text-primary)" }}>Accent Color</h3>
-                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-muted)" }}>Signature highlight color for buttons & badges</p>
+                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>Accent Color</h3>
+                        <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)" }}>Signature highlight across the entire app</p>
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                    {/* Swatches with ripple */}
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
                       {ACCENT_COLORS.map((a) => {
-                        const isSelected = currentAccent === a.id;
+                        const isSel = currentAccent === a.id;
+                        const isRippling = rippleId === a.id;
                         return (
-                          <button
-                            key={a.id}
-                            type="button"
-                            onClick={() => handleAccentChange(a.id)}
-                            title={a.label}
-                            style={{
-                              width: "40px",
-                              height: "40px",
-                              borderRadius: "12px",
-                              background: a.color,
-                              border: isSelected ? "3px solid white" : "3px solid transparent",
-                              boxShadow: isSelected ? `0 0 0 2px ${a.color}, 0 4px 12px ${a.color}66` : "none",
-                              cursor: "pointer",
-                              transition: "all 0.2s ease",
-                              transform: isSelected ? "scale(1.1)" : "scale(1)"
-                            }}
-                          />
+                          <div key={a.id} style={{ position: "relative" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleAccentChange(a.id)}
+                              title={a.label}
+                              style={{
+                                width: "42px", height: "42px", borderRadius: "13px",
+                                background: a.color,
+                                border: isSel ? "3px solid white" : "3px solid transparent",
+                                boxShadow: isSel ? `0 0 0 2px ${a.color}, 0 6px 20px ${a.color}55` : `0 2px 8px ${a.color}33`,
+                                cursor: "pointer", transition: "all 0.22s ease",
+                                transform: isSel ? "scale(1.15)" : "scale(1)",
+                                position: "relative", overflow: "hidden",
+                              }}
+                            >
+                              {isRippling && (
+                                <span style={{
+                                  position: "absolute", inset: 0, borderRadius: "13px",
+                                  background: "rgba(255,255,255,0.45)",
+                                  animation: "ripplePulse 0.55s ease-out forwards",
+                                }} />
+                              )}
+                            </button>
+                            <span style={{ display: "block", textAlign: "center", fontSize: "9px", fontWeight: 700, color: isSel ? "var(--text-primary)" : "var(--text-muted)", marginTop: "4px", letterSpacing: "0.3px" }}>{a.label}</span>
+                          </div>
                         );
                       })}
                     </div>
 
+                    {/* Live Accent Preview Strip */}
+                    <div style={{ marginTop: "14px", padding: "14px 16px", borderRadius: "14px", background: "var(--bg-secondary)", border: "1px solid var(--border-light)", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", flexShrink: 0 }}>Live Preview</span>
+                      <button style={{ padding: "5px 14px", borderRadius: "8px", background: "var(--accent-primary, #22d3ee)", color: "#000", border: "none", fontWeight: 700, fontSize: "11px", cursor: "default" }}>Button</button>
+                      <span style={{ padding: "3px 10px", borderRadius: "6px", background: "color-mix(in srgb, var(--accent-primary,#22d3ee) 15%, transparent)", color: "var(--accent-primary,#22d3ee)", fontSize: "11px", fontWeight: 700, border: "1px solid color-mix(in srgb, var(--accent-primary,#22d3ee) 30%, transparent)" }}>Badge</span>
+                      <div style={{ flex: 1, minWidth: "80px", height: "5px", borderRadius: "99px", background: "var(--bg-surface)", overflow: "hidden" }}>
+                        <div style={{ width: "65%", height: "100%", borderRadius: "99px", background: "var(--accent-primary, #22d3ee)" }} />
+                      </div>
+                      <div style={{ width: "16px", height: "16px", borderRadius: "50%", background: "var(--accent-primary, #22d3ee)", boxShadow: "0 0 8px var(--accent-primary, #22d3ee)" }} />
+                    </div>
+
                     {/* Custom Color Input */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px", background: "var(--bg-secondary)", padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
-                      <label htmlFor="custom-accent-color-picker" style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", flex: 1, cursor: "pointer" }}>
-                        Custom Color Picker:
-                      </label>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "10px", background: "var(--bg-secondary)", padding: "10px 14px", borderRadius: "12px", border: "1px solid var(--border-light)" }}>
+                      <label htmlFor="custom-accent-color-picker" style={{ fontSize: "12px", fontWeight: 700, color: "var(--text-secondary)", flex: 1, cursor: "pointer" }}>Custom Color:</label>
                       <input
                         id="custom-accent-color-picker"
                         type="color"
@@ -856,17 +956,45 @@ export default function UserProfile({
                       <input
                         type="text"
                         value={customHex}
-                        onChange={(e) => {
-                          setCustomHex(e.target.value);
-                          if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
-                            handleCustomAccentChange(e.target.value);
-                          }
-                        }}
+                        onChange={(e) => { setCustomHex(e.target.value); if (/^#[0-9A-F]{6}$/i.test(e.target.value)) handleCustomAccentChange(e.target.value); }}
                         placeholder="#22d3ee"
                         style={{ width: "85px", padding: "4px 8px", borderRadius: "8px", background: "var(--bg-surface)", border: "1px solid var(--border-light)", color: "var(--text-primary)", fontSize: "12px", fontFamily: "monospace", textTransform: "uppercase" }}
                       />
                     </div>
                   </div>
+
+                  {/* ── FONT STYLE SELECTOR ── */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                      <div style={{ width: "32px", height: "32px", borderRadius: "10px", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "14px", color: "#fbbf24" }}>Aa</div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>Font Style</h3>
+                        <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)" }}>Global typeface for the entire workspace</p>
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      {FONT_OPTIONS.map((f) => {
+                        const isSel = currentFont === f.id;
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => handleFontChange(f.id)}
+                            style={{
+                              padding: "12px 14px", borderRadius: "12px", textAlign: "left", cursor: "pointer",
+                              background: isSel ? "color-mix(in srgb, var(--accent-primary,#22d3ee) 10%, transparent)" : "var(--bg-secondary)",
+                              border: `1px solid ${isSel ? "var(--accent-primary, #22d3ee)" : "var(--border-light)"}`,
+                              transition: "all 0.2s ease",
+                            }}
+                          >
+                            <p style={{ margin: "0 0 2px", fontSize: "15px", fontWeight: 700, color: isSel ? "var(--accent-primary,#22d3ee)" : "var(--text-primary)", fontFamily: f.family }}>{f.label}</p>
+                            <p style={{ margin: 0, fontSize: "10px", color: "var(--text-muted)" }}>{f.hint}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                 </div>
               ) : (
                 <>
@@ -1527,6 +1655,36 @@ export default function UserProfile({
                 )}
               </div>
 
+              {/* ⌨️ Keyboard Shortcuts Reference */}
+              <div style={{ borderRadius: "16px", border: "1px solid var(--border-light)", overflow: "hidden", marginBottom: "16px" }}>
+                <div style={{ padding: "14px 20px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-light)", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "color-mix(in srgb, var(--accent-primary,#22d3ee) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary,#22d3ee) 25%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>⌨️</div>
+                  <div>
+                    <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>Keyboard Shortcuts</p>
+                    <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)" }}>Power-user hotkeys for this workspace</p>
+                  </div>
+                </div>
+                <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                  {[
+                    { keys: ["Ctrl", "K"], label: "Open Command Palette" },
+                    { keys: ["Esc"], label: "Close panels & modals" },
+                    { keys: ["Ctrl", "/"], label: "Focus chat input" },
+                    { keys: ["Ctrl", "Enter"], label: "Submit message" },
+                    { keys: ["Ctrl", "Shift", "N"], label: "Start new chat" },
+                    { keys: ["Ctrl", "Shift", "F"], label: "Open File Workspace" },
+                  ].map((s, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: "10px", background: i % 2 === 0 ? "var(--bg-secondary)" : "transparent" }}>
+                      <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>{s.label}</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        {s.keys.map((k, j) => (
+                          <span key={j} style={{ padding: "2px 7px", borderRadius: "5px", background: "var(--bg-surface)", border: "1px solid var(--border-medium)", fontSize: "11px", fontWeight: 700, fontFamily: "monospace", color: "var(--text-primary)" }}>{k}</span>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Sign Out */}
               <button
                 onClick={onLogout}
@@ -1619,6 +1777,7 @@ export default function UserProfile({
         @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
         @keyframes fadeUp { from { transform: translateY(6px); opacity:0; } to { transform: translateY(0); opacity:1; } }
         @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+        @keyframes ripplePulse { 0% { opacity: 0.8; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.2); } }
       `}</style>
     </>
   );
