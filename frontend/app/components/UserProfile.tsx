@@ -73,10 +73,12 @@ export default function UserProfile({
   ];
 
   const FONT_OPTIONS = [
-    { id: "inter", label: "Inter", family: "'Inter', sans-serif", hint: "Clean & modern" },
-    { id: "dm-sans", label: "DM Sans", family: "'DM Sans', sans-serif", hint: "Geometric & friendly" },
-    { id: "sora", label: "Sora", family: "'Sora', sans-serif", hint: "Bold & futuristic" },
-    { id: "geist", label: "Geist", family: "'Geist', sans-serif", hint: "Developer-first precision" },
+    { id: "plus-jakarta", label: "Plus Jakarta Sans", family: "'Plus Jakarta Sans', sans-serif", hint: "Executive & modern tech" },
+    { id: "manrope", label: "Manrope", family: "'Manrope', sans-serif", hint: "Swiss minimalist clarity" },
+    { id: "inter", label: "Inter", family: "'Inter', sans-serif", hint: "Industry standard precision" },
+    { id: "outfit", label: "Outfit", family: "'Outfit', sans-serif", hint: "Sleek & contemporary" },
+    { id: "urbanist", label: "Urbanist", family: "'Urbanist', sans-serif", hint: "Sharp & sophisticated" },
+    { id: "figtree", label: "Figtree", family: "'Figtree', sans-serif", hint: "Clean, balanced & friendly" },
   ];
 
   const AVATAR_EMOJIS = ["🤖","🚀","🧠","⚡","🎯","🦊","🌌","🔥","💎","🐉","🎭","🦋","🌙","⭐","🎪","🏆"];
@@ -85,7 +87,7 @@ export default function UserProfile({
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     const savedAccent = localStorage.getItem("ak_accent") || "cyan";
     const savedCustomHex = localStorage.getItem("ak_accent_custom_hex") || "#22d3ee";
-    const savedFont = localStorage.getItem("ak_font") || "inter";
+    const savedFont = localStorage.getItem("ak_font") || "plus-jakarta";
     const savedEmoji = localStorage.getItem("ak_avatar_emoji") || "";
     setCurrentTheme(savedTheme);
     setCurrentAccent(savedAccent);
@@ -110,7 +112,7 @@ export default function UserProfile({
       const link = document.createElement("link");
       link.id = linkId;
       link.rel = "stylesheet";
-      const name = fontObj.label.replace(" ", "+");
+      const name = fontObj.label.replace(/ /g, "+");
       link.href = `https://fonts.googleapis.com/css2?family=${name}:wght@400;500;600;700;800;900&display=swap`;
       document.head.appendChild(link);
     }
