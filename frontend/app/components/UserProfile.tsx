@@ -1657,36 +1657,6 @@ export default function UserProfile({
                 )}
               </div>
 
-              {/* ⌨️ Keyboard Shortcuts Reference */}
-              <div style={{ borderRadius: "16px", border: "1px solid var(--border-light)", overflow: "hidden", marginBottom: "16px" }}>
-                <div style={{ padding: "14px 20px", background: "var(--bg-secondary)", borderBottom: "1px solid var(--border-light)", display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "30px", height: "30px", borderRadius: "9px", background: "color-mix(in srgb, var(--accent-primary,#22d3ee) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--accent-primary,#22d3ee) 25%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px" }}>⌨️</div>
-                  <div>
-                    <p style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>Keyboard Shortcuts</p>
-                    <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)" }}>Power-user hotkeys for this workspace</p>
-                  </div>
-                </div>
-                <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                  {[
-                    { keys: ["Ctrl", "K"], label: "Open Command Palette" },
-                    { keys: ["Esc"], label: "Close panels & modals" },
-                    { keys: ["Ctrl", "/"], label: "Focus chat input" },
-                    { keys: ["Ctrl", "Enter"], label: "Submit message" },
-                    { keys: ["Ctrl", "Shift", "N"], label: "Start new chat" },
-                    { keys: ["Ctrl", "Shift", "F"], label: "Open File Workspace" },
-                  ].map((s, i) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: "10px", background: i % 2 === 0 ? "var(--bg-secondary)" : "transparent" }}>
-                      <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>{s.label}</span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                        {s.keys.map((k, j) => (
-                          <span key={j} style={{ padding: "2px 7px", borderRadius: "5px", background: "var(--bg-surface)", border: "1px solid var(--border-medium)", fontSize: "11px", fontWeight: 700, fontFamily: "monospace", color: "var(--text-primary)" }}>{k}</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
               {/* Sign Out */}
               <button
                 onClick={onLogout}
