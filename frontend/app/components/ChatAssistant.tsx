@@ -19,6 +19,8 @@ import {
   Sliders,
   Mic,
   MicOff,
+  Volume2,
+  VolumeX,
   ArrowLeft,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -27,6 +29,7 @@ import { API_BASE_URL } from "../config";
 import ThinkingLogsAccordion, { type ToolLog } from "./ThinkingLogsAccordion";
 import { formatMessage } from "./chatFormatters";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { useSpeechSynthesis } from "../hooks/useSpeechSynthesis";
 import { useChatStream, ChatMessage, ChatThread } from "../hooks/useChatStream";
 
 // ── Assistant Presets ─────────────────────────────────────────────────────────
@@ -154,10 +157,11 @@ export default function ChatAssistant({
     temperature,
   });
 
-  // Hook up useSpeechRecognition
-  const { isListening, toggleListening } = useSpeechRecognition({
+  // Hook up useSpeechRecognition & useSpeechSynthesis
+  const { isListening, toggleListening, transcriptPreview } = useSpeechRecognition({
     onTranscript: (text) => setInput((prev) => (prev ? prev + " " + text : text)),
   });
+  const { speak, stop: stopSpeech, speakingId, isSpeaking } = useSpeechSynthesis();
 
   // Listen to command palette model updates
   useEffect(() => {
@@ -426,9 +430,37 @@ export default function ChatAssistant({
                       <>
                         {renderMessage(msg.content)}
                         {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                        {msg.model && (
-                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.8 }}>
-                            âš¡ {msg.model}
+                        {msg.role === "ai" && msg.content && !isLastAi && (
+                          <div className="chat-msg-footer">
+                            <button
+                              type="button"
+                              className={`chat-tts-btn ${speakingId === `msg-inline-${idx}` ? "chat-tts-btn--active" : ""}`}
+                              onClick={() => speak(msg.content, `msg-inline-${idx}`)}
+                              title={speakingId === `msg-inline-${idx}` ? "Stop listening" : "Listen to answer aloud"}
+                            >
+                              {speakingId === `msg-inline-${idx}` ? (
+                                <>
+                                  <VolumeX className="w-3.5 h-3.5" />
+                                  <span className="chat-voice-wave">
+                                    <span />
+                                    <span />
+                                    <span />
+                                    <span />
+                                  </span>
+                                  <span>Stop</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Volume2 className="w-3.5 h-3.5" />
+                                  <span>Listen</span>
+                                </>
+                              )}
+                            </button>
+                            {msg.model && (
+                              <div className="chat-msg-model">
+                                ⚡ {msg.model}
+                              </div>
+                            )}
                           </div>
                         )}
                       </>
@@ -452,9 +484,9 @@ export default function ChatAssistant({
           <div className="chat-quick-prompts">
             {(activeDocumentFilename
               ? [
-                  "ðŸ“ Summarize this document",
-                  "ðŸ’¡ Key takeaways & insights",
-                  "ðŸ” Find action items/decisions",
+                  "📄 Summarize this document",
+                  "💡 Key takeaways & insights",
+                  "🔍 Find action items/decisions",
                 ]
               : QUICK_PROMPTS
             ).map((prompt, i) => (
@@ -476,12 +508,29 @@ export default function ChatAssistant({
             onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(input, () => setInput("")); } }}
             className="chat-input-form"
           >
+            {/* Voice Input Mic button */}
+            <button
+              type="button"
+              className={`chat-mic-btn ${isListening ? "chat-mic-btn--active" : ""}`}
+              onClick={toggleListening}
+              title={isListening ? "Listening... Click to stop" : "Voice Input (Speech-to-Text)"}
+            >
+              {isListening ? (
+                <div className="chat-mic-active-wrap">
+                  <MicOff className="w-4 h-4" />
+                  <span className="chat-mic-pulse-ring" />
+                </div>
+              ) : (
+                <Mic className="w-4 h-4" />
+              )}
+            </button>
+
             <input
               ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything about news, stocks, or your filesâ€¦"
+              placeholder={isListening ? "Listening to your voice..." : "Ask me anything about news, stocks, or your files…"}
               className="chat-input-field"
               disabled={loading}
               id="chat-inline-input"
@@ -507,7 +556,7 @@ export default function ChatAssistant({
           </form>
           <div className="chat-input-hint">
             <Zap className="w-3 h-3" />
-            Powered by Gemini AI Â· Your conversations are private
+            Powered by Gemini AI · Your conversations are private
           </div>
         </div>
           </div>{/* /chat-inline-main */}
@@ -851,6 +900,132 @@ export default function ChatAssistant({
           }
           .chat-bubble-content { display: flex; flex-direction: column; gap: 4px; }
           .chat-line { margin-bottom: 2px; min-height: 1em; }
+
+          /* Message Footer & Audio TTS */
+          .chat-msg-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 6px;
+            padding-top: 4px;
+            border-top: 1px solid var(--border-light);
+          }
+          .chat-msg-model {
+            font-size: 10px;
+            color: var(--text-muted);
+            opacity: 0.8;
+          }
+          .chat-tts-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: color-mix(in srgb, var(--accent-primary, #22d3ee) 8%, transparent);
+            border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 22%, transparent);
+            color: var(--accent-primary, #22d3ee);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+          }
+          .chat-tts-btn:hover {
+            background: color-mix(in srgb, var(--accent-primary, #22d3ee) 18%, transparent);
+            border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 45%, transparent);
+            transform: translateY(-1px);
+          }
+          .chat-tts-btn--active {
+            background: rgba(239, 68, 68, 0.15) !important;
+            border-color: rgba(239, 68, 68, 0.45) !important;
+            color: #f87171 !important;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+          }
+          .chat-tts-btn--sm {
+            padding: 2px 6px;
+            font-size: 10px;
+            border-radius: 5px;
+          }
+          /* Animated Audio Waveform */
+          .chat-voice-wave {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            height: 12px;
+          }
+          .chat-voice-wave span {
+            display: inline-block;
+            width: 2px;
+            height: 100%;
+            background: currentColor;
+            border-radius: 2px;
+            animation: waveBar 1.2s ease-in-out infinite alternate;
+          }
+          .chat-voice-wave span:nth-child(1) { animation-delay: 0s; }
+          .chat-voice-wave span:nth-child(2) { animation-delay: 0.2s; }
+          .chat-voice-wave span:nth-child(3) { animation-delay: 0.4s; }
+          .chat-voice-wave span:nth-child(4) { animation-delay: 0.6s; }
+          .chat-voice-wave--sm {
+            height: 9px;
+            gap: 1.5px;
+          }
+          .chat-voice-wave--sm span {
+            width: 1.5px;
+          }
+          @keyframes waveBar {
+            0% { transform: scaleY(0.25); }
+            100% { transform: scaleY(1); }
+          }
+          /* Voice Mic Button (Inline) */
+          .chat-mic-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            flex-shrink: 0;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--text-secondary);
+            outline: none;
+            transition: all 0.2s ease;
+            position: relative;
+          }
+          .chat-mic-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--border-medium);
+          }
+          .chat-mic-btn--active {
+            background: rgba(239, 68, 68, 0.15) !important;
+            border-color: rgba(239, 68, 68, 0.5) !important;
+            color: #ef4444 !important;
+            animation: micPulse 1.5s infinite ease-in-out;
+          }
+          .chat-mic-active-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .chat-mic-pulse-ring {
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            border: 2px solid #ef4444;
+            opacity: 0;
+            animation: micPulseRing 1.5s infinite;
+          }
+          @keyframes micPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.96); }
+          }
+          @keyframes micPulseRing {
+            0% { transform: scale(0.6); opacity: 0.8; }
+            100% { transform: scale(1.6); opacity: 0; }
+          }
 
           .chat-typing {
             display: flex;
@@ -1205,7 +1380,39 @@ export default function ChatAssistant({
                             <>
                               {renderMessage(msg.content)}
                               {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                              {msg.role === "ai" && msg.model && <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>⚡ {msg.model}</div>}
+                              {msg.role === "ai" && msg.content && !isLastAi && (
+                                <div className="chat-msg-footer" style={{ marginTop: "4px" }}>
+                                  <button
+                                    type="button"
+                                    className={`chat-tts-btn chat-tts-btn--sm ${speakingId === `msg-overlay-${idx}` ? "chat-tts-btn--active" : ""}`}
+                                    onClick={() => speak(msg.content, `msg-overlay-${idx}`)}
+                                    title={speakingId === `msg-overlay-${idx}` ? "Stop listening" : "Listen to answer aloud"}
+                                  >
+                                    {speakingId === `msg-overlay-${idx}` ? (
+                                      <>
+                                        <VolumeX size={12} />
+                                        <span className="chat-voice-wave chat-voice-wave--sm">
+                                          <span />
+                                          <span />
+                                          <span />
+                                          <span />
+                                        </span>
+                                        <span>Stop</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Volume2 size={12} />
+                                        <span>Listen</span>
+                                      </>
+                                    )}
+                                  </button>
+                                  {msg.model && (
+                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", opacity: 0.7 }}>
+                                      ⚡ {msg.model}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </>
                           )}
                         </div>
