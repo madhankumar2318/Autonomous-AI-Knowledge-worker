@@ -19,8 +19,6 @@ import {
   Sliders,
   Mic,
   MicOff,
-  Volume2,
-  VolumeX,
   ArrowLeft,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
@@ -29,7 +27,6 @@ import { API_BASE_URL } from "../config";
 import ThinkingLogsAccordion, { type ToolLog } from "./ThinkingLogsAccordion";
 import { formatMessage } from "./chatFormatters";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
-import { useSpeechSynthesis } from "../hooks/useSpeechSynthesis";
 import { useChatStream, ChatMessage, ChatThread } from "../hooks/useChatStream";
 
 // ── Assistant Presets ─────────────────────────────────────────────────────────
@@ -157,11 +154,10 @@ export default function ChatAssistant({
     temperature,
   });
 
-  // Hook up useSpeechRecognition & useSpeechSynthesis
+  // Hook up useSpeechRecognition (Speech-to-Text)
   const { isListening, toggleListening, transcriptPreview } = useSpeechRecognition({
     onTranscript: (text) => setInput((prev) => (prev ? prev + " " + text : text)),
   });
-  const { speak, stop: stopSpeech, speakingId, isSpeaking } = useSpeechSynthesis();
 
   // Listen to command palette model updates
   useEffect(() => {
@@ -430,37 +426,9 @@ export default function ChatAssistant({
                       <>
                         {renderMessage(msg.content)}
                         {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                        {msg.role === "ai" && msg.content && !isLastAi && (
-                          <div className="chat-msg-footer">
-                            <button
-                              type="button"
-                              className={`chat-tts-btn ${speakingId === `msg-inline-${idx}` ? "chat-tts-btn--active" : ""}`}
-                              onClick={() => speak(msg.content, `msg-inline-${idx}`)}
-                              title={speakingId === `msg-inline-${idx}` ? "Stop listening" : "Listen to answer aloud"}
-                            >
-                              {speakingId === `msg-inline-${idx}` ? (
-                                <>
-                                  <VolumeX className="w-3.5 h-3.5" />
-                                  <span className="chat-voice-wave">
-                                    <span />
-                                    <span />
-                                    <span />
-                                    <span />
-                                  </span>
-                                  <span>Stop</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Volume2 className="w-3.5 h-3.5" />
-                                  <span>Listen</span>
-                                </>
-                              )}
-                            </button>
-                            {msg.model && (
-                              <div className="chat-msg-model">
-                                ⚡ {msg.model}
-                              </div>
-                            )}
+                        {msg.role === "ai" && msg.model && (
+                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.8 }}>
+                            ⚡ {msg.model}
                           </div>
                         )}
                       </>
@@ -1380,37 +1348,9 @@ export default function ChatAssistant({
                             <>
                               {renderMessage(msg.content)}
                               {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                              {msg.role === "ai" && msg.content && !isLastAi && (
-                                <div className="chat-msg-footer" style={{ marginTop: "4px" }}>
-                                  <button
-                                    type="button"
-                                    className={`chat-tts-btn chat-tts-btn--sm ${speakingId === `msg-overlay-${idx}` ? "chat-tts-btn--active" : ""}`}
-                                    onClick={() => speak(msg.content, `msg-overlay-${idx}`)}
-                                    title={speakingId === `msg-overlay-${idx}` ? "Stop listening" : "Listen to answer aloud"}
-                                  >
-                                    {speakingId === `msg-overlay-${idx}` ? (
-                                      <>
-                                        <VolumeX size={12} />
-                                        <span className="chat-voice-wave chat-voice-wave--sm">
-                                          <span />
-                                          <span />
-                                          <span />
-                                          <span />
-                                        </span>
-                                        <span>Stop</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Volume2 size={12} />
-                                        <span>Listen</span>
-                                      </>
-                                    )}
-                                  </button>
-                                  {msg.model && (
-                                    <div style={{ fontSize: "10px", color: "var(--text-muted)", opacity: 0.7 }}>
-                                      ⚡ {msg.model}
-                                    </div>
-                                  )}
+                              {msg.role === "ai" && msg.model && (
+                                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>
+                                  ⚡ {msg.model}
                                 </div>
                               )}
                             </>
