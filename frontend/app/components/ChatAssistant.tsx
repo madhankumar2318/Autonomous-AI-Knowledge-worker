@@ -530,7 +530,7 @@ export default function ChatAssistant({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isListening ? "Listening to your voice..." : "Ask me anything about news, stocks, or your files…"}
+              placeholder={isListening ? (transcriptPreview ? `🎙️ "${transcriptPreview}"` : "Listening... Speak now...") : "Ask me anything about news, stocks, or your files…"}
               className="chat-input-field"
               disabled={loading}
               id="chat-inline-input"
@@ -1438,14 +1438,21 @@ export default function ChatAssistant({
                       onClick={toggleListening}
                       title={isListening ? "Listening... Click to stop" : "Voice Input (Speech-to-Text)"}
                     >
-                      {isListening ? <MicOff size={14} /> : <Mic size={14} />}
+                      {isListening ? (
+                        <div className="chat-mic-active-wrap">
+                          <MicOff size={14} />
+                          <span className="chat-mic-pulse-ring" />
+                        </div>
+                      ) : (
+                        <Mic size={14} />
+                      )}
                     </button>
 
                     <input
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder={isListening ? "Listening to your voice..." : "Ask me anything…"}
+                      placeholder={isListening ? (transcriptPreview ? `🎙️ "${transcriptPreview}"` : "Listening... Speak now...") : "Ask me anything…"}
                       disabled={loading}
                       className="cfab-input-field"
                       onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
