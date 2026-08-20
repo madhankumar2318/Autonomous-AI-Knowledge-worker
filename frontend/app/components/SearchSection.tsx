@@ -2,6 +2,7 @@
 import { AlertCircle, Search, Sparkles, ExternalLink, TrendingUp, Clock, X, ArrowUpRight, Trash2 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
+import KnowledgeCard, { detectEntity } from "./KnowledgeCard";
 
 interface SearchResult {
   title: string;
@@ -315,6 +316,8 @@ export default function SearchSection({
   const newsCount = results.filter((r) => r.fresh && !r.is_video).length;
   const webCount = results.filter((r) => !r.fresh && !r.is_video).length;
   const videoCount = results.filter((r) => r.is_video === true).length;
+
+  const detectedEntity = hasSearched || initialQuery || query.trim() ? detectEntity(query) : null;
 
   return (
     <div className="search-root" style={{ paddingBottom: "80px" }} onScroll={handleScroll}>
@@ -736,6 +739,16 @@ export default function SearchSection({
           <AlertCircle size={13} style={{ flexShrink: 0 }} />
           One search source timed out — showing available results.
         </div>
+      )}
+
+      {/* ── Rich Knowledge Card (Smart Entity Detection) ── */}
+      {detectedEntity && (
+        <KnowledgeCard
+          entity={detectedEntity}
+          onFilterNews={() => {
+            setActiveFilter("news");
+          }}
+        />
       )}
 
       {/* ── Loading ── */}

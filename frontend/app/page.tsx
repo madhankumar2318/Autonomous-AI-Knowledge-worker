@@ -288,11 +288,19 @@ export default function Home_Page() {
         setGlobalSearchTrigger(customEvent.detail.query);
       }
     };
+    const handleNavigateTab = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tab: string }>;
+      if (customEvent.detail && customEvent.detail.tab) {
+        setActiveTab(customEvent.detail.tab);
+      }
+    };
     window.addEventListener("open-rag-document", handleOpenDocument);
     window.addEventListener("ak-search-query-changed", handleSearchQueryChanged);
+    window.addEventListener("ak-navigate-tab", handleNavigateTab);
     return () => {
       window.removeEventListener("open-rag-document", handleOpenDocument);
       window.removeEventListener("ak-search-query-changed", handleSearchQueryChanged);
+      window.removeEventListener("ak-navigate-tab", handleNavigateTab);
     };
   }, []);
 
