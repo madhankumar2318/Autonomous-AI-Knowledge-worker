@@ -402,22 +402,29 @@ def update_profile(
 @router.put("/password")
 def change_password(
     request: Request,
+    response: Response,
     old_password: str = Form(...),
     new_password: str = Form(...),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
-    """Change password for the authenticated user."""
+    """Change password for the authenticated user.
+    
+    Security: Immediately invalidates ALL active refresh tokens for this user
+    upon a successful password change, forcing re-authentication on every
+    device or browser session. This prevents attackers who have an active
+    session from continuing to use the account after a password reset.
+    """
     client_ip = request.client.host if request.client else "unknown"
     auth_limiter.check_rate_limit(client_ip)
     username = _get_username_from_auth_header(authorization, access_token)
-    
+
     is_strong, msg = _is_strong_password(new_password)
     if not is_strong:
         raise HTTPException(status_code=400, detail=msg)
 
     with get_conn() as conn:
-        cur  = get_cursor(conn)
+        cur = get_cursor(conn)
         execute_sql(cur, "SELECT password FROM users WHERE username = ?", (username,))
         row = cur.fetchone()
 
@@ -435,12 +442,30 @@ def change_password(
         if not correct:
             raise HTTPException(status_code=401, detail="Current password is incorrect")
 
-        # Save new bcrypt hash
+        # 1. Save new bcrypt hash
         new_hash = _hash_password(new_password)
         execute_sql(cur, "UPDATE users SET password = ? WHERE username = ?", (new_hash, username))
+
+        # 2. ── Security: Invalidate ALL active sessions ──────────────────────
+        # Delete every stored refresh token for this user. Any attacker or
+        # unauthorized device holding an old refresh token can no longer extend
+        # their session. They will receive HTTP 401 on the next refresh attempt.
+        execute_sql(cur, "DELETE FROM refresh_tokens WHERE username = ?", (username,))
+
         conn.commit()
 
-    return {"status": "success", "message": "Password changed successfully"}
+    # 3. Clear the caller's own session cookies so they are redirected to login.
+    #    This is intentional: the user just changed their password and must
+    #    prove their new credentials by logging in fresh.
+    response.delete_cookie("access_token", path="/", secure=is_prod, samesite="none" if is_prod else "lax")
+    response.delete_cookie("refresh_token", path="/", secure=is_prod, samesite="none" if is_prod else "lax")
+
+    print(f"[Security] Password changed for user '{username}'. All sessions invalidated.")
+
+    return {
+        "status": "success",
+        "message": "Password changed successfully. All active sessions have been signed out. Please log in again with your new password."
+    }
 
 
 @router.post("/refresh")

@@ -326,11 +326,19 @@ export default function UserProfile({
         setPwError(data.detail || "Failed to change password.");
         return;
       }
+      // ── Security: Backend invalidated ALL sessions on password change ──
+      // The server has deleted every active refresh token and cleared the
+      // session cookies. We must log the user out immediately so they
+      // re-authenticate with the new credentials.
       setOldPw("");
       setNewPw("");
       setConfirmPw("");
       setShowPwForm(false);
-      showToast("Password changed successfully! 🔒", "ok");
+      showToast("Password changed! 🔒 Signing you out for security…", "ok");
+      // Brief delay so the user can read the toast, then force logout
+      setTimeout(() => {
+        onLogout();
+      }, 2200);
     } catch {
       setPwError("Network error. Please try again.");
     } finally {
