@@ -14,9 +14,11 @@ import time
 import random
 import threading
 import requests
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
+from rate_limit import stock_limiter
 
 router = APIRouter(prefix="/stock", tags=["Stock"])
+
 
 # ─── Sector Map ───────────────────────────────────────────────────────────────
 SECTORS: dict[str, list[str]] = {
@@ -261,12 +263,19 @@ _prewarm_cache()
 
 @router.get("/multiple")
 def get_multiple_stocks(
+    request: Request,
     symbols: str = Query(
         ",".join(ALL_SYMBOLS),
         description="Comma-separated symbols.",
     )
 ):
-    """Return quote + sparkline data for multiple symbols (cached 5 min)."""
+    """Return quote + sparkline data for multiple symbols (cached 5 min).
+
+    Rate limited: {STOCK_LIMIT} requests/min per IP (configurable via RATE_LIMIT_STOCK_PER_MIN).
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    stock_limiter.check_rate_limit(client_ip)
+
     now = time.time()
     cache_key = symbols.upper().replace(" ", "")
 
@@ -284,13 +293,25 @@ def get_multiple_stocks(
 
 
 @router.get("/sectors")
-def get_sectors():
+def get_sectors(request: Request):
+    """Return sector → symbol mapping (static metadata).
+
+    Rate limited: shared stock_limiter per IP.
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    stock_limiter.check_rate_limit(client_ip)
     return SECTORS
 
 
 @router.get("/")
-def get_stock(symbol: str = Query(...)):
-    """Single symbol quote (cached 5 min)."""
+def get_stock(request: Request, symbol: str = Query(...)):
+    """Single symbol quote (cached 5 min).
+
+    Rate limited: {STOCK_LIMIT} requests/min per IP (configurable via RATE_LIMIT_STOCK_PER_MIN).
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    stock_limiter.check_rate_limit(client_ip)
+
     cache_key = symbol.upper()
     now = time.time()
     with _cache_lock:
@@ -306,10 +327,17 @@ def get_stock(symbol: str = Query(...)):
 
 @router.get("/history/{symbol}")
 def get_stock_history(
+    request: Request,
     symbol: str,
     period: str = Query("1mo", description="1d, 5d, 1mo, 1y"),
 ):
-    """Full historical chart data for a specific stock (called on click, not on page load)."""
+    """Full historical chart data for a specific stock (called on click, not on page load).
+
+    Rate limited: {STOCK_LIMIT} requests/min per IP (configurable via RATE_LIMIT_STOCK_PER_MIN).
+    """
+    client_ip = request.client.host if request.client else "unknown"
+    stock_limiter.check_rate_limit(client_ip)
+
     import yfinance as yf
     try:
         ticker = yf.Ticker(symbol.upper())

@@ -1,10 +1,12 @@
 import requests
 import time
 import os
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from db import insert_history
+from rate_limit import news_limiter
 
 router = APIRouter(prefix="/news", tags=["News"])
+
 
 # ── Currents API config ────────────────────────────────────────────────
 API_PAGE_SIZE = 20    # articles per API call (Free tier max = 20)
@@ -111,6 +113,7 @@ def _fetch_from_api(category: str, topic: str, max_pages: int = MAX_PAGES) -> li
 
 @router.get("/")
 def get_news(
+    request:  Request,
     page:     int = Query(1,  ge=1,  description="Page number (1-based)"),
     category: str = Query("", description="NewsAPI category: business, sports, technology, etc."),
     topic:    str = Query("", description="Free-text keyword search"),
@@ -118,10 +121,16 @@ def get_news(
     """
     Return paginated news articles with optional category and keyword filters.
     Articles are fetched from NewsAPI and cached for 30 minutes per unique query.
+
+    Rate limited: {NEWS_LIMIT} requests/min per IP (configurable via RATE_LIMIT_NEWS_PER_MIN).
     """
+    client_ip = request.client.host if request.client else "unknown"
+    news_limiter.check_rate_limit(client_ip)
+
     global _cache
     now       = time.time()
     cache_key = _make_cache_key(category, topic)
+
 
     # Refresh cache if stale or empty
     if cache_key not in _cache or (now - _cache[cache_key]["timestamp"]) > CACHE_TTL or not _cache[cache_key]["data"]:

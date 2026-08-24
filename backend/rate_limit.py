@@ -21,7 +21,8 @@ class SlidingWindowRateLimiter:
             if len(self.requests[key]) >= self.limit:
                 raise HTTPException(
                     status_code=429,
-                    detail=f"Too many requests. Limit is {self.limit} requests per {self.window} seconds. Please wait."
+                    detail=f"Too many requests. Limit is {self.limit} requests per {self.window} seconds. Please wait.",
+                    headers={"Retry-After": str(self.window)},
                 )
 
             self.requests[key].append(now)
@@ -59,14 +60,29 @@ def _start_cleanup_scheduler(limiters: list, interval_seconds: int = 600):
     t.start()
 
 
-# Load limits from environment variables for production flexibility
-CHAT_LIMIT = int(os.getenv("RATE_LIMIT_CHAT_PER_MIN", "15"))
-UPLOAD_LIMIT = int(os.getenv("RATE_LIMIT_UPLOAD_PER_MIN", "5"))
-AUTH_LIMIT = int(os.getenv("RATE_LIMIT_AUTH_PER_MIN", "5"))
+# ── Load limits from environment variables for production flexibility ──────────
+# Auth & Upload (sensitive — strict limits)
+CHAT_LIMIT        = int(os.getenv("RATE_LIMIT_CHAT_PER_MIN",        "15"))
+UPLOAD_LIMIT      = int(os.getenv("RATE_LIMIT_UPLOAD_PER_MIN",       "5"))
+AUTH_LIMIT        = int(os.getenv("RATE_LIMIT_AUTH_PER_MIN",         "5"))
 
-chat_limiter = SlidingWindowRateLimiter(limit=CHAT_LIMIT, window=60)
-upload_limiter = SlidingWindowRateLimiter(limit=UPLOAD_LIMIT, window=60)
-auth_limiter = SlidingWindowRateLimiter(limit=AUTH_LIMIT, window=60)
+# Search & Stock (external API proxies — moderate limits to protect API quotas)
+SEARCH_LIMIT      = int(os.getenv("RATE_LIMIT_SEARCH_PER_MIN",       "20"))
+SUGGESTIONS_LIMIT = int(os.getenv("RATE_LIMIT_SUGGESTIONS_PER_MIN",  "40"))
+STOCK_LIMIT       = int(os.getenv("RATE_LIMIT_STOCK_PER_MIN",        "30"))
+NEWS_LIMIT        = int(os.getenv("RATE_LIMIT_NEWS_PER_MIN",         "30"))
 
-# Start background cleanup daemon — runs every 10 minutes
-_start_cleanup_scheduler([chat_limiter, upload_limiter, auth_limiter], interval_seconds=600)
+chat_limiter        = SlidingWindowRateLimiter(limit=CHAT_LIMIT,        window=60)
+upload_limiter      = SlidingWindowRateLimiter(limit=UPLOAD_LIMIT,      window=60)
+auth_limiter        = SlidingWindowRateLimiter(limit=AUTH_LIMIT,        window=60)
+search_limiter      = SlidingWindowRateLimiter(limit=SEARCH_LIMIT,      window=60)
+suggestions_limiter = SlidingWindowRateLimiter(limit=SUGGESTIONS_LIMIT, window=60)
+stock_limiter       = SlidingWindowRateLimiter(limit=STOCK_LIMIT,       window=60)
+news_limiter        = SlidingWindowRateLimiter(limit=NEWS_LIMIT,        window=60)
+
+# Start background cleanup daemon — runs every 10 minutes, covers ALL limiters
+_start_cleanup_scheduler(
+    [chat_limiter, upload_limiter, auth_limiter,
+     search_limiter, suggestions_limiter, stock_limiter, news_limiter],
+    interval_seconds=600
+)

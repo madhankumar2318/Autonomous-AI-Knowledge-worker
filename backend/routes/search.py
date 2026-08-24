@@ -18,9 +18,11 @@ import html
 import requests
 import xml.etree.ElementTree as ET
 from urllib.parse import quote_plus, unquote
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
+from rate_limit import search_limiter, suggestions_limiter
 
 router = APIRouter(prefix="/search", tags=["Search"])
+
 
 # Optional: SerpAPI key for official Google results
 SERPAPI_KEY = os.getenv("SERPAPI_KEY", "")
@@ -354,7 +356,7 @@ def _deduplicate(results: list[dict]) -> list[dict]:
 # Main Search Endpoint
 # ─────────────────────────────────────────────
 @router.get("/")
-def global_search(query: str = Query(...), page: int = 1):
+def global_search(request: Request, query: str = Query(...), page: int = 1):
     """
     Multi-tier global search engine:
       1. SerpAPI (if key configured)
@@ -362,7 +364,12 @@ def global_search(query: str = Query(...), page: int = 1):
       3. Bing News RSS (broad news & web)
       4. DuckDuckGo HTML (raw web, coding, tech docs)
       5. Wikipedia API (definitions, technical terms)
+
+    Rate limited: {SEARCH_LIMIT} requests/min per IP (configurable via RATE_LIMIT_SEARCH_PER_MIN).
     """
+    client_ip = request.client.host if request.client else "unknown"
+    search_limiter.check_rate_limit(client_ip)
+
     combined:    list[dict] = []
     engine_used: list[str]  = []
 
@@ -456,10 +463,15 @@ TRENDING_SEARCHES = [
 
 
 @router.get("/suggestions")
-def search_suggestions(q: str = Query("")):
+def search_suggestions(request: Request, q: str = Query("")):
     """
     Real-time Google/DuckDuckGo autocomplete suggestions + curated trending search keywords.
+
+    Rate limited: {SUGGESTIONS_LIMIT} requests/min per IP (configurable via RATE_LIMIT_SUGGESTIONS_PER_MIN).
     """
+    client_ip = request.client.host if request.client else "unknown"
+    suggestions_limiter.check_rate_limit(client_ip)
+
     query_str = q.strip()
     if not query_str:
         return {
