@@ -1,4 +1,4 @@
-﻿/**
+/**
  * chatFormatters.tsx
  *
  * Pure utility functions for rendering markdown-style chat message text
@@ -124,18 +124,60 @@ export function parseInlineStyles(
       }
     }
 
-    // Markdown link: [label](url)
+    // ── Markdown link: [label](url) ──────────────────────────────────────────
+    // SECURITY: Strict protocol whitelist to prevent XSS via javascript:,
+    // data:text/html, vbscript:, or other dangerous URI schemes that can execute
+    // arbitrary code when clicked.
     const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
     if (linkMatch) {
+      const label = linkMatch[1];
+      const rawUrl = linkMatch[2].trim();
+
+      // ── URL Protocol Whitelist ──────────────────────────────────────────────
+      // Only allow well-known safe schemes. Everything else (javascript:, data:,
+      // vbscript:, blob:, file:, etc.) is silently blocked and shown as a
+      // visually distinct "blocked" badge so the user understands why it is not
+      // a real link.
+      const isSafeUrl =
+        /^https?:\/\//i.test(rawUrl) || // Standard web links (http/https)
+        /^mailto:/i.test(rawUrl) ||       // Email links
+        /^tel:/i.test(rawUrl);            // Phone links
+
+      if (!isSafeUrl) {
+        // Render as a non-clickable badge instead of a live link
+        return (
+          <span
+            key={index}
+            title={`Blocked unsafe URL scheme: "${rawUrl.slice(0, 40)}"`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              background: "rgba(239,68,68,0.08)",
+              border: "1px solid rgba(239,68,68,0.25)",
+              color: "#ef4444",
+              borderRadius: "4px",
+              padding: "0px 5px",
+              fontSize: "0.85em",
+              fontWeight: 600,
+              cursor: "not-allowed",
+              userSelect: "none",
+            }}
+          >
+            🚫 {label}
+          </span>
+        );
+      }
+
       return (
         <a
           key={index}
-          href={linkMatch[2]}
+          href={rawUrl}
           target="_blank"
           rel="noopener noreferrer"
           style={{ color: "#22d3ee", textDecoration: "underline", fontWeight: 600 }}
         >
-          {linkMatch[1]}
+          {label}
         </a>
       );
     }
