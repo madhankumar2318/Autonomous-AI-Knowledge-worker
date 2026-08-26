@@ -35,14 +35,18 @@ def get_current_user_id(
             raise HTTPException(status_code=401, detail="User session invalid")
         return user_id
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
+        if isinstance(e, HTTPException):
+            raise e
+        print(f"[Settings] Token verification error: {e}")
+        raise HTTPException(status_code=401, detail="Invalid or expired session token")
 
 @router.get("/")
 def read_settings(user_id: int = Depends(get_current_user_id)):
     try:
         return get_user_settings(user_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Settings] Error fetching settings for user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve user settings")
 
 @router.put("/")
 def update_settings(req: UserSettingsSchema, user_id: int = Depends(get_current_user_id)):
@@ -50,7 +54,8 @@ def update_settings(req: UserSettingsSchema, user_id: int = Depends(get_current_
         save_user_settings(user_id, req.dict())
         return {"status": "success", "message": "Settings saved successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Settings] Error saving settings for user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save user settings")
 
 @router.get("/analytics")
 def get_analytics(

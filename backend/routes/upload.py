@@ -283,7 +283,8 @@ async def upload_file(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        print(f"[Upload] File processing error: {e}")
+        return JSONResponse(content={"error": "An error occurred while processing the uploaded file."}, status_code=500)
 
 @router.get("/list")
 def list_uploads(
@@ -323,7 +324,9 @@ def list_uploads(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Upload] Error listing uploads for user: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve uploaded files list.")
+
 
 
 @router.post("/reindex/{filename}")
@@ -388,7 +391,8 @@ def reindex_file(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Upload] Error re-indexing file '{filename}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to re-index the requested file.")
 
 
 
@@ -449,7 +453,9 @@ def delete_file(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Upload] Error deleting file '{filename}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete the requested file.")
+
 
 @router.get("/download/{filename}")
 def download_file(
@@ -523,7 +529,8 @@ def download_file(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Upload] Error downloading file '{filename}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to download the requested file.")
 
 
 @router.get("/parse-table/{filename}")
@@ -570,7 +577,8 @@ def parse_table_file(
                 os.makedirs(user_folder, exist_ok=True)
                 s3_client.download_file(S3_BUCKET, f"{username}/{filename}", local_path)
             except Exception as e:
-                raise HTTPException(status_code=404, detail=f"File not found on cloud storage: {e}")
+                print(f"[Upload] S3 fetch error for '{filename}': {e}")
+                raise HTTPException(status_code=404, detail="File not found on cloud storage.")
 
         if not os.path.exists(local_path):
             raise HTTPException(status_code=404, detail="File not found")
@@ -603,7 +611,8 @@ def parse_table_file(
                     for r in all_rows[1:]:
                         rows.append([val.strip() for val in r])
             except Exception as csv_err:
-                raise HTTPException(status_code=400, detail=f"Failed to parse CSV file: {csv_err}")
+                print(f"[Upload] CSV parse error for '{filename}': {csv_err}")
+                raise HTTPException(status_code=400, detail="Failed to parse CSV file. Please ensure the file format is valid.")
 
         elif ext == ".xlsx":
             # Read XLSX
@@ -631,7 +640,8 @@ def parse_table_file(
                         headers = raw_rows[0]
                         rows = raw_rows[1:]
             except Exception as xlsx_err:
-                raise HTTPException(status_code=400, detail=f"Failed to parse Excel file: {xlsx_err}")
+                print(f"[Upload] Excel parse error for '{filename}': {xlsx_err}")
+                raise HTTPException(status_code=400, detail="Failed to parse Excel file. Please ensure the file format is valid.")
         else:
             raise HTTPException(status_code=400, detail="Only CSV and XLSX formats can be parsed as grids.")
 
@@ -645,7 +655,8 @@ def parse_table_file(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Upload] Error parsing grid file '{filename}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to parse grid data.")
 
 
 
@@ -718,7 +729,8 @@ def edit_file(
                 f.write(content_bytes)
         except Exception as e:
             active_user_context.reset(token_ctx)
-            raise HTTPException(status_code=500, detail=f"Failed to write file update: {e}")
+            print(f"[Upload] File write error on edit for '{filename}': {e}")
+            raise HTTPException(status_code=500, detail="Failed to save file updates.")
 
         # 5. S3 update if configured
         if IS_S3:
@@ -727,7 +739,8 @@ def edit_file(
                 s3_client.upload_file(local_path, S3_BUCKET, f"{username}/{filename}")
             except Exception as s3_err:
                 active_user_context.reset(token_ctx)
-                raise HTTPException(status_code=500, detail=f"S3 cloud update failed: {s3_err}")
+                print(f"[Upload] S3 update error on edit for '{filename}': {s3_err}")
+                raise HTTPException(status_code=500, detail="Cloud storage sync failed.")
 
         # 6. Re-index file in RAG
         chunks_count = 0
@@ -757,5 +770,7 @@ def edit_file(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"[Upload] Error updating file '{filename}': {e}")
+        raise HTTPException(status_code=500, detail="Failed to update file content.")
+
 

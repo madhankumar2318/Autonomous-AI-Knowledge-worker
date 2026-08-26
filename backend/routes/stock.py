@@ -382,4 +382,5 @@ def get_stock_history(
 
         return {"symbol": symbol.upper(), "period": period, "data": data, "details": details}
     except Exception as e:
-        return {"symbol": symbol.upper(), "error": str(e), "data": [], "details": {}}
+        print(f"[Stock] History fetch error for symbol {symbol}: {e}")
+        return {"symbol": symbol.upper(), "error": "Unable to fetch historical chart data for this symbol.", "data": [], "details": {}}

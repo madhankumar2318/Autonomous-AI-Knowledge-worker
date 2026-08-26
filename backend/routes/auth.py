@@ -139,7 +139,8 @@ def _get_username_from_auth_header(
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
-        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+        print(f"[Auth] Header authentication error: {e}")
+        raise HTTPException(status_code=401, detail="Authentication failed: Invalid or expired token")
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────

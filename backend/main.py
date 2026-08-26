@@ -1,8 +1,10 @@
 # backend/main.py
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Response, Request, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import traceback
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -44,6 +46,51 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Autonomous AI Knowledge Worker", lifespan=lifespan)
+
+# ── Global Exception Handlers ────────────────────────────────────────────────
+# In production, ensure no raw exception messages, internal database structures,
+# or server filesystem paths are leaked to the client in error responses.
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """
+    Handle HTTP exceptions securely.
+    In production, sanitize 5xx error details so internal system/database
+    details are never exposed to external clients.
+    """
+    is_prod = os.getenv("ENV", "development").lower() == "production" or os.getenv("SECURE_COOKIES", "false").lower() == "true"
+    
+    if exc.status_code >= 500:
+        print(f"[HTTP {exc.status_code} Error] {request.method} {request.url.path}: {exc.detail}")
+        detail = "An internal server error occurred. Please try again later." if is_prod else exc.detail
+    else:
+        detail = exc.detail
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": detail},
+        headers=getattr(exc, "headers", None) or {}
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """
+    Global catch-all for unhandled exceptions.
+    Logs the full traceback securely on the backend server console and returns
+    a clean, sanitized 500 error response to the client.
+    """
+    error_trace = traceback.format_exc()
+    print(f"[Unhandled Server Error] {request.method} {request.url.path}:\n{error_trace}")
+
+    is_prod = os.getenv("ENV", "development").lower() == "production" or os.getenv("SECURE_COOKIES", "false").lower() == "true"
+    detail = "An internal server error occurred. Please try again later." if is_prod else f"Internal Server Error: {str(exc)}"
+
+    return JSONResponse(
+        status_code=500,
+        content={"detail": detail}
+    )
+
 
 # ── CORS ─────────────────────────────────────────────────────────────────────
 # Only allow explicitly known, trusted origins. Never use allow_origins=["*"]
@@ -104,6 +151,7 @@ async def add_security_headers(request: Request, call_next):
         # Prevent browsers from sending feature requests (geolocation, camera etc)
         response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
     return response
+
 
 # Include routers
 app.include_router(news.router)
