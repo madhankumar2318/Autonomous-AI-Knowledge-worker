@@ -1,13 +1,13 @@
 # backend/routes/upload.py
 import csv, json, io, os
-from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Query, Cookie
+from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Query, Cookie, Path
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from typing import Optional
 from db import get_conn, get_cursor, execute_sql, insert_history, get_user_id
 import boto3
 from botocore.client import Config
 from routes.auth import _get_username_from_auth_header, _decode_access_token
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
@@ -331,7 +331,7 @@ def list_uploads(
 
 @router.post("/reindex/{filename}")
 def reindex_file(
-    filename: str,
+    filename: str = Path(..., min_length=1, max_length=255, description="File name to reindex"),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
@@ -398,7 +398,7 @@ def reindex_file(
 
 @router.delete("/{filename}")
 def delete_file(
-    filename: str,
+    filename: str = Path(..., min_length=1, max_length=255, description="File name to delete"),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
@@ -459,7 +459,7 @@ def delete_file(
 
 @router.get("/download/{filename}")
 def download_file(
-    filename: str,
+    filename: str = Path(..., min_length=1, max_length=255, description="File name to download"),
     token: Optional[str] = Query(None),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
@@ -535,8 +535,8 @@ def download_file(
 
 @router.get("/parse-table/{filename}")
 def parse_table_file(
-    filename: str,
-    sheet_name: Optional[str] = Query(None),
+    filename: str = Path(..., min_length=1, max_length=255, description="File name to parse as grid data"),
+    sheet_name: Optional[str] = Query(None, max_length=100, description="Optional Excel sheet name"),
     token: Optional[str] = Query(None),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
@@ -663,13 +663,13 @@ def parse_table_file(
 
 
 class EditFileRequest(BaseModel):
-    content: str
+    content: str = Field(..., max_length=5000000, description="File text content to save")
 
 
 @router.put("/edit/{filename}")
 def edit_file(
-    filename: str,
-    req: EditFileRequest,
+    filename: str = Path(..., min_length=1, max_length=255, description="File name to edit"),
+    req: EditFileRequest = ...,
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):

@@ -114,9 +114,9 @@ def _fetch_from_api(category: str, topic: str, max_pages: int = MAX_PAGES) -> li
 @router.get("/")
 def get_news(
     request:  Request,
-    page:     int = Query(1,  ge=1,  description="Page number (1-based)"),
-    category: str = Query("", description="NewsAPI category: business, sports, technology, etc."),
-    topic:    str = Query("", description="Free-text keyword search"),
+    page:     int = Query(1, ge=1, le=1000, description="Page number (1-based)"),
+    category: str = Query("", max_length=50, pattern=r"^[a-zA-Z0-9_\-\s]*$", description="News category filter"),
+    topic:    str = Query("", max_length=200, description="Free-text keyword search"),
 ):
     """
     Return paginated news articles with optional category and keyword filters.

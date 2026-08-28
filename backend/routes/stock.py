@@ -14,7 +14,7 @@ import time
 import random
 import threading
 import requests
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Path
 from rate_limit import stock_limiter
 
 router = APIRouter(prefix="/stock", tags=["Stock"])
@@ -266,6 +266,9 @@ def get_multiple_stocks(
     request: Request,
     symbols: str = Query(
         ",".join(ALL_SYMBOLS),
+        min_length=1,
+        max_length=500,
+        pattern=r"^[a-zA-Z0-9,\.\-\s]+$",
         description="Comma-separated symbols.",
     )
 ):
@@ -304,7 +307,10 @@ def get_sectors(request: Request):
 
 
 @router.get("/")
-def get_stock(request: Request, symbol: str = Query(...)):
+def get_stock(
+    request: Request,
+    symbol: str = Query(..., min_length=1, max_length=20, pattern=r"^[a-zA-Z0-9\.\-]+$", description="Stock ticker symbol")
+):
     """Single symbol quote (cached 5 min).
 
     Rate limited: {STOCK_LIMIT} requests/min per IP (configurable via RATE_LIMIT_STOCK_PER_MIN).
@@ -328,8 +334,8 @@ def get_stock(request: Request, symbol: str = Query(...)):
 @router.get("/history/{symbol}")
 def get_stock_history(
     request: Request,
-    symbol: str,
-    period: str = Query("1mo", description="1d, 5d, 1mo, 1y"),
+    symbol: str = Path(..., min_length=1, max_length=20, pattern=r"^[a-zA-Z0-9\.\-]+$", description="Stock ticker symbol"),
+    period: str = Query("1mo", pattern=r"^(1d|5d|1mo|3mo|6mo|1y|2y|5y|max)$", description="1d, 5d, 1mo, 1y"),
 ):
     """Full historical chart data for a specific stock (called on click, not on page load).
 

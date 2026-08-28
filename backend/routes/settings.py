@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, Cookie, Query, Header
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import os
 from db import get_user_id, get_user_settings, save_user_settings
@@ -8,11 +8,11 @@ from routes.auth import _decode_access_token
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 class UserSettingsSchema(BaseModel):
-    default_model: Optional[str] = 'llama-70b'
-    temperature: Optional[float] = 0.1
-    system_prompt: Optional[str] = ''
-    chunk_size: Optional[int] = 800
-    chunk_overlap: Optional[int] = 100
+    default_model: Optional[str] = Field('llama-70b', pattern=r"^(llama-70b|gemini-pro|gemini-flash)$", description="Default LLM model identifier")
+    temperature: Optional[float] = Field(0.1, ge=0.0, le=2.0, description="LLM sampling temperature between 0.0 and 2.0")
+    system_prompt: Optional[str] = Field('', max_length=5000, description="Custom system instruction prompt")
+    chunk_size: Optional[int] = Field(800, ge=100, le=4000, description="RAG chunk size in characters")
+    chunk_overlap: Optional[int] = Field(100, ge=0, le=1000, description="RAG chunk overlap in characters")
 
 def get_current_user_id(
     token: Optional[str] = Query(None),

@@ -356,7 +356,11 @@ def _deduplicate(results: list[dict]) -> list[dict]:
 # Main Search Endpoint
 # ─────────────────────────────────────────────
 @router.get("/")
-def global_search(request: Request, query: str = Query(...), page: int = 1):
+def global_search(
+    request: Request,
+    query: str = Query(..., min_length=1, max_length=500, description="Search query string"),
+    page: int = Query(1, ge=1, le=100, description="Results page number")
+):
     """
     Multi-tier global search engine:
       1. SerpAPI (if key configured)
@@ -463,7 +467,10 @@ TRENDING_SEARCHES = [
 
 
 @router.get("/suggestions")
-def search_suggestions(request: Request, q: str = Query("")):
+def search_suggestions(
+    request: Request,
+    q: str = Query("", max_length=300, description="Prefix keyword for search suggestions")
+):
     """
     Real-time Google/DuckDuckGo autocomplete suggestions + curated trending search keywords.
 

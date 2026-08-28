@@ -1,7 +1,7 @@
 # backend/routes/chat.py
-from fastapi import APIRouter, Header, Cookie, Request, HTTPException
+from fastapi import APIRouter, Header, Cookie, Request, HTTPException, Path, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 import os
 import re
@@ -29,26 +29,26 @@ def estimate_tokens(text: str) -> int:
 
 # ── Request / Response Models ────────────────────────────────────────────────
 class ChatMessage(BaseModel):
-    role: str  # 'user' or 'ai'
-    content: str
+    role: str = Field(..., pattern=r"^(user|ai|assistant|model|system)$", description="Role of the message sender")
+    content: str = Field(..., min_length=1, max_length=50000, description="Message content string")
 
 class ChatRequest(BaseModel):
-    message: str
-    username: Optional[str] = "guest"
-    history: Optional[List[ChatMessage]] = []
-    filename: Optional[str] = None  # If set, restricts RAG to this document (Document Workspace mode)
-    model: Optional[str] = None  # Supported values: 'llama-70b', 'gemini-pro', 'gemini-flash'
-    thread_id: Optional[str] = None  # For persisting to a thread
-    temperature: Optional[float] = None
-    system_prompt: Optional[str] = None
+    message: str = Field(..., min_length=1, max_length=10000, description="User prompt text")
+    username: Optional[str] = Field("guest", max_length=100, pattern=r"^[a-zA-Z0-9_\-\.@]+$", description="Username")
+    history: Optional[List[ChatMessage]] = Field(default_factory=list, description="Prior conversation messages")
+    filename: Optional[str] = Field(None, max_length=255, description="Document workspace filename filter")
+    model: Optional[str] = Field(None, max_length=50, pattern=r"^[a-zA-Z0-9_\-\.]+$", description="Requested AI model identifier")
+    thread_id: Optional[str] = Field(None, max_length=100, pattern=r"^[a-zA-Z0-9_\-]+$", description="Thread ID for persistence")
+    temperature: Optional[float] = Field(None, ge=0.0, le=2.0, description="Sampling temperature")
+    system_prompt: Optional[str] = Field(None, max_length=5000, description="Custom system prompt override")
 
 class ThreadCreateRequest(BaseModel):
-    username: str
-    title: Optional[str] = "New Chat"
-    model: Optional[str] = None
+    username: str = Field(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9_\-\.@]+$", description="Username owner")
+    title: Optional[str] = Field("New Chat", min_length=1, max_length=200, description="Thread display title")
+    model: Optional[str] = Field(None, max_length=50, pattern=r"^[a-zA-Z0-9_\-\.]+$", description="Default model for thread")
 
 class ThreadRenameRequest(BaseModel):
-    title: str
+    title: str = Field(..., min_length=1, max_length=200, description="Updated thread title")
 
 # ── Helper: Initialize Gemini Client ──────────────────────────────────────────
 def get_gemini_client():
@@ -938,7 +938,7 @@ async def handle_mock_fallback(msg: str):
 
 @router.get("/threads")
 def list_threads(
-    username: str,
+    username: str = Query(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9_\-\.@]+$"),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
@@ -988,8 +988,8 @@ def create_thread(
 
 @router.patch("/threads/{thread_id}")
 def rename_thread(
-    thread_id: str,
-    req: ThreadRenameRequest,
+    thread_id: str = Path(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9_\-]+$"),
+    req: ThreadRenameRequest = ...,
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
@@ -1019,7 +1019,7 @@ def rename_thread(
 
 @router.delete("/threads/{thread_id}")
 def delete_thread(
-    thread_id: str,
+    thread_id: str = Path(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9_\-]+$"),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
@@ -1045,7 +1045,7 @@ def delete_thread(
 
 @router.get("/threads/{thread_id}/messages")
 def get_thread_messages(
-    thread_id: str,
+    thread_id: str = Path(..., min_length=1, max_length=100, pattern=r"^[a-zA-Z0-9_\-]+$"),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):

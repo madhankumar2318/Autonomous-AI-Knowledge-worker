@@ -149,11 +149,11 @@ def _get_username_from_auth_header(
 def register(
     request: Request,
     response: Response,
-    username: str           = Form(...),
-    password: str           = Form(...),
-    name:     Optional[str] = Form(None),
-    email:    Optional[str] = Form(None),
-    mobile:   Optional[str] = Form(None),
+    username: str           = Form(..., min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_\-\.@]+$"),
+    password: str           = Form(..., min_length=8, max_length=128),
+    name:     Optional[str] = Form(None, max_length=100),
+    email:    Optional[str] = Form(None, max_length=255),
+    mobile:   Optional[str] = Form(None, max_length=20),
 ):
     client_ip = request.client.host if request.client else "unknown"
     auth_limiter.check_rate_limit(client_ip)
@@ -216,8 +216,8 @@ def register(
 def login(
     request: Request,
     response: Response,
-    username: str = Form(...),
-    password: str = Form(...)
+    username: str = Form(..., min_length=1, max_length=50),
+    password: str = Form(..., min_length=1, max_length=128)
 ):
     client_ip = request.client.host if request.client else "unknown"
     auth_limiter.check_rate_limit(client_ip)
@@ -375,9 +375,9 @@ def get_profile(
 
 @router.put("/profile")
 def update_profile(
-    name:     Optional[str] = Form(None),
-    email:    Optional[str] = Form(None),
-    mobile:   Optional[str] = Form(None),
+    name:     Optional[str] = Form(None, max_length=100),
+    email:    Optional[str] = Form(None, max_length=255),
+    mobile:   Optional[str] = Form(None, max_length=20),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
@@ -404,8 +404,8 @@ def update_profile(
 def change_password(
     request: Request,
     response: Response,
-    old_password: str = Form(...),
-    new_password: str = Form(...),
+    old_password: str = Form(..., min_length=1, max_length=128),
+    new_password: str = Form(..., min_length=8, max_length=128),
     authorization: Optional[str] = Header(None),
     access_token: Optional[str] = Cookie(None)
 ):
