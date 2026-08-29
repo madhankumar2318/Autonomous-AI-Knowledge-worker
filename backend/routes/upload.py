@@ -1,5 +1,5 @@
 # backend/routes/upload.py
-import csv, json, io, os
+import csv, json, io, os, re, unicodedata, uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException, Header, Query, Cookie, Path
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from typing import Optional
@@ -17,6 +17,13 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # List of allowed file extensions
 ALLOWED_EXTENSIONS = {".csv", ".json", ".pdf", ".txt", ".md", ".docx", ".xlsx"}
 
+# Windows reserved device names that cannot be used as file basenames
+WINDOWS_RESERVED_NAMES = {
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+}
+
 # Magic-byte signatures for each allowed content type.
 # A file must start with one of these byte sequences to prove its actual format.
 # This prevents attackers from renaming a .exe or .sh to .pdf and uploading it.
@@ -33,13 +40,82 @@ MAGIC_BYTES: dict[str, list[bytes]] = {
 ABSOLUTE_UPLOAD_DIR = os.path.realpath(UPLOAD_DIR)
 
 
-def _safe_filepath(base_dir: str, username: str, filename: str) -> str:
-    """Return an absolute, canonical path and raise 400 if it escapes base_dir.
-    Defends against path traversal attacks like '../../../etc/passwd'.
+def sanitize_filename(raw_filename: str) -> str:
+    """Sanitize and normalize user-provided filenames.
+    
+    Security Protections:
+      1. Strip leading/trailing path separators, directory traversal sequences, and null bytes.
+      2. Unicode NFKD normalization (converts homoglyphs and accents into canonical ASCII equivalents).
+      3. Strip control characters (\\x00-\\x1f, \\x7f-\\x9f).
+      4. Remove shell metacharacters and dangerous characters.
+      5. Defend against Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9).
+      6. Remove leading dots to prevent hidden file generation (e.g. .env, .htaccess).
+      7. Limit base filename length to 100 characters to prevent buffer/MAX_PATH overflow.
+      8. Ensure non-empty fallback filename.
     """
-    candidate = os.path.realpath(os.path.join(base_dir, username, filename))
-    if not candidate.startswith(os.path.realpath(base_dir) + os.sep):
+    if not raw_filename:
+        return f"document_{uuid.uuid4().hex[:8]}.txt"
+
+    # Step 1: Strip null bytes and normalize directory separators
+    name = str(raw_filename).replace("\x00", "").replace("\\", "/")
+    name = os.path.basename(name).strip()
+
+    if not name or name in (".", ".."):
+        return f"document_{uuid.uuid4().hex[:8]}.txt"
+
+    # Step 2: Unicode normalization (decompose homoglyphs and accented characters)
+    name = unicodedata.normalize("NFKD", name)
+    name = name.encode("ascii", "ignore").decode("ascii")
+
+    # Step 3: Split base name and extension
+    base, ext = os.path.splitext(name)
+    ext = ext.lower().strip()
+
+    # Step 4: Sanitize base name - keep only alphanumeric, underscore, hyphen, dot
+    clean_base = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", base)
+    # Collapse multiple consecutive underscores or dots
+    clean_base = re.sub(r"[\s_]+", "_", clean_base).strip("._ ")
+
+    # Step 5: Check Windows reserved device names
+    if clean_base.upper() in WINDOWS_RESERVED_NAMES:
+        clean_base = f"safe_{clean_base}"
+
+    # Step 6: Enforce length bounds (max 100 chars for base name)
+    if len(clean_base) > 100:
+        clean_base = clean_base[:100].rstrip("._")
+
+    # Step 7: Fallback if base becomes empty
+    if not clean_base:
+        clean_base = f"document_{uuid.uuid4().hex[:8]}"
+
+    # Combine base and extension
+    sanitized = f"{clean_base}{ext}"
+    return sanitized
+
+
+def _safe_filepath(base_dir: str, username: str, filename: str) -> str:
+    """Return an absolute, canonical path and raise 400 if it escapes the user's directory.
+    Defends against path traversal attacks (e.g., '../../../etc/passwd') and multi-tenant escaping.
+    """
+    clean_name = sanitize_filename(filename)
+    base_real = os.path.realpath(base_dir)
+    user_dir_real = os.path.realpath(os.path.join(base_dir, username))
+    
+    # Ensure user directory resides inside base_real
+    if os.path.commonpath([base_real, user_dir_real]) != base_real:
+        raise HTTPException(status_code=400, detail="Invalid user workspace path.")
+
+    os.makedirs(user_dir_real, exist_ok=True)
+    
+    candidate = os.path.realpath(os.path.join(user_dir_real, clean_name))
+    
+    # Strictly ensure candidate resides inside user_dir_real
+    if not candidate.startswith(user_dir_real + os.sep) and candidate != user_dir_real:
         raise HTTPException(status_code=400, detail="Invalid filename: path traversal detected.")
+        
+    if os.path.commonpath([user_dir_real, candidate]) != user_dir_real:
+        raise HTTPException(status_code=400, detail="Invalid filename: path traversal detected.")
+        
     return candidate
 
 
@@ -113,11 +189,7 @@ async def upload_file(
         if not user_id:
             raise HTTPException(status_code=401, detail="User session invalid")
 
-        filename = os.path.basename(file.filename or "")
-        # Remove any null bytes or whitespace that could bypass checks
-        filename = filename.replace("\x00", "").strip()
-        if not filename or filename in (".", ".."):
-            raise HTTPException(status_code=400, detail="Invalid filename")
+        filename = sanitize_filename(file.filename or "")
         _, ext = os.path.splitext(filename.lower())
 
         if ext not in ALLOWED_EXTENSIONS:
@@ -144,9 +216,7 @@ async def upload_file(
             )
 
         # ── Fix #1: Path traversal protection ───────────────────────────────
-        # Resolve to an absolute canonical path and confirm it lives inside UPLOAD_DIR.
-        user_upload_dir = os.path.join(UPLOAD_DIR, username)
-        os.makedirs(user_upload_dir, exist_ok=True)
+        # Resolve to an absolute canonical path and confirm it lives inside user's UPLOAD_DIR.
         file_path = _safe_filepath(UPLOAD_DIR, username, filename)
 
         # Stream-read and write to disk in chunks to avoid memory spikes (DoS Protection)
@@ -337,7 +407,7 @@ def reindex_file(
 ):
     """Re-trigger RAG indexing for a file that shows RAG Pending status."""
     try:
-        filename = os.path.basename(filename)
+        filename = sanitize_filename(filename)
         username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
         if not user_id:
@@ -352,7 +422,7 @@ def reindex_file(
             raise HTTPException(status_code=403, detail="Access denied or file not found.")
 
         # Try local path first, then S3 fallback
-        local_path = os.path.join(UPLOAD_DIR, username, filename)
+        local_path = _safe_filepath(UPLOAD_DIR, username, filename)
         if not os.path.exists(local_path):
             try:
                 if IS_S3:
@@ -403,7 +473,7 @@ def delete_file(
     access_token: Optional[str] = Cookie(None)
 ):
     try:
-        filename = os.path.basename(filename)
+        filename = sanitize_filename(filename)
         username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
         if not user_id:
@@ -424,7 +494,7 @@ def delete_file(
             conn.commit()
 
         # 3. Delete physical local file if it exists
-        local_path = os.path.join(UPLOAD_DIR, username, filename)
+        local_path = _safe_filepath(UPLOAD_DIR, username, filename)
         if os.path.exists(local_path):
             os.remove(local_path)
             
@@ -465,7 +535,7 @@ def download_file(
     access_token: Optional[str] = Cookie(None)
 ):
     try:
-        filename = os.path.basename(filename)
+        filename = sanitize_filename(filename)
         # Extract JWT session token from Cookie, Query parameters or Headers
         token_to_decode = access_token or token
         if not token_to_decode and authorization:
@@ -491,7 +561,7 @@ def download_file(
             raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
 
         db_filepath = row["filepath"]
-        local_path = os.path.join(UPLOAD_DIR, username, filename)
+        local_path = _safe_filepath(UPLOAD_DIR, username, filename)
 
         # Log to history
         insert_history(username, "file_download", f"filename={filename}")
@@ -542,7 +612,7 @@ def parse_table_file(
     access_token: Optional[str] = Cookie(None)
 ):
     try:
-        filename = os.path.basename(filename)
+        filename = sanitize_filename(filename)
         token_to_decode = access_token or token
         if not token_to_decode and authorization:
             parts = authorization.split(" ")
@@ -567,7 +637,7 @@ def parse_table_file(
             raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
 
         db_filepath = row["filepath"]
-        local_path = os.path.join(UPLOAD_DIR, username, filename)
+        local_path = _safe_filepath(UPLOAD_DIR, username, filename)
 
         # Download from S3 if missing locally
         if IS_S3 and db_filepath.startswith("s3://") and not os.path.exists(local_path):
@@ -674,7 +744,7 @@ def edit_file(
     access_token: Optional[str] = Cookie(None)
 ):
     try:
-        filename = os.path.basename(filename)
+        filename = sanitize_filename(filename)
         # Verify authenticated user
         username = _get_username_from_auth_header(authorization, access_token)
         user_id = get_user_id(username)
@@ -713,7 +783,7 @@ def edit_file(
         if ext not in [".txt", ".md", ".json", ".csv"]:
             raise HTTPException(status_code=400, detail="Only text-based files (.txt, .md, .json, .csv) can be edited.")
 
-        local_path = os.path.join(UPLOAD_DIR, username, filename)
+        local_path = _safe_filepath(UPLOAD_DIR, username, filename)
 
         # 3. Clean up previous RAG embeddings first
         from rag import active_user_context, delete_file_index, index_file

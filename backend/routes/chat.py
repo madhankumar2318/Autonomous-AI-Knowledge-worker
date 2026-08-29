@@ -17,7 +17,7 @@ from google.genai import types
 from db import insert_history
 from routes.news import _fetch_from_api
 from routes.search import SERPAPI_KEY
-from routes.upload import UPLOAD_DIR
+from routes.upload import UPLOAD_DIR, sanitize_filename, _safe_filepath
 from routes.auth import _get_username_from_auth_header, _decode_access_token
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
@@ -436,7 +436,7 @@ def read_uploaded_file(filename: str) -> str:
     Read the content of a file that has been uploaded to the workspace uploads directory.
     Supports CSV, JSON, PDF, TXT, MD, DOCX (Microsoft Word), and XLSX (Microsoft Excel) files.
     """
-    filename = os.path.basename(filename)
+    filename = sanitize_filename(filename)
     if not filename or filename in (".", ".."):
         return "Error: Invalid filename."
 
@@ -458,11 +458,11 @@ def read_uploaded_file(filename: str) -> str:
             filename = row["filename"]
 
 
-    # Enforce multi-tenancy by reading from user-specific subfolder
-    if username != "guest":
-        file_path = os.path.join(UPLOAD_DIR, username, filename)
-    else:
-        file_path = os.path.join(UPLOAD_DIR, filename)
+    # Enforce multi-tenancy and path traversal validation
+    try:
+        file_path = _safe_filepath(UPLOAD_DIR, username, filename)
+    except Exception:
+        return "Error: Invalid filename or path traversal detected."
 
     # S3 fallback: On container deployments, local disk is ephemeral.
     # If the file doesn't exist locally, try downloading from S3.

@@ -858,6 +858,9 @@ def index_file(filepath: str, filename: str, username: str = None) -> Dict[str, 
     Each indexed chunk carries metadata:
         filename, chunk_index, total_chunks, username, chunk_type, page_num
     """
+    from routes.upload import sanitize_filename
+    filename = sanitize_filename(filename)
+
     if username is None:
         username = active_user_context.get()
 
@@ -1017,6 +1020,9 @@ def delete_file_index(filename: str, username: str = None): # type: ignore
     """
     Remove all document chunks for a specific file from ChromaDB or pgvector.
     """
+    from routes.upload import sanitize_filename
+    filename = sanitize_filename(filename)
+
     if username is None:
         username = active_user_context.get()
 
