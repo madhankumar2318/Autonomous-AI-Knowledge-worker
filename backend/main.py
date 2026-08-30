@@ -115,7 +115,7 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=True,
     # Only allow the HTTP methods the API actually uses — not wildcard
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
     # Only allow the specific headers the API reads from requests
     allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
 )
