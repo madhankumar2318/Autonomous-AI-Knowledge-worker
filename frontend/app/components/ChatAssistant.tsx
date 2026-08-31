@@ -70,14 +70,14 @@ interface ChatAssistantProps {
 }
 
 
-// ThinkingLogsAccordion extracted â†’ ./ThinkingLogsAccordion.tsx
-// chatFormatters extracted â†’ ./chatFormatters.tsx
+// ThinkingLogsAccordion extracted → ./ThinkingLogsAccordion.tsx
+// chatFormatters extracted → ./chatFormatters.tsx
 
 const QUICK_PROMPTS = [
-  "ðŸ“Š Summarize today's top news",
-  "ðŸ“ˆ What are the best performing stocks?",
-  "ðŸ” Analyze market sentiment",
-  "ðŸ’¡ What should I know today?",
+  "📊 Summarize today's top news",
+  "📈 What are the best performing stocks?",
+  "🔍 Analyze market sentiment",
+  "💡 What should I know today?",
 ];
 
 
@@ -302,7 +302,7 @@ export default function ChatAssistant({
                 background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399"),
                 boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399")
               }} />
-              <span>Online Â· {selectedModel === "llama-70b" ? "Llama 3.3 70B (Groq)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
+              <span>Online · {selectedModel === "llama-70b" ? "Llama 3.3 70B (Groq)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
             </div>
           </div>
           <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -407,7 +407,26 @@ export default function ChatAssistant({
                     <Bot className="w-3.5 h-3.5" style={{ color: "#67e8f9" }} />
                   )}
                 </div>
-                <div className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}>
+                <div className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"} chat-bubble-copyable`}>
+                  {/* Per-message Copy Button */}
+                  {msg.content && !isLastAi && (
+                    <button
+                      type="button"
+                      className="chat-msg-copy-btn"
+                      title="Copy message"
+                      onClick={() => {
+                        navigator.clipboard.writeText(msg.content);
+                        const el = document.getElementById(`msg-copy-${idx}`);
+                        if (el) {
+                          el.textContent = "✓ Copied";
+                          el.style.color = "#10b981";
+                          setTimeout(() => { if (el) { el.textContent = "Copy"; el.style.color = ""; } }, 1500);
+                        }
+                      }}
+                    >
+                      <span id={`msg-copy-${idx}`}>Copy</span>
+                    </button>
+                  )}
                   <div className="chat-bubble-content">
                     {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
                       <ThinkingLogsAccordion

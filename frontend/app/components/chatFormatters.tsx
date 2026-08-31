@@ -1,9 +1,13 @@
 /**
  * chatFormatters.tsx
  *
- * Pure utility functions for rendering markdown-style chat message text
- * into React nodes. Extracted from ChatAssistant.tsx to reduce file size
- * and make the formatting logic independently readable and testable.
+ * Production-grade Markdown rendering engine for AI chat messages.
+ * Supports: Headings (H1–H4), Tables, Ordered & Unordered Lists,
+ *           Code Blocks (with copy), Inline Code, Bold, Italic,
+ *           Strikethrough, Horizontal Rules, Links (URL whitelist),
+ *           and RAG Citation Badges.
+ *
+ * Extracted from ChatAssistant.tsx for independent readability and testability.
  */
 import { FolderOpen } from "lucide-react";
 import React from "react";
@@ -31,35 +35,50 @@ export function parseInlineStyles(
   lineText: string,
   onCitationClick: CitationClickHandler
 ): React.ReactNode[] {
-  // Matches **bold**, `code`, [link](url), and [Source: file.ext] (Relevancy: X%)
+  // Matches: **bold**, ~~strike~~, *italic*, _italic_, `code`, [link](url), [Source: ...]
   const regex =
-    /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\)|\[Source:\s*[^\]]+\](?:\s*\(\s*Relevancy:\s*\d+%\s*\))?)/g;
+    /(\*\*.*?\*\*|~~.*?~~|\*(?!\*).*?\*(?!\*)|_(?!_).*?_(?!_)|`.*?`|\[.*?\]\(.*?\)|\[Source:\s*[^\]]+\](?:\s*\(\s*Relevancy:\s*\d+%\s*\))?)/g;
   const parts = lineText.split(regex);
 
   return parts.map((part, index) => {
     // Bold: **text**
-    if (part.startsWith("**") && part.endsWith("**")) {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       return (
-        <strong key={index} style={{ fontWeight: 700, color: "#fff" }}>
+        <strong key={index} style={{ fontWeight: 700, color: "var(--text-primary)" }}>
           {part.slice(2, -2)}
         </strong>
       );
     }
 
+    // Strikethrough: ~~text~~
+    if (part.startsWith("~~") && part.endsWith("~~") && part.length > 4) {
+      return (
+        <s key={index} style={{ opacity: 0.6 }}>
+          {part.slice(2, -2)}
+        </s>
+      );
+    }
+
+    // Italic: *text* or _text_ (but not **bold** or __double__)
+    if (
+      ((part.startsWith("*") && part.endsWith("*")) ||
+        (part.startsWith("_") && part.endsWith("_"))) &&
+      part.length > 2 &&
+      !part.startsWith("**")
+    ) {
+      return (
+        <em key={index} style={{ fontStyle: "italic", opacity: 0.9 }}>
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+
     // Inline code: `code`
-    if (part.startsWith("`") && part.endsWith("`")) {
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
       return (
         <code
           key={index}
-          style={{
-            background: "rgba(34,211,238,0.1)",
-            padding: "1px 6px",
-            borderRadius: "4px",
-            color: "#67e8f9",
-            fontFamily: "monospace",
-            fontSize: "0.85em",
-            border: "1px solid rgba(34,211,238,0.2)",
-          }}
+          className="chat-md-inline-code"
         >
           {part.slice(1, -1)}
         </code>
@@ -81,33 +100,7 @@ export function parseInlineStyles(
             key={index}
             type="button"
             onClick={() => onCitationClick(filename, phrase, pageNum)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              background: "rgba(245, 158, 11, 0.08)",
-              border: "1px solid rgba(245, 158, 11, 0.25)",
-              color: "#f59e0b",
-              borderRadius: "5px",
-              padding: "1px 5px",
-              fontSize: "10px",
-              fontWeight: 600,
-              cursor: "pointer",
-              margin: "0 3px",
-              verticalAlign: "middle",
-              transition: "all 0.15s ease",
-              fontFamily: "inherit",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(245, 158, 11, 0.16)";
-              e.currentTarget.style.border = "1px solid rgba(245, 158, 11, 0.4)";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(245, 158, 11, 0.08)";
-              e.currentTarget.style.border = "1px solid rgba(245, 158, 11, 0.25)";
-              e.currentTarget.style.transform = "translateY(0)";
-            }}
+            className="chat-md-citation"
           >
             <FolderOpen size={10} />
             <span>
@@ -125,44 +118,22 @@ export function parseInlineStyles(
     }
 
     // ── Markdown link: [label](url) ──────────────────────────────────────────
-    // SECURITY: Strict protocol whitelist to prevent XSS via javascript:,
-    // data:text/html, vbscript:, or other dangerous URI schemes that can execute
-    // arbitrary code when clicked.
+    // SECURITY: Strict protocol whitelist — blocks javascript:, data:, vbscript: etc.
     const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
     if (linkMatch) {
       const label = linkMatch[1];
       const rawUrl = linkMatch[2].trim();
-
-      // ── URL Protocol Whitelist ──────────────────────────────────────────────
-      // Only allow well-known safe schemes. Everything else (javascript:, data:,
-      // vbscript:, blob:, file:, etc.) is silently blocked and shown as a
-      // visually distinct "blocked" badge so the user understands why it is not
-      // a real link.
       const isSafeUrl =
-        /^https?:\/\//i.test(rawUrl) || // Standard web links (http/https)
-        /^mailto:/i.test(rawUrl) ||       // Email links
-        /^tel:/i.test(rawUrl);            // Phone links
+        /^https?:\/\//i.test(rawUrl) ||
+        /^mailto:/i.test(rawUrl) ||
+        /^tel:/i.test(rawUrl);
 
       if (!isSafeUrl) {
-        // Render as a non-clickable badge instead of a live link
         return (
           <span
             key={index}
             title={`Blocked unsafe URL scheme: "${rawUrl.slice(0, 40)}"`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "4px",
-              background: "rgba(239,68,68,0.08)",
-              border: "1px solid rgba(239,68,68,0.25)",
-              color: "#ef4444",
-              borderRadius: "4px",
-              padding: "0px 5px",
-              fontSize: "0.85em",
-              fontWeight: 600,
-              cursor: "not-allowed",
-              userSelect: "none",
-            }}
+            className="chat-md-blocked-link"
           >
             🚫 {label}
           </span>
@@ -175,7 +146,7 @@ export function parseInlineStyles(
           href={rawUrl}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ color: "#22d3ee", textDecoration: "underline", fontWeight: 600 }}
+          className="chat-md-link"
         >
           {label}
         </a>
@@ -184,6 +155,24 @@ export function parseInlineStyles(
 
     return part;
   });
+}
+
+// ── Table Parser ─────────────────────────────────────────────────────────────
+// Detects a consecutive block of | col | col | rows and returns a styled table.
+function isTableRow(line: string): boolean {
+  return line.trim().startsWith("|") && line.trim().endsWith("|");
+}
+
+function isSeparatorRow(line: string): boolean {
+  return /^\|[\s\-:|]+\|[\s\-:|]*\|[\s\-:|]*$/.test(line.trim());
+}
+
+function parseTableCells(line: string): string[] {
+  return line
+    .trim()
+    .slice(1, -1) // remove leading/trailing |
+    .split("|")
+    .map((cell) => cell.trim());
 }
 
 // ── Main: convert full message text to an array of React nodes ────────────────
@@ -195,9 +184,7 @@ export function formatMessage(
 
   const segments: React.ReactNode[] = [];
   const lines = text.split("\n");
-  let inCodeBlock = false;
-  let codeBlockLanguage = "";
-  let codeBlockLines: string[] = [];
+  let i = 0;
 
   const handleCopy = (codeText: string, btnId: string) => {
     navigator.clipboard.writeText(codeText);
@@ -216,109 +203,195 @@ export function formatMessage(
     }
   };
 
-  const pushCodeBlock = (codeText: string) => {
-    const btnId = `copy-btn-${segments.length}`;
+  const pushCodeBlock = (codeText: string, language: string) => {
+    const btnId = `copy-btn-${segments.length}-${Math.random().toString(36).slice(2, 7)}`;
     const capturedCode = codeText;
     segments.push(
-      <div
-        key={`code-${segments.length}`}
-        style={{
-          background: "#0b0f19",
-          border: "1px solid rgba(255,255,255,0.06)",
-          borderRadius: "8px",
-          margin: "12px 0",
-          fontFamily: "monospace",
-          fontSize: "0.85em",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Code block header bar */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: "#060913",
-            borderBottom: "1px solid rgba(255,255,255,0.04)",
-            padding: "4px 12px",
-            height: "28px",
-          }}
-        >
-          <span style={{ color: "#475569", fontSize: "10px", fontWeight: 700, textTransform: "uppercase" }}>
-            {codeBlockLanguage || "code"}
+      <div key={`code-${segments.length}`} className="chat-md-code-block">
+        {/* Code block header */}
+        <div className="chat-md-code-header">
+          <span className="chat-md-code-lang">
+            {language || "code"}
           </span>
           <button
             id={btnId}
             type="button"
             onClick={() => handleCopy(capturedCode, btnId)}
-            style={{
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "4px",
-              color: "#94a3b8",
-              fontSize: "10px",
-              fontWeight: 600,
-              padding: "2px 8px",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
+            className="chat-md-code-copy"
           >
             Copy
           </button>
         </div>
-        <pre style={{ margin: 0, padding: "12px", overflowX: "auto", color: "#e2e8f0", lineHeight: "1.5" }}>
+        <pre className="chat-md-code-pre">
           <code>{codeText}</code>
         </pre>
       </div>
     );
   };
 
-  for (let i = 0; i < lines.length; i++) {
+  const pushTable = (tableLines: string[]) => {
+    if (tableLines.length < 2) return;
+
+    const headerCells = parseTableCells(tableLines[0]);
+    // Find separator row index
+    const sepIdx = tableLines.findIndex((l, idx) => idx > 0 && isSeparatorRow(l));
+    if (sepIdx === -1) return; // not a valid table, skip
+
+    const bodyLines = tableLines.slice(sepIdx + 1).filter((l) => isTableRow(l));
+
+    segments.push(
+      <div key={`table-${segments.length}`} className="chat-md-table-wrap">
+        <table className="chat-md-table">
+          <thead>
+            <tr>
+              {headerCells.map((cell, ci) => (
+                <th key={ci}>{parseInlineStyles(cell, onCitationClick)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {bodyLines.map((row, ri) => {
+              const cells = parseTableCells(row);
+              return (
+                <tr key={ri} className={ri % 2 === 0 ? "chat-md-table-row-even" : "chat-md-table-row-odd"}>
+                  {cells.map((cell, ci) => (
+                    <td key={ci}>{parseInlineStyles(cell, onCitationClick)}</td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Collect ordered list items
+  const pushOrderedList = (items: string[]) => {
+    segments.push(
+      <ol key={`ol-${segments.length}`} className="chat-md-ol">
+        {items.map((item, idx) => (
+          <li key={idx} className="chat-md-ol-item">
+            {parseInlineStyles(item, onCitationClick)}
+          </li>
+        ))}
+      </ol>
+    );
+  };
+
+  while (i < lines.length) {
     const line = lines[i];
+    const trimmed = line.trim();
 
-    if (line.trim().startsWith("```")) {
-      if (inCodeBlock) {
-        // Close the code block
-        pushCodeBlock(codeBlockLines.join("\n"));
-        codeBlockLines = [];
-        codeBlockLanguage = "";
-        inCodeBlock = false;
-      } else {
-        // Open a new code block
-        inCodeBlock = true;
-        codeBlockLanguage = line.trim().slice(3).trim();
+    // ── Code Block ────────────────────────────────────────────────────────────
+    if (trimmed.startsWith("```")) {
+      const language = trimmed.slice(3).trim();
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
       }
-    } else if (inCodeBlock) {
-      codeBlockLines.push(line);
-    } else {
-      // Normal text line — check for bullet points
-      const isBullet =
-        line.trim().startsWith("- ") ||
-        line.trim().startsWith("* ") ||
-        line.trim().startsWith("• ");
-
-      if (isBullet) {
-        const cleanLine = line.trim().replace(/^[-*•]\s+/, "");
-        segments.push(
-          <div key={`line-${i}`} style={{ display: "flex", gap: "8px", marginBottom: "3px" }}>
-            <span style={{ color: "#22d3ee", flexShrink: 0, lineHeight: "1.6" }}>▸</span>
-            <span>{parseInlineStyles(cleanLine, onCitationClick)}</span>
-          </div>
-        );
-      } else {
-        segments.push(
-          <div key={`line-${i}`} className={line.trim() === "" ? "" : "chat-line"}>
-            {parseInlineStyles(line, onCitationClick)}
-          </div>
-        );
-      }
+      // Flush any partial code block still streaming
+      pushCodeBlock(codeLines.join("\n"), language);
+      i++; // skip closing ```
+      continue;
     }
-  }
 
-  // Flush any open code block that was still streaming when the component rendered
-  if (inCodeBlock && codeBlockLines.length > 0) {
-    pushCodeBlock(codeBlockLines.join("\n"));
+    // ── Markdown Table ────────────────────────────────────────────────────────
+    if (isTableRow(trimmed)) {
+      const tableLines: string[] = [];
+      while (i < lines.length && isTableRow(lines[i].trim())) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      pushTable(tableLines);
+      continue;
+    }
+
+    // ── Headings ──────────────────────────────────────────────────────────────
+    if (trimmed.startsWith("#### ")) {
+      segments.push(
+        <div key={`h4-${i}`} className="chat-md-h4">
+          {parseInlineStyles(trimmed.slice(5), onCitationClick)}
+        </div>
+      );
+      i++;
+      continue;
+    }
+    if (trimmed.startsWith("### ")) {
+      segments.push(
+        <div key={`h3-${i}`} className="chat-md-h3">
+          {parseInlineStyles(trimmed.slice(4), onCitationClick)}
+        </div>
+      );
+      i++;
+      continue;
+    }
+    if (trimmed.startsWith("## ")) {
+      segments.push(
+        <div key={`h2-${i}`} className="chat-md-h2">
+          {parseInlineStyles(trimmed.slice(3), onCitationClick)}
+        </div>
+      );
+      i++;
+      continue;
+    }
+    if (trimmed.startsWith("# ")) {
+      segments.push(
+        <div key={`h1-${i}`} className="chat-md-h1">
+          {parseInlineStyles(trimmed.slice(2), onCitationClick)}
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // ── Horizontal Rule ───────────────────────────────────────────────────────
+    if (/^(---+|\*\*\*+|___+)$/.test(trimmed)) {
+      segments.push(<hr key={`hr-${i}`} className="chat-md-hr" />);
+      i++;
+      continue;
+    }
+
+    // ── Ordered List ──────────────────────────────────────────────────────────
+    if (/^\d+\.\s/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s+/, ""));
+        i++;
+      }
+      pushOrderedList(items);
+      continue;
+    }
+
+    // ── Unordered Bullet List ─────────────────────────────────────────────────
+    if (
+      trimmed.startsWith("- ") ||
+      trimmed.startsWith("* ") ||
+      trimmed.startsWith("• ")
+    ) {
+      const cleanLine = trimmed.replace(/^[-*•]\s+/, "");
+      segments.push(
+        <div key={`bullet-${i}`} className="chat-md-bullet">
+          <span className="chat-md-bullet-dot">▸</span>
+          <span>{parseInlineStyles(cleanLine, onCitationClick)}</span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // ── Normal text line ──────────────────────────────────────────────────────
+    segments.push(
+      <div
+        key={`line-${i}`}
+        className={trimmed === "" ? "chat-md-spacer" : "chat-md-line"}
+      >
+        {trimmed === "" ? null : parseInlineStyles(line, onCitationClick)}
+      </div>
+    );
+    i++;
   }
 
   return segments;
