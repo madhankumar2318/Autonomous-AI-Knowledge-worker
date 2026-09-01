@@ -1379,4 +1379,395 @@ input:-webkit-autofill:active {
 }
 
 
+/* ========================================
+   🖼️  ARTIFACT CANVAS & SPLIT-VIEW SYSTEM
+   ======================================== */
+
+/* Split-view: canvas pane sits beside chat-inline-main inside chat-inline-body */
+.chat-canvas-pane {
+  flex: 0 0 55%;
+  min-width: 320px;
+  max-width: 65%;
+  border-left: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: flex-basis 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width  0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: canvas-slide-in 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes canvas-slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Artifact Canvas Root ─────────────────────────────────────────────────── */
+.artifact-canvas-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-sidebar);
+  overflow: hidden;
+}
+
+/* Fullscreen: takes over entire viewport */
+.artifact-canvas-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  background: var(--bg-primary) !important;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.artifact-canvas-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  background: rgba(8, 8, 20, 0.5);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.artifact-canvas-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.artifact-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.artifact-canvas-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* ── View Mode Switcher ───────────────────────────────────────────────────── */
+.artifact-view-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.artifact-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.artifact-view-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.artifact-view-btn--active {
+  color: var(--accent-primary) !important;
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent) !important;
+}
+
+/* ── Action Toolbar ───────────────────────────────────────────────────────── */
+.artifact-canvas-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.artifact-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.artifact-action-btn:hover {
+  background: rgba(34, 211, 238, 0.08);
+  border-color: rgba(34, 211, 238, 0.3);
+  color: var(--accent-primary);
+}
+
+.artifact-close-btn:hover {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #ef4444 !important;
+}
+
+/* ── Body ─────────────────────────────────────────────────────────────────── */
+.artifact-canvas-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) transparent;
+}
+
+/* Preview: rendered markdown */
+.artifact-preview-view {
+  padding: 20px 24px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+/* Raw: plain text / code view */
+.artifact-raw-view {
+  margin: 0;
+  padding: 20px 24px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  background: #0b0f19;
+  min-height: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+/* Edit: textarea */
+.artifact-edit-area {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  padding: 20px 24px;
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  caret-color: var(--accent-primary);
+}
+
+.artifact-edit-area:focus {
+  background: rgba(34, 211, 238, 0.02);
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.artifact-canvas-footer {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 7px 16px;
+  border-top: 1px solid var(--border-light);
+  background: rgba(8, 8, 20, 0.35);
+  flex-shrink: 0;
+}
+
+.artifact-stat {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.artifact-stat-sep {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin: 0 6px;
+  opacity: 0.4;
+}
+
+.artifact-edit-badge {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--accent-primary);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+}
+
+/* ── "Open in Canvas" message button ─────────────────────────────────────── */
+.chat-msg-canvas-btn {
+  position: absolute;
+  top: 6px;
+  right: 68px; /* offset from copy button */
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-radius: 5px;
+  color: var(--accent-primary);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  font-family: inherit;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.chat-bubble-copyable:hover .chat-msg-canvas-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-msg-canvas-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+}
+
+/* ── Minimized Artifact Pill ──────────────────────────────────────────────── */
+.artifact-minimized-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 12px;
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  border-radius: 10px;
+  animation: fade-in 0.25s ease-out forwards;
+  flex-shrink: 0;
+}
+
+.artifact-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+}
+
+.artifact-pill-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.artifact-pill-open {
+  font-size: 10px;
+  color: var(--accent-primary);
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.artifact-pill-btn:hover .artifact-pill-open {
+  opacity: 1;
+}
+
+.artifact-pill-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+
+.artifact-pill-dismiss:hover {
+  color: #ef4444;
+}
+
+/* ── Light Theme Overrides ────────────────────────────────────────────────── */
+:root[data-theme="light"] .artifact-canvas-root {
+  background: var(--bg-secondary);
+}
+
+:root[data-theme="light"] .artifact-canvas-header {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+:root[data-theme="light"] .artifact-canvas-footer {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme="light"] .artifact-raw-view {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+:root[data-theme="light"] .artifact-edit-area {
+  color: var(--text-primary);
+}
+
+:root[data-theme="light"] .artifact-view-switcher {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="light"] .artifact-action-btn {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #475569;
+}
+
+:root[data-theme="light"] .chat-canvas-pane {
+  border-left-color: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="light"] .artifact-minimized-pill {
+  background: color-mix(in srgb, var(--accent-primary) 5%, rgba(255,255,255,0.9));
+  border-color: color-mix(in srgb, var(--accent-primary) 20%, transparent);
+}
+
+
+
 

@@ -28,6 +28,7 @@ import ThinkingLogsAccordion, { type ToolLog } from "./ThinkingLogsAccordion";
 import { formatMessage } from "./chatFormatters";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { useChatStream, ChatMessage, ChatThread } from "../hooks/useChatStream";
+import ArtifactCanvas, { Artifact } from "./ArtifactCanvas";
 
 // ── Assistant Presets ─────────────────────────────────────────────────────────
 export const PRESETS = {
@@ -130,6 +131,54 @@ export default function ChatAssistant({
   const [activePreset, setActivePreset] = useState<keyof typeof PRESETS>("default");
   const [showParamsPanel, setShowParamsPanel] = useState(false);
 
+  // ── Artifact Canvas State ──────────────────────────────────────────────────
+  const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null);
+  const [isCanvasMinimized, setIsCanvasMinimized] = useState(false);
+
+  // Parse an <artifact title="..." type="..." language="...">content</artifact> block
+  const parseArtifactFromContent = (content: string): Artifact | null => {
+    const match = content.match(
+      /<artifact\s+title="([^"]+)"\s+type="([^"]+)"(?:\s+language="([^"]*)")?[^>]*>([\s\S]*?)<\/artifact>/i
+    );
+    if (match) {
+      return {
+        id: `artifact-${Date.now()}`,
+        title: match[1].trim(),
+        type: (match[2].trim() as Artifact["type"]) || "markdown",
+        language: match[3] ? match[3].trim() : undefined,
+        content: match[4].trim(),
+      };
+    }
+    return null;
+  };
+
+  // Determine if a completed AI message qualifies for "Open in Canvas"
+  const messageQualifiesForCanvas = (content: string): boolean => {
+    if (!content || content.length < 400) return false;
+    const hasTable    = /^\|.+\|$/m.test(content);
+    const hasCode     = content.includes("```") && content.split("```").length > 2;
+    const hasHeading  = /^#{1,4} .+/m.test(content);
+    const isLong      = content.length > 800;
+    return hasTable || hasCode || (hasHeading && isLong);
+  };
+
+  // Build a canvas artifact from a plain AI message (no <artifact> tag)
+  const buildArtifactFromMessage = (content: string, index: number): Artifact => {
+    const headingMatch = content.match(/^#{1,3} (.+)/m);
+    const title = headingMatch ? headingMatch[1].trim() : `AI Response #${index + 1}`;
+    const hasCode = content.includes("```");
+    const type: Artifact["type"] = hasCode ? "code" : "markdown";
+    const langMatch = content.match(/```(\w+)/);
+    return {
+      id: `artifact-msg-${index}-${Date.now()}`,
+      title,
+      type,
+      language: langMatch ? langMatch[1] : undefined,
+      content,
+    };
+  };
+
+
   // Hook up useChatStream
   const {
     messages,
@@ -158,6 +207,24 @@ export default function ChatAssistant({
   const { isListening, toggleListening, transcriptPreview } = useSpeechRecognition({
     onTranscript: (text) => setInput((prev) => (prev ? prev + " " + text : text)),
   });
+
+  // ── Auto-detect <artifact> tags when streaming finishes ───────────────────
+  const prevLoadingRef = React.useRef(false);
+  useEffect(() => {
+    // Fires when loading transitions true → false (streaming just ended)
+    if (prevLoadingRef.current && !loading) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.role === "ai" && lastMsg.content) {
+        const artifact = parseArtifactFromContent(lastMsg.content);
+        if (artifact) {
+          setActiveArtifact(artifact);
+          setIsCanvasMinimized(false);
+        }
+      }
+    }
+    prevLoadingRef.current = loading;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, messages]);
 
   // Listen to command palette model updates
   useEffect(() => {
@@ -427,6 +494,22 @@ export default function ChatAssistant({
                       <span id={`msg-copy-${idx}`}>Copy</span>
                     </button>
                   )}
+                  {/* Open in Canvas Button — for qualifying AI messages */}
+                  {msg.role === "ai" && msg.content && !isLastAi && messageQualifiesForCanvas(msg.content) && (
+                    <button
+                      type="button"
+                      className="chat-msg-canvas-btn"
+                      title="Open in Canvas"
+                      onClick={() => {
+                        const artifact = parseArtifactFromContent(msg.content)
+                          || buildArtifactFromMessage(msg.content, idx);
+                        setActiveArtifact(artifact);
+                        setIsCanvasMinimized(false);
+                      }}
+                    >
+                      📄 Canvas
+                    </button>
+                  )}
                   <div className="chat-bubble-content">
                     {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
                       <ThinkingLogsAccordion
@@ -547,7 +630,41 @@ export default function ChatAssistant({
           </div>
         </div>
           </div>{/* /chat-inline-main */}
+
+          {/* ── Artifact Canvas — right split-view pane ── */}
+          {activeArtifact && !isCanvasMinimized && (
+            <div className="chat-canvas-pane">
+              <ArtifactCanvas
+                artifact={activeArtifact}
+                onClose={() => setIsCanvasMinimized(true)}
+              />
+            </div>
+          )}
         </div>{/* /chat-inline-body */}
+
+        {/* Minimized Artifact Pill — shown when canvas is hidden but artifact exists */}
+        {activeArtifact && isCanvasMinimized && (
+          <div className="artifact-minimized-pill">
+            <button
+              type="button"
+              className="artifact-pill-btn"
+              onClick={() => setIsCanvasMinimized(false)}
+              title="Reopen canvas"
+            >
+              <span>📄</span>
+              <span className="artifact-pill-title">{activeArtifact.title}</span>
+              <span className="artifact-pill-open">Open ↗</span>
+            </button>
+            <button
+              type="button"
+              className="artifact-pill-dismiss"
+              onClick={() => { setActiveArtifact(null); setIsCanvasMinimized(false); }}
+              title="Dismiss artifact"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <style>{`
           .chat-inline-root {
