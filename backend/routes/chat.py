@@ -1355,9 +1355,9 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             
             # Choose correct Gemini model list
             if selected_model == "gemini-pro":
-                MODELS_TO_TRY = ["gemini-1.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+                MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
             else:
-                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-pro"]
             response = None
             last_error = None
 
@@ -1830,9 +1830,9 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 
                 # Choose correct Gemini model list
                 if selected_model == "gemini-pro":
-                    MODELS_TO_TRY = ["gemini-1.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+                    MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
                 else:
-                    MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+                    MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-pro"]
                 last_error = None
                 streamed = False
 
@@ -1967,12 +1967,46 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                 break  # Non-retryable
 
                 if not streamed:
-                    # All models failed — stream error message
+                    # Automatic Failover: Try Groq if Gemini is rate limited or unavailable
+                    groq_client = get_groq_client()
+                    if groq_client:
+                        try:
+                            print("[INFO] Gemini quota/rate-limit hit. Auto-failing over to Groq Llama 3.3...")
+                            yield _sse_event("model_used", "Llama 3.3 (Groq Auto-Failover)")
+                            groq_msgs = [{"role": "system", "content": stream_instruction}]
+                            for m in resolved_history:
+                                role = "user" if m.role == "user" else "assistant"
+                                groq_msgs.append({"role": role, "content": m.content})
+                            groq_msgs.append({"role": "user", "content": resolved_message})
+                            
+                            g_stream = groq_client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=groq_msgs,
+                                temperature=temperature_choice,
+                                stream=True,
+                            )
+                            for chunk in g_stream:
+                                if await request.is_disconnected():
+                                    return
+                                delta = chunk.choices[0].delta
+                                token = delta.content or ""
+                                if token:
+                                    accumulated_reply += token
+                                    yield _sse_event("token", token)
+                                    await asyncio.sleep(0)
+                            
+                            if accumulated_reply:
+                                _persist_thread_messages(accumulated_reply)
+                                yield _sse_done()
+                                return
+                        except Exception as failover_err:
+                            print(f"[WARN] Groq failover error: {failover_err}")
+
+                    # All models failed — stream clean helpful guidance
                     err_str = str(last_error) if last_error else "Unknown error"
                     if "503" in err_str or "UNAVAILABLE" in err_str:
                         error_reply = (
                             "**Gemini AI is temporarily overloaded** (high demand right now). "
-                            "Please try again in 30-60 seconds. I'll be fully back online shortly!"
                         )
                     elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                         error_reply = (
