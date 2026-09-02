@@ -387,10 +387,11 @@ export function useChatStream({
       const stepIndexRef = { current: 0 };
 
       const parseResearchPlan = (raw: string): ResearchPlan | null => {
-        const match = raw.match(/<research_plan\s+title="([^"]+)">([^<]*)<\/research_plan>/);
+        const match = raw.match(/<research_plan\s+title="([^"]+)">([^<\n]+)(?:<\/research_plan>)?/);
         if (!match) return null;
         const title = match[1].trim();
         const stepLabels = match[2].split("||").map((s) => s.trim()).filter(Boolean);
+        if (stepLabels.length === 0) return null;
         const steps: ResearchStep[] = stepLabels.map((label, i) => ({
           id: `step-${i}`,
           label,
@@ -421,8 +422,10 @@ export function useChatStream({
               // ── Accumulate tokens for research plan detection ──────────────
               if (!planParsed) {
                 tokenBuffer += event.content;
-                // Once we see the closing tag, parse and attach the plan
-                if (tokenBuffer.includes("</research_plan>")) {
+                // Check if we hit the closing tag, a newline, or the next artifact/content block
+                const hasClosing = tokenBuffer.includes("</research_plan>");
+                const hasNextBlock = tokenBuffer.includes("<artifact") || (tokenBuffer.includes("<research_plan") && tokenBuffer.includes("\n"));
+                if (hasClosing || hasNextBlock) {
                   const plan = parseResearchPlan(tokenBuffer);
                   if (plan) {
                     planParsed = true;
@@ -433,7 +436,7 @@ export function useChatStream({
                       if (last && last.role === "ai") {
                         // Strip the research_plan tag from visible content
                         const cleanContent = last.content
-                          .replace(/<research_plan[^>]*>[^<]*<\/research_plan>/g, "")
+                          .replace(/<research_plan[^>]*>[^<\n]*(?:<\/research_plan>)?/g, "")
                           .trimStart();
                         updated[updated.length - 1] = { ...last, content: cleanContent, researchPlan: plan };
                       }
@@ -444,7 +447,7 @@ export function useChatStream({
                   }
                 }
                 // Only skip displaying tokens that are inside the plan tag
-                if (tokenBuffer.includes("<research_plan") && !tokenBuffer.includes("</research_plan>")) {
+                if (tokenBuffer.includes("<research_plan") && !tokenBuffer.includes("</research_plan>") && !tokenBuffer.includes("\n")) {
                   continue; // Still buffering the plan tag
                 }
               }

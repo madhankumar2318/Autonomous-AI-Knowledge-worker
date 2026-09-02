@@ -205,8 +205,12 @@ export function formatMessage(
 ): React.ReactNode[] {
   if (!text) return [];
 
-  // Safety-net: strip any residual <research_plan> tags that weren't consumed by the stream parser
-  const sanitized = text.replace(/<research_plan[^>]*>[^<]*<\/research_plan>/g, "").trimStart();
+  // Safety-net: strip any residual <research_plan> and <artifact> XML tags so only rich formatted content displays
+  const sanitized = text
+    .replace(/<research_plan[^>]*>[^<\n]*(?:<\/research_plan>)?/g, "")
+    .replace(/<artifact[^>]*>/g, "")
+    .replace(/<\/artifact>/g, "")
+    .trimStart();
 
   const segments: React.ReactNode[] = [];
   const lines = sanitized.split("\n");
