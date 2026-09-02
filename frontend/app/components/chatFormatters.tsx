@@ -9,7 +9,7 @@
  *
  * Extracted from ChatAssistant.tsx for independent readability and testability.
  */
-import { FolderOpen } from "lucide-react";
+import { FolderOpen, Newspaper } from "lucide-react";
 import React from "react";
 
 // ── Citation click handler type ───────────────────────────────────────────────
@@ -91,28 +91,51 @@ export function parseInlineStyles(
         /\[Source:\s*([^,\]]+)(?:,\s*Page:\s*(\d+))?\](?:\s*\(\s*Relevancy:\s*(\d+%)\s*\))?/
       );
       if (match) {
-        const filename = match[1].trim();
+        const sourceName = match[1].trim();
         const pageNum = match[2] ? parseInt(match[2].trim(), 10) : undefined;
         const relevancy = match[3] ? match[3].trim() : null;
         const phrase = getPrecedingPhrase(lineText, lineText.indexOf(part));
+        const isDocFile = /\.(pdf|csv|xlsx|docx|txt|json|md)$/i.test(sourceName);
+
+        if (isDocFile) {
+          // Document file citation in workspace
+          return (
+            <button
+              key={index}
+              type="button"
+              onClick={() => onCitationClick(sourceName, phrase, pageNum)}
+              className="chat-md-citation"
+              title="Click to view passage in Document Workspace"
+            >
+              <FolderOpen size={10} />
+              <span>
+                {sourceName}
+                {pageNum ? `, Page ${pageNum}` : ""}
+              </span>
+              {relevancy && (
+                <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: "2px" }}>
+                  ({relevancy})
+                </span>
+              )}
+            </button>
+          );
+        }
+
+        // External News / Web Source reference badge (not a workspace document)
         return (
-          <button
+          <span
             key={index}
-            type="button"
-            onClick={() => onCitationClick(filename, phrase, pageNum)}
-            className="chat-md-citation"
+            className="chat-md-citation chat-md-citation--ref"
+            title="External news / data source"
           >
-            <FolderOpen size={10} />
-            <span>
-              {filename}
-              {pageNum ? `, Page ${pageNum}` : ""}
-            </span>
+            <Newspaper size={10} />
+            <span>{sourceName}</span>
             {relevancy && (
               <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: "2px" }}>
                 ({relevancy})
               </span>
             )}
-          </button>
+          </span>
         );
       }
     }

@@ -529,13 +529,61 @@ export default function DocumentWorkspace({
 
         .dw-error {
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
           flex: 1;
-          color: #f87171;
-          font-size: 13px;
-          padding: 24px;
+          padding: 40px 24px;
           text-align: center;
+        }
+        .dw-error-card {
+          max-width: 440px;
+          background: rgba(15, 23, 42, 0.7);
+          border: 1px solid rgba(239, 68, 68, 0.25);
+          border-radius: 12px;
+          padding: 24px 28px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        .dw-error-icon {
+          font-size: 28px;
+          line-height: 1;
+        }
+        .dw-error-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #f87171;
+        }
+        .dw-error-desc {
+          font-size: 12px;
+          line-height: 1.6;
+          color: var(--text-secondary, #94a3b8);
+        }
+        .dw-error-actions {
+          margin-top: 8px;
+        }
+        .dw-error-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(34, 211, 238, 0.1);
+          border: 1px solid rgba(34, 211, 238, 0.3);
+          color: #22d3ee;
+          border-radius: 8px;
+          padding: 8px 16px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: inherit;
+        }
+        .dw-error-btn:hover {
+          background: rgba(34, 211, 238, 0.2);
+          border-color: rgba(34, 211, 238, 0.5);
+          color: #67e8f9;
         }
 
         /* ── Right: Chat Panel ── */
@@ -886,7 +934,22 @@ export default function DocumentWorkspace({
                   <span>Loading PDF preview…</span>
                 </div>
               ) : pdfError ? (
-                <div className="dw-error">⚠️ {pdfError}</div>
+                <div className="dw-error">
+                  <div className="dw-error-card">
+                    <div className="dw-error-icon">📄</div>
+                    <div className="dw-error-title">Document Not Found</div>
+                    <div className="dw-error-desc">
+                      {pdfError.includes("403") || pdfError.includes("404")
+                        ? `"${file.filename}" is an external citation or was not found in your uploaded workspace files.`
+                        : pdfError}
+                    </div>
+                    <div className="dw-error-actions">
+                      <button type="button" onClick={onClose} className="dw-error-btn">
+                        ← Return to File Workspace
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : pdfUrl ? (
                 <iframe
                   className="dw-pdf-frame"
@@ -901,7 +964,22 @@ export default function DocumentWorkspace({
                 <span>Loading document…</span>
               </div>
             ) : textError ? (
-              <div className="dw-error">⚠️ {textError}</div>
+              <div className="dw-error">
+                <div className="dw-error-card">
+                  <div className="dw-error-icon">📄</div>
+                  <div className="dw-error-title">Document Not Found</div>
+                  <div className="dw-error-desc">
+                    {textError.includes("403") || textError.includes("404")
+                      ? `"${file.filename}" is an external news or web reference, not a local file in your workspace.`
+                      : textError}
+                  </div>
+                  <div className="dw-error-actions">
+                    <button type="button" onClick={onClose} className="dw-error-btn">
+                      ← Return to File Workspace
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : isEditing ? (
               <textarea
                 className="dw-text-textarea"
@@ -917,7 +995,22 @@ export default function DocumentWorkspace({
                   <span>Parsing spreadsheet cells…</span>
                 </div>
               ) : gridError ? (
-                <div className="dw-error">⚠️ {gridError}</div>
+                <div className="dw-error">
+                  <div className="dw-error-card">
+                    <div className="dw-error-icon">📊</div>
+                    <div className="dw-error-title">Spreadsheet Not Found</div>
+                    <div className="dw-error-desc">
+                      {gridError.includes("403") || gridError.includes("404")
+                        ? `"${file.filename}" was not found in your workspace.`
+                        : gridError}
+                    </div>
+                    <div className="dw-error-actions">
+                      <button type="button" onClick={onClose} className="dw-error-btn">
+                        ← Return to File Workspace
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : gridData ? (
                 <div className="dw-spreadsheet-container">
                   {/* Search and Sheet Selector Bar */}

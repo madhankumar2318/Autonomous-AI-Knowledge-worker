@@ -558,7 +558,7 @@ def download_file(
             row = cur.fetchone()
 
         if not row:
-            raise HTTPException(status_code=403, detail="Access denied. You do not own this file.")
+            raise HTTPException(status_code=404, detail="File not found in your workspace.")
 
         db_filepath = row["filepath"]
         local_path = _safe_filepath(UPLOAD_DIR, username, filename)
