@@ -182,8 +182,11 @@ export function formatMessage(
 ): React.ReactNode[] {
   if (!text) return [];
 
+  // Safety-net: strip any residual <research_plan> tags that weren't consumed by the stream parser
+  const sanitized = text.replace(/<research_plan[^>]*>[^<]*<\/research_plan>/g, "").trimStart();
+
   const segments: React.ReactNode[] = [];
-  const lines = text.split("\n");
+  const lines = sanitized.split("\n");
   let i = 0;
 
   const handleCopy = (codeText: string, btnId: string) => {

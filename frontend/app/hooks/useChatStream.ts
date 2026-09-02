@@ -5,6 +5,19 @@ import { PRESETS } from "../components/ChatAssistant";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
+export interface ResearchStep {
+  id: string;
+  label: string;
+  tool?: string;
+  status: "pending" | "running" | "completed";
+  details?: string;
+}
+
+export interface ResearchPlan {
+  title: string;
+  steps: ResearchStep[];
+}
+
 export interface ChatMessage {
   role: "user" | "ai";
   content: string;
@@ -17,6 +30,7 @@ export interface ChatMessage {
     output?: string;
   }[];
   model?: string;
+  researchPlan?: ResearchPlan;
 }
 
 export interface ChatThread {
@@ -365,6 +379,26 @@ export function useChatStream({
       const decoder = new TextDecoder();
       let buffer = "";
 
+      // ── Research Plan Tracking ─────────────────────────────────────────────
+      // Buffer streamed tokens to detect <research_plan title="...">steps</research_plan>
+      let tokenBuffer = "";
+      let planParsed  = false;
+      // Tracks which step index the next tool execution maps to
+      const stepIndexRef = { current: 0 };
+
+      const parseResearchPlan = (raw: string): ResearchPlan | null => {
+        const match = raw.match(/<research_plan\s+title="([^"]+)">([^<]*)<\/research_plan>/);
+        if (!match) return null;
+        const title = match[1].trim();
+        const stepLabels = match[2].split("||").map((s) => s.trim()).filter(Boolean);
+        const steps: ResearchStep[] = stepLabels.map((label, i) => ({
+          id: `step-${i}`,
+          label,
+          status: "pending",
+        }));
+        return { title, steps };
+      };
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -384,14 +418,48 @@ export function useChatStream({
             const event = JSON.parse(payload) as { type: string; content: string };
 
             if (event.type === "token") {
+              // ── Accumulate tokens for research plan detection ──────────────
+              if (!planParsed) {
+                tokenBuffer += event.content;
+                // Once we see the closing tag, parse and attach the plan
+                if (tokenBuffer.includes("</research_plan>")) {
+                  const plan = parseResearchPlan(tokenBuffer);
+                  if (plan) {
+                    planParsed = true;
+                    stepIndexRef.current = 0;
+                    setMessages((prev) => {
+                      const updated = [...prev];
+                      const last = updated[updated.length - 1];
+                      if (last && last.role === "ai") {
+                        // Strip the research_plan tag from visible content
+                        const cleanContent = last.content
+                          .replace(/<research_plan[^>]*>[^<]*<\/research_plan>/g, "")
+                          .trimStart();
+                        updated[updated.length - 1] = { ...last, content: cleanContent, researchPlan: plan };
+                      }
+                      return updated;
+                    });
+                    // Don't display the plan tag itself as content
+                    continue;
+                  }
+                }
+                // Only skip displaying tokens that are inside the plan tag
+                if (tokenBuffer.includes("<research_plan") && !tokenBuffer.includes("</research_plan>")) {
+                  continue; // Still buffering the plan tag
+                }
+              }
+
+              // Normal token — append to displayed content (strip any plan tag remnants)
               setMessages((prev) => {
                 const updated = [...prev];
                 const last = updated[updated.length - 1];
                 if (last && last.role === "ai") {
-                  updated[updated.length - 1] = { ...last, content: last.content + event.content };
+                  const safeToken = event.content.replace(/<research_plan[^>]*>|<\/research_plan>/g, "");
+                  updated[updated.length - 1] = { ...last, content: last.content + safeToken };
                 }
                 return updated;
               });
+
             } else if (event.type === "model_used") {
               setMessages((prev) => {
                 const updated = [...prev];
@@ -401,6 +469,7 @@ export function useChatStream({
                 }
                 return updated;
               });
+
             } else if (event.type === "status") {
               setStreamingStatus(event.content);
               setMessages((prev) => {
@@ -413,6 +482,7 @@ export function useChatStream({
                 }
                 return updated;
               });
+
             } else if (event.type === "tool_start") {
               try {
                 const startData = JSON.parse(event.content) as { id: string; name: string; arguments?: string };
@@ -420,15 +490,30 @@ export function useChatStream({
                   const updated = [...prev];
                   const last = updated[updated.length - 1];
                   if (last && last.role === "ai") {
+                    // Update tool logs
                     const tools = last.toolLogs ? [...last.toolLogs] : [];
                     if (!tools.some((t) => t.id === startData.id)) {
                       tools.push({ id: startData.id, name: startData.name, arguments: startData.arguments, status: "executing" });
                     }
-                    updated[updated.length - 1] = { ...last, toolLogs: tools };
+                    // Advance research plan step to "running"
+                    let updatedPlan = last.researchPlan;
+                    if (updatedPlan) {
+                      const idx = stepIndexRef.current;
+                      if (idx < updatedPlan.steps.length) {
+                        updatedPlan = {
+                          ...updatedPlan,
+                          steps: updatedPlan.steps.map((s, i) =>
+                            i === idx ? { ...s, status: "running", tool: startData.name } : s
+                          ),
+                        };
+                      }
+                    }
+                    updated[updated.length - 1] = { ...last, toolLogs: tools, researchPlan: updatedPlan };
                   }
                   return updated;
                 });
               } catch (e) { console.error("Failed to parse tool_start SSE event", e); }
+
             } else if (event.type === "tool_end") {
               try {
                 const endData = JSON.parse(event.content) as { id: string; name: string; status: "success" | "error"; output?: string };
@@ -436,14 +521,31 @@ export function useChatStream({
                   const updated = [...prev];
                   const last = updated[updated.length - 1];
                   if (last && last.role === "ai") {
+                    // Update tool logs
                     const tools = last.toolLogs
                       ? last.toolLogs.map((t) => t.id === endData.id ? { ...t, status: endData.status, output: endData.output } : t)
                       : [];
-                    updated[updated.length - 1] = { ...last, toolLogs: tools };
+                    // Advance research plan step to "completed"
+                    let updatedPlan = last.researchPlan;
+                    if (updatedPlan) {
+                      const idx = stepIndexRef.current;
+                      if (idx < updatedPlan.steps.length) {
+                        const snippet = endData.output ? endData.output.slice(0, 300) : undefined;
+                        updatedPlan = {
+                          ...updatedPlan,
+                          steps: updatedPlan.steps.map((s, i) =>
+                            i === idx ? { ...s, status: "completed", details: snippet } : s
+                          ),
+                        };
+                        stepIndexRef.current = idx + 1; // Advance to next step
+                      }
+                    }
+                    updated[updated.length - 1] = { ...last, toolLogs: tools, researchPlan: updatedPlan };
                   }
                   return updated;
                 });
               } catch (e) { console.error("Failed to parse tool_end SSE event", e); }
+
             } else if (event.type === "error") {
               setMessages((prev) => {
                 const updated = [...prev];

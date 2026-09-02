@@ -1771,3 +1771,288 @@ input:-webkit-autofill:active {
 
 
 
+
+/* ========================================
+   🧭 RESEARCH STEPPER — AUTONOMOUS AGENT
+   ======================================== */
+
+/* ── Root Card ────────────────────────────────────────────────────────────── */
+.research-stepper-root {
+  background: linear-gradient(135deg,
+    rgba(6, 8, 24, 0.85) 0%,
+    rgba(10, 14, 34, 0.9) 100%);
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 0.3s ease;
+}
+
+.research-stepper-root.research-stepper--done {
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.research-stepper-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(34, 211, 238, 0.04);
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.research-stepper-header:hover {
+  background: rgba(34, 211, 238, 0.07);
+}
+
+.research-stepper-icon {
+  color: var(--accent-primary);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.research-stepper-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  text-align: left;
+}
+
+.research-stepper-counter {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.research-complete-badge {
+  font-size: 9px;
+  font-weight: 800;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 2px 7px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+}
+
+.research-stepper-chevron {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.research-progress-track {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.research-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), #10b981);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 1px;
+}
+
+.research-step-list {
+  padding: 10px 14px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.research-step-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 10px;
+}
+
+.research-step-item:last-child {
+  padding-bottom: 0;
+}
+
+.research-step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.research-step-connector {
+  position: absolute;
+  left: 6px;
+  top: 18px;
+  width: 1px;
+  height: calc(100% + 4px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.research-step-connector--done {
+  background: rgba(16, 185, 129, 0.35);
+}
+
+.research-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.research-step-icon--done {
+  color: #10b981;
+}
+
+.research-step-icon--running {
+  color: var(--accent-primary);
+  filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.6));
+}
+
+.research-step-circle {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+}
+
+.research-spin {
+  animation: research-spinner 0.9s linear infinite;
+}
+
+@keyframes research-spinner {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.research-step-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex: 1;
+  line-height: 1.4;
+}
+
+.research-step-item--done .research-step-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.research-step-item--active .research-step-label {
+  color: var(--accent-primary);
+  font-weight: 700;
+}
+
+.research-step-status-text {
+  font-size: 10px;
+  color: var(--accent-primary);
+  font-weight: 600;
+  flex-shrink: 0;
+  animation: pulse-opacity 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+.research-step-item--active {
+  margin-left: -14px;
+  padding-left: 12px;
+  border-left: 2px solid var(--accent-primary);
+  box-shadow: -2px 0 8px rgba(34, 211, 238, 0.15);
+}
+
+.research-step-expand-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 3px;
+  transition: color 0.15s ease, background 0.15s ease;
+  font-family: inherit;
+}
+
+.research-step-expand-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.research-step-detail {
+  margin-top: 6px;
+  margin-left: 22px;
+  border-left: 2px solid rgba(16, 185, 129, 0.25);
+  padding-left: 10px;
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+.research-step-detail-text {
+  margin: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: #94a3b8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+:root[data-theme="light"] .research-stepper-root {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: rgba(34, 211, 238, 0.2);
+  box-shadow: 0 2px 12px -2px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme="light"] .research-stepper-header {
+  background: rgba(34, 211, 238, 0.05);
+}
+
+:root[data-theme="light"] .research-stepper-header:hover {
+  background: rgba(34, 211, 238, 0.1);
+}
+
+:root[data-theme="light"] .research-progress-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="light"] .research-step-label {
+  color: #475569;
+}
+
+:root[data-theme="light"] .research-step-item--done .research-step-label {
+  color: #1e293b;
+}
+
+:root[data-theme="light"] .research-step-circle {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme="light"] .research-step-detail-text {
+  color: #64748b;
+}
+
+:root[data-theme="light"] .research-step-connector {
+  background: rgba(0, 0, 0, 0.1);
+}

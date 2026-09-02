@@ -29,6 +29,7 @@ import { formatMessage } from "./chatFormatters";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import { useChatStream, ChatMessage, ChatThread } from "../hooks/useChatStream";
 import ArtifactCanvas, { Artifact } from "./ArtifactCanvas";
+import ResearchStepper from "./ResearchStepper";
 
 // ── Assistant Presets ─────────────────────────────────────────────────────────
 export const PRESETS = {
@@ -511,6 +512,10 @@ export default function ChatAssistant({
                     </button>
                   )}
                   <div className="chat-bubble-content">
+                    {/* Research Plan Stepper — shown for autonomous deep research responses */}
+                    {msg.role === "ai" && msg.researchPlan && (
+                      <ResearchStepper plan={msg.researchPlan} />
+                    )}
                     {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
                       <ThinkingLogsAccordion
                         logs={msg.thinkingLogs || []}
