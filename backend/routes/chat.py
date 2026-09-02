@@ -1353,11 +1353,8 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     )
                 )
             
-            # Choose correct Gemini model list
-            if selected_model == "gemini-pro":
-                MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
-            else:
-                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-pro"]
+            # Active Google GenAI models
+            MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
             response = None
             last_error = None
 
@@ -1828,18 +1825,15 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     )
                 )
 
-                # Choose correct Gemini model list
-                if selected_model == "gemini-pro":
-                    MODELS_TO_TRY = ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
-                else:
-                    MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-2.5-pro"]
+                # Active Google GenAI models (verified active endpoints)
+                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
                 last_error = None
                 streamed = False
 
                 for model_name in MODELS_TO_TRY:
                     if streamed:
                         break
-                    friendly_name = "Gemini 2.5 Pro" if "pro" in model_name else "Gemini 2.5 Flash"
+                    friendly_name = "Gemini 2.5 Flash" if "2.5" in model_name else "Gemini 2.0 Flash"
                     for attempt in range(3):
                         if await request.is_disconnected():
                             return
