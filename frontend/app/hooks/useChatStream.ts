@@ -352,6 +352,27 @@ export function useChatStream({
     ]);
     setLoading(true);
 
+    const completeAllResearchSteps = () => {
+      setMessages((prev) => {
+        const updated = [...prev];
+        const last = updated[updated.length - 1];
+        if (last && last.role === "ai" && last.researchPlan) {
+          const allCompleted = last.researchPlan.steps.map((s) => ({
+            ...s,
+            status: "completed" as const,
+          }));
+          updated[updated.length - 1] = {
+            ...last,
+            researchPlan: {
+              ...last.researchPlan,
+              steps: allCompleted,
+            },
+          };
+        }
+        return updated;
+      });
+    };
+
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -413,7 +434,11 @@ export function useChatStream({
           if (!trimmed.startsWith("data:")) continue;
 
           const payload = trimmed.slice(5).trim();
-          if (payload === "[DONE]") { setStreamingStatus(""); break; }
+          if (payload === "[DONE]") {
+            setStreamingStatus("");
+            completeAllResearchSteps();
+            break;
+          }
 
           try {
             const event = JSON.parse(payload) as { type: string; content: string };
@@ -582,6 +607,7 @@ export function useChatStream({
         });
       }
     } finally {
+      completeAllResearchSteps();
       setLoading(false);
       setStreamingStatus("");
       abortControllerRef.current = null;
