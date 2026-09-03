@@ -524,11 +524,18 @@ export default function ChatAssistant({
                       />
                     )}
                     {msg.content === "" && isLastAi ? (
-                      <span className="chat-typing">
-                        <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                        <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                        <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0" }}>
+                        <span className="chat-typing">
+                          <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
+                          <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
+                          <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
+                        </span>
+                        {streamingStatus && (
+                          <span style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: 600 }}>
+                            {streamingStatus}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <>
                         {renderMessage(msg.content)}
@@ -1476,15 +1483,26 @@ export default function ChatAssistant({
                           {msg.role === "user" ? <User size={12} color="#fff" /> : <Bot size={12} color="#67e8f9" />}
                         </div>
                         <div className={`cfab-bubble ${msg.role === "user" ? "cfab-bubble-user" : "cfab-bubble-ai"}`}>
+                          {/* Research Plan Stepper */}
+                          {msg.role === "ai" && msg.researchPlan && (
+                            <ResearchStepper plan={msg.researchPlan} />
+                          )}
                           {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
                             <ThinkingLogsAccordion logs={msg.thinkingLogs || []} toolLogs={msg.toolLogs} isGenerating={isLastAi} />
                           )}
                           {msg.content === "" && isLastAi ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                              <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                              <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                              <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
-                            </span>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0" }}>
+                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
+                                <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
+                                <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
+                              </span>
+                              {streamingStatus && (
+                                <span style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: 600 }}>
+                                  {streamingStatus}
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <>
                               {renderMessage(msg.content)}

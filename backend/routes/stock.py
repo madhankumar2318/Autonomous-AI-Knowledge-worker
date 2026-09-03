@@ -189,7 +189,7 @@ def _fetch_all_fast(symbols: list[str]) -> list[dict]:
         try:
             sym_str = ",".join(symbols)
             url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym_str}&crumb={crumb}"
-            resp = y_session.session.get(url, timeout=6)
+            resp = y_session.session.get(url, timeout=3.5)
             
             # Auto-retry with fresh crumb if 401/403
             if resp.status_code in (401, 403):
@@ -197,7 +197,7 @@ def _fetch_all_fast(symbols: list[str]) -> list[dict]:
                 crumb = y_session.refresh_crumb()
                 if crumb:
                     url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym_str}&crumb={crumb}"
-                    resp = y_session.session.get(url, timeout=6)
+                    resp = y_session.session.get(url, timeout=3.5)
 
             if resp.status_code == 200:
                 data = resp.json()
