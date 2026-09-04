@@ -379,9 +379,9 @@ export default function ChatAssistant({
               onChange={(e) => handleModelChange(e.target.value)}
               className="chat-model-select"
             >
-              <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Llama 3.3 (Groq)</option>
-              <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini Pro</option>
-              <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Gemini Flash</option>
+              <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Groq (Ultra-Fast)</option>
+              <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Gemini 2.5 Flash</option>
+              <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini 2.5 Pro</option>
             </select>
             <button
               type="button"
@@ -1355,9 +1355,9 @@ export default function ChatAssistant({
             <div className="cfab-header-actions">
               {!showHomePortal && (
                 <select value={selectedModel} onChange={(e) => handleModelChange(e.target.value)} className="chat-model-select">
-                  <option value="llama-70b" style={{ background: "#080814", color: "#fff" }}>Llama 3.3 (Groq)</option>
-                  <option value="gemini-pro" style={{ background: "#080814", color: "#fff" }}>Gemini Pro</option>
-                  <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Gemini Flash</option>
+                  <option value="llama-70b" style={{ background: "#080814", color: "#fff" }}>Groq (Ultra-Fast)</option>
+                  <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Gemini 2.5 Flash</option>
+                  <option value="gemini-pro" style={{ background: "#080814", color: "#fff" }}>Gemini 2.5 Pro</option>
                 </select>
               )}
               <button type="button" className="cfab-icon-btn" onClick={() => setIsOpen(false)} title="Close">

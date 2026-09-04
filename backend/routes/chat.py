@@ -73,6 +73,27 @@ def get_groq_client():
         print(f"Error initializing Groq client: {e}")
         return None
 
+# Active Groq models (current supported endpoints on Groq)
+ACTIVE_GROQ_MODELS = [
+    ("openai/gpt-oss-120b", "Groq (GPT-OSS 120B)"),
+    ("openai/gpt-oss-20b", "Groq (GPT-OSS 20B)"),
+    ("qwen/qwen3.6-27b", "Groq (Qwen 27B)"),
+]
+
+def resolve_gemini_models_for_selection(selected_model: str):
+    """Return ordered list of (model_id, friendly_name) based on user's choice."""
+    if selected_model == "gemini-pro":
+        return [
+            ("gemini-2.5-pro", "Gemini 2.5 Pro"),
+            ("gemini-2.5-flash", "Gemini 2.5 Flash"),
+        ]
+    else:
+        return [
+            ("gemini-2.5-flash", "Gemini 2.5 Flash"),
+            ("gemini-2.0-flash", "Gemini 2.0 Flash"),
+        ]
+
+
 
 # ── TTL Cache (Improvement 3: API Tool Caching Layer) ─────────────────────────
 import threading as _threading
@@ -1239,99 +1260,106 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 
         print(f"[INFO] Processing chat query. Model selected: {selected_model}")
 
-        # 1. Try Groq (Llama-3.3-70b) if selected
-        if selected_model == "llama-70b":
+        # 1. Try Groq if selected
+        if selected_model in ("llama-70b", "groq"):
             groq_client = get_groq_client()
             if groq_client:
-                try:
-                    print("[INFO] Executing Chat Agent using Groq...")
-                    # Prepare messages in OpenAI/Groq format
-                    messages = [{"role": "system", "content": effective_instruction}]
-                    for msg in req.history:
-                        role = "user" if msg.role == "user" else "assistant"
-                        messages.append({"role": role, "content": msg.content})
-                    messages.append({"role": "user", "content": req.message})
+                for groq_model_id, groq_friendly_name in ACTIVE_GROQ_MODELS:
+                    try:
+                        print(f"[INFO] Executing Chat Agent using Groq ({groq_model_id})...")
+                        # Prepare messages in OpenAI/Groq format
+                        messages = [{"role": "system", "content": effective_instruction}]
+                        for msg in req.history:
+                            role = "user" if msg.role == "user" else "assistant"
+                            messages.append({"role": role, "content": msg.content})
+                        messages.append({"role": "user", "content": req.message})
 
-                    reply = None
-                    # Tool calling loop for Groq (up to 5 loops)
-                    for loop_idx in range(5):
-                        groq_response = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=messages,
-                            tools=GROQ_TOOLS,
-                            tool_choice="auto",
-                            temperature=temperature_choice,
-                        )
-                        
-                        response_message = groq_response.choices[0].message
-                        
-                        # Convert response message to dict to append to history safely
-                        msg_dict = {
-                            "role": "assistant",
-                            "content": response_message.content,
-                        }
-                        if response_message.tool_calls:
-                            msg_dict["tool_calls"] = [
-                                {
-                                    "id": tc.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tc.function.name,
-                                        "arguments": tc.function.arguments
-                                    }
-                                } for tc in response_message.tool_calls
-                            ]
-                        messages.append(msg_dict)
-                        
-                        tool_calls = response_message.tool_calls
-                        if not tool_calls:
-                            # No more tools called, this is the final response
-                            reply = response_message.content or ""
-                            break
-                            
-                        # Execute tool calls
-                        for tool_call in tool_calls:
-                            func_name = tool_call.function.name
-                            func_to_call = FUNCTIONS_MAP.get(func_name)
-                            if not func_to_call:
-                                tool_output = f"Error: Tool {func_name} not found."
-                            else:
-                                try:
-                                    import json
-                                    func_args = json.loads(tool_call.function.arguments)
-                                    # Call function with arguments
-                                    tool_output = func_to_call(**func_args)
-                                except Exception as e:
-                                    tool_output = f"Error executing {func_name}: {str(e)}"
-                            
-                            # Append tool result to messages
-                            messages.append({
-                                "role": "tool",
-                                "tool_call_id": tool_call.id,
-                                "name": func_name,
-                                "content": str(tool_output)
-                            })
-                    else:
-                        reply = "I completed execution but reached maximum reasoning loops."
+                        reply = None
+                        accumulated_input_tokens = 0
+                        accumulated_output_tokens = 0
 
-                    if reply:
-                        # Log response
-                        try:
-                            insert_history(username, "chat_response", reply)
-                        except Exception as err:
-                            print(f"Failed to log Groq chat response: {err}")
-                        
-                        latency_ms = int((time.time() - start_time) * 1000)
-                        if username != "guest":
+                        # Tool calling loop for Groq (up to 5 loops)
+                        for loop_idx in range(5):
+                            groq_response = groq_client.chat.completions.create(
+                                model=groq_model_id,
+                                messages=messages,
+                                tools=GROQ_TOOLS,
+                                tool_choice="auto",
+                                temperature=temperature_choice,
+                            )
+                            if hasattr(groq_response, "usage") and groq_response.usage:
+                                accumulated_input_tokens += groq_response.usage.prompt_tokens
+                                accumulated_output_tokens += groq_response.usage.completion_tokens
+                            
+                            response_message = groq_response.choices[0].message
+                            
+                            # Convert response message to dict to append to history safely
+                            msg_dict = {
+                                "role": "assistant",
+                                "content": response_message.content or "",
+                            }
+                            if response_message.tool_calls:
+                                msg_dict["tool_calls"] = [
+                                    {
+                                        "id": tc.id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": tc.function.name,
+                                            "arguments": tc.function.arguments
+                                        }
+                                    } for tc in response_message.tool_calls
+                                ]
+                            messages.append(msg_dict)
+                            
+                            tool_calls = response_message.tool_calls
+                            if not tool_calls:
+                                # No more tools called, this is the final response
+                                reply = response_message.content or ""
+                                break
+                                
+                            # Execute tool calls
+                            for tool_call in tool_calls:
+                                func_name = tool_call.function.name
+                                func_to_call = FUNCTIONS_MAP.get(func_name)
+                                if not func_to_call:
+                                    tool_output = f"Error: Tool {func_name} not found."
+                                else:
+                                    try:
+                                        import json
+                                        func_args = json.loads(tool_call.function.arguments)
+                                        tool_output = func_to_call(**func_args)
+                                    except Exception as e:
+                                        tool_output = f"Error executing {func_name}: {str(e)}"
+                                
+                                # Append tool result to messages
+                                messages.append({
+                                    "role": "tool",
+                                    "tool_call_id": tool_call.id,
+                                    "name": func_name,
+                                    "content": str(tool_output)
+                                })
+                        else:
+                            reply = "I completed execution but reached maximum reasoning loops."
+
+                        if reply:
+                            # Log response
                             try:
-                                from db import log_token_usage
-                                log_token_usage(username, "llama-70b", accumulated_input_tokens, accumulated_output_tokens, latency_ms)
-                            except Exception as e:
-                                print(f"Error logging Groq token usage: {e}")
-                        return {"reply": reply}
+                                insert_history(username, "chat_response", reply)
+                            except Exception as err:
+                                print(f"Failed to log Groq chat response: {err}")
+                            
+                            latency_ms = int((time.time() - start_time) * 1000)
+                            if username != "guest":
+                                try:
+                                    from db import log_token_usage
+                                    log_token_usage(username, "groq", accumulated_input_tokens, accumulated_output_tokens, latency_ms)
+                                except Exception as e:
+                                    print(f"Error logging Groq token usage: {e}")
+                            return {"reply": reply, "model": groq_friendly_name}
 
-                except Exception as groq_err:
-                    print(f"Groq API execution error: {groq_err}. Falling back to Gemini...")
+                    except Exception as groq_err:
+                        print(f"Groq model {groq_model_id} error: {groq_err}. Trying next...")
+                        continue
 
         # 2. Try Gemini Client (Pro or Flash depending on selection/fallback)
         client = get_gemini_client()
@@ -1341,7 +1369,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                 insert_history(username, "chat_response", reply)
             except:
                 pass
-            return {"reply": reply}
+            return {"reply": reply, "model": "Mock AI"}
 
         try:
             import time
@@ -1357,12 +1385,14 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     )
                 )
             
-            # Active Google GenAI models
-            MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
+            # Active Google GenAI models based on user choice
+            MODELS_TO_TRY = resolve_gemini_models_for_selection(selected_model)
             response = None
             last_error = None
+            used_friendly_name = "Gemini 2.5 Flash"
 
-            for model_name in MODELS_TO_TRY:
+            for model_name, friendly_name in MODELS_TO_TRY:
+                used_friendly_name = friendly_name
                 for attempt in range(3):
                     try:
                         # Use client.chats.create to automatically manage function tool execution loops
@@ -1611,179 +1641,160 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
 
             # ── 1. Try Groq streaming ─────────────────────────────────────
             groq_client = get_groq_client()
-            if selected_model == "llama-70b" and groq_client:
-                try:
-                    print("[INFO] Executing Streaming Chat Agent using Groq...")
-                    yield _sse_event("model_used", "Llama 3.3 (Groq)")
-                    # Build messages
-                    messages = [{"role": "system", "content": stream_instruction}]
-                    for msg in resolved_history:
-                        role = "user" if msg.role == "user" else "assistant"
-                        messages.append({"role": role, "content": msg.content})
-                    messages.append({"role": "user", "content": resolved_message})
+            if selected_model in ("llama-70b", "groq") and groq_client:
+                for groq_model_id, groq_friendly_name in ACTIVE_GROQ_MODELS:
+                    try:
+                        print(f"[INFO] Executing Streaming Chat Agent using Groq ({groq_model_id})...")
+                        yield _sse_event("model_used", groq_friendly_name)
+                        # Build messages
+                        messages = [{"role": "system", "content": stream_instruction}]
+                        for msg in resolved_history:
+                            role = "user" if msg.role == "user" else "assistant"
+                            messages.append({"role": role, "content": msg.content})
+                        messages.append({"role": "user", "content": resolved_message})
 
-                    import time
-                    groq_start = time.time()
-                    accumulated_input_tokens = 0
-                    accumulated_output_tokens = 0
+                        import time
+                        groq_start = time.time()
+                        accumulated_input_tokens = 0
+                        accumulated_output_tokens = 0
 
-                    groq_final_text = None
+                        # Tool-calling loop (non-streaming) up to 5 iterations
+                        for loop_idx in range(5):
+                            # Check if client has disconnected
+                            if await request.is_disconnected():
+                                print("[INFO] Client disconnected, stopping Groq stream.")
+                                return
 
-                    # Tool-calling loop (non-streaming) up to 5 iterations
-                    for loop_idx in range(5):
-                        # Check if client has disconnected
-                        if await request.is_disconnected():
-                            print("[INFO] Client disconnected, stopping Groq stream.")
-                            return
+                            # Run tool-use pass
+                            tool_response = groq_client.chat.completions.create(
+                                model=groq_model_id,
+                                messages=messages,
+                                tools=GROQ_TOOLS,
+                                tool_choice="auto",
+                                temperature=temperature_choice,
+                            )
+                            if hasattr(tool_response, "usage") and tool_response.usage:
+                                accumulated_input_tokens += tool_response.usage.prompt_tokens
+                                accumulated_output_tokens += tool_response.usage.completion_tokens
+                            response_message = tool_response.choices[0].message
+                            tool_calls = response_message.tool_calls
 
-                        # Run tool-use pass without streaming first
-                        tool_response = groq_client.chat.completions.create(
-                            model="llama-3.3-70b-versatile",
-                            messages=messages,
-                            tools=GROQ_TOOLS,
-                            tool_choice="auto",
-                            temperature=temperature_choice,
-                        )
-                        if hasattr(tool_response, "usage") and tool_response.usage:
-                            accumulated_input_tokens += tool_response.usage.prompt_tokens
-                            accumulated_output_tokens += tool_response.usage.completion_tokens
-                        response_message = tool_response.choices[0].message
-                        tool_calls = response_message.tool_calls
-
-                        if not tool_calls:
-                            # Final text response directly from Groq
-                            final_text = response_message.content or ""
-                            accumulated_reply = final_text
-                            
-                            # Stream tokens to client
-                            words = final_text.split(" ")
-                            for i, word in enumerate(words):
-                                if await request.is_disconnected():
-                                    return
-                                token = word + (" " if i < len(words) - 1 else "")
-                                yield _sse_event("token", token)
-                                await asyncio.sleep(0.01)
-                            
-                            if accumulated_reply:
-                                try:
-                                    insert_history(resolved_username, "chat_response", accumulated_reply)
-                                except Exception as err:
-                                    print(f"[WARN] Failed to log Groq stream response: {err}")
-                            _persist_thread_messages(accumulated_reply)
-                            yield _sse_done()
-                            return
-
-                        # Build assistant message dict to append to history (since we have tool_calls)
-                        msg_dict = {
-                            "role": "assistant",
-                            "content": response_message.content or "",
-                            "tool_calls": [
-                                {
-                                    "id": tc.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": tc.function.name,
-                                        "arguments": tc.function.arguments
-                                    }
-                                } for tc in tool_calls
-                            ]
-                        }
-                        messages.append(msg_dict)
-
-                        # Execute tools and yield status notifications
-                        for tool_call in tool_calls:
-                            func_name = tool_call.function.name
-                            yield _sse_event("status", f"Calling tool: {func_name}...")
-                            
-                            # Structured tool start event
-                            tool_id = getattr(tool_call, "id", None) or str(uuid.uuid4())
-                            tool_args_str = tool_call.function.arguments
-                            yield _sse_event("tool_start", json.dumps({
-                                "id": tool_id,
-                                "name": func_name,
-                                "arguments": tool_args_str
-                            }))
-                            
-                            func_to_call = FUNCTIONS_MAP.get(func_name)
-                            if not func_to_call:
-                                tool_output = f"Error: Tool {func_name} not found."
-                            else:
-                                try:
-                                    func_args = json.loads(tool_call.function.arguments)
-                                    # Run blocking tool in executor to avoid blocking event loop, propagating contextvars
-                                    import contextvars
-                                    ctx = contextvars.copy_context()
-                                    tool_output = await asyncio.get_event_loop().run_in_executor(
-                                        None, lambda: ctx.run(func_to_call, **func_args)
-                                    )
-                                except Exception as e:
-                                    tool_output = f"Error executing {func_name}: {str(e)}"
-                                    
-                            # Structured tool end event
-                            status = "error" if str(tool_output).startswith("Error") else "success"
-                            yield _sse_event("tool_end", json.dumps({
-                                "id": tool_id,
-                                "name": func_name,
-                                "status": status,
-                                "output": str(tool_output)[:500]
-                            }))
-                            
-                            messages.append({
-                                "role": "tool",
-                                "tool_call_id": tool_call.id,
-                                "name": func_name,
-                                "content": str(tool_output)
-                            })
-
-                    # Now stream the final textual response using Groq streaming
-                    if await request.is_disconnected():
-                        return
-
-                    stream = groq_client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=messages,
-                        tools=GROQ_TOOLS,
-                        temperature=temperature_choice,
-                        stream=True,
-                    )
-                    for chunk in stream:
-                        if await request.is_disconnected():
-                            print("[INFO] Client disconnected mid-stream (Groq).")
-                            return
-                        delta = chunk.choices[0].delta
-                        token = delta.content or ""
-                        if token:
-                            accumulated_reply += token
-                            yield _sse_event("token", token)
-                            await asyncio.sleep(0)
-
-                    groq_final_text = accumulated_reply
-
-                    # Log response
-                    if groq_final_text:
-                        try:
-                            insert_history(resolved_username, "chat_response", groq_final_text)
-                        except Exception as err:
-                            print(f"[WARN] Failed to log Groq stream response: {err}")
-                        _persist_thread_messages(groq_final_text)
-                        
-                        latency_ms = int((time.time() - groq_start) * 1000)
-                        if resolved_username != "guest":
-                            try:
-                                from db import log_token_usage
-                                hist_text = " ".join([m.get("content", "") for m in messages if isinstance(m, dict)])
-                                est_in = estimate_tokens(hist_text)
-                                est_out = estimate_tokens(groq_final_text)
-                                log_token_usage(resolved_username, "llama-70b", accumulated_input_tokens + est_in, accumulated_output_tokens + est_out, latency_ms)
-                            except Exception as e:
-                                print(f"Error logging Groq stream token usage: {e}")
+                            if not tool_calls:
+                                # Final text response directly from Groq
+                                final_text = response_message.content or ""
+                                accumulated_reply = final_text
                                 
+                                # Stream tokens to client
+                                words = final_text.split(" ")
+                                for i, word in enumerate(words):
+                                    if await request.is_disconnected():
+                                        return
+                                    token = word + (" " if i < len(words) - 1 else "")
+                                    yield _sse_event("token", token)
+                                    await asyncio.sleep(0.01)
+                                
+                                if accumulated_reply:
+                                    try:
+                                        insert_history(resolved_username, "chat_response", accumulated_reply)
+                                    except Exception as err:
+                                        print(f"[WARN] Failed to log Groq stream response: {err}")
+                                _persist_thread_messages(accumulated_reply)
+                                yield _sse_done()
+                                return
+
+                            # Build assistant message dict to append to history (since we have tool_calls)
+                            msg_dict = {
+                                "role": "assistant",
+                                "content": response_message.content or "",
+                                "tool_calls": [
+                                    {
+                                        "id": tc.id,
+                                        "type": "function",
+                                        "function": {
+                                            "name": tc.function.name,
+                                            "arguments": tc.function.arguments
+                                        }
+                                    } for tc in tool_calls
+                                ]
+                            }
+                            messages.append(msg_dict)
+
+                            # Execute tools and yield status notifications
+                            for tool_call in tool_calls:
+                                func_name = tool_call.function.name
+                                yield _sse_event("status", f"Calling tool: {func_name}...")
+                                
+                                # Structured tool start event
+                                tool_id = getattr(tool_call, "id", None) or str(uuid.uuid4())
+                                tool_args_str = tool_call.function.arguments
+                                yield _sse_event("tool_start", json.dumps({
+                                    "id": tool_id,
+                                    "name": func_name,
+                                    "arguments": tool_args_str
+                                }))
+                                
+                                func_to_call = FUNCTIONS_MAP.get(func_name)
+                                if not func_to_call:
+                                    tool_output = f"Error: Tool {func_name} not found."
+                                else:
+                                    try:
+                                        func_args = json.loads(tool_call.function.arguments)
+                                        # Run blocking tool in executor to avoid blocking event loop, propagating contextvars
+                                        import contextvars
+                                        ctx = contextvars.copy_context()
+                                        tool_output = await asyncio.get_event_loop().run_in_executor(
+                                            None, lambda: ctx.run(func_to_call, **func_args)
+                                        )
+                                    except Exception as e:
+                                        tool_output = f"Error executing {func_name}: {str(e)}"
+                                        
+                                # Structured tool end event
+                                status = "error" if str(tool_output).startswith("Error") else "success"
+                                yield _sse_event("tool_end", json.dumps({
+                                    "id": tool_id,
+                                    "name": func_name,
+                                    "status": status,
+                                    "output": str(tool_output)[:500]
+                                }))
+                                
+                                messages.append({
+                                    "role": "tool",
+                                    "tool_call_id": tool_call.id,
+                                    "name": func_name,
+                                    "content": str(tool_output)
+                                })
+
+                        # Fallback streaming if 5 loops reached
+                        if await request.is_disconnected():
+                            return
+
+                        stream = groq_client.chat.completions.create(
+                            model=groq_model_id,
+                            messages=messages,
+                            temperature=temperature_choice,
+                            stream=True,
+                        )
+                        for chunk in stream:
+                            if await request.is_disconnected():
+                                return
+                            delta = chunk.choices[0].delta
+                            token = delta.content or ""
+                            if token:
+                                accumulated_reply += token
+                                yield _sse_event("token", token)
+                                await asyncio.sleep(0)
+
+                        if accumulated_reply:
+                            _persist_thread_messages(accumulated_reply)
                         yield _sse_done()
                         return
 
-                except Exception as groq_err:
-                    print(f"[WARN] Groq streaming error: {groq_err}. Falling back to Gemini...")
-                    accumulated_reply = ""  # Reset for Gemini fallback
+                    except Exception as groq_err:
+                        print(f"[WARN] Groq model {groq_model_id} streaming error: {groq_err}. Trying next Groq model...")
+                        continue
+
+                print("[WARN] All Groq models failed. Falling back to Gemini...")
+                accumulated_reply = ""
 
             # ── 2. Try Gemini streaming ───────────────────────────────────
             client = get_gemini_client()
@@ -1826,15 +1837,14 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     )
                 )
 
-                # Active Google GenAI models (verified active endpoints)
-                MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
+                # Active Google GenAI models based on user choice
+                MODELS_TO_TRY = resolve_gemini_models_for_selection(selected_model)
                 last_error = None
                 streamed = False
 
-                for model_name in MODELS_TO_TRY:
+                for model_name, friendly_name in MODELS_TO_TRY:
                     if streamed:
                         break
-                    friendly_name = "Gemini 2.5 Flash" if "2.5" in model_name else "Gemini 2.0 Flash"
                     for attempt in range(3):
                         if await request.is_disconnected():
                             return
@@ -1965,37 +1975,39 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     # Automatic Failover: Try Groq if Gemini is rate limited or unavailable
                     groq_client = get_groq_client()
                     if groq_client:
-                        try:
-                            print("[INFO] Gemini quota/rate-limit hit. Auto-failing over to Groq Llama 3.3...")
-                            yield _sse_event("model_used", "Llama 3.3 (Groq Auto-Failover)")
-                            groq_msgs = [{"role": "system", "content": stream_instruction}]
-                            for m in resolved_history:
-                                role = "user" if m.role == "user" else "assistant"
-                                groq_msgs.append({"role": role, "content": m.content})
-                            groq_msgs.append({"role": "user", "content": resolved_message})
-                            
-                            g_stream = groq_client.chat.completions.create(
-                                model="llama-3.3-70b-versatile",
-                                messages=groq_msgs,
-                                temperature=temperature_choice,
-                                stream=True,
-                            )
-                            for chunk in g_stream:
-                                if await request.is_disconnected():
+                        for groq_model_id, groq_friendly_name in ACTIVE_GROQ_MODELS:
+                            try:
+                                print(f"[INFO] Gemini quota/rate-limit hit. Auto-failing over to Groq ({groq_model_id})...")
+                                yield _sse_event("model_used", f"{groq_friendly_name} (Auto-Failover)")
+                                groq_msgs = [{"role": "system", "content": stream_instruction}]
+                                for m in resolved_history:
+                                    role = "user" if m.role == "user" else "assistant"
+                                    groq_msgs.append({"role": role, "content": m.content})
+                                groq_msgs.append({"role": "user", "content": resolved_message})
+                                
+                                g_stream = groq_client.chat.completions.create(
+                                    model=groq_model_id,
+                                    messages=groq_msgs,
+                                    temperature=temperature_choice,
+                                    stream=True,
+                                )
+                                for chunk in g_stream:
+                                    if await request.is_disconnected():
+                                        return
+                                    delta = chunk.choices[0].delta
+                                    token = delta.content or ""
+                                    if token:
+                                        accumulated_reply += token
+                                        yield _sse_event("token", token)
+                                        await asyncio.sleep(0)
+                                
+                                if accumulated_reply:
+                                    _persist_thread_messages(accumulated_reply)
+                                    yield _sse_done()
                                     return
-                                delta = chunk.choices[0].delta
-                                token = delta.content or ""
-                                if token:
-                                    accumulated_reply += token
-                                    yield _sse_event("token", token)
-                                    await asyncio.sleep(0)
-                            
-                            if accumulated_reply:
-                                _persist_thread_messages(accumulated_reply)
-                                yield _sse_done()
-                                return
-                        except Exception as failover_err:
-                            print(f"[WARN] Groq failover error: {failover_err}")
+                            except Exception as failover_err:
+                                print(f"[WARN] Groq failover error with {groq_model_id}: {failover_err}")
+                                continue
 
                     # All models failed — stream clean helpful guidance
                     err_str = str(last_error) if last_error else "Unknown error"
