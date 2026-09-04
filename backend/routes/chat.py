@@ -1680,7 +1680,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         # Build assistant message dict to append to history (since we have tool_calls)
                         msg_dict = {
                             "role": "assistant",
-                            "content": response_message.content,
+                            "content": response_message.content or "",
                             "tool_calls": [
                                 {
                                     "id": tc.id,
@@ -1746,6 +1746,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                     stream = groq_client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=messages,
+                        tools=GROQ_TOOLS,
                         temperature=temperature_choice,
                         stream=True,
                     )
