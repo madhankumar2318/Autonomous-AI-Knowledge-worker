@@ -348,7 +348,11 @@ export function useChatStream({
     setMessages((prev) => [
       ...prev,
       { role: "user", content: userMessage } as ChatMessage,
-      { role: "ai", content: "" } as ChatMessage,
+      {
+        role: "ai",
+        content: "",
+        model: selectedModel === "llama-70b" ? "Groq (GPT-OSS 120B)" : selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash",
+      } as ChatMessage,
     ]);
     setLoading(true);
 

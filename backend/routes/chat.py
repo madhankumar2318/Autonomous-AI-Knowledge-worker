@@ -80,18 +80,34 @@ ACTIVE_GROQ_MODELS = [
     ("qwen/qwen3.6-27b", "Groq (Qwen 27B)"),
 ]
 
+def resolve_groq_models_for_selection():
+    """Return ordered list of (model_id, friendly_name) for Groq based on environment."""
+    env_model = os.getenv("GROQ_MODEL", "").strip()
+    base = list(ACTIVE_GROQ_MODELS)
+    if env_model:
+        return [(env_model, f"Groq ({env_model})")] + [m for m in base if m[0] != env_model]
+    return base
+
 def resolve_gemini_models_for_selection(selected_model: str):
-    """Return ordered list of (model_id, friendly_name) based on user's choice."""
+    """Return ordered list of (model_id, friendly_name) based on user's choice and environment."""
+    env_model = os.getenv("GEMINI_MODEL", "").strip()
     if selected_model == "gemini-pro":
-        return [
+        models = [
             ("gemini-2.5-pro", "Gemini 2.5 Pro"),
+            ("gemini-1.5-pro", "Gemini 1.5 Pro"),
             ("gemini-2.5-flash", "Gemini 2.5 Flash"),
+            ("gemini-1.5-flash", "Gemini 1.5 Flash"),
         ]
-    else:
-        return [
+    else:  # gemini-flash or default
+        models = [
             ("gemini-2.5-flash", "Gemini 2.5 Flash"),
+            ("gemini-1.5-flash", "Gemini 1.5 Flash"),
             ("gemini-2.0-flash", "Gemini 2.0 Flash"),
         ]
+    if env_model:
+        friendly = "Gemini Pro" if "pro" in env_model.lower() else "Gemini Flash"
+        models = [(env_model, friendly)] + [m for m in models if m[0] != env_model]
+    return models
 
 
 
@@ -1263,103 +1279,115 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
         # 1. Try Groq if selected
         if selected_model in ("llama-70b", "groq"):
             groq_client = get_groq_client()
-            if groq_client:
-                for groq_model_id, groq_friendly_name in ACTIVE_GROQ_MODELS:
-                    try:
-                        print(f"[INFO] Executing Chat Agent using Groq ({groq_model_id})...")
-                        # Prepare messages in OpenAI/Groq format
-                        messages = [{"role": "system", "content": effective_instruction}]
-                        for msg in req.history:
-                            role = "user" if msg.role == "user" else "assistant"
-                            messages.append({"role": role, "content": msg.content})
-                        messages.append({"role": "user", "content": req.message})
+            if not groq_client:
+                return {
+                    "reply": "⚠️ **Groq API Key Not Configured**: Please configure your `GROQ_API_KEY` in environment or settings.",
+                    "model": "Groq"
+                }
+            groq_models = resolve_groq_models_for_selection()
+            for groq_model_id, groq_friendly_name in groq_models:
+                try:
+                    print(f"[INFO] Executing Chat Agent using Groq ({groq_model_id})...")
+                    # Prepare messages in OpenAI/Groq format
+                    messages = [{"role": "system", "content": effective_instruction}]
+                    for msg in req.history:
+                        if not msg or not getattr(msg, "content", None) or not msg.content.strip():
+                            continue
+                        role = "user" if msg.role == "user" else "assistant"
+                        messages.append({"role": role, "content": msg.content})
+                    messages.append({"role": "user", "content": req.message})
 
-                        reply = None
-                        accumulated_input_tokens = 0
-                        accumulated_output_tokens = 0
+                    reply = None
+                    accumulated_input_tokens = 0
+                    accumulated_output_tokens = 0
 
-                        # Tool calling loop for Groq (up to 5 loops)
-                        for loop_idx in range(5):
-                            groq_response = groq_client.chat.completions.create(
-                                model=groq_model_id,
-                                messages=messages,
-                                tools=GROQ_TOOLS,
-                                tool_choice="auto",
-                                temperature=temperature_choice,
-                            )
-                            if hasattr(groq_response, "usage") and groq_response.usage:
-                                accumulated_input_tokens += groq_response.usage.prompt_tokens
-                                accumulated_output_tokens += groq_response.usage.completion_tokens
+                    # Tool calling loop for Groq (up to 5 loops)
+                    for loop_idx in range(5):
+                        groq_response = groq_client.chat.completions.create(
+                            model=groq_model_id,
+                            messages=messages,
+                            tools=GROQ_TOOLS,
+                            tool_choice="auto",
+                            temperature=temperature_choice,
+                        )
+                        if hasattr(groq_response, "usage") and groq_response.usage:
+                            accumulated_input_tokens += groq_response.usage.prompt_tokens
+                            accumulated_output_tokens += groq_response.usage.completion_tokens
+                        
+                        response_message = groq_response.choices[0].message
+                        
+                        # Convert response message to dict to append to history safely
+                        msg_dict = {
+                            "role": "assistant",
+                            "content": response_message.content or "",
+                        }
+                        if response_message.tool_calls:
+                            msg_dict["tool_calls"] = [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments
+                                    }
+                                } for tc in response_message.tool_calls
+                            ]
+                        messages.append(msg_dict)
+                        
+                        tool_calls = response_message.tool_calls
+                        if not tool_calls:
+                            # No more tools called, this is the final response
+                            reply = response_message.content or ""
+                            break
                             
-                            response_message = groq_response.choices[0].message
-                            
-                            # Convert response message to dict to append to history safely
-                            msg_dict = {
-                                "role": "assistant",
-                                "content": response_message.content or "",
-                            }
-                            if response_message.tool_calls:
-                                msg_dict["tool_calls"] = [
-                                    {
-                                        "id": tc.id,
-                                        "type": "function",
-                                        "function": {
-                                            "name": tc.function.name,
-                                            "arguments": tc.function.arguments
-                                        }
-                                    } for tc in response_message.tool_calls
-                                ]
-                            messages.append(msg_dict)
-                            
-                            tool_calls = response_message.tool_calls
-                            if not tool_calls:
-                                # No more tools called, this is the final response
-                                reply = response_message.content or ""
-                                break
-                                
-                            # Execute tool calls
-                            for tool_call in tool_calls:
-                                func_name = tool_call.function.name
-                                func_to_call = FUNCTIONS_MAP.get(func_name)
-                                if not func_to_call:
-                                    tool_output = f"Error: Tool {func_name} not found."
-                                else:
-                                    try:
-                                        import json
-                                        func_args = json.loads(tool_call.function.arguments)
-                                        tool_output = func_to_call(**func_args)
-                                    except Exception as e:
-                                        tool_output = f"Error executing {func_name}: {str(e)}"
-                                
-                                # Append tool result to messages
-                                messages.append({
-                                    "role": "tool",
-                                    "tool_call_id": tool_call.id,
-                                    "name": func_name,
-                                    "content": str(tool_output)
-                                })
-                        else:
-                            reply = "I completed execution but reached maximum reasoning loops."
-
-                        if reply:
-                            # Log response
-                            try:
-                                insert_history(username, "chat_response", reply)
-                            except Exception as err:
-                                print(f"Failed to log Groq chat response: {err}")
-                            
-                            latency_ms = int((time.time() - start_time) * 1000)
-                            if username != "guest":
+                        # Execute tool calls
+                        for tool_call in tool_calls:
+                            func_name = tool_call.function.name
+                            func_to_call = FUNCTIONS_MAP.get(func_name)
+                            if not func_to_call:
+                                tool_output = f"Error: Tool {func_name} not found."
+                            else:
                                 try:
-                                    from db import log_token_usage
-                                    log_token_usage(username, "groq", accumulated_input_tokens, accumulated_output_tokens, latency_ms)
+                                    import json
+                                    func_args = json.loads(tool_call.function.arguments)
+                                    tool_output = func_to_call(**func_args)
                                 except Exception as e:
-                                    print(f"Error logging Groq token usage: {e}")
-                            return {"reply": reply, "model": groq_friendly_name}
+                                    tool_output = f"Error executing {func_name}: {str(e)}"
+                            
+                            # Append tool result to messages
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "name": func_name,
+                                "content": str(tool_output)
+                            })
+                    else:
+                        reply = "I completed execution but reached maximum reasoning loops."
 
-                    except Exception as groq_err:
-                        print(f"Groq model {groq_model_id} error: {groq_err}. Trying next...")
-                        continue
+                    if reply:
+                        # Log response
+                        try:
+                            insert_history(username, "chat_response", reply)
+                        except Exception as err:
+                            print(f"Failed to log Groq chat response: {err}")
+                        
+                        latency_ms = int((time.time() - start_time) * 1000)
+                        if username != "guest":
+                            try:
+                                from db import log_token_usage
+                                log_token_usage(username, "groq", accumulated_input_tokens, accumulated_output_tokens, latency_ms)
+                            except Exception as e:
+                                print(f"Error logging Groq token usage: {e}")
+                        return {"reply": reply, "model": groq_friendly_name}
+
+                except Exception as groq_err:
+                    print(f"Groq model {groq_model_id} error: {groq_err}. Trying next...")
+                    continue
+
+            return {
+                "reply": "⚠️ **Groq Service Unavailable**: All Groq model attempts failed. Please try again in a few moments.",
+                "model": "Groq"
+            }
 
         # 2. Try Gemini Client (Pro or Flash depending on selection/fallback)
         client = get_gemini_client()
@@ -1377,11 +1405,13 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             # Construct Gemini request contents with history (excluding latest message)
             contents = []
             for msg in req.history:
+                if not msg or not getattr(msg, "content", None) or not msg.content.strip():
+                    continue
                 role = "user" if msg.role == "user" else "model"
                 contents.append(
                     types.Content(
                         role=role,
-                        parts=[types.Part.from_text(text=msg.content)]
+                        parts=[types.Part.from_text(text=msg.content.strip())]
                     )
                 )
             
@@ -1425,7 +1455,12 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                 err_msg = str(last_error) if last_error else "Unknown error"
                 print(f"All Gemini model attempts failed: {err_msg}")
                 # Return a friendly message instead of raw API error
-                if "503" in err_msg or "UNAVAILABLE" in err_msg:
+                if "401" in err_msg or "UNAUTHENTICATED" in err_msg:
+                    reply = (
+                        "⚠️ **Gemini API Key Authentication Failed** (`401 UNAUTHENTICATED`).\n\n"
+                        "Please verify your `GEMINI_API_KEY` from Google AI Studio in settings."
+                    )
+                elif "503" in err_msg or "UNAVAILABLE" in err_msg:
                     reply = (
                         "⚠️ **Gemini AI is temporarily overloaded** (high demand right now).\n\n"
                         "Please try again in 30–60 seconds. I'll be fully back online shortly!"
@@ -1433,12 +1468,11 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                 elif "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
                     reply = (
                         "⚠️ **API quota reached** for your current Gemini plan.\n\n"
-                        "Please wait a minute and try again, or upgrade your Gemini API plan at "
-                        "[ai.dev/rate-limit](https://ai.dev/rate-limit)."
+                        "Please wait a minute and try again, or check your Gemini rate limits in Google AI Studio."
                     )
                 else:
                     reply = f"⚠️ **Error processing your request.**\n\nDetails: `{err_msg[:200]}`"
-                return {"reply": reply}
+                return {"reply": reply, "model": used_friendly_name}
 
             reply = response.text or "I processed your request, but did not generate a text response."
             
@@ -1461,7 +1495,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                 except Exception as e:
                     print(f"Error logging Gemini token usage: {e}")
                     
-            return {"reply": reply}
+            return {"reply": reply, "model": used_friendly_name}
 
         except Exception as e:
             print(f"Gemini API invocation error: {e}")
@@ -1640,15 +1674,23 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                 print(f"[WARN] Failed to log stream chat query: {err}")
 
             # ── 1. Try Groq streaming ─────────────────────────────────────
-            groq_client = get_groq_client()
-            if selected_model in ("llama-70b", "groq") and groq_client:
-                for groq_model_id, groq_friendly_name in ACTIVE_GROQ_MODELS:
+            if selected_model in ("llama-70b", "groq"):
+                groq_client = get_groq_client()
+                if not groq_client:
+                    yield _sse_error("⚠️ **Groq API Key Not Configured**: Please configure your `GROQ_API_KEY` in environment or settings.")
+                    yield _sse_done()
+                    return
+
+                groq_models = resolve_groq_models_for_selection()
+                for groq_model_id, groq_friendly_name in groq_models:
                     try:
                         print(f"[INFO] Executing Streaming Chat Agent using Groq ({groq_model_id})...")
                         yield _sse_event("model_used", groq_friendly_name)
                         # Build messages
                         messages = [{"role": "system", "content": stream_instruction}]
                         for msg in resolved_history:
+                            if not msg or not getattr(msg, "content", None) or not msg.content.strip():
+                                continue
                             role = "user" if msg.role == "user" else "assistant"
                             messages.append({"role": role, "content": msg.content})
                         messages.append({"role": "user", "content": resolved_message})
@@ -1793,14 +1835,17 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         print(f"[WARN] Groq model {groq_model_id} streaming error: {groq_err}. Trying next Groq model...")
                         continue
 
-                print("[WARN] All Groq models failed. Falling back to Gemini...")
-                accumulated_reply = ""
+                # If all Groq models failed, inform user cleanly
+                print("[WARN] All Groq models failed.")
+                yield _sse_error("⚠️ **Groq Service Unavailable**: Unable to get a response from Groq models. Please check your Groq API key or try again in a few moments.")
+                yield _sse_done()
+                return
 
             # ── 2. Try Gemini streaming ───────────────────────────────────
             client = get_gemini_client()
 
             if not client:
-                # ── 3. Mock word-by-word fallback ─────────────────────────
+                # ── 3. Mock word-by-word fallback if no Gemini key ─────────
                 mock_reply = await handle_mock_fallback(resolved_message)
                 words = mock_reply.split(" ")
                 for word in words:
@@ -1822,20 +1867,23 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             try:
                 contents = []
                 for msg in resolved_history:
+                    if not msg or not getattr(msg, "content", None) or not msg.content.strip():
+                        continue
                     role = "user" if msg.role == "user" else "model"
                     contents.append(
                         types.Content(
                             role=role,
-                            parts=[types.Part.from_text(text=msg.content)]
+                            parts=[types.Part.from_text(text=msg.content.strip())]
                         )
                     )
                 # Append user query to history
-                contents.append(
-                    types.Content(
-                        role="user",
-                        parts=[types.Part.from_text(text=resolved_message)]
+                if resolved_message and resolved_message.strip():
+                    contents.append(
+                        types.Content(
+                            role="user",
+                            parts=[types.Part.from_text(text=resolved_message.strip())]
+                        )
                     )
-                )
 
                 # Active Google GenAI models based on user choice
                 MODELS_TO_TRY = resolve_gemini_models_for_selection(selected_model)
@@ -1884,8 +1932,12 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                                         has_tool_calls = True
                                         tool_calls.extend(chunk.function_calls)
                                     
-                                    # Stream text tokens immediately if we haven't seen tool calls
-                                    token = chunk.text or ""
+                                    # Stream text tokens safely if we haven't seen tool calls
+                                    token = ""
+                                    try:
+                                        token = chunk.text or ""
+                                    except Exception:
+                                        token = ""
                                     if token and not has_tool_calls:
                                         accumulated_reply += token
                                         yield _sse_event("token", token)
@@ -1964,64 +2016,34 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         except Exception as e:
                             last_error = e
                             err_str = str(e)
+                            print(f"[{model_name}] attempt {attempt+1} failed: {err_str[:120]}")
                             if any(code in err_str for code in ["503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED"]):
                                 wait = 2 ** attempt
-                                print(f"[{model_name}] attempt {attempt+1} failed ({err_str[:60]}). Retrying in {wait}s...")
                                 await asyncio.sleep(wait)
                             else:
-                                break  # Non-retryable
+                                break  # Non-retryable error, try next model
 
                 if not streamed:
-                    # Automatic Failover: Try Groq if Gemini is rate limited or unavailable
-                    groq_client = get_groq_client()
-                    if groq_client:
-                        for groq_model_id, groq_friendly_name in ACTIVE_GROQ_MODELS:
-                            try:
-                                print(f"[INFO] Gemini quota/rate-limit hit. Auto-failing over to Groq ({groq_model_id})...")
-                                yield _sse_event("model_used", f"{groq_friendly_name} (Auto-Failover)")
-                                groq_msgs = [{"role": "system", "content": stream_instruction}]
-                                for m in resolved_history:
-                                    role = "user" if m.role == "user" else "assistant"
-                                    groq_msgs.append({"role": role, "content": m.content})
-                                groq_msgs.append({"role": "user", "content": resolved_message})
-                                
-                                g_stream = groq_client.chat.completions.create(
-                                    model=groq_model_id,
-                                    messages=groq_msgs,
-                                    temperature=temperature_choice,
-                                    stream=True,
-                                )
-                                for chunk in g_stream:
-                                    if await request.is_disconnected():
-                                        return
-                                    delta = chunk.choices[0].delta
-                                    token = delta.content or ""
-                                    if token:
-                                        accumulated_reply += token
-                                        yield _sse_event("token", token)
-                                        await asyncio.sleep(0)
-                                
-                                if accumulated_reply:
-                                    _persist_thread_messages(accumulated_reply)
-                                    yield _sse_done()
-                                    return
-                            except Exception as failover_err:
-                                print(f"[WARN] Groq failover error with {groq_model_id}: {failover_err}")
-                                continue
-
-                    # All models failed — stream clean helpful guidance
+                    # All Gemini models failed — provide clear, accurate feedback without auto-failover
                     err_str = str(last_error) if last_error else "Unknown error"
-                    if "503" in err_str or "UNAVAILABLE" in err_str:
+                    print(f"[ERROR] All Gemini models failed for {selected_model}: {err_str}")
+                    if "401" in err_str or "UNAUTHENTICATED" in err_str:
                         error_reply = (
-                            "**Gemini AI is temporarily overloaded** (high demand right now). "
+                            "⚠️ **Gemini API Key Authentication Failed** (`401 UNAUTHENTICATED`).\n\n"
+                            "Please check your `GEMINI_API_KEY` from Google AI Studio in settings."
+                        )
+                    elif "503" in err_str or "UNAVAILABLE" in err_str:
+                        error_reply = (
+                            "⚠️ **Gemini AI is temporarily overloaded** (high demand right now).\n\n"
+                            "Please wait 30–60 seconds and try again."
                         )
                     elif "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
                         error_reply = (
-                            "**API quota reached** for your current Gemini plan. "
-                            "Please wait a minute and try again."
+                            "⚠️ **API quota reached** for your current Gemini plan.\n\n"
+                            "Please wait a minute and try again, or check your rate limits in Google AI Studio."
                         )
                     else:
-                        error_reply = f"Error processing your request: {err_str[:200]}"
+                        error_reply = f"⚠️ **Gemini Error**: {err_str[:250]}"
                     yield _sse_error(error_reply)
                     yield _sse_done()
                     return

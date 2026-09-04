@@ -370,7 +370,7 @@ export default function ChatAssistant({
                 background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399"),
                 boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399")
               }} />
-              <span>Online · {selectedModel === "llama-70b" ? "Llama 3.3 70B (Groq)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
+              <span>Online · {selectedModel === "llama-70b" ? "Groq (Ultra-Fast)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
             </div>
           </div>
           <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
