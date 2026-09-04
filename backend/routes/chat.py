@@ -1651,31 +1651,27 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
                         tool_calls = response_message.tool_calls
 
                         if not tool_calls:
-                            if loop_idx == 0:
-                                # No tools used at all. Break and let native streaming handle the stream.
-                                break
-                            else:
-                                # We already used tools, and this is the final text response.
-                                final_text = response_message.content or ""
-                                accumulated_reply = final_text
-                                
-                                # Simulate token streaming to the client
-                                words = final_text.split(" ")
-                                for i, word in enumerate(words):
-                                    if await request.is_disconnected():
-                                        return
-                                    token = word + (" " if i < len(words) - 1 else "")
-                                    yield _sse_event("token", token)
-                                    await asyncio.sleep(0.02)
-                                
-                                if accumulated_reply:
-                                    try:
-                                        insert_history(resolved_username, "chat_response", accumulated_reply)
-                                    except Exception as err:
-                                        print(f"[WARN] Failed to log Groq stream response: {err}")
-                                _persist_thread_messages(accumulated_reply)
-                                yield _sse_done()
-                                return
+                            # Final text response directly from Groq
+                            final_text = response_message.content or ""
+                            accumulated_reply = final_text
+                            
+                            # Stream tokens to client
+                            words = final_text.split(" ")
+                            for i, word in enumerate(words):
+                                if await request.is_disconnected():
+                                    return
+                                token = word + (" " if i < len(words) - 1 else "")
+                                yield _sse_event("token", token)
+                                await asyncio.sleep(0.01)
+                            
+                            if accumulated_reply:
+                                try:
+                                    insert_history(resolved_username, "chat_response", accumulated_reply)
+                                except Exception as err:
+                                    print(f"[WARN] Failed to log Groq stream response: {err}")
+                            _persist_thread_messages(accumulated_reply)
+                            yield _sse_done()
+                            return
 
                         # Build assistant message dict to append to history (since we have tool_calls)
                         msg_dict = {
