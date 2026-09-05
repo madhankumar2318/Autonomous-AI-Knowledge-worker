@@ -77,19 +77,11 @@ export default function CmdKPalette({
     },
     {
       id: "model-gemini-flash",
-      title: "Switch Model: Gemini 2.5 Flash",
-      subtitle: "Fast and smart responses by Google",
+      title: "Switch Model: Google Gemini 2.5",
+      subtitle: "Fast and intelligent reasoning by Google Gemini",
       icon: <Terminal className="w-4 h-4 text-emerald-400" />,
       action: () => selectModel("gemini-flash"),
       active: activeModel === "gemini-flash",
-    },
-    {
-      id: "model-gemini-pro",
-      title: "Switch Model: Gemini 2.5 Pro",
-      subtitle: "Advanced deep logic & reasoning by Google",
-      icon: <Terminal className="w-4 h-4 text-blue-400" />,
-      action: () => selectModel("gemini-pro"),
-      active: activeModel === "gemini-pro",
     },
     {
       id: "theme-dark",

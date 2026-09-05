@@ -75,53 +75,39 @@ def get_groq_client():
 
 # Active Groq models (current supported endpoints on Groq)
 ACTIVE_GROQ_MODELS = [
-    ("openai/gpt-oss-120b", "Groq (GPT-OSS 120B)"),
-    ("openai/gpt-oss-20b", "Groq (GPT-OSS 20B)"),
-    ("qwen/qwen3.6-27b", "Groq (Qwen 27B)"),
+    ("openai/gpt-oss-120b", "Groq (Ultra-Fast)"),
+    ("openai/gpt-oss-20b", "Groq (Ultra-Fast)"),
+    ("qwen/qwen3.6-27b", "Groq (Ultra-Fast)"),
 ]
 
 def resolve_groq_models_for_selection():
     """Return ordered list of (model_id, friendly_name) for Groq based on environment."""
     env_model = os.getenv("GROQ_MODEL", "").strip()
     base = [
-        ("openai/gpt-oss-120b", "Groq (GPT-OSS 120B)"),
-        ("openai/gpt-oss-20b", "Groq (GPT-OSS 120B)"),
-        ("qwen/qwen3.6-27b", "Groq (GPT-OSS 120B)"),
+        ("openai/gpt-oss-120b", "Groq (Ultra-Fast)"),
+        ("openai/gpt-oss-20b", "Groq (Ultra-Fast)"),
+        ("qwen/qwen3.6-27b", "Groq (Ultra-Fast)"),
     ]
     if env_model:
-        return [(env_model, "Groq (GPT-OSS 120B)")] + [m for m in base if m[0] != env_model]
+        return [(env_model, "Groq (Ultra-Fast)")] + [m for m in base if m[0] != env_model]
     return base
 
-def resolve_gemini_models_for_selection(selected_model: str):
-    """Return ordered list of (model_id, friendly_name) strictly matching user's selected tier."""
-    env_model = os.getenv("GEMINI_MODEL", "").strip()
-    env_pro = os.getenv("GEMINI_PRO_MODEL", "").strip()
+def resolve_gemini_models_for_selection(selected_model: str = "gemini-flash"):
+    """Return ordered list of (model_id, friendly_name) for Google Gemini."""
     env_flash = os.getenv("GEMINI_FLASH_MODEL", "").strip()
+    env_model = os.getenv("GEMINI_MODEL", "").strip()
 
-    if selected_model == "gemini-pro":
-        models = [
-            ("gemini-2.5-pro", "Gemini 2.5 Pro"),
-            ("gemini-1.5-pro", "Gemini 2.5 Pro"),
-            ("gemini-1.5-pro-latest", "Gemini 2.5 Pro"),
-            ("gemini-2.5-flash", "Gemini 2.5 Pro"),
-            ("gemini-1.5-flash", "Gemini 2.5 Pro"),
-        ]
-        # Only inject environment model if it is explicitly a Pro model (never let Flash hijack Pro)
-        pro_candidate = env_pro or (env_model if "pro" in env_model.lower() else "")
-        if pro_candidate:
-            models = [(pro_candidate, "Gemini 2.5 Pro")] + [m for m in models if m[0] != pro_candidate]
-        return models
-    else:  # gemini-flash or default
-        models = [
-            ("gemini-2.5-flash", "Gemini 2.5 Flash"),
-            ("gemini-1.5-flash", "Gemini 2.5 Flash"),
-            ("gemini-1.5-flash-latest", "Gemini 2.5 Flash"),
-            ("gemini-2.0-flash", "Gemini 2.5 Flash"),
-        ]
-        flash_candidate = env_flash or (env_model if "pro" not in env_model.lower() else "")
-        if flash_candidate:
-            models = [(flash_candidate, "Gemini 2.5 Flash")] + [m for m in models if m[0] != flash_candidate]
-        return models
+    base = [
+        ("gemini-2.5-flash", "Google Gemini 2.5"),
+        ("gemini-flash-latest", "Google Gemini 2.5"),
+        ("gemini-3.7-flash", "Google Gemini 2.5"),
+        ("gemini-3.5-flash", "Google Gemini 2.5"),
+        ("gemini-2.0-flash", "Google Gemini 2.5"),
+    ]
+    candidate = env_flash or env_model
+    if candidate and "pro" not in candidate.lower():
+        return [(candidate, "Google Gemini 2.5")] + [m for m in base if m[0] != candidate]
+    return base
 
 
 
@@ -1433,7 +1419,7 @@ You are currently in **Document Workspace Mode** analyzing the file: `{req.filen
             MODELS_TO_TRY = resolve_gemini_models_for_selection(selected_model)
             response = None
             last_error = None
-            used_friendly_name = "Gemini 2.5 Pro" if selected_model == "gemini-pro" else "Gemini 2.5 Flash"
+            used_friendly_name = "Google Gemini 2.5"
 
             for model_name, friendly_name in MODELS_TO_TRY:
                 used_friendly_name = friendly_name

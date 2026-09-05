@@ -91,15 +91,21 @@ export default function ChatAssistant({
   const [isOpen, setIsOpen] = useState(false);
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("ak_selected_model") || "llama-70b";
+      const stored = localStorage.getItem("ak_selected_model");
+      if (stored === "gemini-pro") {
+        localStorage.setItem("ak_selected_model", "gemini-flash");
+        return "gemini-flash";
+      }
+      return stored || "llama-70b";
     }
     return "llama-70b";
   });
   
   const handleModelChange = (model: string) => {
-    setSelectedModel(model);
+    const targetModel = model === "gemini-pro" ? "gemini-flash" : model;
+    setSelectedModel(targetModel);
     if (typeof window !== "undefined") {
-      localStorage.setItem("ak_selected_model", model);
+      localStorage.setItem("ak_selected_model", targetModel);
       localStorage.setItem("ak_selected_model_modified", "true");
     }
   };
@@ -367,10 +373,10 @@ export default function ChatAssistant({
             <div className="chat-inline-title">AI Knowledge Worker</div>
             <div className="chat-inline-status">
               <span className="chat-status-dot" style={{
-                background: selectedModel === "llama-70b" ? "#c084fc" : (selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399"),
-                boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : (selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399")
+                background: selectedModel === "llama-70b" ? "#c084fc" : "#34d399",
+                boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : "0 0 6px #34d399"
               }} />
-              <span>Online · {selectedModel === "llama-70b" ? "Groq (Ultra-Fast)" : (selectedModel === "gemini-pro" ? "Gemini 2.5 Pro" : "Gemini 2.5 Flash")}</span>
+              <span>Online · {selectedModel === "llama-70b" ? "Groq (Ultra-Fast)" : "Google Gemini 2.5"}</span>
             </div>
           </div>
           <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -380,8 +386,7 @@ export default function ChatAssistant({
               className="chat-model-select"
             >
               <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Groq (Ultra-Fast)</option>
-              <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Gemini 2.5 Flash</option>
-              <option value="gemini-pro" style={{ background: "#080814", color: "#ffffff" }}>Gemini 2.5 Pro</option>
+              <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Google Gemini 2.5</option>
             </select>
             <button
               type="button"
@@ -1345,8 +1350,8 @@ export default function ChatAssistant({
                 <span
                   className="cfab-dot"
                   style={{
-                    background: selectedModel === "llama-70b" ? "#c084fc" : selectedModel === "gemini-pro" ? "#60a5fa" : "#34d399",
-                    boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : selectedModel === "gemini-pro" ? "0 0 6px #60a5fa" : "0 0 6px #34d399",
+                    background: selectedModel === "llama-70b" ? "#c084fc" : "#34d399",
+                    boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : "0 0 6px #34d399",
                   }}
                 />
                 Online
@@ -1356,8 +1361,7 @@ export default function ChatAssistant({
               {!showHomePortal && (
                 <select value={selectedModel} onChange={(e) => handleModelChange(e.target.value)} className="chat-model-select">
                   <option value="llama-70b" style={{ background: "#080814", color: "#fff" }}>Groq (Ultra-Fast)</option>
-                  <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Gemini 2.5 Flash</option>
-                  <option value="gemini-pro" style={{ background: "#080814", color: "#fff" }}>Gemini 2.5 Pro</option>
+                  <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Google Gemini 2.5</option>
                 </select>
               )}
               <button type="button" className="cfab-icon-btn" onClick={() => setIsOpen(false)} title="Close">
