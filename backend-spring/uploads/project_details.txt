@@ -1,0 +1,2 @@
+"The project director of Project Antigravity is Madhan Kumar. The system uses SQLite and ChromaDB as its core databases."
+

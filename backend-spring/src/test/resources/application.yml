@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+app:
+  jwt:
+    secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    expiration-ms: 86400000
+    refresh-expiration-ms: 604800000
+  cors:
+    allowed-origins: http://localhost:3000
+  ai:
+    groq:
+      api-key: test-key
+      model: openai/gpt-oss-120b
+      base-url: https://api.groq.com/openai/v1
+    gemini:
+      api-key: test-key
+      model: gemini-2.5-flash
+      base-url: https://generativelanguage.googleapis.com/v1beta
+  storage:
+    upload-dir: ./target/test-uploads
