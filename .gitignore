@@ -9,3 +9,10 @@
 .idea/
 .vscode/
 *.swp
+
+# Spring Boot & Java
+backend-spring/target/
+**/target/
+*.class
+data/
+*.log

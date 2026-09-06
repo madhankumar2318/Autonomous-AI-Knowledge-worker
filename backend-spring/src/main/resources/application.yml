@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: autonomous-ai-knowledge-worker
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:h2:file:./data/workerdb;DB_CLOSE_ON_EXIT=FALSE;AUTO_RECONNECT=TRUE}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DATABASE_USER:sa}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DATABASE_PASSWORD:}}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:${DATABASE_DRIVER:org.h2.Driver}}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+    expiration-ms: 86400000 # 24 hours
+    refresh-expiration-ms: 604800000 # 7 days
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+  ai:
+    groq:
+      api-key: ${GROQ_API_KEY:}
+      model: ${GROQ_MODEL:openai/gpt-oss-120b}
+      base-url: https://api.groq.com/openai/v1
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.5-flash}
+      base-url: https://generativelanguage.googleapis.com/v1beta
+    serpapi:
+      api-key: ${SERPAPI_KEY:}
+  storage:
+    upload-dir: ${UPLOAD_DIR:./uploads}
+
+logging:
+  level:
+    root: INFO
+    com.knowledge.worker: DEBUG
+    org.springframework.security: INFO
