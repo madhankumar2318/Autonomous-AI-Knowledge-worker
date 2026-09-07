@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: autonomous-ai-knowledge-worker-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /db/status
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash

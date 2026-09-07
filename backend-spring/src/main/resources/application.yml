@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   application:
@@ -27,7 +27,7 @@ app:
     expiration-ms: 86400000 # 24 hours
     refresh-expiration-ms: 604800000 # 7 days
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+    allowed-origins: ${CORS_ORIGINS:${FRONTEND_URL:http://localhost:3000,http://127.0.0.1:3000}}
   ai:
     groq:
       api-key: ${GROQ_API_KEY:}
