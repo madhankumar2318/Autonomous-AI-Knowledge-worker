@@ -86,6 +86,18 @@ function Sparkline({ data, isPos, width = 80, height = 28 }: { data?: number[]; 
   );
 }
 
+// Default sector mapping — used as fallback when backend sectors are absent
+const DEFAULT_SECTORS: Record<string, string[]> = {
+  "Technology":    ["AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMD", "INTC", "CRM", "ORCL", "ADBE", "QCOM", "TXN"],
+  "Consumer Tech": ["AMZN", "TSLA", "NFLX", "UBER", "ABNB", "SNAP", "PINS"],
+  "Finance":       ["JPM", "BAC", "GS", "MS", "V", "MA", "WFC", "AXP", "BLK"],
+  "Healthcare":    ["JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY", "TMO", "ABT"],
+  "Energy":        ["XOM", "CVX", "COP", "SLB", "PSX"],
+  "Consumer":      ["WMT", "HD", "MCD", "SBUX", "NKE", "COST", "TGT"],
+  "Industrial":    ["BA", "CAT", "HON", "UPS", "GE"],
+  "ETFs":          ["SPY", "QQQ", "DIA", "IWM", "VTI"],
+};
+
 // Sector accent colors
 const SECTOR_COLORS: Record<string, { color: string; bg: string }> = {
   "All": { color: "#22d3ee", bg: "rgba(34,211,238,0.18)" },
@@ -122,11 +134,24 @@ export default function StockSection({ compact = false }: { compact?: boolean })
     try {
       const res = await fetch(`${API_BASE_URL}/stock/multiple`);
       if (res.ok) {
-        const d: StockResponse = await res.json();
-        if (d && Array.isArray(d.stocks)) {
-          setData(d);
-          setLastUpdated(new Date().toLocaleTimeString());
+        const raw = await res.json();
+        // Support both { stocks: [...], sectors: {...} } and a raw array (legacy)
+        let parsed: StockResponse;
+        if (raw && Array.isArray(raw.stocks)) {
+          parsed = {
+            stocks: raw.stocks,
+            cached: raw.cached ?? false,
+            sectors: raw.sectors && Object.keys(raw.sectors).length > 0 ? raw.sectors : DEFAULT_SECTORS,
+          };
+        } else if (Array.isArray(raw)) {
+          // Legacy: raw array returned
+          parsed = { stocks: raw, cached: false, sectors: DEFAULT_SECTORS };
+        } else {
+          // Unknown shape — load nothing, show error state
+          return;
         }
+        setData(parsed);
+        setLastUpdated(new Date().toLocaleTimeString());
       }
     } catch (e) {
       console.error("Error fetching stocks:", e);

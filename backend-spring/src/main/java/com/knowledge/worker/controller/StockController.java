@@ -20,14 +20,17 @@ public class StockController {
         return ResponseEntity.ok(stockService.getQuote(symbol));
     }
 
+    /** Returns { stocks: [...], cached: false, sectors: { Technology: [...], ... } } */
     @GetMapping("/multiple")
-    public ResponseEntity<List<StockQuote>> getMultipleStocks(@RequestParam(required = false) List<String> symbols) {
-        return ResponseEntity.ok(stockService.getMultipleQuotes(symbols));
+    public ResponseEntity<MultipleStockResponse> getMultipleStocks(
+            @RequestParam(required = false) List<String> symbols) {
+        return ResponseEntity.ok(stockService.getMultipleQuotesResponse(symbols));
     }
 
     @GetMapping("/history/{symbol}")
-    public ResponseEntity<StockHistoryResponse> getHistory(@PathVariable String symbol,
-                                                           @RequestParam(defaultValue = "7d") String period) {
+    public ResponseEntity<StockHistoryResponse> getHistory(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "7d") String period) {
         return ResponseEntity.ok(stockService.getHistory(symbol, period));
     }
 }

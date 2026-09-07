@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.util.List;
+import java.util.Map;
 
 public class StockDto {
 
@@ -24,7 +25,23 @@ public class StockDto {
         @JsonProperty("day_low")
         private Double dayLow;
         private Long volume;
+        @JsonProperty("market_cap")
+        private Long marketCap;
         private String timestamp;
+        /** 7-point sparkline prices for the mini chart on each stock card */
+        private List<Double> history;
+        private String error;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class MultipleStockResponse {
+        private List<StockQuote> stocks;
+        private Boolean cached;
+        private Map<String, List<String>> sectors;
     }
 
     @Getter
