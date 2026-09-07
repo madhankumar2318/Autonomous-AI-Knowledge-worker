@@ -116,14 +116,17 @@ export default function NewsSection({
       try {
         const res = await fetch(url);
         const data = await res.json();
-        if (data.news) {
+        const newsItems = data.news || data.articles || [];
+        if (Array.isArray(newsItems) && newsItems.length > 0) {
           if (append) {
-            setArticles((prev) => [...prev, ...data.news]);
+            setArticles((prev) => [...prev, ...newsItems]);
           } else {
-            setArticles(data.news);
+            setArticles(newsItems);
           }
-          setHasMore(data.has_more ?? data.news.length >= 100);
-          setTotal(data.total ?? 0);
+          setHasMore(data.has_more ?? data.hasMore ?? false);
+          setTotal(data.total ?? data.total_results ?? newsItems.length);
+        } else if (!append) {
+          setArticles([]);
         }
       } catch (err) {
         console.error("Error fetching news:", err);
