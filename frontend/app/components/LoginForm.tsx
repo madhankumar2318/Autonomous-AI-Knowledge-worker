@@ -193,34 +193,39 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     }
 
     try {
-      const formData = new FormData();
-      formData.append("username", username);
-      formData.append("password", password);
+      const payload: Record<string, string> = {
+        username,
+        password,
+      };
 
       const endpoint = isRegistering
         ? `${API_BASE_URL}/auth/register`
         : `${API_BASE_URL}/auth/login`;
 
       if (isRegistering) {
-        if (name) formData.append("name", name);
-        if (email) formData.append("email", email);
+        if (name) payload.name = name;
+        if (email) payload.email = email;
         if (mobile.trim()) {
           const selected = COUNTRIES.find((c) => c.code === country);
           const prefix = selected ? selected.dialCode : "";
-          formData.append("mobile", `${prefix} ${mobile.trim()}`);
+          payload.mobile = `${prefix} ${mobile.trim()}`;
         }
       }
 
       const res = await fetch(endpoint, {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
         credentials: "include",
       });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => null);
         throw new Error(
-          errorData?.detail ||
+          errorData?.message ||
+            errorData?.detail ||
             (isRegistering ? "Registration failed" : "Login failed"),
         );
       }
@@ -245,7 +250,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           /* ignore */
         }
 
-        onLoginSuccess(username, data.token || "");
+        const authToken = data.token || data.access_token || "";
+        if (authToken) {
+          localStorage.setItem("ak_token", authToken);
+        }
+        onLoginSuccess(username, authToken);
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

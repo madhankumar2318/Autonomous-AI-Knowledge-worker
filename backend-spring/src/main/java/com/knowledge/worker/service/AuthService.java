@@ -77,7 +77,18 @@ public class AuthService {
         User user = userRepository.findByUsername(req.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
 
-        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+        boolean passwordMatches = false;
+        if (user.getPassword() != null && user.getPassword().startsWith("$2")) {
+            passwordMatches = passwordEncoder.matches(req.getPassword(), user.getPassword());
+        } else if (user.getPassword() != null) {
+            passwordMatches = req.getPassword().equals(user.getPassword());
+            if (passwordMatches) {
+                user.setPassword(passwordEncoder.encode(req.getPassword()));
+                userRepository.save(user);
+            }
+        }
+
+        if (!passwordMatches) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
         }
 

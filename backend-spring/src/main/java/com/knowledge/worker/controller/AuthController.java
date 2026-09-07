@@ -21,12 +21,41 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest req) {
+    public ResponseEntity<AuthResponse> register(
+            @RequestBody(required = false) RegisterRequest bodyReq,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String password,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String mobile
+    ) {
+        RegisterRequest req = bodyReq;
+        if (req == null || req.getUsername() == null) {
+            req = RegisterRequest.builder()
+                    .username(username)
+                    .password(password)
+                    .name(name)
+                    .email(email)
+                    .mobile(mobile)
+                    .build();
+        }
         return ResponseEntity.ok(authService.register(req));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest req, HttpServletResponse response) {
+    public ResponseEntity<AuthResponse> login(
+            @RequestBody(required = false) LoginRequest bodyReq,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String password,
+            HttpServletResponse response
+    ) {
+        LoginRequest req = bodyReq;
+        if (req == null || req.getUsername() == null) {
+            req = LoginRequest.builder()
+                    .username(username)
+                    .password(password)
+                    .build();
+        }
         return ResponseEntity.ok(authService.login(req, response));
     }
 

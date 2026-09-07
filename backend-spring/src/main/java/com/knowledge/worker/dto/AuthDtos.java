@@ -41,6 +41,12 @@ public class AuthDtos {
     public static class AuthResponse {
         @JsonProperty("access_token")
         private String accessToken;
+
+        @JsonProperty("token")
+        public String getToken() {
+            return accessToken;
+        }
+
         @JsonProperty("token_type")
         @Builder.Default
         private String tokenType = "bearer";
