@@ -270,10 +270,21 @@ export default function Home_Page() {
     }
     fetch(`${API_BASE_URL}/auth/verify`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => { setLoggedInUser(data.username); setIsLoggedIn(true); })
+      .then((data) => {
+        const user = data?.username || data?.user?.username;
+        if (data?.valid && user) {
+          setLoggedInUser(user);
+          setIsLoggedIn(true);
+        } else {
+          setLoggedInUser("");
+          setIsLoggedIn(false);
+        }
+      })
       .catch(() => {
         localStorage.removeItem("ak_session");
         fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => {});
+        setLoggedInUser("");
+        setIsLoggedIn(false);
       })
       .finally(() => setSessionChecked(true));
   }, []);
@@ -447,11 +458,11 @@ export default function Home_Page() {
             >
               <div className="avatar-ring">
                 <div className="avatar-inner">
-                  {loggedInUser.slice(0, 2).toUpperCase()}
+                  {(loggedInUser || "US").slice(0, 2).toUpperCase()}
                 </div>
               </div>
               <div className="avatar-info">
-                <span className="avatar-name">{loggedInUser}</span>
+                <span className="avatar-name">{loggedInUser || "User"}</span>
                 <span className="avatar-role">Admin</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-white/30" />

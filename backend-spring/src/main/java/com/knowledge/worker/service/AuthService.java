@@ -124,6 +124,7 @@ public class AuthService {
         User user = userOpt.get();
         return VerifyResponse.builder()
                 .valid(true)
+                .username(user.getUsername())
                 .user(UserDto.builder()
                         .username(user.getUsername())
                         .name(user.getName())

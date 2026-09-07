@@ -241,9 +241,9 @@ export default function UserProfile({
     year: "numeric",
   });
   const isAdmin = username === "admin";
-  const initials = (profile?.name || username)
+  const initials = (profile?.name || username || "U")
     .split(" ")
-    .map((w: string) => w[0])
+    .map((w: string) => w[0] || "")
     .join("")
     .toUpperCase()
     .slice(0, 2);

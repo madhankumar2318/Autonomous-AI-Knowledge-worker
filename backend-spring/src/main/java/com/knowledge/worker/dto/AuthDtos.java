@@ -58,6 +58,7 @@ public class AuthDtos {
     @Builder
     public static class VerifyResponse {
         private boolean valid;
+        private String username;
         private UserDto user;
     }
 
