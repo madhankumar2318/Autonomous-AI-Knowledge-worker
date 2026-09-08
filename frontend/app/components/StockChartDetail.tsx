@@ -125,8 +125,20 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
     setHoverIndex(null);
     fetch(`${API_BASE_URL}/stock/history/${stock.symbol}?period=${period}`)
       .then((r) => { if (!r.ok) throw new Error("History fetch failed"); return r.json(); })
-      .then((d) => { setChartData(d.data || []); if (d.details) setDetails(d.details); })
-      .catch(() => showToast("error", "Failed to load historical trend chart."))
+      .then((d) => {
+        const rawPoints = Array.isArray(d.data) ? d.data : (Array.isArray(d.history) ? d.history : (Array.isArray(d) ? d : []));
+        const normalized = rawPoints.map((pt: any) => ({
+          date: String(pt.date || ""),
+          price: Number(pt.price ?? pt.close ?? 0),
+          volume: Number(pt.volume ?? 0),
+        })).filter((pt: any) => pt.price > 0);
+        setChartData(normalized);
+        if (d.details) setDetails(d.details);
+      })
+      .catch((err) => {
+        console.error("Failed to load historical trend chart:", err);
+        showToast("error", "Failed to load historical trend chart.");
+      })
       .finally(() => setLoading(false));
   }, [stock.symbol, period]);
 

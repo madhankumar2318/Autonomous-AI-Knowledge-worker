@@ -51,6 +51,7 @@ public class StockDto {
     @Builder
     public static class HistoryPoint {
         private String date;
+        private Double price;
         private Double open;
         private Double high;
         private Double low;
@@ -63,9 +64,31 @@ public class StockDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
+    public static class StockDetails {
+        @JsonProperty("day_high")
+        private Double dayHigh;
+        @JsonProperty("day_low")
+        private Double dayLow;
+        private Long volume;
+        @JsonProperty("market_cap")
+        private Long marketCap;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class StockHistoryResponse {
         private String symbol;
         private String period;
-        private List<HistoryPoint> history;
+        private List<HistoryPoint> data;
+        private StockDetails details;
+        private String error;
+
+        @JsonProperty("history")
+        public List<HistoryPoint> getHistory() {
+            return data;
+        }
     }
 }

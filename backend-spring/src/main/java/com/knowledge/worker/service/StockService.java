@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -225,37 +227,157 @@ public class StockService {
     // ─── History (for stock-detail chart click) ───────────────────────────────
     public StockHistoryResponse getHistory(String symbol, String period) {
         String sym = symbol.trim().toUpperCase();
-        StockQuote current = getQuote(sym);
-        double currentPrice = current.getPrice() != null ? current.getPrice() : BASE_PRICES.getOrDefault(sym, 150.0);
+        String p = period != null ? period.trim().toLowerCase() : "1mo";
+        if ("1m".equals(p)) p = "1mo";
+
+        String range = switch (p) {
+            case "1d" -> "1d";
+            case "5d" -> "5d";
+            case "1y" -> "1y";
+            default -> "1mo";
+        };
+
+        String interval = switch (p) {
+            case "1d" -> "5m";
+            case "5d" -> "30m";
+            case "1y" -> "1wk";
+            default -> "1d";
+        };
+
+        DateTimeFormatter dtf;
+        if ("1d".equals(p)) {
+            dtf = DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.of("America/New_York"));
+        } else if ("5d".equals(p)) {
+            dtf = DateTimeFormatter.ofPattern("EEE HH:mm").withZone(ZoneId.of("America/New_York"));
+        } else {
+            dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("America/New_York"));
+        }
 
         List<HistoryPoint> points = new ArrayList<>();
-        int days = "1y".equalsIgnoreCase(period) ? 365 : ("1m".equalsIgnoreCase(period) ? 30 : 7);
+        StockDetails details = null;
 
-        Random random = new Random(sym.hashCode());
-        double price = currentPrice;
+        // Try Yahoo Finance v8 chart API for real historical points
+        try {
+            String url = "https://query1.finance.yahoo.com/v8/finance/chart/" + sym
+                    + "?range=" + range + "&interval=" + interval;
+            Request request = new Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .build();
 
-        for (int i = days - 1; i >= 0; i--) {
-            double open = price * (1 + random.nextDouble() * 0.02 - 0.01);
-            double close = open * (1 + random.nextDouble() * 0.03 - 0.015);
-            double high = Math.max(open, close) * (1 + random.nextDouble() * 0.01);
-            double low = Math.min(open, close) * (1 - random.nextDouble() * 0.01);
-            long volume = (long) (10_000_000 + random.nextInt(30_000_000));
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    JsonNode root = objectMapper.readTree(response.body().string());
+                    JsonNode resObj = root.path("chart").path("result").get(0);
+                    if (resObj != null && !resObj.isMissingNode()) {
+                        JsonNode meta = resObj.path("meta");
+                        double dayHigh = meta.path("regularMarketDayHigh").asDouble(0.0);
+                        double dayLow = meta.path("regularMarketDayLow").asDouble(0.0);
+                        long vol = meta.path("regularMarketVolume").asLong(0L);
+                        long mcap = meta.path("marketCap").asLong(0L);
 
-            points.add(0, HistoryPoint.builder()
-                    .date(LocalDate.now().minusDays(i).toString())
-                    .open(Math.round(open * 100.0) / 100.0)
-                    .close(Math.round(close * 100.0) / 100.0)
-                    .high(Math.round(high * 100.0) / 100.0)
-                    .low(Math.round(low * 100.0) / 100.0)
-                    .volume(volume)
-                    .build());
-            price = close;
+                        details = StockDetails.builder()
+                                .dayHigh(dayHigh > 0 ? Math.round(dayHigh * 100.0) / 100.0 : null)
+                                .dayLow(dayLow > 0 ? Math.round(dayLow * 100.0) / 100.0 : null)
+                                .volume(vol > 0 ? vol : null)
+                                .marketCap(mcap > 0 ? mcap : null)
+                                .build();
+
+                        JsonNode timestamps = resObj.path("timestamp");
+                        JsonNode quote = resObj.path("indicators").path("quote").get(0);
+                        if (timestamps.isArray() && quote != null) {
+                            JsonNode closes = quote.path("close");
+                            JsonNode opens = quote.path("open");
+                            JsonNode highs = quote.path("high");
+                            JsonNode lows = quote.path("low");
+                            JsonNode volumes = quote.path("volume");
+
+                            for (int i = 0; i < timestamps.size(); i++) {
+                                JsonNode cNode = closes.get(i);
+                                if (cNode == null || cNode.isNull()) continue;
+                                double close = cNode.asDouble();
+                                if (Double.isNaN(close) || close <= 0) continue;
+
+                                long ts = timestamps.get(i).asLong();
+                                String dateStr = dtf.format(Instant.ofEpochSecond(ts));
+
+                                double open = (opens.get(i) != null && !opens.get(i).isNull()) ? opens.get(i).asDouble(close) : close;
+                                double high = (highs.get(i) != null && !highs.get(i).isNull()) ? highs.get(i).asDouble(close) : close;
+                                double low = (lows.get(i) != null && !lows.get(i).isNull()) ? lows.get(i).asDouble(close) : close;
+                                long v = (volumes.get(i) != null && !volumes.get(i).isNull()) ? volumes.get(i).asLong(0L) : 0L;
+
+                                points.add(HistoryPoint.builder()
+                                        .date(dateStr)
+                                        .price(Math.round(close * 100.0) / 100.0)
+                                        .close(Math.round(close * 100.0) / 100.0)
+                                        .open(Math.round(open * 100.0) / 100.0)
+                                        .high(Math.round(high * 100.0) / 100.0)
+                                        .low(Math.round(low * 100.0) / 100.0)
+                                        .volume(v)
+                                        .build());
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Live history fetch failed for {}: {}", sym, e.getMessage());
+        }
+
+        // Fallback generator if live fetch yields empty points
+        if (points.isEmpty()) {
+            StockQuote current = getQuote(sym);
+            double currentPrice = current.getPrice() != null ? current.getPrice() : BASE_PRICES.getOrDefault(sym, 150.0);
+            int count = "1y".equalsIgnoreCase(p) ? 52 : ("1d".equalsIgnoreCase(p) ? 24 : 30);
+
+            Random random = new Random(sym.hashCode() + p.hashCode());
+            double price = currentPrice * (1.0 - 0.05 + random.nextDouble() * 0.1);
+
+            for (int i = count - 1; i >= 0; i--) {
+                String dateStr;
+                if ("1d".equalsIgnoreCase(p)) {
+                    int hour = (9 + (count - 1 - i) / 3) % 24;
+                    int minute = ((count - 1 - i) % 3) * 20;
+                    dateStr = String.format("%02d:%02d", hour, minute);
+                } else if ("5d".equalsIgnoreCase(p)) {
+                    dateStr = LocalDate.now().minusDays(i / 5).getDayOfWeek().name().substring(0, 3) + " " + String.format("%02d:00", (10 + (i % 5) * 2));
+                } else {
+                    dateStr = LocalDate.now().minusDays(i).toString();
+                }
+
+                double open = price;
+                double close = (i == 0) ? currentPrice : Math.round(price * (1 + random.nextDouble() * 0.02 - 0.01) * 100.0) / 100.0;
+                double high = Math.round(Math.max(open, close) * (1 + random.nextDouble() * 0.008) * 100.0) / 100.0;
+                double low = Math.round(Math.min(open, close) * (1 - random.nextDouble() * 0.008) * 100.0) / 100.0;
+                long vol = (long) (15_000_000 + random.nextInt(30_000_000));
+
+                points.add(HistoryPoint.builder()
+                        .date(dateStr)
+                        .price(close)
+                        .close(close)
+                        .open(open)
+                        .high(high)
+                        .low(low)
+                        .volume(vol)
+                        .build());
+                price = close;
+            }
+
+            if (details == null) {
+                details = StockDetails.builder()
+                        .dayHigh(current.getDayHigh())
+                        .dayLow(current.getDayLow())
+                        .volume(current.getVolume())
+                        .marketCap(current.getMarketCap())
+                        .build();
+            }
         }
 
         return StockHistoryResponse.builder()
                 .symbol(sym)
-                .period(period)
-                .history(points)
+                .period(p)
+                .data(points)
+                .details(details)
                 .build();
     }
 }
