@@ -100,8 +100,18 @@ const NAV_TABS = [
 ];
 
 export default function Home_Page() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !!(localStorage.getItem("ak_token") || localStorage.getItem("ak_session"));
+    }
+    return false;
+  });
+  const [loggedInUser, setLoggedInUser] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ak_session") || "";
+    }
+    return "";
+  });
   const [showProfile, setShowProfile] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isCmdKOpen, setIsCmdKOpen] = useState(false);
@@ -216,12 +226,26 @@ export default function Home_Page() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Intercept global fetch responses to catch session expirations (HTTP 401)
+    // Intercept global fetch to attach Authorization header and catch 401s
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
-      let response = await originalFetch(...args);
+      let [resource, config] = args;
+      const urlStr = typeof resource === "string" ? resource : (resource instanceof Request ? resource.url : "");
+      
+      // Auto-attach Bearer token to API requests if available
+      const token = typeof window !== "undefined" ? localStorage.getItem("ak_token") : null;
+      if (token && urlStr.startsWith(API_BASE_URL)) {
+        config = config || {};
+        const headers = new Headers(config.headers || (resource instanceof Request ? resource.headers : {}));
+        if (!headers.has("Authorization")) {
+          headers.set("Authorization", `Bearer ${token}`);
+        }
+        config.headers = headers;
+        config.credentials = config.credentials || "include";
+      }
+
+      let response = await originalFetch(resource, config);
       if (response.status === 401) {
-        const urlStr = typeof args[0] === "string" ? args[0] : "";
         if (
           !urlStr.includes("/auth/verify") &&
           !urlStr.includes("/auth/login") &&
@@ -229,21 +253,21 @@ export default function Home_Page() {
           !urlStr.includes("/auth/refresh")
         ) {
           try {
-            // Attempt silent token refresh via HTTP HttpOnly cookie
+            // Attempt silent token refresh
             const refreshRes = await originalFetch(`${API_BASE_URL}/auth/refresh`, {
               method: "POST",
               credentials: "include"
             });
             if (refreshRes.ok) {
-              // Retry the original request with the fresh token cookie
-              response = await originalFetch(...args);
-            } else {
-              localStorage.removeItem("ak_session");
-              window.location.reload();
+              const refreshData = await refreshRes.json();
+              if (refreshData?.accessToken) {
+                localStorage.setItem("ak_token", refreshData.accessToken);
+              }
+              // Retry original request
+              response = await originalFetch(resource, config);
             }
-          } catch (err) {
-            localStorage.removeItem("ak_session");
-            window.location.reload();
+          } catch (_err) {
+            // Silent catch to prevent reload loops
           }
         }
       }
@@ -268,23 +292,58 @@ export default function Home_Page() {
     if (accentColors[savedAccent]) {
       document.documentElement.style.setProperty("--accent-primary", accentColors[savedAccent]);
     }
-    fetch(`${API_BASE_URL}/auth/verify`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+
+    const token = localStorage.getItem("ak_token");
+    const sessionUser = localStorage.getItem("ak_session");
+
+    if (!token && !sessionUser) {
+      setIsLoggedIn(false);
+      setLoggedInUser("");
+      setSessionChecked(true);
+      return;
+    }
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    fetch(`${API_BASE_URL}/auth/verify`, {
+      headers,
+      credentials: "include"
+    })
+      .then((r) => {
+        if (r.status === 401 || r.status === 403) {
+          // Explicit unauthorized: clear and switch to login
+          localStorage.removeItem("ak_session");
+          localStorage.removeItem("ak_token");
+          setLoggedInUser("");
+          setIsLoggedIn(false);
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
       .then((data) => {
+        if (!data) return;
         const user = data?.username || data?.user?.username;
         if (data?.valid && user) {
           setLoggedInUser(user);
           setIsLoggedIn(true);
-        } else {
+          localStorage.setItem("ak_session", user);
+        } else if (data?.valid === false) {
+          localStorage.removeItem("ak_session");
+          localStorage.removeItem("ak_token");
           setLoggedInUser("");
           setIsLoggedIn(false);
         }
       })
-      .catch(() => {
-        localStorage.removeItem("ak_session");
-        fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" }).catch(() => {});
-        setLoggedInUser("");
-        setIsLoggedIn(false);
+      .catch((err) => {
+        // Network timeout / Render spinup: KEEP the stored session so the user is not kicked out
+        console.warn("Backend verification temporary connection issue, retaining local session:", err);
+        if (sessionUser) {
+          setLoggedInUser(sessionUser);
+          setIsLoggedIn(true);
+        }
       })
       .finally(() => setSessionChecked(true));
   }, []);
@@ -385,10 +444,13 @@ export default function Home_Page() {
           touchAction: "none",
         }}>
           <div className="auth-glow-backing" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1 }} />
-          <LoginForm onLoginSuccess={(username, _token) => {
+          <LoginForm onLoginSuccess={(username, token) => {
             setIsLoggedIn(true);
             setLoggedInUser(username);
             localStorage.setItem("ak_session", username);
+            if (token) {
+              localStorage.setItem("ak_token", token);
+            }
           }} />
         </div>
         <ToastContainer />
@@ -476,6 +538,7 @@ export default function Home_Page() {
                   console.error("Logout failed on server:", err);
                 }
                 localStorage.removeItem("ak_session");
+                localStorage.removeItem("ak_token");
                 setIsLoggedIn(false);
                 setLoggedInUser("");
               }}
@@ -628,6 +691,7 @@ export default function Home_Page() {
               console.error("Logout failed on server:", err);
             }
             localStorage.removeItem("ak_session");
+            localStorage.removeItem("ak_token");
             setShowProfile(false);
             setIsLoggedIn(false);
             setLoggedInUser("");

@@ -11,7 +11,9 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -103,13 +105,25 @@ public class AuthService {
                 .build();
         refreshTokenRepository.save(refreshToken);
 
-        // Set refresh token cookie
-        Cookie cookie = new Cookie("refresh_token", refreshTokenStr);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // set true if HTTPS in production
-        cookie.setPath("/");
-        cookie.setMaxAge(7 * 24 * 60 * 60);
-        response.addCookie(cookie);
+        // Set refresh token cookie with SameSite=None and Secure for cross-origin frontend-backend
+        ResponseCookie refreshCookie = ResponseCookie.from("refresh_token", refreshTokenStr)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(7 * 24 * 60 * 60)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+
+        // Also set access token cookie with SameSite=None and Secure
+        ResponseCookie accessCookie = ResponseCookie.from("access_token", accessToken)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(24 * 60 * 60)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -164,6 +178,17 @@ public class AuthService {
 
         String newAccessToken = jwtService.generateAccessToken(user.getUsername(), Map.of("name", user.getName() != null ? user.getName() : ""));
 
+        if (response != null) {
+            ResponseCookie newAccessCookie = ResponseCookie.from("access_token", newAccessToken)
+                    .httpOnly(true)
+                    .secure(true)
+                    .sameSite("None")
+                    .path("/")
+                    .maxAge(24 * 60 * 60)
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, newAccessCookie.toString());
+        }
+
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
                 .tokenType("bearer")
@@ -180,12 +205,24 @@ public class AuthService {
             refreshTokenRepository.deleteByUsername(username);
         }
 
-        // Clear cookie
-        Cookie cookie = new Cookie("refresh_token", null);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        // Clear cookies
+        ResponseCookie clearRefresh = ResponseCookie.from("refresh_token", "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
+
+        ResponseCookie clearAccess = ResponseCookie.from("access_token", "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("None")
+                .path("/")
+                .maxAge(0)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
     }
 
     public UserDto getProfile(String username) {
