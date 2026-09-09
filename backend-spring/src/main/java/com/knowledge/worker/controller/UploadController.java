@@ -2,6 +2,7 @@ package com.knowledge.worker.controller;
 
 import com.knowledge.worker.entity.Upload;
 import com.knowledge.worker.repository.UploadRepository;
+import com.knowledge.worker.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,12 +12,15 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -30,6 +34,7 @@ import java.util.*;
 public class UploadController {
 
     private final UploadRepository uploadRepository;
+    private final DocumentService documentService;
 
     @Value("${app.storage.upload-dir:./uploads}")
     private String uploadDir;
@@ -85,14 +90,77 @@ public class UploadController {
         return ResponseEntity.ok(resp);
     }
 
-    @DeleteMapping("/{filename}")
-    public ResponseEntity<Map<String, String>> deleteFile(@PathVariable String filename) {
-        Path path = Paths.get(uploadDir, filename);
+    @Transactional
+    @DeleteMapping("/{filename:.+}")
+    public ResponseEntity<Map<String, Object>> deleteFile(@PathVariable String filename) {
+        return performDelete(filename);
+    }
+
+    @Transactional
+    @DeleteMapping
+    public ResponseEntity<Map<String, Object>> deleteFileByParam(@RequestParam(value = "filename", required = false) String filename) {
+        return performDelete(filename);
+    }
+
+    private ResponseEntity<Map<String, Object>> performDelete(String rawFilename) {
+        if (rawFilename == null || rawFilename.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Filename is required"));
+        }
+
+        String decodedFilename = rawFilename;
         try {
-            Files.deleteIfExists(path);
-        } catch (IOException ignored) {}
-        uploadRepository.deleteByFilename(filename);
-        return ResponseEntity.ok(Map.of("message", "File deleted successfully", "filename", filename));
+            decodedFilename = URLDecoder.decode(rawFilename, StandardCharsets.UTF_8);
+        } catch (Exception ignored) {}
+
+        if (documentService != null) {
+            documentService.invalidateCache(decodedFilename);
+            documentService.invalidateCache(rawFilename);
+        }
+
+        // Find from DB by exact, decoded, or case-insensitive
+        Optional<Upload> uploadOpt = uploadRepository.findByFilename(decodedFilename);
+        if (uploadOpt.isEmpty() && !decodedFilename.equals(rawFilename)) {
+            uploadOpt = uploadRepository.findByFilename(rawFilename);
+        }
+        if (uploadOpt.isEmpty()) {
+            String targetLower = decodedFilename.toLowerCase();
+            uploadOpt = uploadRepository.findAll().stream()
+                    .filter(u -> u.getFilename() != null && (u.getFilename().equalsIgnoreCase(targetLower) || u.getFilename().equalsIgnoreCase(rawFilename)))
+                    .findFirst();
+        }
+
+        // 1. Delete physical file if found via upload entity filepath
+        if (uploadOpt.isPresent() && uploadOpt.get().getFilepath() != null) {
+            try {
+                Files.deleteIfExists(Paths.get(uploadOpt.get().getFilepath()));
+            } catch (Exception e) {
+                log.warn("Could not delete file from entity path: {}", e.getMessage());
+            }
+        }
+
+        // 2. Also attempt deleting from uploadDir
+        try {
+            Files.deleteIfExists(Paths.get(uploadDir, decodedFilename));
+        } catch (Exception ignored) {}
+        try {
+            Files.deleteIfExists(Paths.get(uploadDir, rawFilename));
+        } catch (Exception ignored) {}
+
+        // 3. Delete from database
+        if (uploadOpt.isPresent()) {
+            uploadRepository.delete(uploadOpt.get());
+        } else {
+            uploadRepository.deleteByFilename(decodedFilename);
+            if (!decodedFilename.equals(rawFilename)) {
+                uploadRepository.deleteByFilename(rawFilename);
+            }
+        }
+
+        log.info("File '{}' deleted successfully from workspace and database", decodedFilename);
+        return ResponseEntity.ok(Map.of(
+                "message", "File deleted successfully",
+                "filename", decodedFilename
+        ));
     }
 
     @GetMapping("/download/{filename}")

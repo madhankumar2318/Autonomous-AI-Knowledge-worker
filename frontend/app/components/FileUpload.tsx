@@ -273,11 +273,21 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const handleDelete = async (filename: string) => {
     if (!confirm(`Are you sure you want to delete "${filename}"? This removes it permanently.`)) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
+      let res = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
         method: "DELETE",
         credentials: "include",
       });
+      if (!res.ok) {
+        // Fallback: try query param delete if path-based route was rejected
+        res = await fetch(`${API_BASE_URL}/upload?filename=${encodeURIComponent(filename)}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+      }
       if (res.ok) {
+        if (activeWorkspaceFile?.filename === filename) {
+          setActiveWorkspaceFile(null);
+        }
         showToast("success", `"${filename}" removed.`);
         window.dispatchEvent(new CustomEvent("ak-add-notification", {
           detail: { title: "Document Removed", message: `"${filename}" deleted from workspace permanently.`, type: "info" }

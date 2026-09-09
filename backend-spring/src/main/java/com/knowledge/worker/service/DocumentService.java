@@ -143,6 +143,16 @@ public class DocumentService {
     }
 
     /**
+     * Invalidate cached text for a deleted or updated file.
+     */
+    public void invalidateCache(String filename) {
+        if (filename != null) {
+            documentCache.remove(filename);
+            documentCacheTime.remove(filename);
+        }
+    }
+
+    /**
      * Search across workspace uploaded files for text passages relevant to a query.
      */
     public String searchKnowledge(String query, String activeFilename) {
