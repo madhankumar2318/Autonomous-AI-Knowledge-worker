@@ -181,7 +181,8 @@ export default function DocumentWorkspace({
         return r.blob();
       })
       .then((blob) => {
-        const url = URL.createObjectURL(blob);
+        const pdfBlob = new Blob([blob], { type: "application/pdf" });
+        const url = URL.createObjectURL(pdfBlob);
         activeUrl = url;
         setPdfBlobUrl(url);
       })

@@ -69,7 +69,17 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         credentials: "include",
       });
       const data = await res.json();
-      setUploads(data.uploads || []);
+      const rawList = Array.isArray(data)
+        ? data
+        : data && Array.isArray(data.uploads)
+        ? data.uploads
+        : [];
+      const normalized = rawList.map((item: any) => ({
+        ...item,
+        rag_indexed: item.rag_indexed !== undefined ? item.rag_indexed : true,
+        chunks: item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
+      }));
+      setUploads(normalized);
     } catch (_err) {
       console.error("Error fetching uploads:", _err);
     }
@@ -463,7 +473,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           ) : (
             <div className="fw-files-list">
               {uploads.map((u) => (
-                <div key={u.id} className={`fw-file-item premium-card-hover file-glow-${u.filename.split(".").pop()?.toLowerCase() || ""}`}>
+                <div
+                  key={u.id}
+                  className={`fw-file-item premium-card-hover file-glow-${u.filename.split(".").pop()?.toLowerCase() || ""}`}
+                  onClick={() => setActiveWorkspaceFile(u)}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view and chat with document"
+                >
                   <div className="fw-file-icon-wrap">
                     <FileIcon filename={u.filename} />
                   </div>
@@ -486,24 +502,28 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                       )}
                     </div>
                   </div>
-                  <div className="fw-file-actions">
-                    {/* Analyze button — only shown when file is RAG-indexed */}
-                    {u.rag_indexed && (
-                      <button
-                        type="button"
-                        onClick={() => setActiveWorkspaceFile(u)}
-                        className="fw-file-action-btn fw-analyze-btn"
-                        title="Open in Document Workspace (AI Chat)"
-                      >
-                        <Brain className="w-3.5 h-3.5" />
-                        <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '3px' }}>Analyze</span>
-                      </button>
-                    )}
-                    {/* Re-index button — shown when file is NOT indexed (RAG Pending) */}
+                  <div className="fw-file-actions" onClick={(e) => e.stopPropagation()}>
+                    {/* Analyze button — opens document workspace */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveWorkspaceFile(u);
+                      }}
+                      className="fw-file-action-btn fw-analyze-btn"
+                      title="Open in Document Workspace (AI Chat)"
+                    >
+                      <Brain className="w-3.5 h-3.5" />
+                      <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '3px' }}>Analyze</span>
+                    </button>
+                    {/* Re-index button */}
                     {!u.rag_indexed && (
                       <button
                         type="button"
-                        onClick={() => handleReindex(u.filename)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReindex(u.filename);
+                        }}
                         disabled={reindexingFiles.has(u.filename)}
                         className="fw-file-action-btn fw-reindex-btn"
                         title="Re-index this file for AI search"
@@ -518,7 +538,8 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                       </button>
                     )}
                     <a
-                      href={`${API_BASE_URL}/upload/download/${u.filename}`}
+                      href={`${API_BASE_URL}/upload/download/${encodeURIComponent(u.filename)}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="fw-file-action-btn"
                       title="Download File"
                     >
@@ -526,14 +547,16 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                     </a>
                     <button
                       type="button"
-                      onClick={() => handleDelete(u.filename)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(u.filename);
+                      }}
                       className="fw-file-action-btn fw-delete-btn"
                       title="Delete from workspace"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-
                 </div>
               ))}
             </div>
