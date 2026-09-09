@@ -202,17 +202,16 @@ public class UploadController {
         ));
     }
 
-    @GetMapping("/parse-table/{filename}")
-    public ResponseEntity<Map<String, Object>> parseTable(@PathVariable String filename) {
-        return ResponseEntity.ok(Map.of(
-                "filename", filename,
-                "headers", List.of("Metric", "Value", "Notes"),
-                "rows", List.of(
-                        List.of("Revenue", "$96.7B", "Quarterly"),
-                        List.of("Net Income", "$25.1B", "Trailing 12M"),
-                        List.of("Gross Margin", "42.5%", "Enterprise")
-                )
-        ));
+    @GetMapping("/parse-table/{filename:.+}")
+    public ResponseEntity<Map<String, Object>> parseTable(
+            @PathVariable String filename,
+            @RequestParam(value = "sheet_name", required = false) String sheetName) {
+        String decoded = filename;
+        try {
+            decoded = URLDecoder.decode(filename, StandardCharsets.UTF_8);
+        } catch (Exception ignored) {}
+        Map<String, Object> data = documentService.parseSpreadsheetData(decoded, sheetName);
+        return ResponseEntity.ok(data);
     }
 
     @PutMapping("/edit/{filename}")

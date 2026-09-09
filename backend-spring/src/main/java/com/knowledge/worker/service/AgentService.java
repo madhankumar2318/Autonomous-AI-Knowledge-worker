@@ -50,10 +50,13 @@ public class AgentService {
             .build();
 
     public static final String SYSTEM_INSTRUCTION = """
-You are Antigravity, an elite Autonomous AI Knowledge Worker with deep expertise in financial market analysis, news synthesis, and document reasoning.
-Maintain a professional, proactive, honest, and precise tone.
-Always verify stock quotes, market trends, and news items using your tools before drawing conclusions.
-Structure your answers with clean Markdown headers, bullet points, and key takeaways.
+You are Antigravity, an elite Autonomous AI Knowledge Worker with deep expertise in financial market analysis, news synthesis, document reasoning, and spreadsheet data analytics.
+Maintain a professional, proactive, and precise tone.
+You have direct access to files, PDFs, spreadsheets (.xlsx, .csv), and documents uploaded to the user's File Workspace. NEVER claim you cannot access local files or network drives, because workspace documents are parsed and made directly available in your context.
+When analyzing documents and spreadsheets:
+- Interpret tables, sheets, columns, and rows thoroughly.
+- Calculate totals, trends, or notable entries whenever appropriate.
+- Structure answers with clean Markdown headers, bullet points, formatted tables, and key takeaways.
 """;
 
     public ChatResponse processChat(ChatRequest req) {
@@ -337,24 +340,36 @@ Structure your answers with clean Markdown headers, bullet points, and key takea
                 boolean isResume = lowerName.contains("resume") || lowerName.contains("cv") ||
                         docText.toLowerCase().contains("experience") || docText.toLowerCase().contains("education") ||
                         docText.toLowerCase().contains("skills");
+                boolean isExcel = lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls") || lowerName.endsWith(".csv");
 
                 if (isResume) {
                     sb.append("### 👤 Resume / Professional Overview\n");
+                } else if (isExcel) {
+                    sb.append("### 📊 Spreadsheet & Data Overview\n");
                 } else {
                     sb.append("### 📑 Key Content & Excerpts\n");
                 }
 
                 String cleanText = docText.trim();
-                if (cleanText.length() > 3000) {
-                    sb.append(cleanText.substring(0, 3000)).append("\n\n*(Full document text indexed. Showing initial sections. Ask specific questions for deeper drill-down!)*\n\n");
+                if (cleanText.length() > 4000) {
+                    sb.append(cleanText.substring(0, 4000)).append("\n\n*(Full document data indexed. Showing initial sections. Ask specific analytical questions for deep calculations or filtering!)*\n\n");
                 } else {
                     sb.append(cleanText).append("\n\n");
                 }
 
                 sb.append("💡 **What you can ask next**:\n");
-                sb.append("- *\"Summarize the key technical skills and tools.\"*\n");
-                sb.append("- *\"What work experience and projects are listed?\"*\n");
-                sb.append("- *\"What recommendations or improvements do you suggest for this document?\"*\n");
+                if (isExcel) {
+                    sb.append("- *\"What are the column headers and key values in this spreadsheet?\"*\n");
+                    sb.append("- *\"Calculate totals, averages, or notable trends from the data.\"*\n");
+                    sb.append("- *\"Filter or find entries matching specific criteria.\"*\n");
+                } else if (isResume) {
+                    sb.append("- *\"Summarize the key technical skills and tools.\"*\n");
+                    sb.append("- *\"What work experience and projects are listed?\"*\n");
+                    sb.append("- *\"What recommendations or improvements do you suggest for this document?\"*\n");
+                } else {
+                    sb.append("- *\"Summarize the core takeaways from this file.\"*\n");
+                    sb.append("- *\"What are the key points discussed in this document?\"*\n");
+                }
             } else {
                 sb.append("⚠️ Could not read text content from `").append(fname).append("`. The file might still be uploading or unreadable on disk.");
             }
@@ -477,12 +492,21 @@ What would you like to explore or analyze today?
         if (matchedUpload.isPresent()) {
             Upload u = matchedUpload.get();
             String docText = documentService.extractDocumentText(u.getFilename());
-            if (docText != null && !docText.isBlank() && !docText.startsWith("Error")) {
-                String excerpt = docText.length() > 6000 ? docText.substring(0, 6000) + "\n...[truncated]" : docText;
+            if (docText != null && !docText.isBlank() && !docText.startsWith("Error") && !docText.startsWith("File '")) {
+                String excerpt = docText.length() > 16000 ? docText.substring(0, 16000) + "\n...[truncated for length]" : docText;
                 sb.append("\n\n--- [ACTIVE WORKSPACE DOCUMENT: ").append(u.getFilename()).append("] ---\n");
                 sb.append(excerpt);
                 sb.append("\n--- [END OF DOCUMENT] ---\n");
-                sb.append("The user is asking about this document. Use the document text above to provide precise, accurate, and detailed answers with citations.");
+                sb.append("\nThe user is asking about this workspace document. You have full access to its contents above. Analyze, calculate, summarize, or answer questions based on this document accurately. Never claim you do not have access to this file.");
+            }
+        } else {
+            List<Upload> all = documentService.getAllUploads();
+            if (!all.isEmpty()) {
+                sb.append("\n\n--- [AVAILABLE WORKSPACE DOCUMENTS] ---\n");
+                for (Upload u : all) {
+                    sb.append("- ").append(u.getFilename()).append("\n");
+                }
+                sb.append("These documents are stored in the user's File Workspace. If the user mentions them or asks for analysis, reference them.\n");
             }
         }
 
