@@ -7,6 +7,7 @@ import com.knowledge.worker.dto.StockDto;
 import com.knowledge.worker.service.NewsService;
 import com.knowledge.worker.service.SearchService;
 import com.knowledge.worker.service.StockService;
+import com.knowledge.worker.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,6 +23,7 @@ public class AgentTools {
     private final StockService stockService;
     private final NewsService newsService;
     private final SearchService searchService;
+    private final DocumentService documentService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<Map<String, Object>> getOpenAiToolDefinitions() {
@@ -67,6 +69,34 @@ public class AgentTools {
                                         "required", List.of("query")
                                 )
                         )
+                ),
+                Map.of(
+                        "type", "function",
+                        "function", Map.of(
+                                "name", "search_knowledge_base",
+                                "description", "Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD, resumes) for relevant facts, numbers, and excerpts.",
+                                "parameters", Map.of(
+                                        "type", "object",
+                                        "properties", Map.of(
+                                                "query", Map.of("type", "string", "description", "The search query to match against document contents.")
+                                        ),
+                                        "required", List.of("query")
+                                )
+                        )
+                ),
+                Map.of(
+                        "type", "function",
+                        "function", Map.of(
+                                "name", "read_uploaded_file",
+                                "description", "Read the entire text content of a specific uploaded file in the workspace by filename (e.g. Madhans_Resume_1.pdf).",
+                                "parameters", Map.of(
+                                        "type", "object",
+                                        "properties", Map.of(
+                                                "filename", Map.of("type", "string", "description", "The exact or approximate filename to read, e.g. Madhans_Resume_1.pdf")
+                                        ),
+                                        "required", List.of("filename")
+                                )
+                        )
                 )
         );
     }
@@ -102,6 +132,14 @@ public class AgentTools {
                         sb.append(String.format("- %s: %s (URL: %s)\n", item.getTitle(), item.getSnippet(), item.getLink()));
                     }
                     return sb.toString();
+                }
+                case "search_knowledge_base": {
+                    String query = String.valueOf(arguments.getOrDefault("query", ""));
+                    return documentService.searchKnowledge(query, null);
+                }
+                case "read_uploaded_file": {
+                    String filename = String.valueOf(arguments.getOrDefault("filename", ""));
+                    return documentService.extractDocumentText(filename);
                 }
                 default:
                     return "Error: Unknown tool " + toolName;

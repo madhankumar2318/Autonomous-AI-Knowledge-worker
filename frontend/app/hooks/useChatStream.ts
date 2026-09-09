@@ -445,7 +445,12 @@ export function useChatStream({
           }
 
           try {
-            const event = JSON.parse(payload) as { type: string; content: string };
+            let event: { type: string; content: string };
+            if (payload.startsWith("{")) {
+              event = JSON.parse(payload) as { type: string; content: string };
+            } else {
+              event = { type: "token", content: payload };
+            }
 
             if (event.type === "token") {
               // ── Accumulate tokens for research plan detection ──────────────

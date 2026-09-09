@@ -3,6 +3,7 @@ package com.knowledge.worker.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledge.worker.dto.ChatDtos.*;
+import com.knowledge.worker.entity.Upload;
 import com.knowledge.worker.tools.AgentTools;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,12 +26,13 @@ public class AgentService {
 
     private final AgentTools agentTools;
     private final ChatThreadService chatThreadService;
+    private final DocumentService documentService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${app.ai.groq.api-key:}")
     private String groqApiKey;
 
-    @Value("${app.ai.groq.model:openai/gpt-oss-120b}")
+    @Value("${app.ai.groq.model:llama-3.3-70b-versatile}")
     private String groqModel;
 
     @Value("${app.ai.groq.base-url:https://api.groq.com/openai/v1}")
@@ -39,7 +41,7 @@ public class AgentService {
     @Value("${app.ai.gemini.api-key:}")
     private String geminiApiKey;
 
-    @Value("${app.ai.gemini.model:gemini-2.5-flash}")
+    @Value("${app.ai.gemini.model:gemini-1.5-flash}")
     private String geminiModel;
 
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -165,8 +167,9 @@ Structure your answers with clean Markdown headers, bullet points, and key takea
 
                             // Send tool start event to frontend
                             sendEvent(emitter, "tool_start", objectMapper.writeValueAsString(Map.of(
+                                    "id", toolCallId,
                                     "name", funcName,
-                                    "input", args
+                                    "arguments", funcArgsStr
                             )));
 
                             String toolOutput = agentTools.executeTool(funcName, args);
@@ -219,9 +222,11 @@ Structure your answers with clean Markdown headers, bullet points, and key takea
             }
             contents.add(Map.of("role", "user", "parts", List.of(Map.of("text", req.getMessage()))));
 
+            String effectiveInstruction = buildSystemInstruction(req);
+
             Map<String, Object> bodyMap = Map.of(
                     "contents", contents,
-                    "systemInstruction", Map.of("parts", List.of(Map.of("text", SYSTEM_INSTRUCTION))),
+                    "systemInstruction", Map.of("parts", List.of(Map.of("text", effectiveInstruction))),
                     "generationConfig", Map.of("temperature", 0.2)
             );
 
@@ -269,9 +274,11 @@ Structure your answers with clean Markdown headers, bullet points, and key takea
 
     private String callGemini(ChatRequest req) throws IOException {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel + ":generateContent?key=" + geminiApiKey;
+        String effectiveInstruction = buildSystemInstruction(req);
+
         Map<String, Object> bodyMap = Map.of(
                 "contents", List.of(Map.of("role", "user", "parts", List.of(Map.of("text", req.getMessage())))),
-                "systemInstruction", Map.of("parts", List.of(Map.of("text", SYSTEM_INSTRUCTION)))
+                "systemInstruction", Map.of("parts", List.of(Map.of("text", effectiveInstruction)))
         );
         Request httpReq = new Request.Builder()
                 .url(url)
@@ -288,12 +295,80 @@ Structure your answers with clean Markdown headers, bullet points, and key takea
     }
 
     private String generateAutonomousResponse(ChatRequest req, SseEmitter emitter) {
-        String msg = req.getMessage().toUpperCase();
+        String rawQuery = req.getMessage() != null ? req.getMessage() : "";
+        String msg = rawQuery.toUpperCase();
 
-        // Check if query is about stocks (e.g. TSLA, NVDA, AAPL)
+        // 1. Check if query is asking about an uploaded document, resume, or PDF
+        Optional<Upload> uploadOpt = documentService.findMatchingUpload(
+                req.getFilename() != null && !req.getFilename().isBlank() ? req.getFilename() : rawQuery
+        );
+
+        if (uploadOpt.isPresent() || (req.getFilename() != null && !req.getFilename().isBlank())) {
+            Upload u = uploadOpt.orElse(null);
+            String fname = u != null ? u.getFilename() : req.getFilename();
+            String docText = documentService.extractDocumentText(fname);
+
+            if (emitter != null) {
+                try {
+                    List<ResearchStep> steps = List.of(
+                            new ResearchStep("1", "Locate " + fname + " in workspace knowledge base", "pending"),
+                            new ResearchStep("2", "Extract text chunks and parse sections", "pending"),
+                            new ResearchStep("3", "Synthesize document intelligence", "pending")
+                    );
+                    ResearchPlan plan = new ResearchPlan("Document Analysis Protocol", steps);
+                    sendEvent(emitter, "research_plan", objectMapper.writeValueAsString(plan));
+                    for (ResearchStep step : steps) {
+                        sendEvent(emitter, "research_step", objectMapper.writeValueAsString(Map.of(
+                                "id", step.getId(),
+                                "status", "in_progress"
+                        )));
+                        Thread.sleep(120);
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("📄 **Document Analysis: ").append(fname).append("**\n\n");
+
+            if (docText != null && !docText.isBlank() && !docText.startsWith("Error") && !docText.startsWith("File '")) {
+                sb.append("I have parsed and extracted the content from your uploaded file **").append(fname).append("**:\n\n");
+
+                String lowerName = fname.toLowerCase();
+                boolean isResume = lowerName.contains("resume") || lowerName.contains("cv") ||
+                        docText.toLowerCase().contains("experience") || docText.toLowerCase().contains("education") ||
+                        docText.toLowerCase().contains("skills");
+
+                if (isResume) {
+                    sb.append("### 👤 Resume / Professional Overview\n");
+                } else {
+                    sb.append("### 📑 Key Content & Excerpts\n");
+                }
+
+                String cleanText = docText.trim();
+                if (cleanText.length() > 3000) {
+                    sb.append(cleanText.substring(0, 3000)).append("\n\n*(Full document text indexed. Showing initial sections. Ask specific questions for deeper drill-down!)*\n\n");
+                } else {
+                    sb.append(cleanText).append("\n\n");
+                }
+
+                sb.append("💡 **What you can ask next**:\n");
+                sb.append("- *\"Summarize the key technical skills and tools.\"*\n");
+                sb.append("- *\"What work experience and projects are listed?\"*\n");
+                sb.append("- *\"What recommendations or improvements do you suggest for this document?\"*\n");
+            } else {
+                sb.append("⚠️ Could not read text content from `").append(fname).append("`. The file might still be uploading or unreadable on disk.");
+            }
+
+            String result = sb.toString();
+            if (emitter != null) {
+                streamWords(result, emitter);
+            }
+            return result;
+        }
+
+        // 2. Check if query is about stocks (e.g. TSLA, NVDA, AAPL)
         List<String> tickers = extractTickers(msg);
         if (!tickers.isEmpty()) {
-            // Multi-step research protocol
             if (emitter != null) {
                 try {
                     List<ResearchStep> steps = new ArrayList<>();
@@ -337,18 +412,18 @@ Structure your answers with clean Markdown headers, bullet points, and key takea
             return result;
         }
 
-        // General greeting / standard query
-        String standardReply = String.format("""
+        // 3. General greeting / standard query
+        String standardReply = """
 👋 **Hello! I am your Autonomous AI Knowledge Worker (Spring Boot 3 Enterprise Edition).**
 
 I can assist you across:
+- 📁 **Document Analysis & RAG**: Deep reasoning and question-answering over your uploaded files (e.g., resumes, PDFs, spreadsheets).
 - 📈 **Live Stock & Financial Intelligence**: Real-time quotes, technical levels, and multi-ticker comparisons (e.g., TSLA, NVDA, AAPL).
 - 📰 **Market & Tech News Synthesis**: Curated headlines, sector breakdowns, and industry trends.
 - 🔍 **Web & Deep Research**: Autonomous multi-step inquiry and knowledge synthesis.
-- 📁 **Document Analysis**: Contextual reasoning over corporate files and reports.
 
 What would you like to explore or analyze today?
-""");
+""";
 
         if (emitter != null) {
             streamWords(standardReply, emitter);
@@ -376,7 +451,7 @@ What would you like to explore or analyze today?
             try {
                 String token = words[i] + (i < words.length - 1 ? " " : "");
                 sendEvent(emitter, "token", token);
-                Thread.sleep(15);
+                Thread.sleep(12);
             } catch (Exception e) {
                 break;
             }
@@ -384,12 +459,39 @@ What would you like to explore or analyze today?
     }
 
     private void sendEvent(SseEmitter emitter, String eventName, String data) throws IOException {
-        emitter.send(SseEmitter.event().name(eventName).data(data));
+        if ("done".equals(eventName)) {
+            emitter.send(SseEmitter.event().data("[DONE]"));
+            return;
+        }
+        Map<String, String> payload = Map.of("type", eventName, "content", data);
+        emitter.send(SseEmitter.event().data(objectMapper.writeValueAsString(payload)));
+    }
+
+    private String buildSystemInstruction(ChatRequest req) {
+        StringBuilder sb = new StringBuilder(SYSTEM_INSTRUCTION);
+
+        Optional<Upload> matchedUpload = documentService.findMatchingUpload(
+                req.getFilename() != null && !req.getFilename().isBlank() ? req.getFilename() : req.getMessage()
+        );
+
+        if (matchedUpload.isPresent()) {
+            Upload u = matchedUpload.get();
+            String docText = documentService.extractDocumentText(u.getFilename());
+            if (docText != null && !docText.isBlank() && !docText.startsWith("Error")) {
+                String excerpt = docText.length() > 6000 ? docText.substring(0, 6000) + "\n...[truncated]" : docText;
+                sb.append("\n\n--- [ACTIVE WORKSPACE DOCUMENT: ").append(u.getFilename()).append("] ---\n");
+                sb.append(excerpt);
+                sb.append("\n--- [END OF DOCUMENT] ---\n");
+                sb.append("The user is asking about this document. Use the document text above to provide precise, accurate, and detailed answers with citations.");
+            }
+        }
+
+        return sb.toString();
     }
 
     private List<Map<String, Object>> buildMessagePayload(ChatRequest req) {
         List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", SYSTEM_INSTRUCTION));
+        messages.add(Map.of("role", "system", "content", buildSystemInstruction(req)));
         for (ChatMessageDto m : req.getHistory()) {
             if (m.getContent() != null && !m.getContent().isBlank()) {
                 String role = "user".equalsIgnoreCase(m.getRole()) ? "user" : "assistant";
