@@ -163,7 +163,7 @@ public class UploadController {
         ));
     }
 
-    @GetMapping("/download/{filename}")
+    @GetMapping("/download/{filename:.+}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String filename) {
         try {
             Path file = Paths.get(uploadDir).resolve(filename).normalize();
@@ -176,6 +176,9 @@ public class UploadController {
                     else if (lower.endsWith(".json")) contentType = "application/json";
                     else if (lower.endsWith(".csv")) contentType = "text/csv";
                     else if (lower.endsWith(".txt") || lower.endsWith(".md")) contentType = "text/plain";
+                    else if (lower.endsWith(".docx")) contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    else if (lower.endsWith(".xlsx")) contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+                    else if (lower.endsWith(".xls")) contentType = "application/vnd.ms-excel";
                     else contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
                 }
                 return ResponseEntity.ok()
@@ -187,6 +190,30 @@ public class UploadController {
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
         }
+    }
+
+    @GetMapping("/content/{filename:.+}")
+    public ResponseEntity<Map<String, Object>> getFileContent(@PathVariable String filename) {
+        String decoded = filename;
+        try {
+            decoded = URLDecoder.decode(filename, StandardCharsets.UTF_8);
+        } catch (Exception ignored) {}
+
+        String text = documentService.extractDocumentText(decoded);
+        String lower = decoded.toLowerCase();
+        String type = "text";
+        if (lower.endsWith(".pdf")) type = "pdf";
+        else if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) type = "spreadsheet";
+        else if (lower.endsWith(".csv")) type = "csv";
+        else if (lower.endsWith(".json")) type = "json";
+        else if (lower.endsWith(".docx") || lower.endsWith(".doc")) type = "docx";
+        else if (lower.endsWith(".md")) type = "markdown";
+
+        return ResponseEntity.ok(Map.of(
+                "filename", decoded,
+                "content", text != null ? text : "",
+                "type", type
+        ));
     }
 
     @PostMapping("/reindex/{filename}")

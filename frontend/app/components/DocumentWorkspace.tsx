@@ -12,6 +12,11 @@ import {
   Edit3,
   Save,
   Undo,
+  Copy,
+  Check,
+  Download,
+  Table,
+  Sparkles,
 } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import ChatAssistant from "./ChatAssistant";
@@ -48,8 +53,9 @@ function FileTypeIcon({ filename }: { filename: string }) {
   const ext = getFileExt(filename);
   if (ext === "json") return <FileJson className="w-4 h-4" style={{ color: "#fbbf24" }} />;
   if (ext === "pdf")  return <FileText className="w-4 h-4" style={{ color: "#f87171" }} />;
-  if (ext === "csv")  return <FileText className="w-4 h-4" style={{ color: "#34d399" }} />;
-  if (ext === "md")   return <FileText className="w-4 h-4" style={{ color: "#c084fc" }} />;
+  if (ext === "csv" || ext === "xlsx" || ext === "xls") return <Table className="w-4 h-4" style={{ color: "#34d399" }} />;
+  if (ext === "docx" || ext === "doc") return <FileText className="w-4 h-4" style={{ color: "#60a5fa" }} />;
+  if (ext === "md" || ext === "txt")   return <FileText className="w-4 h-4" style={{ color: "#c084fc" }} />;
   return <File className="w-4 h-4" style={{ color: "#94a3b8" }} />;
 }
 
@@ -62,7 +68,10 @@ export default function DocumentWorkspace({
 }: DocumentWorkspaceProps) {
   const ext = getFileExt(file.filename);
   const isPDF = ext === "pdf";
-  const isSpreadsheet = ext === "csv" || ext === "xlsx";
+  const isSpreadsheet = ext === "csv" || ext === "xlsx" || ext === "xls";
+  const isDocx = ext === "docx" || ext === "doc";
+  const isJson = ext === "json";
+  const isMarkdown = ext === "md" || ext === "txt";
   const fileUrl = `${API_BASE_URL}/upload/download/${encodeURIComponent(file.filename)}`;
   
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
@@ -131,14 +140,84 @@ export default function DocumentWorkspace({
   const [activeSheet, setActiveSheet] = useState<string>("");
   const [gridSearch, setGridSearch] = useState("");
 
+  const [copiedText, setCopiedText] = useState(false);
+
+  const getQuickPrompts = () => {
+    if (isSpreadsheet) {
+      return [
+        { label: "📊 Summary Metrics", prompt: `Calculate summary metrics, totals, and column statistics for ${file.filename}` },
+        { label: "🔍 Highs & Lows", prompt: `What are the highest and lowest key values in ${file.filename}?` },
+        { label: "📈 Trend Analysis", prompt: `Analyze the main patterns, categories, or trends in ${file.filename}` },
+        { label: "📋 Key Rows", prompt: `Summarize the most significant rows and data points in ${file.filename}` },
+      ];
+    }
+    if (isDocx) {
+      return [
+        { label: "📑 Executive Summary", prompt: `Provide a concise executive summary of the Word document ${file.filename}` },
+        { label: "✅ Action Items", prompt: `Extract all key action items, tasks, and deliverables from ${file.filename}` },
+        { label: "💡 Key Recommendations", prompt: `What are the core conclusions and recommendations in ${file.filename}?` },
+      ];
+    }
+    if (isJson) {
+      return [
+        { label: "🧩 Schema & Structure", prompt: `Explain the structure and main data fields in ${file.filename}` },
+        { label: "🔢 Record Counts", prompt: `Count total items, objects, and summary statistics in ${file.filename}` },
+        { label: "🔎 Key Values", prompt: `Extract the primary entities and important values from ${file.filename}` },
+      ];
+    }
+    if (isPDF) {
+      return [
+        { label: "📑 Full Summary", prompt: `Summarize the essential findings and sections of ${file.filename}` },
+        { label: "📌 Key Takeaways", prompt: `What are the top takeaways and conclusions from ${file.filename}?` },
+        { label: "❓ Section Breakdown", prompt: `Give an overview of the main sections and chapters in ${file.filename}` },
+      ];
+    }
+    return [
+      { label: "📝 Summarize", prompt: `Summarize the core takeaways of ${file.filename}` },
+      { label: "🔍 Extract Facts", prompt: `Extract the main facts and key points from ${file.filename}` },
+      { label: "✏️ Polish & Review", prompt: `Review ${file.filename} and suggest improvements or next steps` },
+    ];
+  };
+
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedText(true);
+    showToast("success", "Copied to clipboard");
+    setTimeout(() => setCopiedText(false), 2000);
+  };
+
+  const handleSendPrompt = (prompt: string) => {
+    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
+  };
+
   useEffect(() => {
     if (isPDF || isSpreadsheet) return;
     setTextLoading(true);
     setTextError(null);
-    fetch(fileUrl, { credentials: "include" })
-      .then((r) => {
-        if (!r.ok) throw new Error(`Failed to load file (${r.status})`);
-        return r.text();
+
+    const contentUrl = `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`;
+    fetch(contentUrl, { credentials: "include" })
+      .then(async (r) => {
+        if (r.ok) {
+          const data = await r.json();
+          let txt = data.content || "";
+          if (isJson) {
+            try {
+              txt = JSON.stringify(JSON.parse(txt), null, 2);
+            } catch (_) {}
+          }
+          return txt;
+        }
+        // Fallback to direct raw file
+        const fallbackRes = await fetch(fileUrl, { credentials: "include" });
+        if (!fallbackRes.ok) throw new Error(`Failed to load file (${fallbackRes.status})`);
+        let raw = await fallbackRes.text();
+        if (isJson) {
+          try {
+            raw = JSON.stringify(JSON.parse(raw), null, 2);
+          } catch (_) {}
+        }
+        return raw;
       })
       .then((txt) => {
         setTextContent(txt);
@@ -146,7 +225,7 @@ export default function DocumentWorkspace({
       })
       .catch((err) => setTextError(String(err)))
       .finally(() => setTextLoading(false));
-  }, [fileUrl, isPDF, isSpreadsheet]);
+  }, [file.filename, fileUrl, isPDF, isSpreadsheet, isJson]);
 
   useEffect(() => {
     if (!isSpreadsheet) return;
@@ -824,6 +903,89 @@ export default function DocumentWorkspace({
           border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
           user-select: none;
         }
+
+        /* ── Toolbar Action Badges & Buttons ── */
+        .dw-grid-meta-badge {
+          font-size: 11px;
+          font-weight: 600;
+          color: #38bdf8;
+          background: rgba(56, 189, 248, 0.1);
+          border: 1px solid rgba(56, 189, 248, 0.25);
+          border-radius: 9999px;
+          padding: 2px 8px;
+        }
+        .dw-toolbar-action-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--text-secondary, #94a3b8);
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid var(--border-light, rgba(255, 255, 255, 0.08));
+          border-radius: 6px;
+          padding: 4px 10px;
+          cursor: pointer;
+          text-decoration: none;
+          transition: all 0.15s ease;
+        }
+        .dw-toolbar-action-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: var(--text-primary, #f1f5f9);
+          border-color: rgba(255, 255, 255, 0.16);
+        }
+
+        /* ── Suggested Actions (Quick Chips) ── */
+        .dw-quick-chips {
+          padding: 8px 14px;
+          background: rgba(15, 23, 42, 0.6);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+        .dw-quick-label {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text-secondary, #94a3b8);
+          display: flex;
+          align-items: center;
+        }
+        .dw-chips-scroll {
+          display: flex;
+          gap: 6px;
+          overflow-x: auto;
+          scrollbar-width: thin;
+          padding-bottom: 2px;
+        }
+        .dw-chips-scroll::-webkit-scrollbar {
+          height: 4px;
+        }
+        .dw-chips-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.15);
+          border-radius: 4px;
+        }
+        .dw-quick-chip {
+          display: inline-flex;
+          align-items: center;
+          white-space: nowrap;
+          font-size: 11px;
+          font-weight: 600;
+          padding: 4px 10px;
+          border-radius: 6px;
+          background: rgba(34, 211, 238, 0.07);
+          border: 1px solid rgba(34, 211, 238, 0.2);
+          color: #67e8f9;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .dw-quick-chip:hover {
+          background: rgba(34, 211, 238, 0.18);
+          border-color: rgba(34, 211, 238, 0.45);
+          color: #a5f3fc;
+          transform: translateY(-1px);
+        }
       `}</style>
 
       {/* ── Top Bar ── */}
@@ -858,38 +1020,82 @@ export default function DocumentWorkspace({
         {/* Left: Document Viewer */}
         <div className="dw-viewer">
           <div className="dw-viewer-toolbar">
-            <span className="dw-viewer-label">
-              {isEditing ? "📝 Editing Document" : "📄 Document Preview"}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="dw-viewer-label">
+                {isEditing
+                  ? "📝 Editing Document"
+                  : isPDF
+                  ? "📑 PDF Preview"
+                  : isSpreadsheet
+                  ? "📊 Spreadsheet Grid"
+                  : isDocx
+                  ? "📄 Word Document Preview"
+                  : isJson
+                  ? "🧩 JSON Structure"
+                  : isMarkdown
+                  ? "📝 Markdown Document"
+                  : "📄 Document Preview"}
+              </span>
+              {isSpreadsheet && gridData && (
+                <span className="dw-grid-meta-badge">
+                  {gridData.rows.length} rows · {gridData.headers.length} cols
+                </span>
+              )}
+            </div>
 
-            {/* Render zoom for PDF, or Edit/Save controls for text-based files */}
-            {isPDF ? (
-              <div className="dw-zoom-controls">
+            <div className="flex items-center gap-2">
+              {/* PDF Zoom Controls */}
+              {isPDF && (
+                <div className="dw-zoom-controls">
+                  <button
+                    className="dw-zoom-btn"
+                    onClick={() => setPdfZoom((z) => Math.max(50, z - 10))}
+                    title="Zoom out"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="dw-zoom-label">{pdfZoom}%</span>
+                  <button
+                    className="dw-zoom-btn"
+                    onClick={() => setPdfZoom((z) => Math.min(200, z + 10))}
+                    title="Zoom in"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    className="dw-zoom-btn"
+                    onClick={() => setPdfZoom(100)}
+                    title="Reset zoom"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Copy Content (for text, docx, json) */}
+              {!isPDF && !isSpreadsheet && !textLoading && !textError && textContent !== null && (
                 <button
-                  className="dw-zoom-btn"
-                  onClick={() => setPdfZoom((z) => Math.max(50, z - 10))}
-                  title="Zoom out"
+                  type="button"
+                  className="dw-toolbar-action-btn"
+                  onClick={() => handleCopyText(textContent)}
+                  title="Copy document content to clipboard"
                 >
-                  <ZoomOut className="w-3.5 h-3.5" />
+                  {copiedText ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Text</span>
+                    </>
+                  )}
                 </button>
-                <span className="dw-zoom-label">{pdfZoom}%</span>
-                <button
-                  className="dw-zoom-btn"
-                  onClick={() => setPdfZoom((z) => Math.min(200, z + 10))}
-                  title="Zoom in"
-                >
-                  <ZoomIn className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  className="dw-zoom-btn"
-                  onClick={() => setPdfZoom(100)}
-                  title="Reset zoom"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              !isSpreadsheet && !textLoading && !textError && textContent !== null && (
+              )}
+
+              {/* Edit Controls (for txt, md, json - not docx/pdf/spreadsheet) */}
+              {!isPDF && !isSpreadsheet && !isDocx && !textLoading && !textError && textContent !== null && (
                 <div className="dw-zoom-controls">
                   {isEditing ? (
                     <>
@@ -923,8 +1129,19 @@ export default function DocumentWorkspace({
                     </button>
                   )}
                 </div>
-              )
-            )}
+              )}
+
+              {/* Download link for any document */}
+              <a
+                href={fileUrl}
+                download={file.filename}
+                className="dw-toolbar-action-btn"
+                title={`Download ${file.filename}`}
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download</span>
+              </a>
+            </div>
           </div>
 
           <div className="dw-viewer-content">
@@ -1088,6 +1305,28 @@ export default function DocumentWorkspace({
               <span className="dw-chat-header-sub">Answers pulled exclusively from this file</span>
             </div>
           </div>
+
+          {/* Quick AI Action Prompts */}
+          <div className="dw-quick-chips">
+            <span className="dw-quick-label">
+              <Sparkles className="w-3 h-3 text-cyan-400 inline mr-1" />
+              Suggested Actions:
+            </span>
+            <div className="dw-chips-scroll">
+              {getQuickPrompts().map((qp, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="dw-quick-chip"
+                  onClick={() => handleSendPrompt(qp.prompt)}
+                  title={qp.prompt}
+                >
+                  {qp.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="dw-chat-inner">
             <ChatAssistant
               username={username}
