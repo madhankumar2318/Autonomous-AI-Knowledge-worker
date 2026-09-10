@@ -111,8 +111,8 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  // Indicator toggles
-  const [showSMA20, setShowSMA20] = useState(true);
+  // Indicator toggles (all off by default so users enable manually as needed)
+  const [showSMA20, setShowSMA20] = useState(false);
   const [showSMA50, setShowSMA50] = useState(false);
   const [showRSI, setShowRSI] = useState(false);
 
