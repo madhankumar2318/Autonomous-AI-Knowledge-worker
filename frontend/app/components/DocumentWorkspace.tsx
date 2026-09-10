@@ -717,53 +717,14 @@ export default function DocumentWorkspace({
 
         /* ── Right: Chat Panel ── */
         .dw-chat-panel {
-          width: 420px;
+          width: clamp(480px, 35vw, 580px);
+          min-width: 460px;
           flex-shrink: 0;
           display: flex;
           flex-direction: column;
           overflow: hidden;
           background: var(--bg-main, #0f1117);
-        }
-        .dw-chat-header {
-          padding: 10px 16px;
-          border-bottom: 1px solid var(--border-light, rgba(255,255,255,0.06));
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-shrink: 0;
-          background: rgba(34, 211, 238, 0.04);
-        }
-        .dw-chat-header-icon {
-          width: 28px;
-          height: 28px;
-          border-radius: 8px;
-          background: rgba(34,211,238,0.12);
-          border: 1px solid rgba(34,211,238,0.2);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .dw-chat-header-text {
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-        }
-        .dw-chat-header-title {
-          font-size: 12px;
-          font-weight: 700;
-          color: var(--text-primary, #f1f5f9);
-        }
-        .dw-chat-header-sub {
-          font-size: 10px;
-          color: var(--text-muted, #64748b);
-        }
-        .dw-chat-inner {
-          flex: 1;
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
+          height: 100%;
         }
 
         /* ── Textarea Edit Mode ── */

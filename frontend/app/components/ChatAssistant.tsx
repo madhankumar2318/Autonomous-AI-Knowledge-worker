@@ -369,14 +369,14 @@ export default function ChatAssistant({
           <div className="chat-inline-avatar">
             <Sparkles className="w-4 h-4" style={{ color: "#67e8f9" }} />
           </div>
-          <div>
+          <div className="chat-inline-info">
             <div className="chat-inline-title">AI Knowledge Worker</div>
             <div className="chat-inline-status">
               <span className="chat-status-dot" style={{
                 background: selectedModel === "llama-70b" ? "#c084fc" : "#34d399",
                 boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : "0 0 6px #34d399"
               }} />
-              <span>Online · {selectedModel === "llama-70b" ? "Groq (Ultra-Fast)" : "Google Gemini 2.5"}</span>
+              <span>Online · {selectedModel === "llama-70b" ? "Groq Llama" : "Gemini 2.5"}</span>
             </div>
           </div>
           <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -906,37 +906,69 @@ export default function ChatAssistant({
           .chat-inline-header {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 16px 20px;
+            gap: 10px;
+            padding: 12px 18px;
             border-bottom: 1px solid var(--border-light);
             background: linear-gradient(to right, rgba(34,211,238,0.06), transparent);
             flex-shrink: 0;
+            min-width: 0;
+          }
+          .chat-sidebar-toggle {
+            padding: 6px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+          }
+          .chat-sidebar-toggle:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-light);
+            color: var(--text-primary);
           }
           .chat-inline-avatar {
-            width: 38px;
-            height: 38px;
-            border-radius: 12px;
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
             background: linear-gradient(135deg, rgba(34,211,238,0.22), rgba(14,165,233,0.14));
             border: 1px solid rgba(34,211,238,0.28);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            box-shadow: 0 4px 16px rgba(34,211,238,0.15);
+            box-shadow: 0 2px 10px rgba(34,211,238,0.12);
+          }
+          .chat-inline-info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex-shrink: 1;
+            overflow: hidden;
           }
           .chat-inline-title {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             color: var(--text-primary);
-            line-height: 1;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           .chat-inline-status {
             display: flex;
             align-items: center;
             gap: 5px;
-            font-size: 13px;
+            font-size: 11px;
             color: var(--text-secondary);
-            margin-top: 3px;
+            white-space: nowrap;
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
           }
           .chat-status-dot {
             width: 6px;
@@ -947,26 +979,50 @@ export default function ChatAssistant({
             flex-shrink: 0;
             animation: pulse 2s ease-in-out infinite;
           }
-          .chat-header-actions { margin-left: auto; }
+          .chat-header-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+          }
+          .chat-model-select {
+            font-size: 12px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid var(--border-light);
+            color: var(--text-primary);
+            outline: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .chat-model-select:hover, .chat-model-select:focus {
+            border-color: rgba(34, 211, 238, 0.4);
+            background: rgba(0, 0, 0, 0.65);
+          }
           .chat-clear-btn {
             display: flex;
             align-items: center;
             gap: 5px;
-            padding: 6px 12px;
+            padding: 5px 11px;
             border-radius: 8px;
             background: var(--bg-surface);
             border: 1px solid var(--border-light);
-            font-size: 13px;
+            font-size: 12px;
+            font-weight: 600;
             color: var(--text-secondary);
             cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
             transition: all 0.15s ease;
           }
-          .chat-clear-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+          .chat-clear-btn:hover { background: var(--bg-hover); color: var(--text-primary); border-color: rgba(34, 211, 238, 0.3); }
 
           .chat-inline-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 16px 20px;
             display: flex;
             flex-direction: column;
             gap: 14px;
@@ -976,14 +1032,14 @@ export default function ChatAssistant({
             display: flex;
             gap: 10px;
             align-items: flex-start;
-            max-width: 800px;
+            width: 100%;
           }
           .chat-msg-user { flex-direction: row-reverse; align-self: flex-end; }
           .chat-msg-ai { align-self: flex-start; }
 
           .chat-msg-avatar {
-            width: 30px;
-            height: 30px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
             flex-shrink: 0;
             display: flex;
@@ -992,32 +1048,35 @@ export default function ChatAssistant({
             margin-top: 2px;
           }
           .chat-msg-user .chat-msg-avatar {
-            background: var(--bg-hover);
-            border: 1px solid var(--border-light);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
           }
           .chat-msg-ai .chat-msg-avatar {
-            background: rgba(34,211,238,0.1);
-            border: 1px solid rgba(34,211,238,0.22);
+            background: rgba(34,211,238,0.12);
+            border: 1px solid rgba(34,211,238,0.25);
           }
 
           .chat-bubble {
-            padding: 12px 16px;
-            border-radius: 16px;
-            max-width: 72%;
-            font-size: 15px;
+            padding: 11px 15px;
+            border-radius: 14px;
+            max-width: 86%;
+            font-size: 14px;
             line-height: 1.6;
+            word-break: break-word;
           }
           .chat-bubble-user {
-            background: rgba(34,211,238,0.12);
-            border: 1px solid rgba(34,211,238,0.25);
-            border-top-right-radius: 4px;
-            color: #ecfeff;
+            background: linear-gradient(135deg, rgba(34, 211, 238, 0.16), rgba(14, 165, 233, 0.1));
+            border: 1px solid rgba(34, 211, 238, 0.28);
+            border-top-right-radius: 3px;
+            color: #f1f5f9;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
           }
           .chat-bubble-ai {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-light);
-            border-top-left-radius: 4px;
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-top-left-radius: 3px;
             color: var(--text-primary);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
           }
           .chat-bubble-content { display: flex; flex-direction: column; gap: 4px; }
           .chat-line { margin-bottom: 2px; min-height: 1em; }
