@@ -17,6 +17,7 @@ import {
   Download,
   Table,
   Sparkles,
+  UploadCloud,
 } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import ChatAssistant from "./ChatAssistant";
@@ -190,6 +191,43 @@ export default function DocumentWorkspace({
     window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
   };
 
+  const handleReupload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    try {
+      setTextLoading(true);
+      setTextError(null);
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      const res = await fetch(`${API_BASE_URL}/upload`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to re-upload file");
+      showToast("success", `${selectedFile.name} uploaded and saved to persistent database!`);
+      const contentRes = await fetch(`${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`, { credentials: "include" });
+      if (contentRes.ok) {
+        const data = await contentRes.json();
+        let txt = data.content || "";
+        if (isJson) {
+          try {
+            txt = JSON.stringify(JSON.parse(txt), null, 2);
+          } catch (_) {}
+        }
+        setTextContent(txt);
+        setEditedContent(txt);
+      } else {
+        window.location.reload();
+      }
+    } catch (err: any) {
+      setTextError(err?.message || String(err));
+      showToast("error", err?.message || String(err));
+    } finally {
+      setTextLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (isPDF || isSpreadsheet) return;
     setTextLoading(true);
@@ -201,6 +239,9 @@ export default function DocumentWorkspace({
         if (r.ok) {
           const data = await r.json();
           let txt = data.content || "";
+          if (txt.startsWith("File '") && txt.includes("was not found on server storage")) {
+            throw new Error(`"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`);
+          }
           if (isJson) {
             try {
               txt = JSON.stringify(JSON.parse(txt), null, 2);
@@ -208,10 +249,18 @@ export default function DocumentWorkspace({
           }
           return txt;
         }
+        if (r.status === 404) {
+          throw new Error(`"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`);
+        }
         // Fallback to direct raw file
         const fallbackRes = await fetch(fileUrl, { credentials: "include" });
-        if (!fallbackRes.ok) throw new Error(`Failed to load file (${fallbackRes.status})`);
+        if (!fallbackRes.ok) {
+          throw new Error(`"${file.filename}" was not found on server storage. Please re-upload it to view and analyze.`);
+        }
         let raw = await fallbackRes.text();
+        if (raw.startsWith("File '") && raw.includes("was not found on server storage")) {
+          throw new Error(`"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`);
+        }
         if (isJson) {
           try {
             raw = JSON.stringify(JSON.parse(raw), null, 2);
@@ -223,7 +272,7 @@ export default function DocumentWorkspace({
         setTextContent(txt);
         setEditedContent(txt);
       })
-      .catch((err) => setTextError(String(err)))
+      .catch((err) => setTextError(err.message || String(err)))
       .finally(() => setTextLoading(false));
   }, [file.filename, fileUrl, isPDF, isSpreadsheet, isJson]);
 
@@ -779,12 +828,32 @@ export default function DocumentWorkspace({
         }
 
 
-        /* Make the inline ChatAssistant fill the right panel completely */
-        .dw-chat-inner .chat-inline-root {
-          height: 100%;
-          border-radius: 0;
-          border: none;
-          background: transparent;
+        /* Make the inline ChatAssistant fill the right panel completely with native structure */
+        .dw-chat-panel .chat-inline-root {
+          height: 100% !important;
+          border-radius: 0 !important;
+          border: none !important;
+          background: transparent !important;
+        }
+
+        .dw-reupload-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #0284c7;
+          border: 1px solid #38bdf8;
+          color: #ffffff;
+          padding: 7px 16px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          margin-right: 8px;
+        }
+        .dw-reupload-btn:hover {
+          background: #0369a1;
+          box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
         }
 
         @media (max-width: 900px) {
@@ -1185,13 +1254,20 @@ export default function DocumentWorkspace({
               <div className="dw-error">
                 <div className="dw-error-card">
                   <div className="dw-error-icon">📄</div>
-                  <div className="dw-error-title">Document Not Found</div>
+                  <div className="dw-error-title">Document Needs Re-uploading</div>
                   <div className="dw-error-desc">
-                    {textError.includes("403") || textError.includes("404")
-                      ? `"${file.filename}" is an external news or web reference, not a local file in your workspace.`
-                      : textError}
+                    {textError}
                   </div>
                   <div className="dw-error-actions">
+                    <label className="dw-reupload-btn">
+                      <UploadCloud className="w-4 h-4 mr-1.5 inline" />
+                      Re-upload {file.filename}
+                      <input
+                        type="file"
+                        style={{ display: "none" }}
+                        onChange={handleReupload}
+                      />
+                    </label>
                     <button type="button" onClick={onClose} className="dw-error-btn">
                       ← Return to File Workspace
                     </button>
@@ -1294,46 +1370,13 @@ export default function DocumentWorkspace({
           </div>
         </div>
 
-        {/* Right: Chat Panel */}
+        {/* Right: Chat Panel (Standard Native ChatAssistant Structure & Alignment) */}
         <div className="dw-chat-panel">
-          <div className="dw-chat-header">
-            <div className="dw-chat-header-icon">
-              <Brain className="w-4 h-4" style={{ color: "#22d3ee" }} />
-            </div>
-            <div className="dw-chat-header-text">
-              <span className="dw-chat-header-title">Document AI Chat</span>
-              <span className="dw-chat-header-sub">Answers pulled exclusively from this file</span>
-            </div>
-          </div>
-
-          {/* Quick AI Action Prompts */}
-          <div className="dw-quick-chips">
-            <span className="dw-quick-label">
-              <Sparkles className="w-3 h-3 text-cyan-400 inline mr-1" />
-              Suggested Actions:
-            </span>
-            <div className="dw-chips-scroll">
-              {getQuickPrompts().map((qp, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className="dw-quick-chip"
-                  onClick={() => handleSendPrompt(qp.prompt)}
-                  title={qp.prompt}
-                >
-                  {qp.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="dw-chat-inner">
-            <ChatAssistant
-              username={username}
-              inline={true}
-              activeDocumentFilename={file.filename}
-            />
-          </div>
+          <ChatAssistant
+            username={username}
+            inline={true}
+            activeDocumentFilename={file.filename}
+          />
         </div>
       </div>
     </div>

@@ -31,4 +31,7 @@ public class Upload {
 
     @Column(name = "user_id")
     private Long userId;
+
+    @Column(name = "extracted_content", columnDefinition = "TEXT")
+    private String extractedContent;
 }

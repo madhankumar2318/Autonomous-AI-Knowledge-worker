@@ -185,7 +185,55 @@ public class DocumentService {
         }
 
         if (!file.exists() || !file.canRead()) {
-            log.warn("File {} not found or unreadable on disk at {}", filename, target.toAbsolutePath());
+            String[] candidateDirs = {
+                uploadDir,
+                "./uploads",
+                "uploads",
+                "/app/uploads",
+                "/tmp/uploads",
+                System.getProperty("java.io.tmpdir") + "/uploads",
+                System.getProperty("user.dir") + "/uploads",
+                System.getProperty("user.home") + "/uploads"
+            };
+            for (String cDir : candidateDirs) {
+                if (cDir == null) continue;
+                File cand = Paths.get(cDir, filename).toFile();
+                if (cand.exists() && cand.canRead()) {
+                    file = cand;
+                    break;
+                }
+                File dir = new File(cDir);
+                if (dir.exists() && dir.isDirectory()) {
+                    File[] list = dir.listFiles();
+                    if (list != null) {
+                        for (File f : list) {
+                            if (f.getName().equalsIgnoreCase(filename)) {
+                                file = f;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (file.exists() && file.canRead()) break;
+            }
+        }
+
+        // If still not found on disk, check if we have persistent extractedContent in the database!
+        if (!file.exists() || !file.canRead()) {
+            Optional<Upload> up = uploadRepository.findByFilename(filename);
+            if (up.isEmpty()) {
+                String lowerName = filename.toLowerCase();
+                up = uploadRepository.findAll().stream()
+                        .filter(u -> u.getFilename() != null && u.getFilename().equalsIgnoreCase(lowerName))
+                        .findFirst();
+            }
+            if (up.isPresent() && up.get().getExtractedContent() != null && !up.get().getExtractedContent().isBlank()) {
+                String dbContent = up.get().getExtractedContent();
+                documentCache.put(filename, dbContent);
+                documentCacheTime.put(filename, now);
+                return dbContent;
+            }
+            log.warn("File {} not found or unreadable on disk at {} and no extracted content in DB", filename, target.toAbsolutePath());
             return "File '" + filename + "' was not found on server storage.";
         }
 
@@ -210,6 +258,15 @@ public class DocumentService {
             if (extracted != null && !extracted.isBlank()) {
                 documentCache.put(filename, extracted);
                 documentCacheTime.put(filename, now);
+                // Also update DB if upload exists and extractedContent is null
+                try {
+                    Optional<Upload> up = uploadRepository.findByFilename(filename);
+                    if (up.isPresent() && (up.get().getExtractedContent() == null || up.get().getExtractedContent().isBlank())) {
+                        Upload u = up.get();
+                        u.setExtractedContent(extracted);
+                        uploadRepository.save(u);
+                    }
+                } catch (Exception ignored) {}
                 return extracted;
             }
         } catch (Exception e) {

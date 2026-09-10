@@ -77,6 +77,17 @@ public class UploadController {
         upload.setFilepath(targetPath.toAbsolutePath().toString());
         upload.setSize(file.getSize());
         upload.setUploadedAt(Instant.now());
+
+        // Extract and persist document text into persistent database
+        try {
+            String extracted = documentService.extractDocumentText(originalFilename);
+            if (extracted != null && !extracted.isBlank() && !extracted.startsWith("File '") && !extracted.startsWith("Error parsing")) {
+                upload.setExtractedContent(extracted);
+            }
+        } catch (Exception e) {
+            log.warn("Could not pre-extract content for {}: {}", originalFilename, e.getMessage());
+        }
+
         upload = uploadRepository.save(upload);
 
         int chunks = Math.max(1, (int)(file.getSize() / 1500));
@@ -200,6 +211,14 @@ public class UploadController {
         } catch (Exception ignored) {}
 
         String text = documentService.extractDocumentText(decoded);
+        if (text == null || text.isBlank() || (text.startsWith("File '") && text.contains("was not found on server storage"))) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "error", "File '" + decoded + "' was not found on server storage. The cloud container may have restarted since upload.",
+                    "filename", decoded,
+                    "needs_reupload", true
+            ));
+        }
+
         String lower = decoded.toLowerCase();
         String type = "text";
         if (lower.endsWith(".pdf")) type = "pdf";
