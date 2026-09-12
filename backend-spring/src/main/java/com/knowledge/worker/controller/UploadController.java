@@ -1,7 +1,9 @@
 package com.knowledge.worker.controller;
 
 import com.knowledge.worker.entity.Upload;
+import com.knowledge.worker.entity.User;
 import com.knowledge.worker.repository.UploadRepository;
+import com.knowledge.worker.repository.UserRepository;
 import com.knowledge.worker.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,13 +38,56 @@ public class UploadController {
 
     private final UploadRepository uploadRepository;
     private final DocumentService documentService;
+    private final UserRepository userRepository;
 
     @Value("${app.storage.upload-dir:./uploads}")
     private String uploadDir;
 
+    private User getCurrentUser(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null || "anonymousUser".equals(authentication.getName())) {
+            return null;
+        }
+        return userRepository.findByUsername(authentication.getName()).orElse(null);
+    }
+
+    private boolean isAuthorizedForFile(Upload upload, User user, Authentication authentication) {
+        if (upload == null) return true;
+        if (authentication != null && "admin".equalsIgnoreCase(authentication.getName())) {
+            return true;
+        }
+        if (upload.getUserId() == null) {
+            return true;
+        }
+        return user != null && upload.getUserId().equals(user.getId());
+    }
+
+    private Path resolveSafePath(String filename) {
+        if (filename == null || filename.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filename is required");
+        }
+        String sanitizedName = Paths.get(filename).getFileName().toString();
+        Path baseDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path target = baseDir.resolve(sanitizedName).normalize();
+        if (!target.startsWith(baseDir)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid file path traversal attempt");
+        }
+        return target;
+    }
+
     @GetMapping("/list")
-    public ResponseEntity<Map<String, Object>> listUploads() {
-        List<Upload> uploads = uploadRepository.findAllByOrderByUploadedAtDesc();
+    public ResponseEntity<Map<String, Object>> listUploads(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        boolean isAdmin = authentication != null && "admin".equalsIgnoreCase(authentication.getName());
+
+        List<Upload> uploads;
+        if (isAdmin) {
+            uploads = uploadRepository.findAllByOrderByUploadedAtDesc();
+        } else if (user != null) {
+            uploads = uploadRepository.findByUserIdOrUserIdIsNullOrderByUploadedAtDesc(user.getId());
+        } else {
+            uploads = Collections.emptyList();
+        }
+
         List<Map<String, Object>> result = new ArrayList<>();
         for (Upload u : uploads) {
             Map<String, Object> map = new HashMap<>();
@@ -57,26 +103,41 @@ public class UploadController {
     }
 
     @PostMapping
-    public ResponseEntity<Map<String, Object>> uploadFile(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<Map<String, Object>> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) throws IOException {
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot upload empty file");
         }
 
-        String originalFilename = Paths.get(file.getOriginalFilename()).getFileName().toString();
+        String rawName = file.getOriginalFilename();
+        if (rawName == null || rawName.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filename is missing");
+        }
+        String originalFilename = Paths.get(rawName).getFileName().toString();
+
         File dir = new File(uploadDir);
         if (!dir.exists()) {
             dir.mkdirs();
         }
 
-        Path targetPath = Paths.get(uploadDir, originalFilename);
+        Path targetPath = resolveSafePath(originalFilename);
         Files.copy(file.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
+        User user = getCurrentUser(authentication);
         Upload upload = uploadRepository.findByFilename(originalFilename)
                 .orElse(Upload.builder().filename(originalFilename).build());
+
+        if (upload.getId() != null && !isAuthorizedForFile(upload, user, authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot overwrite another user's file");
+        }
 
         upload.setFilepath(targetPath.toAbsolutePath().toString());
         upload.setSize(file.getSize());
         upload.setUploadedAt(Instant.now());
+        if (user != null) {
+            upload.setUserId(user.getId());
+        }
 
         // Extract and persist document text into persistent database
         try {
@@ -103,17 +164,21 @@ public class UploadController {
 
     @Transactional
     @DeleteMapping("/{filename:.+}")
-    public ResponseEntity<Map<String, Object>> deleteFile(@PathVariable String filename) {
-        return performDelete(filename);
+    public ResponseEntity<Map<String, Object>> deleteFile(
+            @PathVariable String filename,
+            Authentication authentication) {
+        return performDelete(filename, authentication);
     }
 
     @Transactional
     @DeleteMapping
-    public ResponseEntity<Map<String, Object>> deleteFileByParam(@RequestParam(value = "filename", required = false) String filename) {
-        return performDelete(filename);
+    public ResponseEntity<Map<String, Object>> deleteFileByParam(
+            @RequestParam(value = "filename", required = false) String filename,
+            Authentication authentication) {
+        return performDelete(filename, authentication);
     }
 
-    private ResponseEntity<Map<String, Object>> performDelete(String rawFilename) {
+    private ResponseEntity<Map<String, Object>> performDelete(String rawFilename, Authentication authentication) {
         if (rawFilename == null || rawFilename.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Filename is required"));
         }
@@ -122,11 +187,6 @@ public class UploadController {
         try {
             decodedFilename = URLDecoder.decode(rawFilename, StandardCharsets.UTF_8);
         } catch (Exception ignored) {}
-
-        if (documentService != null) {
-            documentService.invalidateCache(decodedFilename);
-            documentService.invalidateCache(rawFilename);
-        }
 
         // Find from DB by exact, decoded, or case-insensitive
         Optional<Upload> uploadOpt = uploadRepository.findByFilename(decodedFilename);
@@ -140,21 +200,42 @@ public class UploadController {
                     .findFirst();
         }
 
-        // 1. Delete physical file if found via upload entity filepath
+        // Authorization check: User must own the file (or be admin)
+        User user = getCurrentUser(authentication);
+        if (uploadOpt.isPresent()) {
+            if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                        "error", "You do not have permission to delete this file"
+                ));
+            }
+        }
+
+        if (documentService != null) {
+            documentService.invalidateCache(decodedFilename);
+            documentService.invalidateCache(rawFilename);
+        }
+
+        // 1. Delete physical file if found via upload entity filepath (with path safety check)
         if (uploadOpt.isPresent() && uploadOpt.get().getFilepath() != null) {
             try {
-                Files.deleteIfExists(Paths.get(uploadOpt.get().getFilepath()));
+                Path entityPath = Paths.get(uploadOpt.get().getFilepath()).toAbsolutePath().normalize();
+                Path baseDir = Paths.get(uploadDir).toAbsolutePath().normalize();
+                if (entityPath.startsWith(baseDir)) {
+                    Files.deleteIfExists(entityPath);
+                }
             } catch (Exception e) {
                 log.warn("Could not delete file from entity path: {}", e.getMessage());
             }
         }
 
-        // 2. Also attempt deleting from uploadDir
+        // 2. Also attempt deleting from uploadDir safely
         try {
-            Files.deleteIfExists(Paths.get(uploadDir, decodedFilename));
+            Path safeDecoded = resolveSafePath(decodedFilename);
+            Files.deleteIfExists(safeDecoded);
         } catch (Exception ignored) {}
         try {
-            Files.deleteIfExists(Paths.get(uploadDir, rawFilename));
+            Path safeRaw = resolveSafePath(rawFilename);
+            Files.deleteIfExists(safeRaw);
         } catch (Exception ignored) {}
 
         // 3. Delete from database
@@ -167,7 +248,7 @@ public class UploadController {
             }
         }
 
-        log.info("File '{}' deleted successfully from workspace and database", decodedFilename);
+        log.info("File '{}' deleted successfully by user '{}'", decodedFilename, authentication != null ? authentication.getName() : "anonymous");
         return ResponseEntity.ok(Map.of(
                 "message", "File deleted successfully",
                 "filename", decodedFilename
@@ -175,14 +256,25 @@ public class UploadController {
     }
 
     @GetMapping("/download/{filename:.+}")
-    public ResponseEntity<Resource> downloadFile(@PathVariable String filename) {
+    public ResponseEntity<Resource> downloadFile(
+            @PathVariable String filename,
+            Authentication authentication) {
         try {
-            Path file = Paths.get(uploadDir).resolve(filename).normalize();
+            Path file = resolveSafePath(filename);
             Resource resource = new UrlResource(file.toUri());
             if (resource.exists() || resource.isReadable()) {
+                String sanitizedName = file.getFileName().toString();
+                Optional<Upload> uploadOpt = uploadRepository.findByFilename(sanitizedName);
+                if (uploadOpt.isPresent()) {
+                    User user = getCurrentUser(authentication);
+                    if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
+                    }
+                }
+
                 String contentType = Files.probeContentType(file);
                 if (contentType == null) {
-                    String lower = filename.toLowerCase();
+                    String lower = sanitizedName.toLowerCase();
                     if (lower.endsWith(".pdf")) contentType = "application/pdf";
                     else if (lower.endsWith(".json")) contentType = "application/json";
                     else if (lower.endsWith(".csv")) contentType = "text/csv";
@@ -198,17 +290,30 @@ public class UploadController {
                         .body(resource);
             }
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
+        } catch (ResponseStatusException rse) {
+            throw rse;
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found");
         }
     }
 
     @GetMapping("/content/{filename:.+}")
-    public ResponseEntity<Map<String, Object>> getFileContent(@PathVariable String filename) {
+    public ResponseEntity<Map<String, Object>> getFileContent(
+            @PathVariable String filename,
+            Authentication authentication) {
         String decoded = filename;
         try {
             decoded = URLDecoder.decode(filename, StandardCharsets.UTF_8);
         } catch (Exception ignored) {}
+
+        String sanitizedName = Paths.get(decoded).getFileName().toString();
+        Optional<Upload> uploadOpt = uploadRepository.findByFilename(sanitizedName);
+        if (uploadOpt.isPresent()) {
+            User user = getCurrentUser(authentication);
+            if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
+            }
+        }
 
         String text = documentService.extractDocumentText(decoded);
         if (text == null || text.isBlank() || (text.startsWith("File '") && text.contains("was not found on server storage"))) {
@@ -236,13 +341,22 @@ public class UploadController {
     }
 
     @PostMapping("/reindex/{filename}")
-    public ResponseEntity<Map<String, Object>> reindexFile(@PathVariable String filename) {
-        Upload upload = uploadRepository.findByFilename(filename).orElse(null);
+    public ResponseEntity<Map<String, Object>> reindexFile(
+            @PathVariable String filename,
+            Authentication authentication) {
+        String sanitizedName = Paths.get(filename).getFileName().toString();
+        Upload upload = uploadRepository.findByFilename(sanitizedName).orElse(null);
+        if (upload != null) {
+            User user = getCurrentUser(authentication);
+            if (!isAuthorizedForFile(upload, user, authentication)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
+            }
+        }
         long size = upload != null && upload.getSize() != null ? upload.getSize() : 10000L;
         int chunks = Math.max(1, (int)(size / 1500));
         return ResponseEntity.ok(Map.of(
-                "message", "Re-indexing complete for '" + filename + "'",
-                "filename", filename,
+                "message", "Re-indexing complete for '" + sanitizedName + "'",
+                "filename", sanitizedName,
                 "rag_status", "success",
                 "chunks", chunks
         ));
@@ -251,33 +365,55 @@ public class UploadController {
     @GetMapping("/parse-table/{filename:.+}")
     public ResponseEntity<Map<String, Object>> parseTable(
             @PathVariable String filename,
-            @RequestParam(value = "sheet_name", required = false) String sheetName) {
+            @RequestParam(value = "sheet_name", required = false) String sheetName,
+            Authentication authentication) {
         String decoded = filename;
         try {
             decoded = URLDecoder.decode(filename, StandardCharsets.UTF_8);
         } catch (Exception ignored) {}
+
+        String sanitizedName = Paths.get(decoded).getFileName().toString();
+        Optional<Upload> uploadOpt = uploadRepository.findByFilename(sanitizedName);
+        if (uploadOpt.isPresent()) {
+            User user = getCurrentUser(authentication);
+            if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
+            }
+        }
         Map<String, Object> data = documentService.parseSpreadsheetData(decoded, sheetName);
         return ResponseEntity.ok(data);
     }
 
     @PutMapping("/edit/{filename}")
-    public ResponseEntity<Map<String, Object>> editFile(@PathVariable String filename, @RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, Object>> editFile(
+            @PathVariable String filename,
+            @RequestBody Map<String, String> body,
+            Authentication authentication) {
+        Path targetPath = resolveSafePath(filename);
+        String sanitizedName = targetPath.getFileName().toString();
+
+        Upload upload = uploadRepository.findByFilename(sanitizedName).orElse(null);
+        if (upload != null) {
+            User user = getCurrentUser(authentication);
+            if (!isAuthorizedForFile(upload, user, authentication)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to edit this file");
+            }
+        }
+
         String newContent = body.getOrDefault("content", "");
-        Path targetPath = Paths.get(uploadDir, filename);
         try {
-            Files.writeString(targetPath, newContent, java.nio.charset.StandardCharsets.UTF_8);
-            Upload upload = uploadRepository.findByFilename(filename).orElse(null);
+            Files.writeString(targetPath, newContent, StandardCharsets.UTF_8);
             if (upload != null) {
-                upload.setSize((long) newContent.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
+                upload.setSize((long) newContent.getBytes(StandardCharsets.UTF_8).length);
                 uploadRepository.save(upload);
             }
         } catch (IOException e) {
-            log.warn("Failed to write edited file {}: {}", filename, e.getMessage());
+            log.warn("Failed to write edited file {}: {}", sanitizedName, e.getMessage());
         }
         int chunks = Math.max(1, newContent.length() / 1500);
         return ResponseEntity.ok(Map.of(
                 "message", "File updated successfully",
-                "filename", filename,
+                "filename", sanitizedName,
                 "chunks", chunks,
                 "size", newContent.length()
         ));

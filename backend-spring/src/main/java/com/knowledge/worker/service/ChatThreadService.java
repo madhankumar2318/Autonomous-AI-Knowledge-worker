@@ -50,16 +50,35 @@ public class ChatThreadService {
         return toThreadResponse(thread);
     }
 
-    public List<MessageResponse> getThreadMessages(String threadId) {
+    private void verifyThreadOwnership(ChatThread thread, String username) {
+        if (thread == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found");
+        }
+        if (username == null || username.isBlank() || "anonymousUser".equals(username)) {
+            return;
+        }
+        if ("admin".equalsIgnoreCase(username)) {
+            return;
+        }
+        if (thread.getUsername() != null && !thread.getUsername().equalsIgnoreCase(username)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have access to this thread");
+        }
+    }
+
+    public List<MessageResponse> getThreadMessages(String threadId, String username) {
+        ChatThread thread = threadRepository.findById(threadId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found"));
+        verifyThreadOwnership(thread, username);
         return messageRepository.findByThreadIdOrderByCreatedAtAsc(threadId).stream()
                 .map(this::toMessageResponse)
                 .toList();
     }
 
     @Transactional
-    public ThreadResponse renameThread(String threadId, String title) {
+    public ThreadResponse renameThread(String threadId, String title, String username) {
         ChatThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found"));
+        verifyThreadOwnership(thread, username);
 
         thread.setTitle(title);
         thread.setUpdatedAt(Instant.now());
@@ -68,7 +87,11 @@ public class ChatThreadService {
     }
 
     @Transactional
-    public void deleteThread(String threadId) {
+    public void deleteThread(String threadId, String username) {
+        ChatThread thread = threadRepository.findById(threadId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found"));
+        verifyThreadOwnership(thread, username);
+
         messageRepository.deleteByThreadId(threadId);
         threadRepository.deleteById(threadId);
     }

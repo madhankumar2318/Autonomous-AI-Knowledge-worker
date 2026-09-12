@@ -45,12 +45,7 @@ public class DataInitializer implements CommandLineRunner {
                         .build());
                 log.info("Default admin user created successfully.");
             } else {
-                User admin = adminOpt.get();
-                if (!passwordEncoder.matches("Sk_uyir18", admin.getPassword())) {
-                    log.info("Syncing admin user password to Sk_uyir18...");
-                    admin.setPassword(passwordEncoder.encode("Sk_uyir18"));
-                    userRepository.save(admin);
-                }
+                log.info("Admin user already exists. Preserving existing credentials.");
             }
         } catch (Exception e) {
             log.warn("DataInitializer warning: {}", e.getMessage());

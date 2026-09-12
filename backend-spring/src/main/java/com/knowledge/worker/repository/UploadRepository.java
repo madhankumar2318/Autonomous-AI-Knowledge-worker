@@ -13,8 +13,10 @@ import java.util.Optional;
 @Repository
 public interface UploadRepository extends JpaRepository<Upload, Long> {
     List<Upload> findByUserIdOrderByUploadedAtDesc(Long userId);
+    List<Upload> findByUserIdOrUserIdIsNullOrderByUploadedAtDesc(Long userId);
     List<Upload> findAllByOrderByUploadedAtDesc();
     Optional<Upload> findByFilename(String filename);
+    Optional<Upload> findByFilenameAndUserId(String filename, Long userId);
 
     @Transactional
     @Modifying
