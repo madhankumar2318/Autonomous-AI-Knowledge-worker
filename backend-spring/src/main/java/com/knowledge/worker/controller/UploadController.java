@@ -5,6 +5,7 @@ import com.knowledge.worker.entity.User;
 import com.knowledge.worker.repository.UploadRepository;
 import com.knowledge.worker.repository.UserRepository;
 import com.knowledge.worker.service.DocumentService;
+import com.knowledge.worker.service.RateLimitingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +40,7 @@ public class UploadController {
     private final UploadRepository uploadRepository;
     private final DocumentService documentService;
     private final UserRepository userRepository;
+    private final RateLimitingService rateLimitingService;
 
     @Value("${app.storage.upload-dir:./uploads}")
     private String uploadDir;
@@ -106,6 +108,9 @@ public class UploadController {
     public ResponseEntity<Map<String, Object>> uploadFile(
             @RequestParam("file") MultipartFile file,
             Authentication authentication) throws IOException {
+        String username = authentication != null && authentication.getName() != null ? authentication.getName() : "anonymous";
+        rateLimitingService.checkUploadRateLimit(username);
+
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot upload empty file");
         }

@@ -398,7 +398,30 @@ export function useChatStream({
         }),
       });
 
-      if (!res.ok || !res.body) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok || !res.body) {
+        if (res.status === 429) {
+          const errData = await res.json().catch(() => null);
+          const throttleMsg =
+            errData?.message ||
+            errData?.detail ||
+            "Rate limit reached: An AI response is already generating or request limit exceeded. Please wait a few moments.";
+          showToast("warning", throttleMsg);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && last.role === "ai") {
+              updated[updated.length - 1] = {
+                ...last,
+                content: `⏳ **Request Throttled:** ${throttleMsg}`,
+              };
+            }
+            return updated;
+          });
+          setStreamingStatus("");
+          return;
+        }
+        throw new Error(`Server error: ${res.status}`);
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();

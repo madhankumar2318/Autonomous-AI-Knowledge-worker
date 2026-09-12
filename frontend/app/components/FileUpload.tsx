@@ -216,7 +216,8 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         }, 500);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        showToast("error", errorData.error || "Upload failed. Please try again.");
+        const errMsg = errorData.message || errorData.error || "Upload failed. Please try again.";
+        showToast(res.status === 429 ? "warning" : "error", errMsg);
         setUploadProgress(0);
       }
     } catch (_err) {

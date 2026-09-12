@@ -2,6 +2,7 @@ package com.knowledge.worker.controller;
 
 import com.knowledge.worker.dto.AuthDtos.*;
 import com.knowledge.worker.service.AuthService;
+import com.knowledge.worker.service.RateLimitingService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,6 +20,20 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final RateLimitingService rateLimitingService;
+
+    private String getClientIp(HttpServletRequest request) {
+        if (request == null) return "unknown";
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) {
+            return xff.split(",")[0].trim();
+        }
+        String xri = request.getHeader("X-Real-IP");
+        if (xri != null && !xri.isBlank()) {
+            return xri.trim();
+        }
+        return request.getRemoteAddr();
+    }
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
@@ -47,8 +62,11 @@ public class AuthController {
             @RequestBody(required = false) LoginRequest bodyReq,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String password,
+            HttpServletRequest request,
             HttpServletResponse response
     ) {
+        rateLimitingService.checkLoginRateLimit(getClientIp(request));
+
         LoginRequest req = bodyReq;
         if (req == null || req.getUsername() == null) {
             req = LoginRequest.builder()
