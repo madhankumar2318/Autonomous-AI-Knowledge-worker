@@ -2,10 +2,13 @@ package com.knowledge.worker.service;
 
 import com.knowledge.worker.entity.Upload;
 import com.knowledge.worker.repository.UploadRepository;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.io.MemoryUsageSetting;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.openxml4j.util.ZipSecureFile;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -40,6 +43,20 @@ public class DocumentService {
     private final Map<String, String> documentCache = new ConcurrentHashMap<>();
     private final Map<String, Long> documentCacheTime = new ConcurrentHashMap<>();
     private static final long CACHE_TTL_MS = 10 * 60 * 1000L; // 10 minutes
+
+    /**
+     * Configure Apache POI global zip-bomb defense at startup.
+     * - minInflateRatio: compressed/uncompressed ratio threshold (0.01 = 100:1 max inflation)
+     * - maxEntrySize:    max bytes for any single ZIP entry (50 MB)
+     * - maxTextSize:     max extracted text bytes (20 MB)
+     */
+    @PostConstruct
+    public void configureParsingSecurity() {
+        ZipSecureFile.setMinInflateRatio(0.01);
+        ZipSecureFile.setMaxEntrySize(50 * 1024 * 1024L);   // 50 MB per entry
+        ZipSecureFile.setMaxTextSize(20 * 1024 * 1024L);    // 20 MB text
+        log.info("DocumentService: Apache POI zip-bomb defenses configured.");
+    }
 
     /**
      * Return all uploaded documents in the workspace.
@@ -242,9 +259,12 @@ public class DocumentService {
 
         try {
             if (lower.endsWith(".pdf")) {
-                try (PDDocument document = PDDocument.load(file)) {
+                // Limit PDFBox to 50 MB of main memory to guard against memory exhaustion
+                try (PDDocument document = PDDocument.load(file,
+                        MemoryUsageSetting.setupMainMemoryOnly(50 * 1024 * 1024L))) {
                     PDFTextStripper stripper = new PDFTextStripper();
                     stripper.setSortByPosition(true);
+                    stripper.setEndPage(500); // cap at 500 pages to prevent DoS
                     extracted = stripper.getText(document);
                 }
             } else if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
