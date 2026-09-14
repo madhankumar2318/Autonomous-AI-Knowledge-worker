@@ -4,6 +4,7 @@ import com.knowledge.worker.entity.Upload;
 import com.knowledge.worker.entity.User;
 import com.knowledge.worker.repository.UploadRepository;
 import com.knowledge.worker.repository.UserRepository;
+import com.knowledge.worker.service.AuditService;
 import com.knowledge.worker.service.DocumentService;
 import com.knowledge.worker.service.FileSecurityValidator;
 import com.knowledge.worker.service.RateLimitingService;
@@ -43,6 +44,7 @@ public class UploadController {
     private final UserRepository userRepository;
     private final RateLimitingService rateLimitingService;
     private final FileSecurityValidator fileSecurityValidator;
+    private final AuditService auditService;
 
     @Value("${app.storage.upload-dir:./uploads}")
     private String uploadDir;
@@ -73,6 +75,7 @@ public class UploadController {
         Path baseDir = Paths.get(uploadDir).toAbsolutePath().normalize();
         Path target = baseDir.resolve(sanitizedName).normalize();
         if (!target.startsWith(baseDir)) {
+            auditService.recordEvent("PATH_TRAVERSAL_BLOCKED", "unknown", null, filename, "BLOCKED", "Path traversal attempt detected: " + filename);
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid file path traversal attempt");
         }
         return target;
@@ -114,7 +117,12 @@ public class UploadController {
         rateLimitingService.checkUploadRateLimit(username);
 
         // Security: validate extension whitelist and magic bytes before any disk I/O
-        fileSecurityValidator.validateFile(file);
+        try {
+            fileSecurityValidator.validateFile(file);
+        } catch (ResponseStatusException rse) {
+            auditService.recordEvent("FILE_SECURITY_BLOCKED", username, null, file.getOriginalFilename(), "BLOCKED", rse.getReason());
+            throw rse;
+        }
 
         if (file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot upload empty file");
@@ -139,6 +147,7 @@ public class UploadController {
                 .orElse(Upload.builder().filename(originalFilename).build());
 
         if (upload.getId() != null && !isAuthorizedForFile(upload, user, authentication)) {
+            auditService.recordEvent("UNAUTHORIZED_ACCESS", username, null, originalFilename, "BLOCKED", "Attempt to overwrite another user's file");
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot overwrite another user's file");
         }
 
@@ -160,6 +169,7 @@ public class UploadController {
         }
 
         upload = uploadRepository.save(upload);
+        auditService.recordEvent("FILE_UPLOAD_SUCCESS", username, null, originalFilename, "SUCCESS", "Uploaded " + file.getSize() + " bytes");
 
         int chunks = Math.max(1, (int)(file.getSize() / 1500));
 
@@ -212,8 +222,10 @@ public class UploadController {
 
         // Authorization check: User must own the file (or be admin)
         User user = getCurrentUser(authentication);
+        String username = authentication != null ? authentication.getName() : "anonymous";
         if (uploadOpt.isPresent()) {
             if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+                auditService.recordEvent("UNAUTHORIZED_ACCESS", username, null, decodedFilename, "BLOCKED", "Unauthorized delete attempt");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                         "error", "You do not have permission to delete this file"
                 ));
@@ -258,7 +270,8 @@ public class UploadController {
             }
         }
 
-        log.info("File '{}' deleted successfully by user '{}'", decodedFilename, authentication != null ? authentication.getName() : "anonymous");
+        auditService.recordEvent("FILE_DELETE", username, null, decodedFilename, "SUCCESS", "File deleted from workspace");
+        log.info("File '{}' deleted successfully by user '{}'", decodedFilename, username);
         return ResponseEntity.ok(Map.of(
                 "message", "File deleted successfully",
                 "filename", decodedFilename

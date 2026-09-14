@@ -86,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers("/upload/**").authenticated()
                         .requestMatchers("/chat/**").authenticated()
                         .requestMatchers("/settings/**").authenticated()
+                        .requestMatchers("/audit/**").authenticated()
 
                         // All other endpoints require authentication by default
                         .anyRequest().authenticated()

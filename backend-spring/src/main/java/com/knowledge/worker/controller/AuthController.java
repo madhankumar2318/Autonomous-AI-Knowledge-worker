@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import com.knowledge.worker.service.AuditService;
 import java.util.Map;
 
 @RestController
@@ -21,6 +22,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final RateLimitingService rateLimitingService;
+    private final AuditService auditService;
 
     private String getClientIp(HttpServletRequest request) {
         if (request == null) return "unknown";
@@ -65,7 +67,8 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        rateLimitingService.checkLoginRateLimit(getClientIp(request));
+        String clientIp = getClientIp(request);
+        rateLimitingService.checkLoginRateLimit(clientIp);
 
         LoginRequest req = bodyReq;
         if (req == null || req.getUsername() == null) {
@@ -74,7 +77,14 @@ public class AuthController {
                     .password(password)
                     .build();
         }
-        return ResponseEntity.ok(authService.login(req, response));
+        try {
+            AuthResponse res = authService.login(req, response);
+            auditService.recordEvent("AUTH_LOGIN_SUCCESS", req.getUsername(), clientIp, "/auth/login", "SUCCESS", "User authenticated successfully");
+            return ResponseEntity.ok(res);
+        } catch (Exception e) {
+            auditService.recordEvent("AUTH_LOGIN_FAILURE", req.getUsername(), clientIp, "/auth/login", "FAILURE", e.getMessage());
+            throw e;
+        }
     }
 
     @GetMapping("/verify")
@@ -104,7 +114,9 @@ public class AuthController {
                                                      HttpServletRequest request,
                                                      HttpServletResponse response) {
         String username = authentication != null ? authentication.getName() : null;
+        String clientIp = getClientIp(request);
         authService.logout(username, request, response);
+        auditService.recordEvent("AUTH_LOGOUT", username, clientIp, "/auth/logout", "SUCCESS", "User logged out");
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
@@ -126,6 +138,7 @@ public class AuthController {
                                                               @RequestBody PasswordChangeRequest req) {
         String username = authentication != null ? authentication.getName() : "guest";
         authService.changePassword(username, req);
+        auditService.recordEvent("AUTH_PASSWORD_CHANGE", username, "authenticated", "/auth/password", "SUCCESS", "User changed password");
         return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
     }
 }

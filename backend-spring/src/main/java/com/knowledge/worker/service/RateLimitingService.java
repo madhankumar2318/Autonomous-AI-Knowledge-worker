@@ -1,5 +1,6 @@
 package com.knowledge.worker.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -14,8 +15,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class RateLimitingService {
 
+    private final AuditService auditService;
     private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, AtomicInteger> activeStreams = new ConcurrentHashMap<>();
 
@@ -75,6 +78,8 @@ public class RateLimitingService {
         if (!bucket.tryConsume(1.0)) {
             long waitSec = bucket.getSecondsUntilAvailable(1.0);
             log.warn("Rate limit exceeded for chat user '{}'. Wait {}s", username, waitSec);
+            auditService.recordEvent("RATE_LIMIT_BLOCKED", username, null, "/chat", "BLOCKED",
+                    "Chat rate limit exceeded (10 msg/min). Cooldown: " + waitSec + "s");
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS,
                     "Chat rate limit reached: You can send up to 10 messages per minute. Please wait " + waitSec + " seconds before sending another prompt."
@@ -97,6 +102,8 @@ public class RateLimitingService {
         if (active > 1) {
             counter.decrementAndGet();
             log.warn("Concurrent stream blocked for user '{}'. Already active: {}", username, active - 1);
+            auditService.recordEvent("RATE_LIMIT_BLOCKED", username, null, "/chat/stream", "BLOCKED",
+                    "Concurrent stream lock limit exceeded (max 1 stream active)");
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS,
                     "An AI response is already streaming for your account. Please wait for it to finish before starting a new one."
@@ -136,6 +143,8 @@ public class RateLimitingService {
         if (!bucket.tryConsume(1.0)) {
             long waitSec = bucket.getSecondsUntilAvailable(1.0);
             log.warn("Rate limit exceeded for uploads by user '{}'. Wait {}s", username, waitSec);
+            auditService.recordEvent("RATE_LIMIT_BLOCKED", username, null, "/upload", "BLOCKED",
+                    "Upload rate limit exceeded (5 uploads/min). Cooldown: " + waitSec + "s");
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS,
                     "Upload rate limit reached: You can upload up to 5 files per minute. Please wait " + waitSec + " seconds."
@@ -154,6 +163,8 @@ public class RateLimitingService {
         if (!bucket.tryConsume(1.0)) {
             long waitSec = bucket.getSecondsUntilAvailable(1.0);
             log.warn("Brute-force login limit triggered for IP '{}'. Wait {}s", safeIp, waitSec);
+            auditService.recordEvent("RATE_LIMIT_BLOCKED", "anonymous", safeIp, "/auth/login", "BLOCKED",
+                    "Login brute-force limit reached (5 attempts/min). Cooldown: " + waitSec + "s");
             throw new ResponseStatusException(
                     HttpStatus.TOO_MANY_REQUESTS,
                     "Too many login attempts from your IP address. Please wait " + waitSec + " seconds before trying again."
