@@ -32,7 +32,39 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                .headers(headers -> headers
+                        // Allow H2 console to render in iframe (same origin only)
+                        .frameOptions(frame -> frame.sameOrigin())
+
+                        // Prevent browsers from MIME-sniffing a response away from the declared Content-Type
+                        .contentTypeOptions(contentType -> {})
+
+                        // Modern XSS protection: disable legacy header (CSP is the proper defense now)
+                        .xssProtection(xss -> xss.disable())
+
+                        // Content Security Policy — tuned for Next.js + SSE + external fonts
+                        // - unsafe-inline needed for Tailwind / styled-components
+                        // - connect-src allows SSE streaming and API calls from the frontend
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'self'; " +
+                                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                                "font-src 'self' https://fonts.gstatic.com data:; " +
+                                "img-src 'self' data: https: blob:; " +
+                                "connect-src 'self' http: https: ws: wss:; " +
+                                "frame-ancestors 'self'; " +
+                                "object-src 'none'; " +
+                                "base-uri 'self';"
+                        ))
+
+                        // Referrer-Policy: only send origin on cross-origin requests (no full path leakage)
+                        .referrerPolicy(referrer -> referrer
+                                .policy(org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+
+                        // Permissions-Policy: disable sensitive browser APIs not used by this app
+                        .permissionsPolicy(permissions -> permissions
+                                .policy("camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"))
+                )
                 .authorizeHttpRequests(auth -> auth
                         // CORS pre-flight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
