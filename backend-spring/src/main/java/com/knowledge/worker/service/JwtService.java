@@ -3,19 +3,23 @@ package com.knowledge.worker.service;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Date;
 import java.util.Map;
 import java.util.function.Function;
 
 @Service
+@Slf4j
 public class JwtService {
 
-    @Value("${app.jwt.secret}")
+    @Value("${app.jwt.secret:}")
     private String jwtSecret;
 
     @Value("${app.jwt.expiration-ms:86400000}")
@@ -24,15 +28,28 @@ public class JwtService {
     @Value("${app.jwt.refresh-expiration-ms:604800000}")
     private long refreshExpirationMs;
 
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
-            // Pad key if too short for HMAC-SHA256
-            byte[] padded = new byte[32];
-            System.arraycopy(keyBytes, 0, padded, 0, Math.min(keyBytes.length, 32));
-            return Keys.hmacShaKeyFor(padded);
+    private SecretKey signingKey;
+
+    @PostConstruct
+    public void initSigningKey() {
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            log.warn("No JWT_SECRET defined in environment. Initializing cryptographically secure ephemeral 256-bit key for this session.");
+            byte[] ephemeral = new byte[32];
+            new SecureRandom().nextBytes(ephemeral);
+            this.signingKey = Keys.hmacShaKeyFor(ephemeral);
+            return;
         }
-        return Keys.hmacShaKeyFor(keyBytes);
+
+        byte[] keyBytes = jwtSecret.trim().getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            log.error("FATAL: JWT secret has insufficient entropy ({} bytes, minimum 32 required).", keyBytes.length);
+            throw new IllegalStateException("FATAL: JWT secret must be at least 32 characters (256 bits).");
+        }
+        this.signingKey = Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    private SecretKey getSigningKey() {
+        return this.signingKey;
     }
 
     public String generateAccessToken(String username, Map<String, Object> extraClaims) {
