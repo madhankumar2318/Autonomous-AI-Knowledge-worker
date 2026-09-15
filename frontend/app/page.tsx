@@ -260,11 +260,19 @@ export default function Home_Page() {
             });
             if (refreshRes.ok) {
               const refreshData = await refreshRes.json();
-              if (refreshData?.accessToken) {
-                localStorage.setItem("ak_token", refreshData.accessToken);
+              const newAccess = refreshData?.accessToken || refreshData?.access_token;
+              const newRefresh = refreshData?.refreshToken || refreshData?.refresh_token;
+              if (newAccess) {
+                localStorage.setItem("ak_token", newAccess);
+              }
+              if (newRefresh) {
+                localStorage.setItem("ak_refresh_token", newRefresh);
               }
               // Retry original request
               response = await originalFetch(resource, config);
+            } else if (refreshRes.status === 401) {
+              localStorage.removeItem("ak_token");
+              localStorage.removeItem("ak_refresh_token");
             }
           } catch (_err) {
             // Silent catch to prevent reload loops

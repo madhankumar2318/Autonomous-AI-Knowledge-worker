@@ -50,6 +50,8 @@ public class AuthDtos {
         @JsonProperty("token_type")
         @Builder.Default
         private String tokenType = "bearer";
+        @JsonProperty("refresh_token")
+        private String refreshToken;
         private String username;
         private String name;
         private String email;

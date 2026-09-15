@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class AuthService {
     private final UserSettingRepository userSettingRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AuditService auditService;
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
@@ -96,11 +98,14 @@ public class AuthService {
 
         String accessToken = jwtService.generateAccessToken(user.getUsername(), Map.of("name", user.getName() != null ? user.getName() : ""));
         String refreshTokenStr = jwtService.generateRefreshToken(user.getUsername());
+        String familyId = UUID.randomUUID().toString();
 
-        // Save refresh token in DB
+        // Save initial family root refresh token in DB
         RefreshToken refreshToken = RefreshToken.builder()
                 .username(user.getUsername())
                 .token(refreshTokenStr)
+                .familyId(familyId)
+                .revoked(false)
                 .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
                 .build();
         refreshTokenRepository.save(refreshToken);
@@ -127,6 +132,7 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
+                .refreshToken(refreshTokenStr)
                 .tokenType("bearer")
                 .username(user.getUsername())
                 .name(user.getName())
@@ -168,6 +174,31 @@ public class AuthService {
         RefreshToken token = refreshTokenRepository.findByToken(refreshTokenStr)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token"));
 
+        // 1. REPLAY ATTACK DETECTION:
+        // If an already-revoked refresh token is presented, someone is attempting to replay a compromised token.
+        // Immediately revoke the entire token family to protect the account.
+        if (token.isRevoked()) {
+            String compromisedFamily = token.getFamilyId();
+            if (compromisedFamily != null && !compromisedFamily.isBlank()) {
+                refreshTokenRepository.deleteByFamilyId(compromisedFamily);
+            } else {
+                refreshTokenRepository.deleteByUsername(token.getUsername());
+            }
+
+            auditService.recordEvent(
+                    "REFRESH_TOKEN_REUSE_DETECTED",
+                    token.getUsername(),
+                    null,
+                    "/auth/refresh",
+                    "BLOCKED",
+                    "Attempted reuse of already-revoked refresh token in family " + compromisedFamily + ". Entire family invalidated."
+            );
+
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                    "Security alert: Refresh token reuse detected. All active sessions have been terminated.");
+        }
+
+        // 2. EXPIRATION CHECK
         if (token.getExpiresAt().isBefore(Instant.now())) {
             refreshTokenRepository.delete(token);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Refresh token expired");
@@ -176,9 +207,35 @@ public class AuthService {
         User user = userRepository.findByUsername(token.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
+        // 3. ROTATION:
+        // Mark the current token as revoked and generate a brand-new paired refresh token in the same family.
         String newAccessToken = jwtService.generateAccessToken(user.getUsername(), Map.of("name", user.getName() != null ? user.getName() : ""));
+        String newRefreshTokenStr = jwtService.generateRefreshToken(user.getUsername());
 
+        token.setRevoked(true);
+        token.setReplacedByToken(newRefreshTokenStr);
+        refreshTokenRepository.save(token);
+
+        RefreshToken newRefreshToken = RefreshToken.builder()
+                .username(user.getUsername())
+                .token(newRefreshTokenStr)
+                .familyId(token.getFamilyId())
+                .revoked(false)
+                .expiresAt(Instant.now().plus(7, ChronoUnit.DAYS))
+                .build();
+        refreshTokenRepository.save(newRefreshToken);
+
+        // 4. Update HTTP-only cookies
         if (response != null) {
+            ResponseCookie newRefreshCookie = ResponseCookie.from("refresh_token", newRefreshTokenStr)
+                    .httpOnly(true)
+                    .secure(true)
+                    .sameSite("None")
+                    .path("/")
+                    .maxAge(7 * 24 * 60 * 60)
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, newRefreshCookie.toString());
+
             ResponseCookie newAccessCookie = ResponseCookie.from("access_token", newAccessToken)
                     .httpOnly(true)
                     .secure(true)
@@ -189,13 +246,24 @@ public class AuthService {
             response.addHeader(HttpHeaders.SET_COOKIE, newAccessCookie.toString());
         }
 
+        auditService.recordEvent(
+                "AUTH_TOKEN_ROTATED",
+                user.getUsername(),
+                null,
+                "/auth/refresh",
+                "SUCCESS",
+                "Refresh token rotated successfully for family " + token.getFamilyId()
+        );
+
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
+                .refreshToken(newRefreshTokenStr)
                 .tokenType("bearer")
                 .username(user.getUsername())
                 .name(user.getName())
                 .email(user.getEmail())
                 .mobile(user.getMobile())
+                .message("Token refreshed and rotated successfully")
                 .build();
     }
 
