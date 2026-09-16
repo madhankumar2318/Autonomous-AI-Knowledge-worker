@@ -213,8 +213,31 @@ export function formatMessage(
     .replace(/<\/artifact>/g, "")
     .trimStart();
 
+  // Secondary pass: escape any raw angle-bracket sequences that survived the
+  // strip above, but ONLY outside fenced code blocks (``` ... ```).
+  // This prevents any tag-like content from being misinterpreted by future
+  // render paths while keeping code blocks untouched.
+  const escapeAngleBrackets = (raw: string): string => {
+    const result: string[] = [];
+    let inCode = false;
+    for (const line of raw.split("\n")) {
+      if (line.trim().startsWith("```")) {
+        inCode = !inCode;
+        result.push(line);
+      } else if (inCode) {
+        result.push(line);
+      } else {
+        // Outside code blocks: escape any remaining < / > that look like tags
+        result.push(line.replace(/<(?=[a-zA-Z/!])/g, "&lt;").replace(/(?<=[a-zA-Z"'0-9])>/g, "&gt;"));
+      }
+    }
+    return result.join("\n");
+  };
+
+  const safeText = escapeAngleBrackets(sanitized);
+
   const segments: React.ReactNode[] = [];
-  const lines = sanitized.split("\n");
+  const lines = safeText.split("\n");
   let i = 0;
 
   const handleCopy = (codeText: string, btnId: string) => {

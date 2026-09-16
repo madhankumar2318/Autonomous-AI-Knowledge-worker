@@ -35,6 +35,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuditService auditService;
+    private final XssSanitizerService xssSanitizer;
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
@@ -310,9 +311,9 @@ public class AuthService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        if (req.getName() != null) user.setName(req.getName());
-        if (req.getEmail() != null) user.setEmail(req.getEmail());
-        if (req.getMobile() != null) user.setMobile(req.getMobile());
+        if (req.getName() != null) user.setName(xssSanitizer.sanitizePlainText(req.getName(), 100));
+        if (req.getEmail() != null) user.setEmail(xssSanitizer.sanitizePlainText(req.getEmail(), 150));
+        if (req.getMobile() != null) user.setMobile(xssSanitizer.sanitizePlainText(req.getMobile(), 30));
 
         userRepository.save(user);
 

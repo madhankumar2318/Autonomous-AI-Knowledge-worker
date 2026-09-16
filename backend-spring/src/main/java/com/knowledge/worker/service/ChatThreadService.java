@@ -21,6 +21,7 @@ public class ChatThreadService {
 
     private final ChatThreadRepository threadRepository;
     private final ChatMessageRepository messageRepository;
+    private final XssSanitizerService xssSanitizer;
 
     public List<ThreadResponse> listThreads(String username) {
         if (username == null || username.isBlank()) {
@@ -35,7 +36,8 @@ public class ChatThreadService {
     public ThreadResponse createThread(ThreadCreateRequest req) {
         String id = UUID.randomUUID().toString();
         String username = req.getUsername() != null && !req.getUsername().isBlank() ? req.getUsername() : "guest";
-        String title = req.getTitle() != null && !req.getTitle().isBlank() ? req.getTitle() : "New Chat";
+        String rawTitle = req.getTitle() != null && !req.getTitle().isBlank() ? req.getTitle() : "New Chat";
+        String title = xssSanitizer.sanitizePlainText(rawTitle, 100);
 
         ChatThread thread = ChatThread.builder()
                 .id(id)
@@ -80,7 +82,7 @@ public class ChatThreadService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found"));
         verifyThreadOwnership(thread, username);
 
-        thread.setTitle(title);
+        thread.setTitle(xssSanitizer.sanitizePlainText(title, 100));
         thread.setUpdatedAt(Instant.now());
         thread = threadRepository.save(thread);
         return toThreadResponse(thread);
@@ -102,10 +104,13 @@ public class ChatThreadService {
             return;
         }
 
+        // Sanitize before persisting — applies rich-content rules for message bodies
+        String safeContent = xssSanitizer.sanitizeRichContent(content, 32000);
+
         ChatMessage msg = ChatMessage.builder()
                 .threadId(threadId)
                 .role(role)
-                .content(content)
+                .content(safeContent)
                 .createdAt(Instant.now())
                 .build();
         messageRepository.save(msg);
@@ -114,8 +119,8 @@ public class ChatThreadService {
             thread.setUpdatedAt(Instant.now());
             // Auto title if thread is still "New Chat" and this is a user message
             if ("user".equalsIgnoreCase(role) && "New Chat".equals(thread.getTitle())) {
-                String autoTitle = content.length() > 50 ? content.substring(0, 50).trim() + "..." : content.trim();
-                thread.setTitle(autoTitle);
+                String rawAutoTitle = safeContent.length() > 50 ? safeContent.substring(0, 50).trim() + "..." : safeContent.trim();
+                thread.setTitle(xssSanitizer.sanitizePlainText(rawAutoTitle, 100));
             }
             threadRepository.save(thread);
         });
