@@ -39,7 +39,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
-            @RequestBody(required = false) RegisterRequest bodyReq,
+            @Valid @RequestBody(required = false) RegisterRequest bodyReq,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String password,
             @RequestParam(required = false) String name,
@@ -128,14 +128,14 @@ public class AuthController {
 
     @PutMapping("/profile")
     public ResponseEntity<UserDto> updateProfile(Authentication authentication,
-                                                @RequestBody ProfileUpdateRequest req) {
+                                                @Valid @RequestBody ProfileUpdateRequest req) {
         String username = authentication != null ? authentication.getName() : "guest";
         return ResponseEntity.ok(authService.updateProfile(username, req));
     }
 
     @PutMapping("/password")
     public ResponseEntity<Map<String, String>> changePassword(Authentication authentication,
-                                                              @RequestBody PasswordChangeRequest req) {
+                                                              @Valid @RequestBody PasswordChangeRequest req) {
         String username = authentication != null ? authentication.getName() : "guest";
         authService.changePassword(username, req);
         auditService.recordEvent("AUTH_PASSWORD_CHANGE", username, "authenticated", "/auth/password", "SUCCESS", "User changed password");

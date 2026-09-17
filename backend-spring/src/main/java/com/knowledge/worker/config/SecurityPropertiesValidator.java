@@ -29,6 +29,9 @@ public class SecurityPropertiesValidator implements ApplicationRunner {
     @Value("${app.jwt.secret:}")
     private String jwtSecret;
 
+    @Value("${app.encryption.key:}")
+    private String encryptionKey;
+
     @Value("${spring.datasource.url:}")
     private String dbUrl;
 
@@ -73,7 +76,24 @@ public class SecurityPropertiesValidator implements ApplicationRunner {
             }
         }
 
-        // 2. Production Database Check
+        // 2. DB Encryption Key Validation
+        if (encryptionKey == null || encryptionKey.isBlank()) {
+            if (isProduction) {
+                log.error("CRITICAL PRODUCTION SECURITY FAILURE: DB_ENCRYPTION_KEY environment variable is not defined!");
+                throw new IllegalStateException("CRITICAL PRODUCTION SECURITY FAILURE: Missing DB_ENCRYPTION_KEY. PII field encryption requires this key. Aborting startup.");
+            } else {
+                log.warn("DEVELOPMENT NOTICE: No DB_ENCRYPTION_KEY provided. An ephemeral key will be used — encrypted data is lost on restart. Set DB_ENCRYPTION_KEY for persistence.");
+            }
+        } else {
+            String trimmedKey = encryptionKey.trim();
+            if (trimmedKey.length() < 32) {
+                log.error("CRITICAL SECURITY FAILURE: DB_ENCRYPTION_KEY has insufficient entropy (< 32 characters). Length: {}", trimmedKey.length());
+                throw new IllegalStateException("CRITICAL SECURITY FAILURE: DB_ENCRYPTION_KEY must be at least 32 characters (256 bits). Provided length: " + trimmedKey.length());
+            }
+            log.info("[SECURITY-STARTUP] DB_ENCRYPTION_KEY verified with sufficient entropy (>= 256 bits).");
+        }
+
+        // 3. Production Database Check
         if (isProduction && dbUrl != null && dbUrl.contains("h2:file")) {
             log.warn("PRODUCTION DATABASE WARNING: Running in production profile with file-based H2 database. PostgreSQL is strongly recommended for multi-user production.");
         }

@@ -26,6 +26,8 @@ app:
     secret: ${JWT_SECRET:}
     expiration-ms: 86400000 # 24 hours
     refresh-expiration-ms: 604800000 # 7 days
+  encryption:
+    key: ${DB_ENCRYPTION_KEY:}
   cors:
     allowed-origins: ${CORS_ORIGINS:${FRONTEND_URL:http://localhost:3000,http://127.0.0.1:3000}}
   ai:
