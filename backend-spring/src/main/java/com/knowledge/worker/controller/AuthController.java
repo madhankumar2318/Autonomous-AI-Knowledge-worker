@@ -8,9 +8,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.knowledge.worker.service.AuditService;
 import java.util.Map;
@@ -61,7 +63,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @RequestBody(required = false) LoginRequest bodyReq,
+            @Valid @RequestBody(required = false) LoginRequest bodyReq,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String password,
             HttpServletRequest request,
@@ -78,13 +80,34 @@ public class AuthController {
                     .build();
         }
         try {
-            AuthResponse res = authService.login(req, response);
+            AuthResponse res = authService.login(req, response, clientIp);
             auditService.recordEvent("AUTH_LOGIN_SUCCESS", req.getUsername(), clientIp, "/auth/login", "SUCCESS", "User authenticated successfully");
             return ResponseEntity.ok(res);
+        } catch (ResponseStatusException rse) {
+            // Already logged detailed audit event in authService if user exists
+            if (rse.getReason() != null && rse.getReason().contains("Invalid username or password") && !rse.getReason().contains("remaining")) {
+                auditService.recordEvent("AUTH_LOGIN_FAILURE", req.getUsername(), clientIp, "/auth/login", "FAILURE", "Unknown user or authentication failed");
+            }
+            throw rse;
         } catch (Exception e) {
             auditService.recordEvent("AUTH_LOGIN_FAILURE", req.getUsername(), clientIp, "/auth/login", "FAILURE", e.getMessage());
             throw e;
         }
+    }
+
+    @PostMapping("/unlock/{username}")
+    public ResponseEntity<Map<String, String>> unlockAccount(
+            @PathVariable String username,
+            Authentication authentication,
+            HttpServletRequest request
+    ) {
+        String adminName = authentication != null ? authentication.getName() : null;
+        if (adminName == null || !"admin".equalsIgnoreCase(adminName)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrative privileges required.");
+        }
+        String clientIp = getClientIp(request);
+        authService.unlockAccount(username, adminName, clientIp);
+        return ResponseEntity.ok(Map.of("message", "User account '" + username + "' has been unlocked successfully."));
     }
 
     @GetMapping("/verify")

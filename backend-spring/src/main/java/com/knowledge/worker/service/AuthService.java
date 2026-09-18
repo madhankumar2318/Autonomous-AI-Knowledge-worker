@@ -11,6 +11,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -26,8 +27,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class AuthService {
+
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final int LOCKOUT_DURATION_MINUTES = 15;
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -49,6 +54,9 @@ public class AuthService {
                 .name(req.getName())
                 .email(req.getEmail())
                 .mobile(req.getMobile())
+                .failedLoginAttempts(0)
+                .accountLocked(false)
+                .lockoutExpiry(null)
                 .build();
 
         user = userRepository.save(user);
@@ -78,10 +86,46 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse login(LoginRequest req, HttpServletResponse response) {
+    public AuthResponse login(LoginRequest req, HttpServletResponse response, String clientIp) {
         User user = userRepository.findByUsername(req.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
 
+        // 1. Check if account is locked
+        if (user.isAccountLocked()) {
+            if (user.getLockoutExpiry() != null && user.getLockoutExpiry().isAfter(Instant.now())) {
+                long remainingSeconds = ChronoUnit.SECONDS.between(Instant.now(), user.getLockoutExpiry());
+                long remainingMinutes = Math.max(1, (remainingSeconds + 59) / 60);
+
+                auditService.recordEvent(
+                        "AUTH_ACCOUNT_LOCKED_ATTEMPT",
+                        user.getUsername(),
+                        clientIp,
+                        "/auth/login",
+                        "BLOCKED",
+                        "Login attempt on locked account. Lockout active for another " + remainingMinutes + " minute(s)."
+                );
+
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "Account is temporarily locked due to multiple failed login attempts. Please try again after " + remainingMinutes + " minute(s).");
+            } else {
+                // Auto-unlock: lockout duration has expired
+                user.setAccountLocked(false);
+                user.setLockoutExpiry(null);
+                user.setFailedLoginAttempts(0);
+                userRepository.save(user);
+
+                auditService.recordEvent(
+                        "AUTH_ACCOUNT_AUTO_UNLOCKED",
+                        user.getUsername(),
+                        clientIp,
+                        "/auth/login",
+                        "SUCCESS",
+                        "Account lockout duration expired. Account automatically unlocked."
+                );
+            }
+        }
+
+        // 2. Validate Password
         boolean passwordMatches = false;
         if (user.getPassword() != null && user.getPassword().startsWith("$2")) {
             passwordMatches = passwordEncoder.matches(req.getPassword(), user.getPassword());
@@ -89,12 +133,53 @@ public class AuthService {
             passwordMatches = req.getPassword().equals(user.getPassword());
             if (passwordMatches) {
                 user.setPassword(passwordEncoder.encode(req.getPassword()));
-                userRepository.save(user);
             }
         }
 
         if (!passwordMatches) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+            int currentFailures = user.getFailedLoginAttempts() + 1;
+            user.setFailedLoginAttempts(currentFailures);
+
+            if (currentFailures >= MAX_FAILED_ATTEMPTS) {
+                user.setAccountLocked(true);
+                Instant expiry = Instant.now().plus(LOCKOUT_DURATION_MINUTES, ChronoUnit.MINUTES);
+                user.setLockoutExpiry(expiry);
+                userRepository.save(user);
+
+                auditService.recordEvent(
+                        "AUTH_ACCOUNT_LOCKED",
+                        user.getUsername(),
+                        clientIp,
+                        "/auth/login",
+                        "LOCKED",
+                        "Account locked for " + LOCKOUT_DURATION_MINUTES + " minutes after " + currentFailures + " consecutive failed attempts."
+                );
+
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "Account has been locked for 15 minutes due to 5 consecutive failed login attempts.");
+            } else {
+                userRepository.save(user);
+                int remainingAttempts = MAX_FAILED_ATTEMPTS - currentFailures;
+                auditService.recordEvent(
+                        "AUTH_LOGIN_FAILURE",
+                        user.getUsername(),
+                        clientIp,
+                        "/auth/login",
+                        "FAILURE",
+                        "Invalid password. Attempt " + currentFailures + " of " + MAX_FAILED_ATTEMPTS + " before account lockout."
+                );
+
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "Invalid username or password. " + remainingAttempts + " attempt(s) remaining before account lockout.");
+            }
+        }
+
+        // 3. Login successful: reset failed login attempts & locks if present
+        if (user.getFailedLoginAttempts() > 0 || user.isAccountLocked() || user.getLockoutExpiry() != null) {
+            user.setFailedLoginAttempts(0);
+            user.setAccountLocked(false);
+            user.setLockoutExpiry(null);
+            userRepository.save(user);
         }
 
         String accessToken = jwtService.generateAccessToken(user.getUsername(), Map.of("name", user.getName() != null ? user.getName() : ""));
@@ -143,6 +228,26 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
+    public void unlockAccount(String targetUsername, String adminUsername, String clientIp) {
+        User user = userRepository.findByUsername(targetUsername)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User '" + targetUsername + "' not found"));
+
+        user.setAccountLocked(false);
+        user.setLockoutExpiry(null);
+        user.setFailedLoginAttempts(0);
+        userRepository.save(user);
+
+        auditService.recordEvent(
+                "AUTH_ACCOUNT_ADMIN_UNLOCKED",
+                targetUsername,
+                clientIp,
+                "/auth/unlock/" + targetUsername,
+                "SUCCESS",
+                "Account manually unlocked by admin '" + adminUsername + "'"
+        );
+    }
+
     public VerifyResponse verify(String username) {
         if (username == null || username.isBlank() || "anonymousUser".equals(username)) {
             return VerifyResponse.builder().valid(false).build();
@@ -176,8 +281,6 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired refresh token"));
 
         // 1. REPLAY ATTACK DETECTION:
-        // If an already-revoked refresh token is presented, someone is attempting to replay a compromised token.
-        // Immediately revoke the entire token family to protect the account.
         if (token.isRevoked()) {
             String compromisedFamily = token.getFamilyId();
             if (compromisedFamily != null && !compromisedFamily.isBlank()) {
@@ -209,7 +312,6 @@ public class AuthService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
 
         // 3. ROTATION:
-        // Mark the current token as revoked and generate a brand-new paired refresh token in the same family.
         String newAccessToken = jwtService.generateAccessToken(user.getUsername(), Map.of("name", user.getName() != null ? user.getName() : ""));
         String newRefreshTokenStr = jwtService.generateRefreshToken(user.getUsername());
 
@@ -335,6 +437,9 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(req.getNewPassword()));
+        user.setFailedLoginAttempts(0);
+        user.setAccountLocked(false);
+        user.setLockoutExpiry(null);
         userRepository.save(user);
     }
 }

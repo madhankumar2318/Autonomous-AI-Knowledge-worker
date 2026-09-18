@@ -82,7 +82,7 @@ public class SecurityConfig {
                         .requestMatchers("/h2-console/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 
                         // Protected Workspace & User Resources
-                        .requestMatchers("/auth/profile", "/auth/password", "/auth/logout").authenticated()
+                        .requestMatchers("/auth/profile", "/auth/password", "/auth/logout", "/auth/unlock/**").authenticated()
                         .requestMatchers("/upload/**").authenticated()
                         .requestMatchers("/chat/**").authenticated()
                         .requestMatchers("/settings/**").authenticated()
