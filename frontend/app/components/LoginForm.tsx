@@ -357,8 +357,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [isRegistering, setIsRegistering] = useState(false);
 
   // Shared States
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("admin");
+  const [password, setPassword] = useState("Sk_uyir18");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

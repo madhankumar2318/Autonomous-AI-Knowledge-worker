@@ -1,7 +1,11 @@
 // frontend/app/config.ts
-// In production (Vercel), NEXT_PUBLIC_API_URL is set via .env.production pointing to the Render backend.
-// In local dev, set NEXT_PUBLIC_API_URL in .env.local (see .env.local.example).
-export const API_BASE_URL =
+// In production or preview, if NEXT_PUBLIC_API_URL is unset or points to an offline Render service,
+// fallback to same-origin ("") so Next.js route handlers handle all auth, market, and AI requests.
+const rawUrl =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://autonomous-ai-knowledge-worker-backend.onrender.com";
+  "";
+
+export const API_BASE_URL =
+  rawUrl && !rawUrl.includes("onrender.com") ? rawUrl.replace(/\/+$/, "") : "";
+
