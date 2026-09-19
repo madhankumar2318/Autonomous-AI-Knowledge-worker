@@ -7,7 +7,8 @@ export default function ThemeToggle() {
 
   // Restore saved theme on mount
   useEffect(() => {
-    const saved = (localStorage.getItem("ak_theme") as "dark" | "light" | "oled") || "dark";
+    const saved =
+      (localStorage.getItem("ak_theme") as "dark" | "light" | "oled") || "dark";
     setTheme(saved);
     document.documentElement.setAttribute("data-theme", saved);
   }, []);

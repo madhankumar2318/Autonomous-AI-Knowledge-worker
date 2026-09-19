@@ -1,5 +1,13 @@
 "use client";
-import { Search, Sparkles, Terminal, RefreshCw, Moon, Sun, Eclipse } from "lucide-react";
+import {
+  Search,
+  Sparkles,
+  Terminal,
+  RefreshCw,
+  Moon,
+  Sun,
+  Eclipse,
+} from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
 
 interface CmdKPaletteProps {
@@ -7,10 +15,7 @@ interface CmdKPaletteProps {
   onClose: () => void;
 }
 
-export default function CmdKPalette({
-  isOpen,
-  onClose,
-}: CmdKPaletteProps) {
+export default function CmdKPalette({ isOpen, onClose }: CmdKPaletteProps) {
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,20 +44,30 @@ export default function CmdKPalette({
 
   if (!isOpen) return null;
 
-  const currentTheme = (typeof window !== "undefined" ? localStorage.getItem("ak_theme") : "dark") as "dark" | "light" | "oled" || "dark";
-  const activeModel = typeof window !== "undefined" ? localStorage.getItem("ak_selected_model") || "llama-70b" : "llama-70b";
+  const currentTheme =
+    ((typeof window !== "undefined"
+      ? localStorage.getItem("ak_theme")
+      : "dark") as "dark" | "light" | "oled") || "dark";
+  const activeModel =
+    typeof window !== "undefined"
+      ? localStorage.getItem("ak_selected_model") || "llama-70b"
+      : "llama-70b";
 
   const setTheme = (theme: "dark" | "light" | "oled") => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("ak_theme", theme);
-    window.dispatchEvent(new CustomEvent("ak-theme-changed", { detail: theme }));
+    window.dispatchEvent(
+      new CustomEvent("ak-theme-changed", { detail: theme }),
+    );
     onClose();
   };
 
   const selectModel = (model: string) => {
     localStorage.setItem("ak_selected_model", model);
     localStorage.setItem("ak_selected_model_modified", "true");
-    window.dispatchEvent(new CustomEvent("ak-model-changed", { detail: model }));
+    window.dispatchEvent(
+      new CustomEvent("ak-model-changed", { detail: model }),
+    );
     onClose();
   };
 
@@ -122,7 +137,7 @@ export default function CmdKPalette({
   const filteredCommands = commands.filter(
     (c) =>
       c.title.toLowerCase().includes(search.toLowerCase()) ||
-      c.subtitle.toLowerCase().includes(search.toLowerCase())
+      c.subtitle.toLowerCase().includes(search.toLowerCase()),
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -131,7 +146,10 @@ export default function CmdKPalette({
       setSelectedIndex((prev) => (prev + 1) % filteredCommands.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+      setSelectedIndex(
+        (prev) =>
+          (prev - 1 + filteredCommands.length) % filteredCommands.length,
+      );
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (filteredCommands[selectedIndex]) {
@@ -163,7 +181,8 @@ export default function CmdKPalette({
           background: "rgba(10, 10, 26, 0.94)",
           border: "1px solid rgba(34, 211, 238, 0.22)",
           borderRadius: "16px",
-          boxShadow: "0 24px 64px -10px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)",
+          boxShadow:
+            "0 24px 64px -10px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -253,8 +272,12 @@ export default function CmdKPalette({
                     padding: "10px 12px",
                     borderRadius: "10px",
                     cursor: "pointer",
-                    background: isSelected ? "color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent)" : "transparent",
-                    border: isSelected ? "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent)" : "1px solid transparent",
+                    background: isSelected
+                      ? "color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent)"
+                      : "transparent",
+                    border: isSelected
+                      ? "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent)"
+                      : "1px solid transparent",
                     transition: "all 0.12s ease",
                   }}
                 >
@@ -276,7 +299,11 @@ export default function CmdKPalette({
                       style={{
                         fontSize: "13px",
                         fontWeight: 600,
-                        color: cmd.active ? "#22d3ee" : isSelected ? "#fafafa" : "#e4e4e7",
+                        color: cmd.active
+                          ? "#22d3ee"
+                          : isSelected
+                            ? "#fafafa"
+                            : "#e4e4e7",
                       }}
                     >
                       {cmd.title}
@@ -296,12 +323,24 @@ export default function CmdKPalette({
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize: "11px", color: "#71717a", marginTop: "2px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#71717a",
+                        marginTop: "2px",
+                      }}
+                    >
                       {cmd.subtitle}
                     </div>
                   </div>
                   {isSelected && (
-                    <span style={{ fontSize: "10px", color: "#22d3ee", fontWeight: 700 }}>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: "#22d3ee",
+                        fontWeight: 700,
+                      }}
+                    >
                       ⏎ Enter
                     </span>
                   )}

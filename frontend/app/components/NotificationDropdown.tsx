@@ -1,5 +1,13 @@
 "use client";
-import { X, Check, Bell, Info, AlertCircle, CheckCircle, Trash2 } from "lucide-react";
+import {
+  X,
+  Check,
+  Bell,
+  Info,
+  AlertCircle,
+  CheckCircle,
+  Trash2,
+} from "lucide-react";
 import React, { useEffect, useRef } from "react";
 
 export interface NotificationItem {
@@ -36,7 +44,10 @@ export default function NotificationDropdown({
   useEffect(() => {
     if (!isOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         onClose();
       }
     };
@@ -59,8 +70,10 @@ export default function NotificationDropdown({
   };
 
   const getIcon = (type: NotificationItem["type"]) => {
-    if (type === "success") return <CheckCircle className="w-4 h-4 text-emerald-400" />;
-    if (type === "warning") return <AlertCircle className="w-4 h-4 text-rose-400" />;
+    if (type === "success")
+      return <CheckCircle className="w-4 h-4 text-emerald-400" />;
+    if (type === "warning")
+      return <AlertCircle className="w-4 h-4 text-rose-400" />;
     return <Info className="w-4 h-4 text-cyan-400" />;
   };
 
@@ -77,7 +90,8 @@ export default function NotificationDropdown({
         background: "rgba(10, 10, 26, 0.94)",
         border: "1px solid rgba(34, 211, 238, 0.22)",
         borderRadius: "14px",
-        boxShadow: "0 12px 40px -10px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)",
+        boxShadow:
+          "0 12px 40px -10px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)",
         zIndex: 1000,
         display: "flex",
         flexDirection: "column",
@@ -98,7 +112,9 @@ export default function NotificationDropdown({
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <Bell className="w-4 h-4 text-cyan-400" />
-          <span style={{ fontSize: "14px", fontWeight: 700, color: "#fafafa" }}>Notifications</span>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "#fafafa" }}>
+            Notifications
+          </span>
           {unreadCount > 0 && (
             <span
               style={{
@@ -178,7 +194,10 @@ export default function NotificationDropdown({
       )}
 
       {/* Notifications scroll body */}
-      <div className="notif-dropdown-body" style={{ maxHeight: "280px", overflowY: "auto" }}>
+      <div
+        className="notif-dropdown-body"
+        style={{ maxHeight: "280px", overflowY: "auto" }}
+      >
         {notifications.length === 0 ? (
           <div
             style={{
@@ -200,7 +219,9 @@ export default function NotificationDropdown({
                 gap: "12px",
                 padding: "12px 16px",
                 borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
-                background: notif.read ? "transparent" : "rgba(34, 211, 238, 0.03)",
+                background: notif.read
+                  ? "transparent"
+                  : "rgba(34, 211, 238, 0.03)",
                 cursor: "pointer",
                 transition: "background 0.15s ease",
                 position: "relative",
@@ -269,7 +290,13 @@ export default function NotificationDropdown({
                 >
                   {notif.message}
                 </div>
-                <div style={{ fontSize: "10px", color: "#52525b", marginTop: "4px" }}>
+                <div
+                  style={{
+                    fontSize: "10px",
+                    color: "#52525b",
+                    marginTop: "4px",
+                  }}
+                >
                   {formatTime(notif.timestamp)}
                 </div>
               </div>

@@ -1,5 +1,14 @@
 "use client";
-import { Clock, ExternalLink, Newspaper, RefreshCw, Search, SearchX, Zap, Sparkles } from "lucide-react";
+import {
+  Clock,
+  ExternalLink,
+  Newspaper,
+  RefreshCw,
+  Search,
+  SearchX,
+  Zap,
+  Sparkles,
+} from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
@@ -27,12 +36,12 @@ const CATEGORIES = [
 
 const SOURCE_COLORS: Record<string, string> = {
   "BBC News": "#ee3d24",
-  "CNN": "#cc0000",
-  "Reuters": "#ff6600",
-  "Bloomberg": "#ff6d00",
-  "TechCrunch": "#0a8a07",
+  CNN: "#cc0000",
+  Reuters: "#ff6600",
+  Bloomberg: "#ff6d00",
+  TechCrunch: "#0a8a07",
   "The Verge": "#e40000",
-  "Wired": "#000000",
+  Wired: "#000000",
   default: "#22d3ee",
 };
 
@@ -52,7 +61,10 @@ function timeAgo(iso?: string): string {
   if (hours < 24) return `${hours}h ago`;
   if (days === 1) return "Yesterday";
   if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function isRecent(iso?: string): boolean {
@@ -62,22 +74,23 @@ function isRecent(iso?: string): boolean {
 
 // Generate a unique gradient for articles without images based on title hash
 const GRADIENT_PALETTES = [
-  ["#0891b2", "#06b6d4", "#22d3ee"],   // cyan
-  ["#0d9488", "#14b8a6", "#2dd4bf"],   // teal
-  ["#0284c7", "#0ea5e9", "#38bdf8"],   // sky
-  ["#2563eb", "#3b82f6", "#60a5fa"],   // blue
-  ["#7c3aed", "#8b5cf6", "#a78bfa"],   // violet
-  ["#db2777", "#ec4899", "#f472b6"],   // pink
-  ["#dc2626", "#ef4444", "#f87171"],   // red
-  ["#ea580c", "#f97316", "#fb923c"],   // orange
-  ["#d97706", "#f59e0b", "#fbbf24"],   // amber
-  ["#059669", "#10b981", "#34d399"],   // emerald
-  ["#4f46e5", "#6366f1", "#818cf8"],   // indigo
-  ["#9333ea", "#a855f7", "#c084fc"],   // purple
+  ["#0891b2", "#06b6d4", "#22d3ee"], // cyan
+  ["#0d9488", "#14b8a6", "#2dd4bf"], // teal
+  ["#0284c7", "#0ea5e9", "#38bdf8"], // sky
+  ["#2563eb", "#3b82f6", "#60a5fa"], // blue
+  ["#7c3aed", "#8b5cf6", "#a78bfa"], // violet
+  ["#db2777", "#ec4899", "#f472b6"], // pink
+  ["#dc2626", "#ef4444", "#f87171"], // red
+  ["#ea580c", "#f97316", "#fb923c"], // orange
+  ["#d97706", "#f59e0b", "#fbbf24"], // amber
+  ["#059669", "#10b981", "#34d399"], // emerald
+  ["#4f46e5", "#6366f1", "#818cf8"], // indigo
+  ["#9333ea", "#a855f7", "#c084fc"], // purple
 ];
 
 function getPlaceholderGradient(title?: string): string {
-  if (!title) return `linear-gradient(135deg, ${GRADIENT_PALETTES[0][0]}33, ${GRADIENT_PALETTES[0][2]}22)`;
+  if (!title)
+    return `linear-gradient(135deg, ${GRADIENT_PALETTES[0][0]}33, ${GRADIENT_PALETTES[0][2]}22)`;
   // Simple hash from title
   let hash = 0;
   for (let i = 0; i < title.length; i++) {
@@ -107,12 +120,18 @@ export default function NewsSection({
   const [manualRefreshing, setManualRefreshing] = useState(false);
 
   const fetchNews = useCallback(
-    async (pageNum: number, searchTopic = topic, searchCategory = category, append = false) => {
+    async (
+      pageNum: number,
+      searchTopic = topic,
+      searchCategory = category,
+      append = false,
+    ) => {
       setLoading(true);
       if (!append) setManualRefreshing(true);
       let url = `${API_BASE_URL}/news?page=${pageNum}`;
       if (searchTopic) url += `&topic=${encodeURIComponent(searchTopic)}`;
-      if (searchCategory) url += `&category=${encodeURIComponent(searchCategory)}`;
+      if (searchCategory)
+        url += `&category=${encodeURIComponent(searchCategory)}`;
       try {
         const res = await fetch(url);
         const data = await res.json();
@@ -134,26 +153,30 @@ export default function NewsSection({
       setLoading(false);
       setManualRefreshing(false);
     },
-    [topic, category]
+    [topic, category],
   );
 
   const handleAnalyzeArticle = (e: React.MouseEvent, art: Article) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const prompt = `Analyze the market implications and key takeaways of this news article:\n\nTitle: "${art.title}"\nSource: ${art.source || "News"}\nDescription: ${art.description || art.title}\n\nWhat are the potential financial and strategic impacts?`;
-    
-    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", {
-      detail: { prompt }
-    }));
-    
-    window.dispatchEvent(new CustomEvent("ak-add-notification", {
-      detail: {
-        title: "AI Analysis Triggered",
-        message: `Sent "${art.title.slice(0, 45)}..." to AI Analyst.`,
-        type: "info"
-      }
-    }));
+
+    window.dispatchEvent(
+      new CustomEvent("ak-set-chat-prompt", {
+        detail: { prompt },
+      }),
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("ak-add-notification", {
+        detail: {
+          title: "AI Analysis Triggered",
+          message: `Sent "${art.title.slice(0, 45)}..." to AI Analyst.`,
+          type: "info",
+        },
+      }),
+    );
   };
 
   useEffect(() => {
@@ -250,33 +273,69 @@ export default function NewsSection({
             />
           </form>
 
-          <div className="news-refresh-wrap" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span className="stocks-live-indicator" style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "5px",
-              background: wsConnected ? "rgba(52,211,153,0.08)" : (wsConnecting ? "rgba(251,191,36,0.08)" : "rgba(248,113,113,0.08)"),
-              borderColor: wsConnected ? "rgba(52,211,153,0.3)" : (wsConnecting ? "rgba(251,191,36,0.3)" : "rgba(248,113,113,0.3)"),
-              color: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
-              padding: "4px 8px",
-              borderRadius: "6px",
-              fontSize: "11px",
-              fontWeight: 600,
-              border: "1px solid"
-            }}>
-              <span className="stocks-live-dot" style={{
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                background: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
-                boxShadow: wsConnected ? "0 0 8px #34d399" : (wsConnecting ? "0 0 8px #fbbf24" : "none"),
-                animation: wsConnected ? "pulse 2s infinite" : "none"
-              }} />
-              {wsConnected ? "Real-Time Live" : (wsConnecting ? "Connecting Live..." : "Disconnected")}
+          <div
+            className="news-refresh-wrap"
+            style={{ display: "flex", alignItems: "center", gap: "10px" }}
+          >
+            <span
+              className="stocks-live-indicator"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                background: wsConnected
+                  ? "rgba(52,211,153,0.08)"
+                  : wsConnecting
+                    ? "rgba(251,191,36,0.08)"
+                    : "rgba(248,113,113,0.08)",
+                borderColor: wsConnected
+                  ? "rgba(52,211,153,0.3)"
+                  : wsConnecting
+                    ? "rgba(251,191,36,0.3)"
+                    : "rgba(248,113,113,0.3)",
+                color: wsConnected
+                  ? "#34d399"
+                  : wsConnecting
+                    ? "#fbbf24"
+                    : "#f87171",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                fontSize: "11px",
+                fontWeight: 600,
+                border: "1px solid",
+              }}
+            >
+              <span
+                className="stocks-live-dot"
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: wsConnected
+                    ? "#34d399"
+                    : wsConnecting
+                      ? "#fbbf24"
+                      : "#f87171",
+                  boxShadow: wsConnected
+                    ? "0 0 8px #34d399"
+                    : wsConnecting
+                      ? "0 0 8px #fbbf24"
+                      : "none",
+                  animation: wsConnected ? "pulse 2s infinite" : "none",
+                }}
+              />
+              {wsConnected
+                ? "Real-Time Live"
+                : wsConnecting
+                  ? "Connecting Live..."
+                  : "Disconnected"}
             </span>
 
             {!loading && total > 0 && (
-              <span className="news-count" style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+              <span
+                className="news-count"
+                style={{ fontSize: "11px", color: "var(--text-secondary)" }}
+              >
                 {articles.length} / {total}
               </span>
             )}
@@ -287,7 +346,10 @@ export default function NewsSection({
               className="news-refresh-btn"
               title="Refresh news"
             >
-              <RefreshCw size={12} className={manualRefreshing ? "animate-spin" : ""} />
+              <RefreshCw
+                size={12}
+                className={manualRefreshing ? "animate-spin" : ""}
+              />
               <span>{manualRefreshing ? "Syncing…" : "Sync Now"}</span>
             </button>
           </div>
@@ -312,7 +374,9 @@ export default function NewsSection({
         <div className="news-skeleton-grid">
           <div className="news-skeleton-hero skeleton" />
           <div className="news-skeleton-side">
-            {[...Array(4)].map((_, i) => <div key={i} className="news-skeleton-card skeleton" />)}
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="news-skeleton-card skeleton" />
+            ))}
           </div>
         </div>
       )}
@@ -320,7 +384,6 @@ export default function NewsSection({
       {/* ── ARTICLES ── */}
       {articles.length > 0 && (
         <div className="news-content">
-
           {/* ── HERO + SIDEBAR ── */}
           {featuredArticle && (
             <div className="news-hero-row">
@@ -341,14 +404,17 @@ export default function NewsSection({
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;
                         const parent = img.parentElement!;
-                        parent.classList.add('news-img-fallback');
-                        parent.style.background = getPlaceholderGradient(featuredArticle.title);
-                        img.style.display = 'none';
+                        parent.classList.add("news-img-fallback");
+                        parent.style.background = getPlaceholderGradient(
+                          featuredArticle.title,
+                        );
+                        img.style.display = "none";
                         // Insert icon if not already there
-                        if (!parent.querySelector('.news-placeholder-icon')) {
-                          const icon = document.createElement('div');
-                          icon.className = 'news-placeholder-icon';
-                          icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
+                        if (!parent.querySelector(".news-placeholder-icon")) {
+                          const icon = document.createElement("div");
+                          icon.className = "news-placeholder-icon";
+                          icon.innerHTML =
+                            '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
                           parent.appendChild(icon);
                         }
                       }}
@@ -356,8 +422,16 @@ export default function NewsSection({
                     <div className="news-hero-img-overlay" />
                   </div>
                 ) : (
-                  <div className="news-hero-img-placeholder" style={{ background: getPlaceholderGradient(featuredArticle.title) }}>
-                    <Newspaper className="w-12 h-12" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                  <div
+                    className="news-hero-img-placeholder"
+                    style={{
+                      background: getPlaceholderGradient(featuredArticle.title),
+                    }}
+                  >
+                    <Newspaper
+                      className="w-12 h-12"
+                      style={{ color: "rgba(255,255,255,0.15)" }}
+                    />
                   </div>
                 )}
                 <div className="news-hero-body">
@@ -365,7 +439,11 @@ export default function NewsSection({
                     {featuredArticle.source && (
                       <span
                         className="news-source-badge"
-                        style={{ background: `${getSourceColor(featuredArticle.source)}22`, borderColor: `${getSourceColor(featuredArticle.source)}55`, color: getSourceColor(featuredArticle.source) }}
+                        style={{
+                          background: `${getSourceColor(featuredArticle.source)}22`,
+                          borderColor: `${getSourceColor(featuredArticle.source)}55`,
+                          color: getSourceColor(featuredArticle.source),
+                        }}
                       >
                         {featuredArticle.source}
                       </span>
@@ -377,16 +455,26 @@ export default function NewsSection({
                     )}
                   </div>
                   <h3 className="news-hero-title">{featuredArticle.title}</h3>
-                  <p className="news-hero-desc">{featuredArticle.description}</p>
+                  <p className="news-hero-desc">
+                    {featuredArticle.description}
+                  </p>
                   <div className="news-hero-footer">
                     <span className="news-time">
                       <Clock className="w-3 h-3" />
                       {timeAgo(featuredArticle.publishedAt)}
                     </span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
                       <button
                         type="button"
-                        onClick={(e) => handleAnalyzeArticle(e, featuredArticle)}
+                        onClick={(e) =>
+                          handleAnalyzeArticle(e, featuredArticle)
+                        }
                         title="Analyze this breaking news with AI"
                         className="news-ai-action-btn"
                       >
@@ -420,32 +508,53 @@ export default function NewsSection({
                             style={{ background: getSourceColor(art.source) }}
                           />
                         )}
-                        <span className="news-side-source">{art.source || "News"}</span>
-                        <span className="news-side-time">{timeAgo(art.publishedAt)}</span>
+                        <span className="news-side-source">
+                          {art.source || "News"}
+                        </span>
+                        <span className="news-side-time">
+                          {timeAgo(art.publishedAt)}
+                        </span>
                       </div>
                       <h4 className="news-side-title">{art.title}</h4>
                     </div>
-                    <div className="news-side-thumb-wrap" style={!art.urlToImage ? { background: getPlaceholderGradient(art.title), display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}>
-                    {art.urlToImage ? (
-                      <img
-                        src={art.urlToImage}
-                        alt=""
-                        className="news-side-thumb"
-                        loading="lazy"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          const parent = img.parentElement!;
-                          parent.style.background = getPlaceholderGradient(art.title);
-                          parent.style.display = 'flex';
-                          parent.style.alignItems = 'center';
-                          parent.style.justifyContent = 'center';
-                          img.style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <Newspaper className="w-4 h-4" style={{ color: 'rgba(255,255,255,0.2)' }} />
-                    )}
-                  </div>
+                    <div
+                      className="news-side-thumb-wrap"
+                      style={
+                        !art.urlToImage
+                          ? {
+                              background: getPlaceholderGradient(art.title),
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }
+                          : undefined
+                      }
+                    >
+                      {art.urlToImage ? (
+                        <img
+                          src={art.urlToImage}
+                          alt=""
+                          className="news-side-thumb"
+                          loading="lazy"
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            const parent = img.parentElement!;
+                            parent.style.background = getPlaceholderGradient(
+                              art.title,
+                            );
+                            parent.style.display = "flex";
+                            parent.style.alignItems = "center";
+                            parent.style.justifyContent = "center";
+                            img.style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <Newspaper
+                          className="w-4 h-4"
+                          style={{ color: "rgba(255,255,255,0.2)" }}
+                        />
+                      )}
+                    </div>
                   </a>
                 ))}
               </div>
@@ -463,7 +572,19 @@ export default function NewsSection({
                   rel="noopener noreferrer"
                   className="news-card premium-card-hover"
                 >
-                  <div className="news-card-img-wrap" style={!article.urlToImage ? { background: getPlaceholderGradient(article.title), display: 'flex', alignItems: 'center', justifyContent: 'center' } : undefined}>
+                  <div
+                    className="news-card-img-wrap"
+                    style={
+                      !article.urlToImage
+                        ? {
+                            background: getPlaceholderGradient(article.title),
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }
+                        : undefined
+                    }
+                  >
                     {article.urlToImage ? (
                       <img
                         src={article.urlToImage}
@@ -473,28 +594,38 @@ export default function NewsSection({
                         onError={(e) => {
                           const img = e.target as HTMLImageElement;
                           const parent = img.parentElement!;
-                          parent.style.background = getPlaceholderGradient(article.title);
-                          parent.style.display = 'flex';
-                          parent.style.alignItems = 'center';
-                          parent.style.justifyContent = 'center';
-                          img.style.display = 'none';
-                          if (!parent.querySelector('.news-placeholder-icon')) {
-                            const icon = document.createElement('div');
-                            icon.className = 'news-placeholder-icon';
-                            icon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
+                          parent.style.background = getPlaceholderGradient(
+                            article.title,
+                          );
+                          parent.style.display = "flex";
+                          parent.style.alignItems = "center";
+                          parent.style.justifyContent = "center";
+                          img.style.display = "none";
+                          if (!parent.querySelector(".news-placeholder-icon")) {
+                            const icon = document.createElement("div");
+                            icon.className = "news-placeholder-icon";
+                            icon.innerHTML =
+                              '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>';
                             parent.appendChild(icon);
                           }
                         }}
                       />
                     ) : (
-                      <Newspaper className="w-8 h-8" style={{ color: 'rgba(255,255,255,0.15)' }} />
+                      <Newspaper
+                        className="w-8 h-8"
+                        style={{ color: "rgba(255,255,255,0.15)" }}
+                      />
                     )}
                   </div>
                   <div className="news-card-body">
                     <div className="news-card-meta">
                       <span
                         className="news-source-badge"
-                        style={{ background: `${getSourceColor(article.source)}18`, borderColor: `${getSourceColor(article.source)}40`, color: getSourceColor(article.source) }}
+                        style={{
+                          background: `${getSourceColor(article.source)}18`,
+                          borderColor: `${getSourceColor(article.source)}40`,
+                          color: getSourceColor(article.source),
+                        }}
                       >
                         {article.source || "News"}
                       </span>
@@ -509,7 +640,13 @@ export default function NewsSection({
                         <Clock className="w-3 h-3" />
                         {timeAgo(article.publishedAt)}
                       </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={(e) => handleAnalyzeArticle(e, article)}
@@ -543,7 +680,10 @@ export default function NewsSection({
           </p>
           <button
             type="button"
-            onClick={() => { setTopic(""); setCategory(""); }}
+            onClick={() => {
+              setTopic("");
+              setCategory("");
+            }}
             className="btn btn-secondary text-xs"
           >
             Clear filters
@@ -564,7 +704,11 @@ export default function NewsSection({
         <div className="news-load-more-wrap">
           <button
             type="button"
-            onClick={() => { const np = page + 1; setPage(np); fetchNews(np, topic, category, true); }}
+            onClick={() => {
+              const np = page + 1;
+              setPage(np);
+              fetchNews(np, topic, category, true);
+            }}
             className="btn btn-secondary"
           >
             Load More Headlines

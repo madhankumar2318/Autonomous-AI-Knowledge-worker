@@ -44,17 +44,25 @@ interface ArtifactCanvasProps {
 
 // ── Type Config ────────────────────────────────────────────────────────────────
 
-const TYPE_CONFIG: Record<ArtifactType, { label: string; color: string; emoji: string }> = {
-  markdown: { label: "REPORT",   color: "#22d3ee", emoji: "📄" },
-  code:     { label: "CODE",     color: "#a78bfa", emoji: "💻" },
-  table:    { label: "TABLE",    color: "#10b981", emoji: "📊" },
-  html:     { label: "HTML",     color: "#f59e0b", emoji: "🌐" },
+const TYPE_CONFIG: Record<
+  ArtifactType,
+  { label: string; color: string; emoji: string }
+> = {
+  markdown: { label: "REPORT", color: "#22d3ee", emoji: "📄" },
+  code: { label: "CODE", color: "#a78bfa", emoji: "💻" },
+  table: { label: "TABLE", color: "#10b981", emoji: "📊" },
+  html: { label: "HTML", color: "#f59e0b", emoji: "🌐" },
 };
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProps) {
-  const [viewMode, setViewMode] = useState<"preview" | "raw" | "edit">("preview");
+export default function ArtifactCanvas({
+  artifact,
+  onClose,
+}: ArtifactCanvasProps) {
+  const [viewMode, setViewMode] = useState<"preview" | "raw" | "edit">(
+    "preview",
+  );
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [editContent, setEditContent] = useState(artifact.content);
   const [copyLabel, setCopyLabel] = useState("Copy");
@@ -82,18 +90,39 @@ export default function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProp
     let mime = "text/markdown";
     if (artifact.type === "code") {
       const lang = artifact.language || "";
-      if (lang === "python")     { ext = ".py";  mime = "text/x-python"; }
-      else if (lang === "typescript" || lang === "tsx") { ext = ".ts"; mime = "text/typescript"; }
-      else if (lang === "javascript" || lang === "jsx") { ext = ".js"; mime = "text/javascript"; }
-      else if (lang === "sql")   { ext = ".sql"; mime = "text/plain"; }
-      else if (lang === "html")  { ext = ".html"; mime = "text/html"; }
-      else if (lang === "css")   { ext = ".css";  mime = "text/css"; }
-      else                        { ext = ".txt";  mime = "text/plain"; }
+      if (lang === "python") {
+        ext = ".py";
+        mime = "text/x-python";
+      } else if (lang === "typescript" || lang === "tsx") {
+        ext = ".ts";
+        mime = "text/typescript";
+      } else if (lang === "javascript" || lang === "jsx") {
+        ext = ".js";
+        mime = "text/javascript";
+      } else if (lang === "sql") {
+        ext = ".sql";
+        mime = "text/plain";
+      } else if (lang === "html") {
+        ext = ".html";
+        mime = "text/html";
+      } else if (lang === "css") {
+        ext = ".css";
+        mime = "text/css";
+      } else {
+        ext = ".txt";
+        mime = "text/plain";
+      }
     }
-    const safe = artifact.title.replace(/[^a-zA-Z0-9\s-_]/g, "").replace(/\s+/g, "_").slice(0, 60);
+    const safe = artifact.title
+      .replace(/[^a-zA-Z0-9\s-_]/g, "")
+      .replace(/\s+/g, "_")
+      .slice(0, 60);
     const blob = new Blob([displayContent], { type: mime });
-    const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement("a"), { href: url, download: safe + ext });
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement("a"), {
+      href: url,
+      download: safe + ext,
+    });
     a.click();
     URL.revokeObjectURL(url);
   }, [artifact, displayContent]);
@@ -150,9 +179,10 @@ export default function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProp
   // ── Derived ───────────────────────────────────────────────────────────────────
 
   const typeInfo = TYPE_CONFIG[artifact.type] || TYPE_CONFIG.markdown;
-  const langLabel = artifact.type === "code" && artifact.language
-    ? artifact.language.toUpperCase()
-    : typeInfo.label;
+  const langLabel =
+    artifact.type === "code" && artifact.language
+      ? artifact.language.toUpperCase()
+      : typeInfo.label;
 
   const words = displayContent.trim().split(/\s+/).filter(Boolean).length;
   const lines = displayContent.split("\n").length;
@@ -161,8 +191,9 @@ export default function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProp
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`artifact-canvas-root${isFullscreen ? " artifact-canvas-fullscreen" : ""}`}>
-
+    <div
+      className={`artifact-canvas-root${isFullscreen ? " artifact-canvas-fullscreen" : ""}`}
+    >
       {/* ── Header ── */}
       <div className="artifact-canvas-header">
         <div className="artifact-canvas-title-group">
@@ -190,12 +221,20 @@ export default function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProp
               className={`artifact-view-btn${viewMode === mode ? " artifact-view-btn--active" : ""}`}
               onClick={() => setViewMode(mode)}
               title={
-                mode === "preview" ? "Rich markdown preview"
-                  : mode === "raw" ? "Plain text / raw content"
-                  : "Edit content"
+                mode === "preview"
+                  ? "Rich markdown preview"
+                  : mode === "raw"
+                    ? "Plain text / raw content"
+                    : "Edit content"
               }
             >
-              {mode === "preview" ? <Eye size={11} /> : mode === "raw" ? <Code2 size={11} /> : <Edit3 size={11} />}
+              {mode === "preview" ? (
+                <Eye size={11} />
+              ) : mode === "raw" ? (
+                <Code2 size={11} />
+              ) : (
+                <Edit3 size={11} />
+              )}
               {mode.charAt(0).toUpperCase() + mode.slice(1)}
             </button>
           ))}
@@ -203,15 +242,30 @@ export default function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProp
 
         {/* Action toolbar */}
         <div className="artifact-canvas-actions">
-          <button type="button" onClick={handleCopy} className="artifact-action-btn" title="Copy full content">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="artifact-action-btn"
+            title="Copy full content"
+          >
             <Copy size={12} />
             <span>{copyLabel}</span>
           </button>
-          <button type="button" onClick={handleDownload} className="artifact-action-btn" title="Download as file">
+          <button
+            type="button"
+            onClick={handleDownload}
+            className="artifact-action-btn"
+            title="Download as file"
+          >
             <Download size={12} />
             <span>Download</span>
           </button>
-          <button type="button" onClick={handlePDF} className="artifact-action-btn" title="Open print / PDF dialog">
+          <button
+            type="button"
+            onClick={handlePDF}
+            className="artifact-action-btn"
+            title="Open print / PDF dialog"
+          >
             <FileText size={12} />
             <span>PDF</span>
           </button>
@@ -223,7 +277,12 @@ export default function ArtifactCanvas({ artifact, onClose }: ArtifactCanvasProp
           >
             {isFullscreen ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
           </button>
-          <button type="button" onClick={onClose} className="artifact-action-btn artifact-close-btn" title="Close canvas">
+          <button
+            type="button"
+            onClick={onClose}
+            className="artifact-action-btn artifact-close-btn"
+            title="Close canvas"
+          >
             <X size={12} />
           </button>
         </div>

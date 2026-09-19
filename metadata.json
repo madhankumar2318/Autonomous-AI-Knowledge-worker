@@ -1,0 +1,6 @@
+{
+  "name": "Autonomous AI Knowledge Worker",
+  "description": "AI-powered knowledge worker for news, research, and insights",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

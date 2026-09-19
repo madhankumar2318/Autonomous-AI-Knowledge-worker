@@ -65,9 +65,10 @@ function calcSMA(prices: number[], period: number): (number | null)[] {
   if (!prices || prices.length === 0) return [];
   // For datasets shorter than requested period (e.g. 1MO with 20 points where SMA 50 would be all null),
   // adaptively scale lookback window so indicator renders properly on all timeframes.
-  const effPeriod = prices.length >= period
-    ? period
-    : Math.max(2, Math.min(period, Math.floor(prices.length * 0.45)));
+  const effPeriod =
+    prices.length >= period
+      ? period
+      : Math.max(2, Math.min(period, Math.floor(prices.length * 0.45)));
 
   return prices.map((_, i) => {
     if (i < effPeriod - 1) return null;
@@ -78,15 +79,18 @@ function calcSMA(prices: number[], period: number): (number | null)[] {
 
 function calcRSI(prices: number[], period = 14): (number | null)[] {
   if (!prices || prices.length < 3) return prices ? prices.map(() => null) : [];
-  const effPeriod = prices.length >= period + 1
-    ? period
-    : Math.max(2, Math.min(period, prices.length - 1));
+  const effPeriod =
+    prices.length >= period + 1
+      ? period
+      : Math.max(2, Math.min(period, prices.length - 1));
 
   const rsi: (number | null)[] = new Array(effPeriod).fill(null);
-  let gains = 0, losses = 0;
+  let gains = 0,
+    losses = 0;
   for (let i = 1; i <= effPeriod; i++) {
     const diff = prices[i] - prices[i - 1];
-    if (diff >= 0) gains += diff; else losses -= diff;
+    if (diff >= 0) gains += diff;
+    else losses -= diff;
   }
   let avgGain = gains / effPeriod;
   let avgLoss = losses / effPeriod;
@@ -103,7 +107,10 @@ function calcRSI(prices: number[], period = 14): (number | null)[] {
   return rsi;
 }
 
-export default function StockChartDetail({ stock, onClose }: StockChartDetailProps) {
+export default function StockChartDetail({
+  stock,
+  onClose,
+}: StockChartDetailProps) {
   const [period, setPeriod] = useState<"1d" | "5d" | "1mo" | "1y">("1mo");
   const [chartData, setChartData] = useState<HistoricalPoint[]>([]);
   const [details, setDetails] = useState<any>(null);
@@ -124,14 +131,25 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
     setLoading(true);
     setHoverIndex(null);
     fetch(`${API_BASE_URL}/stock/history/${stock.symbol}?period=${period}`)
-      .then((r) => { if (!r.ok) throw new Error("History fetch failed"); return r.json(); })
+      .then((r) => {
+        if (!r.ok) throw new Error("History fetch failed");
+        return r.json();
+      })
       .then((d) => {
-        const rawPoints = Array.isArray(d.data) ? d.data : (Array.isArray(d.history) ? d.history : (Array.isArray(d) ? d : []));
-        const normalized = rawPoints.map((pt: any) => ({
-          date: String(pt.date || ""),
-          price: Number(pt.price ?? pt.close ?? 0),
-          volume: Number(pt.volume ?? 0),
-        })).filter((pt: any) => pt.price > 0);
+        const rawPoints = Array.isArray(d.data)
+          ? d.data
+          : Array.isArray(d.history)
+            ? d.history
+            : Array.isArray(d)
+              ? d
+              : [];
+        const normalized = rawPoints
+          .map((pt: any) => ({
+            date: String(pt.date || ""),
+            price: Number(pt.price ?? pt.close ?? 0),
+            volume: Number(pt.volume ?? 0),
+          }))
+          .filter((pt: any) => pt.price > 0);
         setChartData(normalized);
         if (d.details) setDetails(d.details);
       })
@@ -143,7 +161,9 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
   }, [stock.symbol, period]);
 
   useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, [onClose]);
@@ -182,7 +202,9 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
     return paddingLeft + (index / (chartData.length - 1)) * chartWidth;
   };
   const getPriceY = (p: number) =>
-    paddingTop + priceChartHeight - ((p - minVal) / valRange) * priceChartHeight;
+    paddingTop +
+    priceChartHeight -
+    ((p - minVal) / valRange) * priceChartHeight;
   const getVolumeY = (v: number) =>
     volumeTop + volumeChartHeight - (v / maxVolume) * volumeChartHeight;
   const getRsiY = (r: number) =>
@@ -193,11 +215,15 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
   const sma50 = calcSMA(prices, 50);
   const rsiValues = calcRSI(prices, 14);
 
-  const buildPath = (values: (number | null)[], getY: (v: number) => number) => {
+  const buildPath = (
+    values: (number | null)[],
+    getY: (v: number) => number,
+  ) => {
     let d = "";
     values.forEach((v, i) => {
       if (v === null) return;
-      const x = getX(i); const y = getY(v);
+      const x = getX(i);
+      const y = getY(v);
       d += d === "" ? `M ${x} ${y}` : ` L ${x} ${y}`;
     });
     return d;
@@ -207,18 +233,38 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
   const sma50Path = buildPath(sma50, getPriceY);
   const rsiPath = buildPath(rsiValues, getRsiY);
 
-  const pricePoints = chartData.map((pt, i) => ({ x: getX(i), y: getPriceY(pt.price) }));
-  const pricePathD = pricePoints.length > 0
-    ? `M ${pricePoints[0].x} ${pricePoints[0].y} ` + pricePoints.slice(1).map(p => `L ${p.x} ${p.y}`).join(" ")
-    : "";
-  const priceAreaD = pricePoints.length > 0
-    ? `${pricePathD} L ${pricePoints[pricePoints.length - 1].x} ${paddingTop + priceChartHeight} L ${pricePoints[0].x} ${paddingTop + priceChartHeight} Z`
-    : "";
+  const pricePoints = chartData.map((pt, i) => ({
+    x: getX(i),
+    y: getPriceY(pt.price),
+  }));
+  const pricePathD =
+    pricePoints.length > 0
+      ? `M ${pricePoints[0].x} ${pricePoints[0].y} ` +
+        pricePoints
+          .slice(1)
+          .map((p) => `L ${p.x} ${p.y}`)
+          .join(" ")
+      : "";
+  const priceAreaD =
+    pricePoints.length > 0
+      ? `${pricePathD} L ${pricePoints[pricePoints.length - 1].x} ${paddingTop + priceChartHeight} L ${pricePoints[0].x} ${paddingTop + priceChartHeight} Z`
+      : "";
 
-  const priceTicks = [rawMax, rawMin + rawRange * 0.66, rawMin + rawRange * 0.33, rawMin];
-  const dateTickIndices = chartData.length > 1
-    ? [0, Math.floor((chartData.length - 1) * 0.33), Math.floor((chartData.length - 1) * 0.66), chartData.length - 1]
-    : [0];
+  const priceTicks = [
+    rawMax,
+    rawMin + rawRange * 0.66,
+    rawMin + rawRange * 0.33,
+    rawMin,
+  ];
+  const dateTickIndices =
+    chartData.length > 1
+      ? [
+          0,
+          Math.floor((chartData.length - 1) * 0.33),
+          Math.floor((chartData.length - 1) * 0.66),
+          chartData.length - 1,
+        ]
+      : [0];
 
   // ── Precise Mouse & Touch Point Scrubbing ──────────────────────────────
   const updateHoverIndex = (clientX: number) => {
@@ -228,7 +274,10 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
     const scale = width / rect.width;
     const svgX = (clientX - rect.left) * scale;
     const pct = Math.max(0, Math.min(1, (svgX - paddingLeft) / chartWidth));
-    const idx = Math.max(0, Math.min(chartData.length - 1, Math.round(pct * (chartData.length - 1))));
+    const idx = Math.max(
+      0,
+      Math.min(chartData.length - 1, Math.round(pct * (chartData.length - 1))),
+    );
     setHoverIndex(idx);
   };
 
@@ -243,8 +292,14 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
   };
 
   const activePoint = hoverIndex !== null ? chartData[hoverIndex] : null;
-  const hoverX = hoverIndex !== null && pricePoints[hoverIndex] ? pricePoints[hoverIndex].x : 0;
-  const hoverY = hoverIndex !== null && pricePoints[hoverIndex] ? pricePoints[hoverIndex].y : 0;
+  const hoverX =
+    hoverIndex !== null && pricePoints[hoverIndex]
+      ? pricePoints[hoverIndex].x
+      : 0;
+  const hoverY =
+    hoverIndex !== null && pricePoints[hoverIndex]
+      ? pricePoints[hoverIndex].y
+      : 0;
   const hoverSMA20 = hoverIndex !== null ? sma20[hoverIndex] : null;
   const hoverSMA50 = hoverIndex !== null ? sma50[hoverIndex] : null;
   const hoverRSI = hoverIndex !== null ? rsiValues[hoverIndex] : null;
@@ -470,7 +525,9 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           <div className="sc-header-top-row">
             <div className="sc-symbol-row">
               <span className="sc-symbol">{stock.symbol}</span>
-              <span className="sc-name" title={stock.name}>{stock.name}</span>
+              <span className="sc-name" title={stock.name}>
+                {stock.name}
+              </span>
             </div>
             <div className="sc-header-actions">
               <button
@@ -479,10 +536,20 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                 onClick={() => {
                   const isPos = (stock.change_percent ?? 0) >= 0;
                   const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
-                  window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
-                  window.dispatchEvent(new CustomEvent("ak-add-notification", {
-                    detail: { title: "Stock Checkup Triggered", message: `Sent ${stock.symbol} metrics to AI Analyst.`, type: "info" }
-                  }));
+                  window.dispatchEvent(
+                    new CustomEvent("ak-set-chat-prompt", {
+                      detail: { prompt },
+                    }),
+                  );
+                  window.dispatchEvent(
+                    new CustomEvent("ak-add-notification", {
+                      detail: {
+                        title: "Stock Checkup Triggered",
+                        message: `Sent ${stock.symbol} metrics to AI Analyst.`,
+                        type: "info",
+                      },
+                    }),
+                  );
                   onClose();
                 }}
                 title="Analyze this stock with AI"
@@ -490,18 +557,29 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                 <Sparkles size={13} />
                 <span>AI Checkup</span>
               </button>
-              <button className="sc-close-btn" onClick={onClose} title="Close (Esc)">
+              <button
+                className="sc-close-btn"
+                onClick={onClose}
+                title="Close (Esc)"
+              >
                 <X size={16} />
               </button>
             </div>
           </div>
           <div className="sc-price-row">
             <span className="sc-price">{formatPrice(stock.price)}</span>
-            <div className="sc-change-badge" style={{
-              background: isPos ? "rgba(52,211,153,0.09)" : "rgba(248,113,113,0.09)",
-              borderColor: isPos ? "rgba(52,211,153,0.28)" : "rgba(248,113,113,0.28)",
-              color: themeColor,
-            }}>
+            <div
+              className="sc-change-badge"
+              style={{
+                background: isPos
+                  ? "rgba(52,211,153,0.09)"
+                  : "rgba(248,113,113,0.09)",
+                borderColor: isPos
+                  ? "rgba(52,211,153,0.28)"
+                  : "rgba(248,113,113,0.28)",
+                color: themeColor,
+              }}
+            >
               {isPos ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {formatChange(stock.change_percent)}
             </div>
@@ -512,36 +590,62 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         <div className="sc-controls-row">
           <div className="sc-tabs-group">
             {(["1d", "5d", "1mo", "1y"] as const).map((tab) => (
-              <button key={tab} type="button"
+              <button
+                key={tab}
+                type="button"
                 className={`sc-tab ${period === tab ? "sc-tab-active" : ""}`}
-                onClick={() => setPeriod(tab)}>
+                onClick={() => setPeriod(tab)}
+              >
                 {tab.toUpperCase()}
               </button>
             ))}
           </div>
           <div className="sc-indicator-group">
             <span className="sc-indicator-label">Indicators</span>
-            <button type="button" className="sc-ind-pill"
-              onClick={() => setShowSMA20(p => !p)}
+            <button
+              type="button"
+              className="sc-ind-pill"
+              onClick={() => setShowSMA20((p) => !p)}
               style={{
                 background: showSMA20 ? "rgba(251,191,36,0.12)" : "transparent",
-                borderColor: showSMA20 ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.08)",
+                borderColor: showSMA20
+                  ? "rgba(251,191,36,0.4)"
+                  : "rgba(255,255,255,0.08)",
                 color: showSMA20 ? "#fbbf24" : "#475569",
-              }}>SMA 20</button>
-            <button type="button" className="sc-ind-pill"
-              onClick={() => setShowSMA50(p => !p)}
+              }}
+            >
+              SMA 20
+            </button>
+            <button
+              type="button"
+              className="sc-ind-pill"
+              onClick={() => setShowSMA50((p) => !p)}
               style={{
-                background: showSMA50 ? "rgba(147,197,253,0.12)" : "transparent",
-                borderColor: showSMA50 ? "rgba(147,197,253,0.4)" : "rgba(255,255,255,0.08)",
+                background: showSMA50
+                  ? "rgba(147,197,253,0.12)"
+                  : "transparent",
+                borderColor: showSMA50
+                  ? "rgba(147,197,253,0.4)"
+                  : "rgba(255,255,255,0.08)",
                 color: showSMA50 ? "#93c5fd" : "#475569",
-              }}>SMA 50</button>
-            <button type="button" className="sc-ind-pill"
-              onClick={() => setShowRSI(p => !p)}
+              }}
+            >
+              SMA 50
+            </button>
+            <button
+              type="button"
+              className="sc-ind-pill"
+              onClick={() => setShowRSI((p) => !p)}
               style={{
                 background: showRSI ? "rgba(196,181,253,0.12)" : "transparent",
-                borderColor: showRSI ? "rgba(196,181,253,0.4)" : "rgba(255,255,255,0.08)",
+                borderColor: showRSI
+                  ? "rgba(196,181,253,0.4)"
+                  : "rgba(255,255,255,0.08)",
                 color: showRSI ? "#c4b5fd" : "#475569",
-              }}>RSI 14</button>
+              }}
+            >
+              RSI 14
+            </button>
           </div>
         </div>
 
@@ -560,48 +664,100 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
           ) : (
             <>
               {/* Tooltip */}
-              {activePoint && hoverIndex !== null && (() => {
-                const hoverPct = (hoverX / width) * 100;
-                const isRightHalf = hoverPct > 50;
-                return (
-                  <div className="sc-tooltip" style={{
-                    left: isRightHalf ? "auto" : `${Math.max(2, hoverPct + 2)}%`,
-                    right: isRightHalf ? `${Math.max(2, 100 - hoverPct + 2)}%` : "auto",
-                    top: "8px",
-                  }}>
-                    <span className="sc-tooltip-date">{activePoint.date}</span>
-                    <div className="sc-tooltip-row">
-                      <span style={{ color: "#64748b" }}>Price</span>
-                      <span style={{ color: themeColor, fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(activePoint.price)}</span>
+              {activePoint &&
+                hoverIndex !== null &&
+                (() => {
+                  const hoverPct = (hoverX / width) * 100;
+                  const isRightHalf = hoverPct > 50;
+                  return (
+                    <div
+                      className="sc-tooltip"
+                      style={{
+                        left: isRightHalf
+                          ? "auto"
+                          : `${Math.max(2, hoverPct + 2)}%`,
+                        right: isRightHalf
+                          ? `${Math.max(2, 100 - hoverPct + 2)}%`
+                          : "auto",
+                        top: "8px",
+                      }}
+                    >
+                      <span className="sc-tooltip-date">
+                        {activePoint.date}
+                      </span>
+                      <div className="sc-tooltip-row">
+                        <span style={{ color: "#64748b" }}>Price</span>
+                        <span
+                          style={{
+                            color: themeColor,
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {formatPrice(activePoint.price)}
+                        </span>
+                      </div>
+                      <div className="sc-tooltip-row">
+                        <span style={{ color: "#64748b" }}>Volume</span>
+                        <span
+                          style={{
+                            color: "#f1f5f9",
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {formatVolume(activePoint.volume)}
+                        </span>
+                      </div>
+                      {showSMA20 && hoverSMA20 !== null && (
+                        <div className="sc-tooltip-row">
+                          <span style={{ color: "#64748b" }}>SMA 20</span>
+                          <span
+                            style={{
+                              color: "#fbbf24",
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {formatPrice(hoverSMA20)}
+                          </span>
+                        </div>
+                      )}
+                      {showSMA50 && hoverSMA50 !== null && (
+                        <div className="sc-tooltip-row">
+                          <span style={{ color: "#64748b" }}>SMA 50</span>
+                          <span
+                            style={{
+                              color: "#93c5fd",
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {formatPrice(hoverSMA50)}
+                          </span>
+                        </div>
+                      )}
+                      {showRSI && hoverRSI !== null && (
+                        <div className="sc-tooltip-row">
+                          <span style={{ color: "#64748b" }}>RSI 14</span>
+                          <span
+                            style={{
+                              color: "#c4b5fd",
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {hoverRSI.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="sc-tooltip-row">
-                      <span style={{ color: "#64748b" }}>Volume</span>
-                      <span style={{ color: "#f1f5f9", fontFamily: "monospace", fontWeight: 700 }}>{formatVolume(activePoint.volume)}</span>
-                    </div>
-                    {showSMA20 && hoverSMA20 !== null && (
-                      <div className="sc-tooltip-row">
-                        <span style={{ color: "#64748b" }}>SMA 20</span>
-                        <span style={{ color: "#fbbf24", fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(hoverSMA20)}</span>
-                      </div>
-                    )}
-                    {showSMA50 && hoverSMA50 !== null && (
-                      <div className="sc-tooltip-row">
-                        <span style={{ color: "#64748b" }}>SMA 50</span>
-                        <span style={{ color: "#93c5fd", fontFamily: "monospace", fontWeight: 700 }}>{formatPrice(hoverSMA50)}</span>
-                      </div>
-                    )}
-                    {showRSI && hoverRSI !== null && (
-                      <div className="sc-tooltip-row">
-                        <span style={{ color: "#64748b" }}>RSI 14</span>
-                        <span style={{ color: "#c4b5fd", fontFamily: "monospace", fontWeight: 700 }}>{hoverRSI.toFixed(1)}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
+                  );
+                })()}
 
               {/* SVG Canvas */}
-              <svg ref={svgRef}
+              <svg
+                ref={svgRef}
                 viewBox={`0 0 ${width} ${totalHeight}`}
                 className="sc-svg-container"
                 style={{ height: totalHeight, touchAction: "none" }}
@@ -609,15 +765,34 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                 onMouseLeave={() => setHoverIndex(null)}
                 onTouchStart={handleTouchMove}
                 onTouchMove={handleTouchMove}
-                onTouchEnd={() => setHoverIndex(null)}>
+                onTouchEnd={() => setHoverIndex(null)}
+              >
                 <defs>
-                  <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="trendGradient"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="0%" stopColor={themeColor} stopOpacity="1" />
-                    <stop offset="100%" stopColor={themeColor} stopOpacity="0.8" />
+                    <stop
+                      offset="100%"
+                      stopColor={themeColor}
+                      stopOpacity="0.8"
+                    />
                   </linearGradient>
                   <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={themeColor} stopOpacity="0.13" />
-                    <stop offset="100%" stopColor={themeColor} stopOpacity="0" />
+                    <stop
+                      offset="0%"
+                      stopColor={themeColor}
+                      stopOpacity="0.13"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={themeColor}
+                      stopOpacity="0"
+                    />
                   </linearGradient>
                 </defs>
 
@@ -626,10 +801,23 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                   const y = getPriceY(tickVal);
                   return (
                     <g key={`y-grid-${idx}`}>
-                      <line x1={paddingLeft} y1={y} x2={paddingLeft + chartWidth} y2={y}
-                        stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="2 3" />
-                      <text x={paddingLeft + chartWidth + 8} y={y + 3.5}
-                        className="sc-grid-label" textAnchor="start">{tickVal.toFixed(2)}</text>
+                      <line
+                        x1={paddingLeft}
+                        y1={y}
+                        x2={paddingLeft + chartWidth}
+                        y2={y}
+                        stroke="rgba(255,255,255,0.03)"
+                        strokeWidth="1"
+                        strokeDasharray="2 3"
+                      />
+                      <text
+                        x={paddingLeft + chartWidth + 8}
+                        y={y + 3.5}
+                        className="sc-grid-label"
+                        textAnchor="start"
+                      >
+                        {tickVal.toFixed(2)}
+                      </text>
                     </g>
                   );
                 })}
@@ -641,10 +829,21 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                   const x = getX(idxVal);
                   return (
                     <g key={`x-grid-${idxVal}`}>
-                      <line x1={x} y1={paddingTop} x2={x} y2={paddingTop + priceChartHeight}
-                        stroke="rgba(255,255,255,0.02)" strokeWidth="1" />
-                      <text x={x} y={totalHeight - paddingBottom + 14}
-                        className="sc-grid-label" textAnchor="middle" style={{ fill: "#475569" }}>
+                      <line
+                        x1={x}
+                        y1={paddingTop}
+                        x2={x}
+                        y2={paddingTop + priceChartHeight}
+                        stroke="rgba(255,255,255,0.02)"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={x}
+                        y={totalHeight - paddingBottom + 14}
+                        className="sc-grid-label"
+                        textAnchor="middle"
+                        style={{ fill: "#475569" }}
+                      >
                         {pt.date}
                       </text>
                     </g>
@@ -656,83 +855,208 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
 
                 {/* SMA 20 */}
                 {showSMA20 && sma20Path && (
-                  <path d={sma20Path} fill="none" stroke="#fbbf24" strokeWidth="1.8"
-                    strokeLinecap="round" strokeDasharray="5 2.5"
-                    style={{ filter: "drop-shadow(0 0 6px rgba(251,191,36,0.65))" }} />
+                  <path
+                    d={sma20Path}
+                    fill="none"
+                    stroke="#fbbf24"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeDasharray="5 2.5"
+                    style={{
+                      filter: "drop-shadow(0 0 6px rgba(251,191,36,0.65))",
+                    }}
+                  />
                 )}
                 {/* SMA 50 */}
                 {showSMA50 && sma50Path && (
-                  <path d={sma50Path} fill="none" stroke="#60a5fa" strokeWidth="1.8"
-                    strokeLinecap="round" strokeDasharray="4 2"
-                    style={{ filter: "drop-shadow(0 0 6px rgba(96,165,250,0.65))" }} />
+                  <path
+                    d={sma50Path}
+                    fill="none"
+                    stroke="#60a5fa"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeDasharray="4 2"
+                    style={{
+                      filter: "drop-shadow(0 0 6px rgba(96,165,250,0.65))",
+                    }}
+                  />
                 )}
 
                 {/* Volume Bars */}
-                <text x={paddingLeft} y={volumeTop - 4} className="sc-section-label">VOLUME</text>
+                <text
+                  x={paddingLeft}
+                  y={volumeTop - 4}
+                  className="sc-section-label"
+                >
+                  VOLUME
+                </text>
                 {chartData.map((d, idx) => {
                   const x = getX(idx);
                   const y = getVolumeY(d.volume ?? 0);
-                  const bw = Math.max(1.5, (chartWidth / chartData.length) * 0.58);
+                  const bw = Math.max(
+                    1.5,
+                    (chartWidth / chartData.length) * 0.58,
+                  );
                   const isUp = idx === 0 || d.price >= chartData[idx - 1].price;
                   return (
-                    <rect key={`vol-${idx}`}
-                      x={x - bw / 2} y={y} width={bw}
+                    <rect
+                      key={`vol-${idx}`}
+                      x={x - bw / 2}
+                      y={y}
+                      width={bw}
                       height={Math.max(1, volumeTop + volumeChartHeight - y)}
-                      fill={isUp ? "rgba(52,211,153,0.28)" : "rgba(248,113,113,0.28)"} />
+                      fill={
+                        isUp
+                          ? "rgba(52,211,153,0.28)"
+                          : "rgba(248,113,113,0.28)"
+                      }
+                    />
                   );
                 })}
 
                 {/* Price Line */}
-                <path d={pricePathD} fill="none" stroke="url(#trendGradient)"
-                  strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ filter: `drop-shadow(0 2px 7px ${themeColor}50)` }} />
+                <path
+                  d={pricePathD}
+                  fill="none"
+                  stroke="url(#trendGradient)"
+                  strokeWidth="2.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ filter: `drop-shadow(0 2px 7px ${themeColor}50)` }}
+                />
 
                 {/* RSI Panel */}
                 {showRSI && (
                   <>
-                    <line x1={paddingLeft} y1={rsiTop - 9} x2={paddingLeft + chartWidth} y2={rsiTop - 9}
-                      stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-                    <text x={paddingLeft} y={rsiTop - 11} className="sc-section-label">RSI (14)</text>
+                    <line
+                      x1={paddingLeft}
+                      y1={rsiTop - 9}
+                      x2={paddingLeft + chartWidth}
+                      y2={rsiTop - 9}
+                      stroke="rgba(255,255,255,0.04)"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={paddingLeft}
+                      y={rsiTop - 11}
+                      className="sc-section-label"
+                    >
+                      RSI (14)
+                    </text>
 
                     {/* Zone fills */}
-                    <rect x={paddingLeft} y={rsiTop} width={chartWidth}
+                    <rect
+                      x={paddingLeft}
+                      y={rsiTop}
+                      width={chartWidth}
                       height={Math.max(0, getRsiY(70) - rsiTop)}
-                      fill="rgba(248,113,113,0.04)" />
-                    <rect x={paddingLeft} y={getRsiY(30)} width={chartWidth}
-                      height={Math.max(0, rsiTop + rsiChartHeight - getRsiY(30))}
-                      fill="rgba(52,211,153,0.04)" />
+                      fill="rgba(248,113,113,0.04)"
+                    />
+                    <rect
+                      x={paddingLeft}
+                      y={getRsiY(30)}
+                      width={chartWidth}
+                      height={Math.max(
+                        0,
+                        rsiTop + rsiChartHeight - getRsiY(30),
+                      )}
+                      fill="rgba(52,211,153,0.04)"
+                    />
 
                     {/* Level lines */}
-                    <line x1={paddingLeft} y1={getRsiY(70)} x2={paddingLeft + chartWidth} y2={getRsiY(70)}
-                      stroke="rgba(248,113,113,0.35)" strokeWidth="0.8" strokeDasharray="3 3" />
-                    <text x={paddingLeft + chartWidth + 6} y={getRsiY(70) + 3.5}
-                      className="sc-grid-label" style={{ fill: "#f87171" }}>70</text>
+                    <line
+                      x1={paddingLeft}
+                      y1={getRsiY(70)}
+                      x2={paddingLeft + chartWidth}
+                      y2={getRsiY(70)}
+                      stroke="rgba(248,113,113,0.35)"
+                      strokeWidth="0.8"
+                      strokeDasharray="3 3"
+                    />
+                    <text
+                      x={paddingLeft + chartWidth + 6}
+                      y={getRsiY(70) + 3.5}
+                      className="sc-grid-label"
+                      style={{ fill: "#f87171" }}
+                    >
+                      70
+                    </text>
 
-                    <line x1={paddingLeft} y1={getRsiY(50)} x2={paddingLeft + chartWidth} y2={getRsiY(50)}
-                      stroke="rgba(255,255,255,0.07)" strokeWidth="0.8" strokeDasharray="2 5" />
-                    <text x={paddingLeft + chartWidth + 6} y={getRsiY(50) + 3.5}
-                      className="sc-grid-label">50</text>
+                    <line
+                      x1={paddingLeft}
+                      y1={getRsiY(50)}
+                      x2={paddingLeft + chartWidth}
+                      y2={getRsiY(50)}
+                      stroke="rgba(255,255,255,0.07)"
+                      strokeWidth="0.8"
+                      strokeDasharray="2 5"
+                    />
+                    <text
+                      x={paddingLeft + chartWidth + 6}
+                      y={getRsiY(50) + 3.5}
+                      className="sc-grid-label"
+                    >
+                      50
+                    </text>
 
-                    <line x1={paddingLeft} y1={getRsiY(30)} x2={paddingLeft + chartWidth} y2={getRsiY(30)}
-                      stroke="rgba(52,211,153,0.35)" strokeWidth="0.8" strokeDasharray="3 3" />
-                    <text x={paddingLeft + chartWidth + 6} y={getRsiY(30) + 3.5}
-                      className="sc-grid-label" style={{ fill: "#34d399" }}>30</text>
+                    <line
+                      x1={paddingLeft}
+                      y1={getRsiY(30)}
+                      x2={paddingLeft + chartWidth}
+                      y2={getRsiY(30)}
+                      stroke="rgba(52,211,153,0.35)"
+                      strokeWidth="0.8"
+                      strokeDasharray="3 3"
+                    />
+                    <text
+                      x={paddingLeft + chartWidth + 6}
+                      y={getRsiY(30) + 3.5}
+                      className="sc-grid-label"
+                      style={{ fill: "#34d399" }}
+                    >
+                      30
+                    </text>
 
                     {/* RSI line */}
                     {rsiPath && (
-                      <path d={rsiPath} fill="none" stroke="#c4b5fd" strokeWidth="1.8"
-                        strokeLinecap="round" strokeLinejoin="round"
-                        style={{ filter: "drop-shadow(0 1px 6px rgba(196,181,253,0.55))" }} />
+                      <path
+                        d={rsiPath}
+                        fill="none"
+                        stroke="#c4b5fd"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{
+                          filter:
+                            "drop-shadow(0 1px 6px rgba(196,181,253,0.55))",
+                        }}
+                      />
                     )}
 
                     {/* RSI hover dot */}
                     {hoverIndex !== null && hoverRSI !== null && (
                       <>
-                        <circle cx={hoverX} cy={getRsiY(hoverRSI)} r="4"
-                          fill="#c4b5fd" stroke="#fff" strokeWidth="1"
-                          style={{ filter: "drop-shadow(0 0 6px rgba(196,181,253,0.7))" }} />
-                        <line x1={hoverX} y1={rsiTop} x2={hoverX} y2={rsiTop + rsiChartHeight}
-                          stroke="rgba(255,255,255,0.09)" strokeWidth="1" strokeDasharray="3 3" />
+                        <circle
+                          cx={hoverX}
+                          cy={getRsiY(hoverRSI)}
+                          r="4"
+                          fill="#c4b5fd"
+                          stroke="#fff"
+                          strokeWidth="1"
+                          style={{
+                            filter:
+                              "drop-shadow(0 0 6px rgba(196,181,253,0.7))",
+                          }}
+                        />
+                        <line
+                          x1={hoverX}
+                          y1={rsiTop}
+                          x2={hoverX}
+                          y2={rsiTop + rsiChartHeight}
+                          stroke="rgba(255,255,255,0.09)"
+                          strokeWidth="1"
+                          strokeDasharray="3 3"
+                        />
                       </>
                     )}
                   </>
@@ -741,22 +1065,80 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
                 {/* Crosshairs */}
                 {hoverIndex !== null && activePoint && (
                   <>
-                    <line x1={hoverX} y1={paddingTop} x2={hoverX}
-                      y2={showRSI ? rsiTop + rsiChartHeight : volumeTop + volumeChartHeight}
-                      stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="3 3" />
-                    <line x1={paddingLeft} y1={hoverY} x2={paddingLeft + chartWidth} y2={hoverY}
-                      stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="3 3" />
-                    <rect x={paddingLeft + chartWidth + 2} y={hoverY - 8} width={58} height={16}
-                      rx={3} fill="rgba(10,12,18,0.97)" stroke={themeColor} strokeWidth="1" />
-                    <text x={paddingLeft + chartWidth + 31} y={hoverY + 4.5}
-                      className="sc-axis-label-y" textAnchor="middle">{activePoint.price.toFixed(1)}</text>
-                    <rect x={hoverX - 34} y={totalHeight - paddingBottom + 2} width={68} height={16}
-                      rx={3} fill="rgba(10,12,18,0.97)" stroke={themeColor} strokeWidth="1" />
-                    <text x={hoverX} y={totalHeight - paddingBottom + 14}
-                      className="sc-axis-label-x" textAnchor="middle">{activePoint.date.split(" ")[0]}</text>
-                    <circle cx={hoverX} cy={hoverY} r="7" fill={themeColor} fillOpacity="0.2" />
-                    <circle cx={hoverX} cy={hoverY} r="3.5" fill={themeColor} stroke="#fff" strokeWidth="1.2"
-                      style={{ filter: `drop-shadow(0 0 7px ${themeColor})` }} />
+                    <line
+                      x1={hoverX}
+                      y1={paddingTop}
+                      x2={hoverX}
+                      y2={
+                        showRSI
+                          ? rsiTop + rsiChartHeight
+                          : volumeTop + volumeChartHeight
+                      }
+                      stroke="rgba(255,255,255,0.12)"
+                      strokeWidth="1"
+                      strokeDasharray="3 3"
+                    />
+                    <line
+                      x1={paddingLeft}
+                      y1={hoverY}
+                      x2={paddingLeft + chartWidth}
+                      y2={hoverY}
+                      stroke="rgba(255,255,255,0.12)"
+                      strokeWidth="1"
+                      strokeDasharray="3 3"
+                    />
+                    <rect
+                      x={paddingLeft + chartWidth + 2}
+                      y={hoverY - 8}
+                      width={58}
+                      height={16}
+                      rx={3}
+                      fill="rgba(10,12,18,0.97)"
+                      stroke={themeColor}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={paddingLeft + chartWidth + 31}
+                      y={hoverY + 4.5}
+                      className="sc-axis-label-y"
+                      textAnchor="middle"
+                    >
+                      {activePoint.price.toFixed(1)}
+                    </text>
+                    <rect
+                      x={hoverX - 34}
+                      y={totalHeight - paddingBottom + 2}
+                      width={68}
+                      height={16}
+                      rx={3}
+                      fill="rgba(10,12,18,0.97)"
+                      stroke={themeColor}
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={hoverX}
+                      y={totalHeight - paddingBottom + 14}
+                      className="sc-axis-label-x"
+                      textAnchor="middle"
+                    >
+                      {activePoint.date.split(" ")[0]}
+                    </text>
+                    <circle
+                      cx={hoverX}
+                      cy={hoverY}
+                      r="7"
+                      fill={themeColor}
+                      fillOpacity="0.2"
+                    />
+                    <circle
+                      cx={hoverX}
+                      cy={hoverY}
+                      r="3.5"
+                      fill={themeColor}
+                      stroke="#fff"
+                      strokeWidth="1.2"
+                      style={{ filter: `drop-shadow(0 0 7px ${themeColor})` }}
+                    />
                   </>
                 )}
               </svg>
@@ -768,28 +1150,39 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         <div className="sc-grid-grid">
           <div className="sc-stat-card">
             <span className="sc-stat-label">Day High</span>
-            <span className="sc-stat-value">{formatPrice(details?.day_high ?? stock.day_high)}</span>
+            <span className="sc-stat-value">
+              {formatPrice(details?.day_high ?? stock.day_high)}
+            </span>
           </div>
           <div className="sc-stat-card">
             <span className="sc-stat-label">Day Low</span>
-            <span className="sc-stat-value">{formatPrice(details?.day_low ?? stock.day_low)}</span>
+            <span className="sc-stat-value">
+              {formatPrice(details?.day_low ?? stock.day_low)}
+            </span>
           </div>
           <div className="sc-stat-card">
             <span className="sc-stat-label">Volume</span>
-            <span className="sc-stat-value">{formatVolume(details?.volume ?? stock.volume)}</span>
+            <span className="sc-stat-value">
+              {formatVolume(details?.volume ?? stock.volume)}
+            </span>
           </div>
           <div className="sc-stat-card">
             <span className="sc-stat-label">Market Cap</span>
-            <span className="sc-stat-value">{formatBigNumber(details?.market_cap ?? stock.market_cap)}</span>
+            <span className="sc-stat-value">
+              {formatBigNumber(details?.market_cap ?? stock.market_cap)}
+            </span>
           </div>
           {showRSI && (
             <div className="sc-rsi-stat">
               <span className="sc-stat-label">RSI Signal</span>
-              <span className="sc-rsi-badge" style={{
-                background: `${rsiSignal.color}18`,
-                border: `1px solid ${rsiSignal.color}40`,
-                color: rsiSignal.color,
-              }}>
+              <span
+                className="sc-rsi-badge"
+                style={{
+                  background: `${rsiSignal.color}18`,
+                  border: `1px solid ${rsiSignal.color}40`,
+                  color: rsiSignal.color,
+                }}
+              >
                 <Activity size={10} />
                 RSI {(displayRSI ?? 0).toFixed(1)} — {rsiSignal.label}
               </span>
@@ -798,6 +1191,6 @@ export default function StockChartDetail({ stock, onClose }: StockChartDetailPro
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

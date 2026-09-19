@@ -1,5 +1,15 @@
 "use client";
-import { AlertCircle, Search, Sparkles, ExternalLink, TrendingUp, Clock, X, ArrowUpRight, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  Search,
+  Sparkles,
+  ExternalLink,
+  TrendingUp,
+  Clock,
+  X,
+  ArrowUpRight,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
 import KnowledgeCard, { detectEntity } from "./KnowledgeCard";
@@ -49,7 +59,7 @@ function cleanSnippet(raw: string): string {
 
 function parseTimestamp(snippet: string): { time: string; text: string } {
   const match = snippet.match(
-    /^🕐\s*([\w,\s:]+(?:GMT|UTC|EST|PST|IST)?)\s*—\s*([\s\S]*)$/
+    /^🕐\s*([\w,\s:]+(?:GMT|UTC|EST|PST|IST)?)\s*—\s*([\s\S]*)$/,
   );
   if (match) {
     const rawTime = match[1].trim();
@@ -128,7 +138,9 @@ export default function SearchSection({
     if (!term || !term.trim()) return;
     const clean = term.trim();
     setRecentSearches((prev) => {
-      const filtered = prev.filter((item) => item.toLowerCase() !== clean.toLowerCase());
+      const filtered = prev.filter(
+        (item) => item.toLowerCase() !== clean.toLowerCase(),
+      );
       const updated = [clean, ...filtered].slice(0, 6);
       try {
         localStorage.setItem("ak_recent_searches", JSON.stringify(updated));
@@ -168,12 +180,13 @@ export default function SearchSection({
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(
-          `${API_BASE_URL}/search/suggestions?q=${encodeURIComponent(query.trim())}`
+          `${API_BASE_URL}/search/suggestions?q=${encodeURIComponent(query.trim())}`,
         );
         if (res.ok) {
           const data = await res.json();
           if (data.suggestions) setSuggestions(data.suggestions);
-          if (data.trending && data.trending.length > 0) setTrending(data.trending);
+          if (data.trending && data.trending.length > 0)
+            setTrending(data.trending);
         }
       } catch (err) {
         console.error("Failed to fetch suggestions:", err);
@@ -204,10 +217,12 @@ export default function SearchSection({
     setError("");
     saveRecentSearch(q);
     setShowDropdown(false);
-    window.dispatchEvent(new CustomEvent("ak-search-query-changed", { detail: { query: q } }));
+    window.dispatchEvent(
+      new CustomEvent("ak-search-query-changed", { detail: { query: q } }),
+    );
     try {
       const res = await fetch(
-        `${API_BASE_URL}/search?query=${encodeURIComponent(q)}&page=${pageNum}`
+        `${API_BASE_URL}/search?query=${encodeURIComponent(q)}&page=${pageNum}`,
       );
       const data = await res.json();
 
@@ -249,13 +264,20 @@ export default function SearchSection({
 
   // Build combined list of current suggestions for keyboard navigation
   const isQueryEmpty = !query.trim();
-  const allListItems: { text: string; type: "suggestion" | "trending" | "recent" }[] = [];
+  const allListItems: {
+    text: string;
+    type: "suggestion" | "trending" | "recent";
+  }[] = [];
 
   if (isQueryEmpty) {
-    recentSearches.forEach((s) => allListItems.push({ text: s, type: "recent" }));
+    recentSearches.forEach((s) =>
+      allListItems.push({ text: s, type: "recent" }),
+    );
     trending.forEach((s) => allListItems.push({ text: s, type: "trending" }));
   } else {
-    suggestions.forEach((s) => allListItems.push({ text: s, type: "suggestion" }));
+    suggestions.forEach((s) =>
+      allListItems.push({ text: s, type: "suggestion" }),
+    );
     trending.forEach((s) => allListItems.push({ text: s, type: "trending" }));
   }
 
@@ -270,7 +292,9 @@ export default function SearchSection({
       setSelectedIndex((prev) => (prev + 1) % allListItems.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + allListItems.length) % allListItems.length);
+      setSelectedIndex(
+        (prev) => (prev - 1 + allListItems.length) % allListItems.length,
+      );
     } else if (e.key === "Escape") {
       setShowDropdown(false);
     } else if (e.key === "Enter") {
@@ -286,14 +310,22 @@ export default function SearchSection({
   const handleSparklesClick = (
     e: React.MouseEvent,
     resultTitle: string,
-    snippet: string
+    snippet: string,
   ) => {
     e.stopPropagation();
     const prompt = `Perform a comprehensive research breakdown and clean summary on:\nTopic: "${query}"\nHeadline: "${resultTitle}"\nDetails: ${snippet}\nWhat are the main key takeaways, background context, and key facts?`;
-    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
-    window.dispatchEvent(new CustomEvent("ak-add-notification", {
-      detail: { type: "info", title: "Web Research Triggered", message: `Sent "${resultTitle.slice(0, 40)}..." to AI Assistant.` },
-    }));
+    window.dispatchEvent(
+      new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }),
+    );
+    window.dispatchEvent(
+      new CustomEvent("ak-add-notification", {
+        detail: {
+          type: "info",
+          title: "Web Research Triggered",
+          message: `Sent "${resultTitle.slice(0, 40)}..." to AI Assistant.`,
+        },
+      }),
+    );
   };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -302,7 +334,11 @@ export default function SearchSection({
       e.currentTarget.scrollHeight - e.currentTarget.scrollTop <=
       e.currentTarget.clientHeight + 100;
     if (bottom) {
-      setPage((p) => { const next = p + 1; fetchSearch(query, next); return next; });
+      setPage((p) => {
+        const next = p + 1;
+        fetchSearch(query, next);
+        return next;
+      });
     }
   };
 
@@ -317,10 +353,15 @@ export default function SearchSection({
   const webCount = results.filter((r) => !r.fresh && !r.is_video).length;
   const videoCount = results.filter((r) => r.is_video === true).length;
 
-  const detectedEntity = hasSearched || initialQuery || query.trim() ? detectEntity(query) : null;
+  const detectedEntity =
+    hasSearched || initialQuery || query.trim() ? detectEntity(query) : null;
 
   return (
-    <div className="search-root" style={{ paddingBottom: "80px" }} onScroll={handleScroll}>
+    <div
+      className="search-root"
+      style={{ paddingBottom: "80px" }}
+      onScroll={handleScroll}
+    >
       <style>{`
         /* Desktop: absolute overlay dropdown */
         @media (min-width: 769px) {
@@ -404,8 +445,20 @@ export default function SearchSection({
           >
             {/* Loading Indicator */}
             {loadingSuggestions && (
-              <div style={{ padding: "10px 16px", display: "flex", alignItems: "center", gap: "8px", color: "#94a3b8", fontSize: "12px" }}>
-                <div className="spinner" style={{ width: "14px", height: "14px" }} />
+              <div
+                style={{
+                  padding: "10px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  color: "#94a3b8",
+                  fontSize: "12px",
+                }}
+              >
+                <div
+                  className="spinner"
+                  style={{ width: "14px", height: "14px" }}
+                />
                 <span>Searching suggestions...</span>
               </div>
             )}
@@ -413,17 +466,19 @@ export default function SearchSection({
             {/* 1. Real-time Autocomplete Suggestions */}
             {!isQueryEmpty && !loadingSuggestions && suggestions.length > 0 && (
               <div style={{ padding: "4px 0" }}>
-                <div style={{
-                  padding: "6px 16px",
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  color: "#64748b",
-                  letterSpacing: "0.8px",
-                  textTransform: "uppercase",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}>
+                <div
+                  style={{
+                    padding: "6px 16px",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: "#64748b",
+                    letterSpacing: "0.8px",
+                    textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
                   <Search size={11} style={{ color: "#a855f7" }} />
                   Suggestions
                 </div>
@@ -444,16 +499,37 @@ export default function SearchSection({
                         fontSize: "13px",
                         fontWeight: 500,
                         color: isHighlighted ? "#ffffff" : "#cbd5e1",
-                        background: isHighlighted ? "rgba(168, 85, 247, 0.2)" : "transparent",
-                        borderLeft: isHighlighted ? "3px solid #c084fc" : "3px solid transparent",
+                        background: isHighlighted
+                          ? "rgba(168, 85, 247, 0.2)"
+                          : "transparent",
+                        borderLeft: isHighlighted
+                          ? "3px solid #c084fc"
+                          : "3px solid transparent",
                         transition: "all 0.12s ease",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <Search size={13} style={{ color: isHighlighted ? "#c084fc" : "#64748b" }} />
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <Search
+                          size={13}
+                          style={{
+                            color: isHighlighted ? "#c084fc" : "#64748b",
+                          }}
+                        />
                         <span>{item}</span>
                       </div>
-                      <ArrowUpRight size={12} style={{ color: "#475569", opacity: isHighlighted ? 1 : 0.4 }} />
+                      <ArrowUpRight
+                        size={12}
+                        style={{
+                          color: "#475569",
+                          opacity: isHighlighted ? 1 : 0.4,
+                        }}
+                      />
                     </div>
                   );
                 })}
@@ -461,41 +537,56 @@ export default function SearchSection({
             )}
 
             {/* Default search prompt if suggestions empty */}
-            {!isQueryEmpty && !loadingSuggestions && suggestions.length === 0 && (
-              <div
-                onClick={() => executeSearch(query)}
-                style={{
-                  padding: "12px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                  cursor: "pointer",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: "#c084fc",
-                  background: "rgba(168, 85, 247, 0.08)",
-                }}
-              >
-                <Search size={14} />
-                <span>Search for &quot;{query}&quot;</span>
-              </div>
-            )}
+            {!isQueryEmpty &&
+              !loadingSuggestions &&
+              suggestions.length === 0 && (
+                <div
+                  onClick={() => executeSearch(query)}
+                  style={{
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    cursor: "pointer",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#c084fc",
+                    background: "rgba(168, 85, 247, 0.08)",
+                  }}
+                >
+                  <Search size={14} />
+                  <span>Search for &quot;{query}&quot;</span>
+                </div>
+              )}
 
             {/* 2. Recent Searches (when query empty or focused) */}
             {isQueryEmpty && recentSearches.length > 0 && (
-              <div style={{ padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <div style={{
-                  padding: "6px 16px",
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  color: "#64748b",
-                  letterSpacing: "0.8px",
-                  textTransform: "uppercase",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div
+                style={{
+                  padding: "4px 0",
+                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "6px 16px",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: "#64748b",
+                    letterSpacing: "0.8px",
+                    textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
                     <Clock size={11} style={{ color: "#38bdf8" }} />
                     Recent Searches
                   </div>
@@ -510,7 +601,7 @@ export default function SearchSection({
                       cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
-                      gap: "3px"
+                      gap: "3px",
                     }}
                     title="Clear search history"
                   >
@@ -534,16 +625,37 @@ export default function SearchSection({
                         fontSize: "13px",
                         fontWeight: 500,
                         color: isHighlighted ? "#ffffff" : "#cbd5e1",
-                        background: isHighlighted ? "rgba(56, 189, 248, 0.2)" : "transparent",
-                        borderLeft: isHighlighted ? "3px solid #38bdf8" : "3px solid transparent",
+                        background: isHighlighted
+                          ? "rgba(56, 189, 248, 0.2)"
+                          : "transparent",
+                        borderLeft: isHighlighted
+                          ? "3px solid #38bdf8"
+                          : "3px solid transparent",
                         transition: "all 0.12s ease",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <Clock size={13} style={{ color: isHighlighted ? "#38bdf8" : "#64748b" }} />
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <Clock
+                          size={13}
+                          style={{
+                            color: isHighlighted ? "#38bdf8" : "#64748b",
+                          }}
+                        />
                         <span>{item}</span>
                       </div>
-                      <ArrowUpRight size={12} style={{ color: "#475569", opacity: isHighlighted ? 1 : 0.4 }} />
+                      <ArrowUpRight
+                        size={12}
+                        style={{
+                          color: "#475569",
+                          opacity: isHighlighted ? 1 : 0.4,
+                        }}
+                      />
                     </div>
                   );
                 })}
@@ -553,22 +665,26 @@ export default function SearchSection({
             {/* 3. Trending Searches */}
             {trending.length > 0 && (
               <div style={{ padding: "4px 0" }}>
-                <div style={{
-                  padding: "6px 16px",
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  color: "#64748b",
-                  letterSpacing: "0.8px",
-                  textTransform: "uppercase",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}>
+                <div
+                  style={{
+                    padding: "6px 16px",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: "#64748b",
+                    letterSpacing: "0.8px",
+                    textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
                   <TrendingUp size={11} style={{ color: "#f43f5e" }} />
                   Trending Searches
                 </div>
                 {trending.map((item, idx) => {
-                  const offset = isQueryEmpty ? recentSearches.length : suggestions.length;
+                  const offset = isQueryEmpty
+                    ? recentSearches.length
+                    : suggestions.length;
                   const globalIdx = offset + idx;
                   const isHighlighted = selectedIndex === globalIdx;
                   return (
@@ -585,24 +701,41 @@ export default function SearchSection({
                         fontSize: "13px",
                         fontWeight: 500,
                         color: isHighlighted ? "#ffffff" : "#cbd5e1",
-                        background: isHighlighted ? "rgba(244, 63, 94, 0.2)" : "transparent",
-                        borderLeft: isHighlighted ? "3px solid #f43f5e" : "3px solid transparent",
+                        background: isHighlighted
+                          ? "rgba(244, 63, 94, 0.2)"
+                          : "transparent",
+                        borderLeft: isHighlighted
+                          ? "3px solid #f43f5e"
+                          : "3px solid transparent",
                         transition: "all 0.12s ease",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <TrendingUp size={13} style={{ color: isHighlighted ? "#f43f5e" : "#64748b" }} />
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <TrendingUp
+                          size={13}
+                          style={{
+                            color: isHighlighted ? "#f43f5e" : "#64748b",
+                          }}
+                        />
                         <span>{item}</span>
                       </div>
-                      <span style={{
-                        fontSize: "10px",
-                        fontWeight: 700,
-                        padding: "2px 7px",
-                        borderRadius: "10px",
-                        background: "rgba(244, 63, 94, 0.15)",
-                        color: "#fb7185",
-                        border: "1px solid rgba(244, 63, 94, 0.3)"
-                      }}>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          padding: "2px 7px",
+                          borderRadius: "10px",
+                          background: "rgba(244, 63, 94, 0.15)",
+                          color: "#fb7185",
+                          border: "1px solid rgba(244, 63, 94, 0.3)",
+                        }}
+                      >
                         HOT
                       </span>
                     </div>
@@ -616,7 +749,14 @@ export default function SearchSection({
 
       {/* ── Filter Pills & Engine Badges (only after search) ── */}
       {hasSearched && results.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "14px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            marginTop: "14px",
+          }}
+        >
           {/* Category Filter Tabs — Single 1-Row Horizontal Touch-Scroll Bar */}
           <div
             style={{
@@ -650,19 +790,31 @@ export default function SearchSection({
                   fontWeight: 600,
                   cursor: "pointer",
                   flexShrink: 0,
-                  border: activeFilter === tab.id
-                    ? "1px solid rgba(168,85,247,0.7)"
-                    : "1px solid rgba(255,255,255,0.12)",
-                  background: activeFilter === tab.id
-                    ? "rgba(168,85,247,0.2)"
-                    : "rgba(255,255,255,0.05)",
-                  color: activeFilter === tab.id ? "#c084fc" : "rgba(255,255,255,0.6)",
+                  border:
+                    activeFilter === tab.id
+                      ? "1px solid rgba(168,85,247,0.7)"
+                      : "1px solid rgba(255,255,255,0.12)",
+                  background:
+                    activeFilter === tab.id
+                      ? "rgba(168,85,247,0.2)"
+                      : "rgba(255,255,255,0.05)",
+                  color:
+                    activeFilter === tab.id
+                      ? "#c084fc"
+                      : "rgba(255,255,255,0.6)",
                   transition: "all 0.2s ease",
                 }}
               >
                 {tab.label}
                 {tab.count > 0 && (
-                  <span style={{ marginLeft: "6px", opacity: 0.75, fontSize: "11px", fontWeight: 700 }}>
+                  <span
+                    style={{
+                      marginLeft: "6px",
+                      opacity: 0.75,
+                      fontSize: "11px",
+                      fontWeight: 700,
+                    }}
+                  >
                     {tab.count}
                   </span>
                 )}
@@ -686,31 +838,90 @@ export default function SearchSection({
               }}
               className="scrollbar-none"
             >
-              <span style={{ textTransform: "uppercase", letterSpacing: "0.5px", fontSize: "9px", color: "#64748b", fontWeight: 700, marginRight: "2px" }}>
+              <span
+                style={{
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                  fontSize: "9px",
+                  color: "#64748b",
+                  fontWeight: 700,
+                  marginRight: "2px",
+                }}
+              >
                 Sources:
               </span>
               {engines.includes("google_news_rss") && (
-                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    background: "rgba(239,68,68,0.12)",
+                    color: "#f87171",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                  }}
+                >
                   🔴 Google News
                 </span>
               )}
               {engines.includes("bing_news_rss") && (
-                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(14,165,233,0.12)", color: "#38bdf8", border: "1px solid rgba(14,165,233,0.2)" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    background: "rgba(14,165,233,0.12)",
+                    color: "#38bdf8",
+                    border: "1px solid rgba(14,165,233,0.2)",
+                  }}
+                >
                   🔵 Bing News
                 </span>
               )}
               {engines.includes("duckduckgo_web") && (
-                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(251,146,60,0.12)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.2)" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    background: "rgba(251,146,60,0.12)",
+                    color: "#fb923c",
+                    border: "1px solid rgba(251,146,60,0.2)",
+                  }}
+                >
                   🌐 Web
                 </span>
               )}
               {engines.includes("wikipedia") && (
-                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(168,85,247,0.12)", color: "#c084fc", border: "1px solid rgba(168,85,247,0.2)" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    background: "rgba(168,85,247,0.12)",
+                    color: "#c084fc",
+                    border: "1px solid rgba(168,85,247,0.2)",
+                  }}
+                >
                   📖 Wikipedia
                 </span>
               )}
               {engines.includes("youtube") && (
-                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "12px", background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.25)" }}>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 8px",
+                    borderRadius: "12px",
+                    background: "rgba(239,68,68,0.15)",
+                    color: "#f87171",
+                    border: "1px solid rgba(239,68,68,0.25)",
+                  }}
+                >
                   ▶️ YouTube
                 </span>
               )}
@@ -729,13 +940,19 @@ export default function SearchSection({
 
       {/* ── Warning: partial failure — results still showing ── */}
       {error && results.length > 0 && (
-        <div style={{
-          display: "flex", alignItems: "center", gap: "8px",
-          padding: "7px 12px", borderRadius: "8px",
-          background: "rgba(251,191,36,0.08)",
-          border: "1px solid rgba(251,191,36,0.2)",
-          fontSize: "11px", color: "rgba(251,191,36,0.85)",
-        }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "7px 12px",
+            borderRadius: "8px",
+            background: "rgba(251,191,36,0.08)",
+            border: "1px solid rgba(251,191,36,0.2)",
+            fontSize: "11px",
+            color: "rgba(251,191,36,0.85)",
+          }}
+        >
           <AlertCircle size={13} style={{ flexShrink: 0 }} />
           One search source timed out — showing available results.
         </div>
@@ -755,13 +972,18 @@ export default function SearchSection({
       {loading && results.length === 0 && (
         <div className="flex flex-col items-center justify-center py-6">
           <div className="spinner mb-3" />
-          <p className="text-sm text-muted">Searching across Google News &amp; Web...</p>
+          <p className="text-sm text-muted">
+            Searching across Google News &amp; Web...
+          </p>
         </div>
       )}
 
       {/* ── Idle Hint ── */}
       {!hasSearched && !loading && !error && (
-        <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
+        <p
+          className="text-xs text-center"
+          style={{ color: "var(--text-muted)" }}
+        >
           Type a query above and press <strong>Search</strong>
         </p>
       )}
@@ -772,8 +994,12 @@ export default function SearchSection({
           <div className="w-9 h-9 rounded-full bg-surface flex items-center justify-center mb-2">
             <Search className="w-4 h-4 text-muted" />
           </div>
-          <p className="text-sm text-secondary">No results for &quot;{query}&quot;</p>
-          <p className="text-xs text-muted mt-1">Try different keywords or switch filter tabs</p>
+          <p className="text-sm text-secondary">
+            No results for &quot;{query}&quot;
+          </p>
+          <p className="text-xs text-muted mt-1">
+            Try different keywords or switch filter tabs
+          </p>
         </div>
       )}
 
@@ -828,9 +1054,15 @@ export default function SearchSection({
                       <img
                         src={r.thumbnail}
                         alt={r.title}
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          display: "block",
+                        }}
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                          (e.currentTarget as HTMLImageElement).style.display =
+                            "none";
                         }}
                       />
                       <div
@@ -866,12 +1098,35 @@ export default function SearchSection({
 
                   {/* Video Details */}
                   <div style={{ flex: 1, minWidth: "200px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                      <span style={{ fontSize: "10px", fontWeight: 800, padding: "1px 7px", borderRadius: "5px", background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.35)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 800,
+                          padding: "1px 7px",
+                          borderRadius: "5px",
+                          background: "rgba(239,68,68,0.2)",
+                          color: "#f87171",
+                          border: "1px solid rgba(239,68,68,0.35)",
+                        }}
+                      >
                         ▶️ YouTube
                       </span>
                       {r.channel && (
-                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "rgba(255,255,255,0.45)",
+                            fontWeight: 600,
+                          }}
+                        >
                           {r.channel}
                         </span>
                       )}
@@ -881,7 +1136,11 @@ export default function SearchSection({
                       href={r.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ textDecoration: "none", display: "block", marginBottom: "6px" }}
+                      style={{
+                        textDecoration: "none",
+                        display: "block",
+                        marginBottom: "6px",
+                      }}
                     >
                       <h3
                         style={{
@@ -892,28 +1151,52 @@ export default function SearchSection({
                           margin: 0,
                           transition: "color 0.15s ease",
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "#f1f5f9"; }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "#f87171";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "#f1f5f9";
+                        }}
                       >
                         {r.title}
                       </h3>
                     </a>
 
-                    <p style={{ fontSize: "12px", color: "rgba(255,255,255,0.55)", margin: "0 0 10px 0" }}>
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "rgba(255,255,255,0.55)",
+                        margin: "0 0 10px 0",
+                      }}
+                    >
                       {r.snippet}
                     </p>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
                       <button
                         type="button"
-                        onClick={(e) => handleSparklesClick(e, r.title, r.snippet)}
+                        onClick={(e) =>
+                          handleSparklesClick(e, r.title, r.snippet)
+                        }
                         style={{
-                          display: "flex", alignItems: "center", gap: "5px",
-                          padding: "4px 10px", borderRadius: "7px", fontSize: "11px",
-                          fontWeight: 700, cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "4px 10px",
+                          borderRadius: "7px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          cursor: "pointer",
                           background: "rgba(168,85,247,0.12)",
                           border: "1px solid rgba(168,85,247,0.28)",
-                          color: "#c084fc", transition: "all 0.18s ease",
+                          color: "#c084fc",
+                          transition: "all 0.18s ease",
                         }}
                       >
                         <Sparkles size={11} />
@@ -925,12 +1208,18 @@ export default function SearchSection({
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
-                          display: "flex", alignItems: "center", gap: "4px",
-                          padding: "4px 10px", borderRadius: "7px", fontSize: "11px",
-                          fontWeight: 600, color: "#f87171",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "4px 10px",
+                          borderRadius: "7px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: "#f87171",
                           background: "rgba(239,68,68,0.1)",
                           border: "1px solid rgba(239,68,68,0.25)",
-                          textDecoration: "none", transition: "all 0.18s ease",
+                          textDecoration: "none",
+                          transition: "all 0.18s ease",
                         }}
                       >
                         Watch Video <ExternalLink size={11} />
@@ -962,30 +1251,58 @@ export default function SearchSection({
                 }}
               >
                 {/* Row 1: Favicon + Domain + LIVE badge */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginBottom: "6px",
+                  }}
+                >
                   <img
                     src={favicon}
                     alt=""
                     width={16}
                     height={16}
                     style={{ borderRadius: "3px", flexShrink: 0 }}
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display =
+                        "none";
+                    }}
                   />
-                  <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.45)", fontWeight: 500 }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "rgba(255,255,255,0.45)",
+                      fontWeight: 500,
+                    }}
+                  >
                     {domain}
                   </span>
                   {r.fresh && (
-                    <span style={{
-                      fontSize: "9px", fontWeight: 800, padding: "1px 6px",
-                      borderRadius: "5px", background: "rgba(239,68,68,0.2)",
-                      color: "#f87171", border: "1px solid rgba(239,68,68,0.35)",
-                      letterSpacing: "0.5px",
-                    }}>
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        fontWeight: 800,
+                        padding: "1px 6px",
+                        borderRadius: "5px",
+                        background: "rgba(239,68,68,0.2)",
+                        color: "#f87171",
+                        border: "1px solid rgba(239,68,68,0.35)",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
                       🔴 LIVE
                     </span>
                   )}
                   {time && (
-                    <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.35)", marginLeft: "auto" }}>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "rgba(255,255,255,0.35)",
+                        marginLeft: "auto",
+                      }}
+                    >
                       {time}
                     </span>
                   )}
@@ -996,22 +1313,31 @@ export default function SearchSection({
                   href={r.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ display: "block", marginBottom: "6px", textDecoration: "none" }}
-                >
-                  <h3 style={{
-                    fontSize: "15px",
-                    fontWeight: 600,
-                    color: "#818cf8",
-                    lineHeight: 1.45,
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                    margin: 0,
-                    transition: "color 0.15s ease",
+                  style={{
+                    display: "block",
+                    marginBottom: "6px",
+                    textDecoration: "none",
                   }}
-                    onMouseEnter={(e) => { e.currentTarget.style.color = "#a5b4fc"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.color = "#818cf8"; }}
+                >
+                  <h3
+                    style={{
+                      fontSize: "15px",
+                      fontWeight: 600,
+                      color: "#818cf8",
+                      lineHeight: 1.45,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      margin: 0,
+                      transition: "color 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = "#a5b4fc";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = "#818cf8";
+                    }}
                   >
                     {r.title}
                   </h3>
@@ -1019,39 +1345,52 @@ export default function SearchSection({
 
                 {/* Row 3: Snippet */}
                 {text && (
-                  <p style={{
-                    fontSize: "13px",
-                    color: "rgba(255,255,255,0.55)",
-                    lineHeight: 1.6,
-                    margin: "0 0 10px 0",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden",
-                  }}>
+                  <p
+                    style={{
+                      fontSize: "13px",
+                      color: "rgba(255,255,255,0.55)",
+                      lineHeight: 1.6,
+                      margin: "0 0 10px 0",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
                     {text}
                   </p>
                 )}
 
                 {/* Row 4: Action Buttons */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
                   <button
                     type="button"
-                    onClick={(e) => handleSparklesClick(e, r.title, text || r.snippet)}
+                    onClick={(e) =>
+                      handleSparklesClick(e, r.title, text || r.snippet)
+                    }
                     style={{
-                      display: "flex", alignItems: "center", gap: "5px",
-                      padding: "5px 12px", borderRadius: "8px", fontSize: "11px",
-                      fontWeight: 700, cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      padding: "5px 12px",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      cursor: "pointer",
                       background: "rgba(168,85,247,0.12)",
                       border: "1px solid rgba(168,85,247,0.28)",
-                      color: "#c084fc", transition: "all 0.18s ease",
+                      color: "#c084fc",
+                      transition: "all 0.18s ease",
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.background = "#a855f7";
                       e.currentTarget.style.color = "#fff";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(168,85,247,0.12)";
+                      e.currentTarget.style.background =
+                        "rgba(168,85,247,0.12)";
                       e.currentTarget.style.color = "#c084fc";
                     }}
                   >
@@ -1064,20 +1403,28 @@ export default function SearchSection({
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      display: "flex", alignItems: "center", gap: "4px",
-                      padding: "5px 10px", borderRadius: "8px", fontSize: "11px",
-                      fontWeight: 600, color: "rgba(255,255,255,0.4)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "5px 10px",
+                      borderRadius: "8px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.4)",
                       background: "rgba(255,255,255,0.04)",
                       border: "1px solid rgba(255,255,255,0.08)",
-                      textDecoration: "none", transition: "all 0.18s ease",
+                      textDecoration: "none",
+                      transition: "all 0.18s ease",
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.color = "#fff";
-                      e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                      e.currentTarget.style.background =
+                        "rgba(255,255,255,0.08)";
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.color = "rgba(255,255,255,0.4)";
-                      e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                      e.currentTarget.style.background =
+                        "rgba(255,255,255,0.04)";
                     }}
                   >
                     <ExternalLink size={11} />

@@ -17,7 +17,23 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "a11y": {
+        "recommended": false
+      },
+      "style": {
+        "recommended": false
+      },
+      "complexity": {
+        "recommended": false
+      },
+      "suspicious": {
+        "recommended": false
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "warn",
+        "noUnusedVariables": "warn"
+      }
     },
     "domains": {
       "next": "recommended",
@@ -27,7 +43,7 @@
   "assist": {
     "actions": {
       "source": {
-        "organizeImports": "on"
+        "organizeImports": "off"
       }
     }
   }

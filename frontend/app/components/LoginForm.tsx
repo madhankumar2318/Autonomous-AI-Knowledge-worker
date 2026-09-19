@@ -17,60 +17,325 @@ import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../config";
 
 const COUNTRIES = [
-  { code: "AR", name: "Argentina", dialCode: "+54", placeholder: "+54 9 11 1234-5678" },
-  { code: "AU", name: "Australia", dialCode: "+61", placeholder: "+61 400 123 456" },
-  { code: "AT", name: "Austria", dialCode: "+43", placeholder: "+43 664 1234567" },
-  { code: "BD", name: "Bangladesh", dialCode: "+880", placeholder: "+880 1712-345678" },
-  { code: "BE", name: "Belgium", dialCode: "+32", placeholder: "+32 470 12 34 56" },
-  { code: "BR", name: "Brazil", dialCode: "+55", placeholder: "+55 11 99999-9999" },
-  { code: "CA", name: "Canada", dialCode: "+1", placeholder: "+1 (555) 000-0000" },
-  { code: "CL", name: "Chile", dialCode: "+56", placeholder: "+56 9 1234 5678" },
-  { code: "CN", name: "China", dialCode: "+86", placeholder: "+86 139 1234 5678" },
-  { code: "CO", name: "Colombia", dialCode: "+57", placeholder: "+57 300 123 4567" },
-  { code: "DK", name: "Denmark", dialCode: "+45", placeholder: "+45 12 34 56 78" },
-  { code: "EG", name: "Egypt", dialCode: "+20", placeholder: "+20 100 123 4567" },
-  { code: "FI", name: "Finland", dialCode: "+358", placeholder: "+358 40 1234567" },
-  { code: "FR", name: "France", dialCode: "+33", placeholder: "+33 6 1234 5678" },
-  { code: "DE", name: "Germany", dialCode: "+49", placeholder: "+49 170 1234567" },
-  { code: "GR", name: "Greece", dialCode: "+30", placeholder: "+30 697 123 4567" },
-  { code: "HK", name: "Hong Kong", dialCode: "+852", placeholder: "+852 9123 4567" },
-  { code: "IN", name: "India", dialCode: "+91", placeholder: "+91 99999 99999" },
-  { code: "ID", name: "Indonesia", dialCode: "+62", placeholder: "+62 812-3456-7890" },
-  { code: "IE", name: "Ireland", dialCode: "+353", placeholder: "+353 87 123 4567" },
-  { code: "IL", name: "Israel", dialCode: "+972", placeholder: "+972 50-123-4567" },
-  { code: "IT", name: "Italy", dialCode: "+39", placeholder: "+39 333 123 4567" },
-  { code: "JP", name: "Japan", dialCode: "+81", placeholder: "+81 90-1234-5678" },
-  { code: "KE", name: "Kenya", dialCode: "+254", placeholder: "+254 712 345678" },
-  { code: "MY", name: "Malaysia", dialCode: "+60", placeholder: "+60 12-345 6789" },
-  { code: "MX", name: "Mexico", dialCode: "+52", placeholder: "+52 55 1234 5678" },
-  { code: "NP", name: "Nepal", dialCode: "+977", placeholder: "+977 980-1234567" },
-  { code: "NL", name: "Netherlands", dialCode: "+31", placeholder: "+31 6 12345678" },
-  { code: "NZ", name: "New Zealand", dialCode: "+64", placeholder: "+64 21 123 4567" },
-  { code: "NG", name: "Nigeria", dialCode: "+234", placeholder: "+234 803 123 4567" },
-  { code: "NO", name: "Norway", dialCode: "+47", placeholder: "+47 912 34 567" },
-  { code: "PK", name: "Pakistan", dialCode: "+92", placeholder: "+92 300 1234567" },
+  {
+    code: "AR",
+    name: "Argentina",
+    dialCode: "+54",
+    placeholder: "+54 9 11 1234-5678",
+  },
+  {
+    code: "AU",
+    name: "Australia",
+    dialCode: "+61",
+    placeholder: "+61 400 123 456",
+  },
+  {
+    code: "AT",
+    name: "Austria",
+    dialCode: "+43",
+    placeholder: "+43 664 1234567",
+  },
+  {
+    code: "BD",
+    name: "Bangladesh",
+    dialCode: "+880",
+    placeholder: "+880 1712-345678",
+  },
+  {
+    code: "BE",
+    name: "Belgium",
+    dialCode: "+32",
+    placeholder: "+32 470 12 34 56",
+  },
+  {
+    code: "BR",
+    name: "Brazil",
+    dialCode: "+55",
+    placeholder: "+55 11 99999-9999",
+  },
+  {
+    code: "CA",
+    name: "Canada",
+    dialCode: "+1",
+    placeholder: "+1 (555) 000-0000",
+  },
+  {
+    code: "CL",
+    name: "Chile",
+    dialCode: "+56",
+    placeholder: "+56 9 1234 5678",
+  },
+  {
+    code: "CN",
+    name: "China",
+    dialCode: "+86",
+    placeholder: "+86 139 1234 5678",
+  },
+  {
+    code: "CO",
+    name: "Colombia",
+    dialCode: "+57",
+    placeholder: "+57 300 123 4567",
+  },
+  {
+    code: "DK",
+    name: "Denmark",
+    dialCode: "+45",
+    placeholder: "+45 12 34 56 78",
+  },
+  {
+    code: "EG",
+    name: "Egypt",
+    dialCode: "+20",
+    placeholder: "+20 100 123 4567",
+  },
+  {
+    code: "FI",
+    name: "Finland",
+    dialCode: "+358",
+    placeholder: "+358 40 1234567",
+  },
+  {
+    code: "FR",
+    name: "France",
+    dialCode: "+33",
+    placeholder: "+33 6 1234 5678",
+  },
+  {
+    code: "DE",
+    name: "Germany",
+    dialCode: "+49",
+    placeholder: "+49 170 1234567",
+  },
+  {
+    code: "GR",
+    name: "Greece",
+    dialCode: "+30",
+    placeholder: "+30 697 123 4567",
+  },
+  {
+    code: "HK",
+    name: "Hong Kong",
+    dialCode: "+852",
+    placeholder: "+852 9123 4567",
+  },
+  {
+    code: "IN",
+    name: "India",
+    dialCode: "+91",
+    placeholder: "+91 99999 99999",
+  },
+  {
+    code: "ID",
+    name: "Indonesia",
+    dialCode: "+62",
+    placeholder: "+62 812-3456-7890",
+  },
+  {
+    code: "IE",
+    name: "Ireland",
+    dialCode: "+353",
+    placeholder: "+353 87 123 4567",
+  },
+  {
+    code: "IL",
+    name: "Israel",
+    dialCode: "+972",
+    placeholder: "+972 50-123-4567",
+  },
+  {
+    code: "IT",
+    name: "Italy",
+    dialCode: "+39",
+    placeholder: "+39 333 123 4567",
+  },
+  {
+    code: "JP",
+    name: "Japan",
+    dialCode: "+81",
+    placeholder: "+81 90-1234-5678",
+  },
+  {
+    code: "KE",
+    name: "Kenya",
+    dialCode: "+254",
+    placeholder: "+254 712 345678",
+  },
+  {
+    code: "MY",
+    name: "Malaysia",
+    dialCode: "+60",
+    placeholder: "+60 12-345 6789",
+  },
+  {
+    code: "MX",
+    name: "Mexico",
+    dialCode: "+52",
+    placeholder: "+52 55 1234 5678",
+  },
+  {
+    code: "NP",
+    name: "Nepal",
+    dialCode: "+977",
+    placeholder: "+977 980-1234567",
+  },
+  {
+    code: "NL",
+    name: "Netherlands",
+    dialCode: "+31",
+    placeholder: "+31 6 12345678",
+  },
+  {
+    code: "NZ",
+    name: "New Zealand",
+    dialCode: "+64",
+    placeholder: "+64 21 123 4567",
+  },
+  {
+    code: "NG",
+    name: "Nigeria",
+    dialCode: "+234",
+    placeholder: "+234 803 123 4567",
+  },
+  {
+    code: "NO",
+    name: "Norway",
+    dialCode: "+47",
+    placeholder: "+47 912 34 567",
+  },
+  {
+    code: "PK",
+    name: "Pakistan",
+    dialCode: "+92",
+    placeholder: "+92 300 1234567",
+  },
   { code: "PE", name: "Peru", dialCode: "+51", placeholder: "+51 912 345 678" },
-  { code: "PH", name: "Philippines", dialCode: "+63", placeholder: "+63 912 345 6789" },
-  { code: "PL", name: "Poland", dialCode: "+48", placeholder: "+48 501 123 456" },
-  { code: "PT", name: "Portugal", dialCode: "+351", placeholder: "+351 912 345 678" },
-  { code: "RO", name: "Romania", dialCode: "+40", placeholder: "+40 722 123 456" },
-  { code: "RU", name: "Russia", dialCode: "+7", placeholder: "+7 999 123-45-67" },
-  { code: "SA", name: "Saudi Arabia", dialCode: "+966", placeholder: "+966 50 123 4567" },
-  { code: "SG", name: "Singapore", dialCode: "+65", placeholder: "+65 9123 4567" },
-  { code: "ZA", name: "South Africa", dialCode: "+27", placeholder: "+27 82 123 4567" },
-  { code: "KR", name: "South Korea", dialCode: "+82", placeholder: "+82 10-1234-5678" },
-  { code: "ES", name: "Spain", dialCode: "+34", placeholder: "+34 600 123 456" },
-  { code: "LK", name: "Sri Lanka", dialCode: "+94", placeholder: "+94 77 123 4567" },
-  { code: "SE", name: "Sweden", dialCode: "+46", placeholder: "+46 70 123 45 67" },
-  { code: "CH", name: "Switzerland", dialCode: "+41", placeholder: "+41 78 123 45 67" },
-  { code: "TW", name: "Taiwan", dialCode: "+886", placeholder: "+886 912 345 678" },
-  { code: "TH", name: "Thailand", dialCode: "+66", placeholder: "+66 81 234 5678" },
-  { code: "TR", name: "Turkey", dialCode: "+90", placeholder: "+90 532 123 4567" },
-  { code: "UA", name: "Ukraine", dialCode: "+380", placeholder: "+380 50 123 4567" },
-  { code: "AE", name: "United Arab Emirates", dialCode: "+971", placeholder: "+971 50 123 4567" },
-  { code: "GB", name: "United Kingdom", dialCode: "+44", placeholder: "+44 7911 123456" },
-  { code: "US", name: "United States", dialCode: "+1", placeholder: "+1 (555) 000-0000" },
-  { code: "VN", name: "Vietnam", dialCode: "+84", placeholder: "+84 91 234 5678" },
+  {
+    code: "PH",
+    name: "Philippines",
+    dialCode: "+63",
+    placeholder: "+63 912 345 6789",
+  },
+  {
+    code: "PL",
+    name: "Poland",
+    dialCode: "+48",
+    placeholder: "+48 501 123 456",
+  },
+  {
+    code: "PT",
+    name: "Portugal",
+    dialCode: "+351",
+    placeholder: "+351 912 345 678",
+  },
+  {
+    code: "RO",
+    name: "Romania",
+    dialCode: "+40",
+    placeholder: "+40 722 123 456",
+  },
+  {
+    code: "RU",
+    name: "Russia",
+    dialCode: "+7",
+    placeholder: "+7 999 123-45-67",
+  },
+  {
+    code: "SA",
+    name: "Saudi Arabia",
+    dialCode: "+966",
+    placeholder: "+966 50 123 4567",
+  },
+  {
+    code: "SG",
+    name: "Singapore",
+    dialCode: "+65",
+    placeholder: "+65 9123 4567",
+  },
+  {
+    code: "ZA",
+    name: "South Africa",
+    dialCode: "+27",
+    placeholder: "+27 82 123 4567",
+  },
+  {
+    code: "KR",
+    name: "South Korea",
+    dialCode: "+82",
+    placeholder: "+82 10-1234-5678",
+  },
+  {
+    code: "ES",
+    name: "Spain",
+    dialCode: "+34",
+    placeholder: "+34 600 123 456",
+  },
+  {
+    code: "LK",
+    name: "Sri Lanka",
+    dialCode: "+94",
+    placeholder: "+94 77 123 4567",
+  },
+  {
+    code: "SE",
+    name: "Sweden",
+    dialCode: "+46",
+    placeholder: "+46 70 123 45 67",
+  },
+  {
+    code: "CH",
+    name: "Switzerland",
+    dialCode: "+41",
+    placeholder: "+41 78 123 45 67",
+  },
+  {
+    code: "TW",
+    name: "Taiwan",
+    dialCode: "+886",
+    placeholder: "+886 912 345 678",
+  },
+  {
+    code: "TH",
+    name: "Thailand",
+    dialCode: "+66",
+    placeholder: "+66 81 234 5678",
+  },
+  {
+    code: "TR",
+    name: "Turkey",
+    dialCode: "+90",
+    placeholder: "+90 532 123 4567",
+  },
+  {
+    code: "UA",
+    name: "Ukraine",
+    dialCode: "+380",
+    placeholder: "+380 50 123 4567",
+  },
+  {
+    code: "AE",
+    name: "United Arab Emirates",
+    dialCode: "+971",
+    placeholder: "+971 50 123 4567",
+  },
+  {
+    code: "GB",
+    name: "United Kingdom",
+    dialCode: "+44",
+    placeholder: "+44 7911 123456",
+  },
+  {
+    code: "US",
+    name: "United States",
+    dialCode: "+1",
+    placeholder: "+1 (555) 000-0000",
+  },
+  {
+    code: "VN",
+    name: "Vietnam",
+    dialCode: "+84",
+    placeholder: "+84 91 234 5678",
+  },
 ];
 
 interface LoginFormProps {
@@ -117,7 +382,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setCountry(code);
     const selected = COUNTRIES.find((c) => c.code === code);
     if (selected) {
-      const cleanPlaceholder = selected.placeholder.replace(selected.dialCode, "").trim();
+      const cleanPlaceholder = selected.placeholder
+        .replace(selected.dialCode, "")
+        .trim();
       setPhonePlaceholder(cleanPlaceholder);
     }
   };
@@ -202,7 +469,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         ? `${API_BASE_URL}/auth/register`
         : `${API_BASE_URL}/auth/login`;
 
-      console.log(`[AUTH] Sending ${isRegistering ? "register" : "login"} request to:`, endpoint);
+      console.log(
+        `[AUTH] Sending ${isRegistering ? "register" : "login"} request to:`,
+        endpoint,
+      );
 
       if (isRegistering) {
         if (name) payload.name = name;
@@ -229,7 +499,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         console.error("[AUTH] Network/CORS error:", networkErr);
         const host = new URL(endpoint).hostname;
         throw new Error(
-          `Cannot reach server (${host}). The backend may be starting up or CORS is misconfigured. Please wait 30 seconds and try again.`
+          `Cannot reach server (${host}). The backend may be starting up or CORS is misconfigured. Please wait 30 seconds and try again.`,
         );
       }
 
@@ -246,9 +516,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
         throw new Error(
           errorData?.message ||
-          errorData?.error ||
-          errorData?.detail ||
-          `HTTP ${res.status}: ${isRegistering ? "Registration failed" : "Login failed"}`
+            errorData?.error ||
+            errorData?.detail ||
+            `HTTP ${res.status}: ${isRegistering ? "Registration failed" : "Login failed"}`,
         );
       }
 
@@ -312,8 +582,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     firstInputRef.current?.focus();
   }, [isRegistering]);
 
-  const filteredCountries = [...COUNTRIES]
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const filteredCountries = [...COUNTRIES].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
 
   return (
     <>
@@ -335,9 +606,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
               alignItems: "center",
               justifyContent: "center",
               margin: "0 auto 20px",
-              background: "linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(6,182,212,0.1) 100%)",
+              background:
+                "linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(6,182,212,0.1) 100%)",
               border: "1px solid rgba(168,85,247,0.25)",
-              boxShadow: "0 0 24px rgba(168,85,247,0.12), inset 0 1px 0 rgba(255,255,255,0.1)",
+              boxShadow:
+                "0 0 24px rgba(168,85,247,0.12), inset 0 1px 0 rgba(255,255,255,0.1)",
               backdropFilter: "blur(8px)",
             }}
           >
@@ -360,36 +633,64 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           >
             {isRegistering ? "Create Account" : "Welcome Back"}
           </h1>
-          <p style={{ margin: 0, fontSize: "14px", color: "rgba(255, 255, 255, 0.65)", fontWeight: 500 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "14px",
+              color: "rgba(255, 255, 255, 0.65)",
+              fontWeight: 500,
+            }}
+          >
             {isRegistering
               ? `Step ${registerStep} of 2`
               : "Sign in to your AI Knowledge Dashboard"}
           </p>
           {isRegistering && (
-            <div style={{ display: "flex", justifyContent: "center", gap: "8px", marginTop: "16px" }}>
-              <div style={{
-                width: "40px",
-                height: "6px",
-                borderRadius: "3px",
-                background: registerStep >= 1 ? "linear-gradient(90deg, #8b5cf6, #06b6d4)" : "rgba(255,255,255,0.12)",
-                boxShadow: registerStep >= 1 ? "0 0 8px rgba(139,92,246,0.3)" : "none",
-                transition: "all 0.3s ease"
-              }} />
-              <div style={{
-                width: "40px",
-                height: "6px",
-                borderRadius: "3px",
-                background: registerStep >= 2 ? "linear-gradient(90deg, #8b5cf6, #06b6d4)" : "rgba(255,255,255,0.12)",
-                boxShadow: registerStep >= 2 ? "0 0 8px rgba(139,92,246,0.3)" : "none",
-                transition: "all 0.3s ease"
-              }} />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "8px",
+                marginTop: "16px",
+              }}
+            >
+              <div
+                style={{
+                  width: "40px",
+                  height: "6px",
+                  borderRadius: "3px",
+                  background:
+                    registerStep >= 1
+                      ? "linear-gradient(90deg, #8b5cf6, #06b6d4)"
+                      : "rgba(255,255,255,0.12)",
+                  boxShadow:
+                    registerStep >= 1 ? "0 0 8px rgba(139,92,246,0.3)" : "none",
+                  transition: "all 0.3s ease",
+                }}
+              />
+              <div
+                style={{
+                  width: "40px",
+                  height: "6px",
+                  borderRadius: "3px",
+                  background:
+                    registerStep >= 2
+                      ? "linear-gradient(90deg, #8b5cf6, #06b6d4)"
+                      : "rgba(255,255,255,0.12)",
+                  boxShadow:
+                    registerStep >= 2 ? "0 0 8px rgba(139,92,246,0.3)" : "none",
+                  transition: "all 0.3s ease",
+                }}
+              />
             </div>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: "20px" }}
+        >
           <div className={isRegistering ? "register-grid" : "login-stack"}>
-            
             {/* Full Name Field (Register Only) */}
             {isRegistering && registerStep === 1 && (
               <div className="animate-fade-in">
@@ -463,7 +764,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 </label>
                 <div
                   className="input-wrapper"
-                  onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
+                  onClick={() =>
+                    setIsCountryDropdownOpen(!isCountryDropdownOpen)
+                  }
                   style={{ cursor: "pointer" }}
                 >
                   <Globe size={18} className="input-icon" />
@@ -474,10 +777,13 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       alignItems: "center",
                       justifyContent: "space-between",
                       paddingRight: "16px",
-                      lineHeight: "48px"
+                      lineHeight: "48px",
                     }}
                   >
-                    <span>{COUNTRIES.find((c) => c.code === country)?.name || "Select Country"}</span>
+                    <span>
+                      {COUNTRIES.find((c) => c.code === country)?.name ||
+                        "Select Country"}
+                    </span>
                     <ChevronDown size={16} className="text-muted" />
                   </div>
                 </div>
@@ -512,7 +818,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                               padding: "12px",
                               textAlign: "center",
                               color: "var(--text-muted)",
-                              fontSize: "13px"
+                              fontSize: "13px",
                             }}
                           >
                             No countries found
@@ -557,8 +863,13 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     className="auth-input"
                     style={{
                       paddingLeft: `${
-                        ((COUNTRIES.find((c) => c.code === country)?.dialCode || "").length * 8) + 48
-                      }px`
+                        (
+                          COUNTRIES.find((c) => c.code === country)?.dialCode ||
+                          ""
+                        ).length *
+                          8 +
+                        48
+                      }px`,
                     }}
                   />
                 </div>
@@ -593,28 +904,40 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   <button
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     className="input-action-btn"
                   >
-                    {showPassword ? (
-                      <EyeOff size={18} />
-                    ) : (
-                      <Eye size={18} />
-                    )}
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
 
                 {/* Password Strength Indicator (Register Only) */}
                 {isRegistering && password && (
-                  <div className="animate-fade-in" style={{ marginTop: "8px", padding: "0 4px" }}>
-                    <div style={{ display: "flex", gap: "4px", height: "4px", borderRadius: "2px", overflow: "hidden", background: "rgba(255,255,255,0.08)" }}>
+                  <div
+                    className="animate-fade-in"
+                    style={{ marginTop: "8px", padding: "0 4px" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "4px",
+                        height: "4px",
+                        borderRadius: "2px",
+                        overflow: "hidden",
+                        background: "rgba(255,255,255,0.08)",
+                      }}
+                    >
                       {[...Array(5)].map((_, i) => {
                         const score = getPasswordScore(password);
                         const active = i < score;
                         let bg = "transparent";
                         if (active) {
-                          if (score <= 2) bg = "#ef4444"; // Weak (red)
-                          else if (score <= 4) bg = "#f59e0b"; // Medium (amber)
+                          if (score <= 2)
+                            bg = "#ef4444"; // Weak (red)
+                          else if (score <= 4)
+                            bg = "#f59e0b"; // Medium (amber)
                           else bg = "#10b981"; // Strong (green)
                         }
                         return (
@@ -636,8 +959,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                           getPasswordScore(password) <= 2
                             ? "#ef4444"
                             : getPasswordScore(password) <= 4
-                            ? "#fbbf24"
-                            : "#34d399",
+                              ? "#fbbf24"
+                              : "#34d399",
                         marginTop: "6px",
                         fontWeight: 600,
                         display: "flex",
@@ -648,8 +971,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                         {getPasswordScore(password) <= 2
                           ? "Weak Password"
                           : getPasswordScore(password) <= 4
-                          ? "Medium Security"
-                          : "Strong & Secure"}
+                            ? "Medium Security"
+                            : "Strong & Secure"}
                       </span>
                       <span style={{ opacity: 0.7 }}>
                         {password.length}/128 chars
@@ -684,7 +1007,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword((s) => !s)}
-                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showConfirmPassword ? "Hide password" : "Show password"
+                    }
                     className="input-action-btn"
                   >
                     {showConfirmPassword ? (
@@ -800,7 +1125,9 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       animation: "spin 0.6s linear infinite",
                     }}
                   />
-                  {isRegistering ? "Creating Account..." : "Securing Connection..."}
+                  {isRegistering
+                    ? "Creating Account..."
+                    : "Securing Connection..."}
                 </>
               ) : isRegistering ? (
                 <>
@@ -818,7 +1145,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           <div className="auth-footer-container">
             {!isRegistering ? (
               <>
-                <div 
+                <div
                   onClick={() => setRememberMe(!rememberMe)}
                   style={{
                     display: "inline-flex",
@@ -831,21 +1158,41 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     userSelect: "none",
                   }}
                 >
-                  <div style={{
-                    width: "18px",
-                    height: "18px",
-                    borderRadius: "6px",
-                    border: rememberMe ? "1.5px solid #22d3ee" : "1.5px solid rgba(255,255,255,0.2)",
-                    background: rememberMe ? "rgba(34,211,238,0.15)" : "rgba(255,255,255,0.02)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.2s ease",
-                    boxShadow: rememberMe ? "0 0 10px rgba(34,211,238,0.25)" : "none"
-                  }}>
+                  <div
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "6px",
+                      border: rememberMe
+                        ? "1.5px solid #22d3ee"
+                        : "1.5px solid rgba(255,255,255,0.2)",
+                      background: rememberMe
+                        ? "rgba(34,211,238,0.15)"
+                        : "rgba(255,255,255,0.02)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.2s ease",
+                      boxShadow: rememberMe
+                        ? "0 0 10px rgba(34,211,238,0.25)"
+                        : "none",
+                    }}
+                  >
                     {rememberMe && (
-                      <svg width="10px" height="8px" viewBox="0 0 10 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 4.5L3.5 7L9 1" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <svg
+                        width="10px"
+                        height="8px"
+                        viewBox="0 0 10 8"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          d="M1 4.5L3.5 7L9 1"
+                          stroke="#22d3ee"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                     )}
                   </div>
@@ -867,7 +1214,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                     transition: "all 0.2s ease",
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: "6px"
+                    gap: "6px",
                   }}
                 >
                   Create new account <span>→</span>
@@ -900,7 +1247,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   cursor: "pointer",
                 }}
               >
-                <ArrowLeft size={14} /> {registerStep === 2 ? "Back to Step 1" : "Return to Login screen"}
+                <ArrowLeft size={14} />{" "}
+                {registerStep === 2
+                  ? "Back to Step 1"
+                  : "Return to Login screen"}
               </button>
             )}
           </div>

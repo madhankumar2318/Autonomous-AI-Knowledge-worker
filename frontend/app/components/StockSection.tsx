@@ -1,11 +1,18 @@
 "use client";
-import { Activity, BarChart2, RefreshCw, TrendingDown, TrendingUp, Zap, Sparkles } from "lucide-react";
+import {
+  Activity,
+  BarChart2,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
+  Zap,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
 import { useAutoRefresh } from "../hooks/useAutoRefresh";
 import { showToast } from "./Toast";
 import StockChartDetail from "./StockChartDetail";
-
 
 interface StockQuote {
   symbol: string;
@@ -43,9 +50,18 @@ function formatVolume(v?: number) {
   return v.toString();
 }
 
-function Sparkline({ data, isPos, width = 80, height = 28 }: { data?: number[]; isPos: boolean; width?: number; height?: number }) {
-  if (!data || data.length < 2)
-    return <div style={{ width, height }} />;
+function Sparkline({
+  data,
+  isPos,
+  width = 80,
+  height = 28,
+}: {
+  data?: number[];
+  isPos: boolean;
+  width?: number;
+  height?: number;
+}) {
+  if (!data || data.length < 2) return <div style={{ width, height }} />;
 
   const min = Math.min(...data);
   const max = Math.max(...data);
@@ -63,8 +79,15 @@ function Sparkline({ data, isPos, width = 80, height = 28 }: { data?: number[]; 
   const firstX = 0;
   const firstY = height - 2 - ((data[0] - min) / range) * (height - 4);
   const lastX = width;
-  const lastY = height - 2 - ((data[data.length - 1] - min) / range) * (height - 4);
-  const fillPath = `M${firstX},${firstY} ${data.map((val, i) => { const x = (i / (data.length - 1)) * width; const y = height - 2 - ((val - min) / range) * (height - 4); return `L${x},${y}`; }).join(" ")} L${lastX},${height + 2} L${firstX},${height + 2} Z`;
+  const lastY =
+    height - 2 - ((data[data.length - 1] - min) / range) * (height - 4);
+  const fillPath = `M${firstX},${firstY} ${data
+    .map((val, i) => {
+      const x = (i / (data.length - 1)) * width;
+      const y = height - 2 - ((val - min) / range) * (height - 4);
+      return `L${x},${y}`;
+    })
+    .join(" ")} L${lastX},${height + 2} L${firstX},${height + 2} Z`;
 
   const color = isPos ? "#34d399" : "#f87171";
   const fillColor = isPos ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)";
@@ -88,27 +111,40 @@ function Sparkline({ data, isPos, width = 80, height = 28 }: { data?: number[]; 
 
 // Default sector mapping — used as fallback when backend sectors are absent
 const DEFAULT_SECTORS: Record<string, string[]> = {
-  "Technology":    ["AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMD", "INTC", "CRM", "ORCL", "ADBE", "QCOM", "TXN"],
+  Technology: [
+    "AAPL",
+    "MSFT",
+    "NVDA",
+    "GOOGL",
+    "META",
+    "AMD",
+    "INTC",
+    "CRM",
+    "ORCL",
+    "ADBE",
+    "QCOM",
+    "TXN",
+  ],
   "Consumer Tech": ["AMZN", "TSLA", "NFLX", "UBER", "ABNB", "SNAP", "PINS"],
-  "Finance":       ["JPM", "BAC", "GS", "MS", "V", "MA", "WFC", "AXP", "BLK"],
-  "Healthcare":    ["JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY", "TMO", "ABT"],
-  "Energy":        ["XOM", "CVX", "COP", "SLB", "PSX"],
-  "Consumer":      ["WMT", "HD", "MCD", "SBUX", "NKE", "COST", "TGT"],
-  "Industrial":    ["BA", "CAT", "HON", "UPS", "GE"],
-  "ETFs":          ["SPY", "QQQ", "DIA", "IWM", "VTI"],
+  Finance: ["JPM", "BAC", "GS", "MS", "V", "MA", "WFC", "AXP", "BLK"],
+  Healthcare: ["JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY", "TMO", "ABT"],
+  Energy: ["XOM", "CVX", "COP", "SLB", "PSX"],
+  Consumer: ["WMT", "HD", "MCD", "SBUX", "NKE", "COST", "TGT"],
+  Industrial: ["BA", "CAT", "HON", "UPS", "GE"],
+  ETFs: ["SPY", "QQQ", "DIA", "IWM", "VTI"],
 };
 
 // Sector accent colors
 const SECTOR_COLORS: Record<string, { color: string; bg: string }> = {
-  "All": { color: "#22d3ee", bg: "rgba(34,211,238,0.18)" },
-  "Technology": { color: "#818cf8", bg: "rgba(129,140,248,0.18)" },
+  All: { color: "#22d3ee", bg: "rgba(34,211,238,0.18)" },
+  Technology: { color: "#818cf8", bg: "rgba(129,140,248,0.18)" },
   "Consumer Tech": { color: "#a855f7", bg: "rgba(168,85,247,0.18)" },
-  "Finance": { color: "#34d399", bg: "rgba(52,211,153,0.18)" },
-  "Healthcare": { color: "#f472b6", bg: "rgba(244,114,182,0.18)" },
-  "Energy": { color: "#fbbf24", bg: "rgba(251,191,36,0.18)" },
-  "Consumer": { color: "#60a5fa", bg: "rgba(96,165,250,0.18)" },
-  "Industrial": { color: "#f97316", bg: "rgba(249,115,22,0.18)" },
-  "ETFs": { color: "#38bdf8", bg: "rgba(56,189,248,0.18)" },
+  Finance: { color: "#34d399", bg: "rgba(52,211,153,0.18)" },
+  Healthcare: { color: "#f472b6", bg: "rgba(244,114,182,0.18)" },
+  Energy: { color: "#fbbf24", bg: "rgba(251,191,36,0.18)" },
+  Consumer: { color: "#60a5fa", bg: "rgba(96,165,250,0.18)" },
+  Industrial: { color: "#f97316", bg: "rgba(249,115,22,0.18)" },
+  ETFs: { color: "#38bdf8", bg: "rgba(56,189,248,0.18)" },
   default: { color: "#22d3ee", bg: "rgba(34,211,238,0.18)" },
 };
 
@@ -116,14 +152,19 @@ function getSectorStyle(sector: string) {
   return SECTOR_COLORS[sector] || SECTOR_COLORS.default;
 }
 
-export default function StockSection({ compact = false }: { compact?: boolean }) {
+export default function StockSection({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const [data, setData] = useState<StockResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState("");
   const [selectedSector, setSelectedSector] = useState<string>("All");
   const [activeStockChart, setActiveStockChart] = useState<string | null>(null);
-  const [priceFlash, setPriceFlash] = useState<Record<string, "up" | "down">>({});
-
+  const [priceFlash, setPriceFlash] = useState<Record<string, "up" | "down">>(
+    {},
+  );
 
   const [wsConnected, setWsConnected] = useState(false);
   const [wsConnecting, setWsConnecting] = useState(false);
@@ -141,7 +182,10 @@ export default function StockSection({ compact = false }: { compact?: boolean })
           parsed = {
             stocks: raw.stocks,
             cached: raw.cached ?? false,
-            sectors: raw.sectors && Object.keys(raw.sectors).length > 0 ? raw.sectors : DEFAULT_SECTORS,
+            sectors:
+              raw.sectors && Object.keys(raw.sectors).length > 0
+                ? raw.sectors
+                : DEFAULT_SECTORS,
           };
         } else if (Array.isArray(raw)) {
           // Legacy: raw array returned
@@ -186,10 +230,13 @@ export default function StockSection({ compact = false }: { compact?: boolean })
               if (prev && prev.stocks && msg.data && msg.data.stocks) {
                 const flashes: Record<string, "up" | "down"> = {};
                 for (const newS of msg.data.stocks) {
-                  const oldS = prev.stocks.find(s => s.symbol === newS.symbol);
+                  const oldS = prev.stocks.find(
+                    (s) => s.symbol === newS.symbol,
+                  );
                   if (oldS && oldS.price != null && newS.price != null) {
                     if (newS.price > oldS.price) flashes[newS.symbol] = "up";
-                    else if (newS.price < oldS.price) flashes[newS.symbol] = "down";
+                    else if (newS.price < oldS.price)
+                      flashes[newS.symbol] = "down";
                   }
                 }
                 if (Object.keys(flashes).length > 0) {
@@ -216,7 +263,9 @@ export default function StockSection({ compact = false }: { compact?: boolean })
       };
 
       ws.onclose = () => {
-        console.log("[WS] Stocks stream disconnected. Retrying in 5 seconds...");
+        console.log(
+          "[WS] Stocks stream disconnected. Retrying in 5 seconds...",
+        );
         setWsConnected(false);
         setWsConnecting(true);
         reconnectTimeout = setTimeout(connect, 5000);
@@ -252,17 +301,64 @@ export default function StockSection({ compact = false }: { compact?: boolean })
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-        {data.stocks.slice(0, 6).filter(s => !s.error).map((s) => {
-          const isPos = (s.change_percent ?? 0) >= 0;
-          return (
-            <div key={s.symbol} style={{ display: "grid", gridTemplateColumns: "48px 1fr 50px 50px", gap: "6px", padding: "6px 8px", borderRadius: "8px", alignItems: "center", background: "var(--bg-secondary)", border: "1px solid var(--border-light)", transition: "background-color 0.8s ease" }}>
-              <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-primary)" }}>{s.symbol}</span>
-              <Sparkline data={s.history} isPos={isPos} width={50} height={18} />
-              <span style={{ fontSize: "10px", fontWeight: 700, color: isPos ? "#34d399" : "#f87171", textAlign: "right" }}>{formatChange(s.change_percent)}</span>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-primary)", textAlign: "right" }}>{formatPrice(s.price)}</span>
-            </div>
-          );
-        })}
+        {data.stocks
+          .slice(0, 6)
+          .filter((s) => !s.error)
+          .map((s) => {
+            const isPos = (s.change_percent ?? 0) >= 0;
+            return (
+              <div
+                key={s.symbol}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "48px 1fr 50px 50px",
+                  gap: "6px",
+                  padding: "6px 8px",
+                  borderRadius: "8px",
+                  alignItems: "center",
+                  background: "var(--bg-secondary)",
+                  border: "1px solid var(--border-light)",
+                  transition: "background-color 0.8s ease",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  {s.symbol}
+                </span>
+                <Sparkline
+                  data={s.history}
+                  isPos={isPos}
+                  width={50}
+                  height={18}
+                />
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: isPos ? "#34d399" : "#f87171",
+                    textAlign: "right",
+                  }}
+                >
+                  {formatChange(s.change_percent)}
+                </span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                    textAlign: "right",
+                  }}
+                >
+                  {formatPrice(s.price)}
+                </span>
+              </div>
+            );
+          })}
       </div>
     );
   }
@@ -270,18 +366,22 @@ export default function StockSection({ compact = false }: { compact?: boolean })
   const handleAnalyzeStock = (stock: StockQuote) => {
     const isPos = (stock.change_percent ?? 0) >= 0;
     const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
-    
-    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", {
-      detail: { prompt }
-    }));
-    
-    window.dispatchEvent(new CustomEvent("ak-add-notification", {
-      detail: {
-        title: "Stock Checkup Triggered",
-        message: `Sent ${stock.symbol} metrics to AI Analyst.`,
-        type: "info"
-      }
-    }));
+
+    window.dispatchEvent(
+      new CustomEvent("ak-set-chat-prompt", {
+        detail: { prompt },
+      }),
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("ak-add-notification", {
+        detail: {
+          title: "Stock Checkup Triggered",
+          message: `Sent ${stock.symbol} metrics to AI Analyst.`,
+          type: "info",
+        },
+      }),
+    );
   };
 
   // ── FULL TAB MODE ──
@@ -303,7 +403,11 @@ export default function StockSection({ compact = false }: { compact?: boolean })
       <div className="stocks-error">
         <BarChart2 className="w-10 h-10 text-white/20" />
         <p>Could not load market data</p>
-        <button type="button" onClick={fetchStocks} className="btn btn-secondary text-xs">
+        <button
+          type="button"
+          onClick={fetchStocks}
+          className="btn btn-secondary text-xs"
+        >
           <RefreshCw className="w-3 h-3 inline mr-1" /> Retry
         </button>
       </div>
@@ -317,81 +421,149 @@ export default function StockSection({ compact = false }: { compact?: boolean })
   const validStocks = data.stocks.filter((s) => !s.error);
   const gainers = validStocks.filter((s) => (s.change_percent ?? 0) > 0).length;
   const losers = validStocks.filter((s) => (s.change_percent ?? 0) < 0).length;
-  const avgChange = validStocks.reduce((sum, s) => sum + (s.change_percent ?? 0), 0) / (validStocks.length || 1);
-  const marketSentiment = avgChange > 0 ? "Bullish" : avgChange < 0 ? "Bearish" : "Neutral";
+  const avgChange =
+    validStocks.reduce((sum, s) => sum + (s.change_percent ?? 0), 0) /
+    (validStocks.length || 1);
+  const marketSentiment =
+    avgChange > 0 ? "Bullish" : avgChange < 0 ? "Bearish" : "Neutral";
 
   return (
     <div className="stocks-root">
       {/* ── MARKET OVERVIEW BAR ── */}
       <div className="stocks-overview">
         <div className="stocks-overview-stat">
-          <div className="stocks-overview-icon" style={{ background: "rgba(34,211,238,0.12)", borderColor: "rgba(34,211,238,0.25)" }}>
+          <div
+            className="stocks-overview-icon"
+            style={{
+              background: "rgba(34,211,238,0.12)",
+              borderColor: "rgba(34,211,238,0.25)",
+            }}
+          >
             <Activity className="w-4 h-4" style={{ color: "#22d3ee" }} />
           </div>
           <div>
             <div className="stocks-overview-label">Market Sentiment</div>
-            <div className="stocks-overview-value" style={{ color: avgChange >= 0 ? "#34d399" : "#f87171" }}>
+            <div
+              className="stocks-overview-value"
+              style={{ color: avgChange >= 0 ? "#34d399" : "#f87171" }}
+            >
               {marketSentiment}
             </div>
           </div>
         </div>
         <div className="stocks-overview-divider" />
         <div className="stocks-overview-stat">
-          <div className="stocks-overview-icon" style={{ background: "rgba(52,211,153,0.12)", borderColor: "rgba(52,211,153,0.25)" }}>
+          <div
+            className="stocks-overview-icon"
+            style={{
+              background: "rgba(52,211,153,0.12)",
+              borderColor: "rgba(52,211,153,0.25)",
+            }}
+          >
             <TrendingUp className="w-4 h-4" style={{ color: "#34d399" }} />
           </div>
           <div>
             <div className="stocks-overview-label">Gainers</div>
-            <div className="stocks-overview-value" style={{ color: "#34d399" }}>{gainers}</div>
+            <div className="stocks-overview-value" style={{ color: "#34d399" }}>
+              {gainers}
+            </div>
           </div>
         </div>
         <div className="stocks-overview-divider" />
         <div className="stocks-overview-stat">
-          <div className="stocks-overview-icon" style={{ background: "rgba(248,113,113,0.12)", borderColor: "rgba(248,113,113,0.25)" }}>
+          <div
+            className="stocks-overview-icon"
+            style={{
+              background: "rgba(248,113,113,0.12)",
+              borderColor: "rgba(248,113,113,0.25)",
+            }}
+          >
             <TrendingDown className="w-4 h-4" style={{ color: "#f87171" }} />
           </div>
           <div>
             <div className="stocks-overview-label">Losers</div>
-            <div className="stocks-overview-value" style={{ color: "#f87171" }}>{losers}</div>
+            <div className="stocks-overview-value" style={{ color: "#f87171" }}>
+              {losers}
+            </div>
           </div>
         </div>
         <div className="stocks-overview-divider" />
         <div className="stocks-overview-stat">
-          <div className="stocks-overview-icon" style={{ background: "rgba(99,102,241,0.12)", borderColor: "rgba(99,102,241,0.25)" }}>
+          <div
+            className="stocks-overview-icon"
+            style={{
+              background: "rgba(99,102,241,0.12)",
+              borderColor: "rgba(99,102,241,0.25)",
+            }}
+          >
             <Zap className="w-4 h-4" style={{ color: "#818cf8" }} />
           </div>
           <div>
             <div className="stocks-overview-label">Avg Change</div>
-            <div className="stocks-overview-value" style={{ color: avgChange >= 0 ? "#34d399" : "#f87171" }}>
-              {avgChange >= 0 ? "+" : ""}{avgChange.toFixed(2)}%
+            <div
+              className="stocks-overview-value"
+              style={{ color: avgChange >= 0 ? "#34d399" : "#f87171" }}
+            >
+              {avgChange >= 0 ? "+" : ""}
+              {avgChange.toFixed(2)}%
             </div>
           </div>
         </div>
 
         {/* Right: refresh */}
         <div className="stocks-overview-right">
-          <span className="stocks-live-indicator" style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            background: wsConnected ? "rgba(52,211,153,0.08)" : (wsConnecting ? "rgba(251,191,36,0.08)" : "rgba(248,113,113,0.08)"),
-            borderColor: wsConnected ? "rgba(52,211,153,0.3)" : (wsConnecting ? "rgba(251,191,36,0.3)" : "rgba(248,113,113,0.3)"),
-            color: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
-            padding: "4px 8px",
-            borderRadius: "6px",
-            fontSize: "11px",
-            fontWeight: 600,
-            border: "1px solid"
-          }}>
-            <span className="stocks-live-dot" style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: "50%",
-              background: wsConnected ? "#34d399" : (wsConnecting ? "#fbbf24" : "#f87171"),
-              boxShadow: wsConnected ? "0 0 8px #34d399" : (wsConnecting ? "0 0 8px #fbbf24" : "none"),
-              animation: wsConnected ? "pulse 2s infinite" : "none"
-            }} />
-            {wsConnected ? "Real-Time Live" : (wsConnecting ? "Connecting Live..." : "Disconnected")}
+          <span
+            className="stocks-live-indicator"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              background: wsConnected
+                ? "rgba(52,211,153,0.08)"
+                : wsConnecting
+                  ? "rgba(251,191,36,0.08)"
+                  : "rgba(248,113,113,0.08)",
+              borderColor: wsConnected
+                ? "rgba(52,211,153,0.3)"
+                : wsConnecting
+                  ? "rgba(251,191,36,0.3)"
+                  : "rgba(248,113,113,0.3)",
+              color: wsConnected
+                ? "#34d399"
+                : wsConnecting
+                  ? "#fbbf24"
+                  : "#f87171",
+              padding: "4px 8px",
+              borderRadius: "6px",
+              fontSize: "11px",
+              fontWeight: 600,
+              border: "1px solid",
+            }}
+          >
+            <span
+              className="stocks-live-dot"
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: wsConnected
+                  ? "#34d399"
+                  : wsConnecting
+                    ? "#fbbf24"
+                    : "#f87171",
+                boxShadow: wsConnected
+                  ? "0 0 8px #34d399"
+                  : wsConnecting
+                    ? "0 0 8px #fbbf24"
+                    : "none",
+                animation: wsConnected ? "pulse 2s infinite" : "none",
+              }}
+            />
+            {wsConnected
+              ? "Real-Time Live"
+              : wsConnecting
+                ? "Connecting Live..."
+                : "Disconnected"}
           </span>
           <span className="stocks-last-updated">{lastUpdated}</span>
           <button
@@ -400,7 +572,9 @@ export default function StockSection({ compact = false }: { compact?: boolean })
             disabled={manualRefreshing}
             className="stocks-refresh-btn"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${manualRefreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${manualRefreshing ? "animate-spin" : ""}`}
+            />
             <span>{manualRefreshing ? "Syncing…" : "Sync Now"}</span>
           </button>
         </div>
@@ -416,7 +590,15 @@ export default function StockSection({ compact = false }: { compact?: boolean })
               type="button"
               onClick={() => setSelectedSector(sector)}
               className={`stocks-sector-pill ${selectedSector === sector ? "stocks-sector-active" : ""}`}
-              style={selectedSector === sector ? { background: style.bg, borderColor: style.color, color: style.color } : undefined}
+              style={
+                selectedSector === sector
+                  ? {
+                      background: style.bg,
+                      borderColor: style.color,
+                      color: style.color,
+                    }
+                  : undefined
+              }
             >
               {sector}
             </button>
@@ -427,17 +609,29 @@ export default function StockSection({ compact = false }: { compact?: boolean })
       {/* ── STOCK BENTO GRID ── */}
       {Object.entries(data.sectors).map(([sector, symbols]) => {
         if (selectedSector !== "All" && selectedSector !== sector) return null;
-        const sectorStocks = symbols.map((sym) => stockMap[sym]).filter(Boolean).filter(s => !s.error);
+        const sectorStocks = symbols
+          .map((sym) => stockMap[sym])
+          .filter(Boolean)
+          .filter((s) => !s.error);
         if (!sectorStocks.length) return null;
         const sectorStyle = getSectorStyle(sector);
 
         return (
           <div key={sector} className="stocks-sector-block">
             <div className="stocks-sector-header">
-              <span className="stocks-sector-tag" style={{ background: sectorStyle.bg, borderColor: `${sectorStyle.color}40`, color: sectorStyle.color }}>
+              <span
+                className="stocks-sector-tag"
+                style={{
+                  background: sectorStyle.bg,
+                  borderColor: `${sectorStyle.color}40`,
+                  color: sectorStyle.color,
+                }}
+              >
                 {sector}
               </span>
-              <span className="stocks-sector-count">{sectorStocks.length} stocks</span>
+              <span className="stocks-sector-count">
+                {sectorStocks.length} stocks
+              </span>
               <div className="stocks-sector-line" />
             </div>
 
@@ -450,7 +644,11 @@ export default function StockSection({ compact = false }: { compact?: boolean })
                   <div
                     key={s.symbol}
                     className="stocks-card premium-card-hover"
-                    style={{ "--stock-color": isPos ? "#34d399" : "#f87171" } as React.CSSProperties}
+                    style={
+                      {
+                        "--stock-color": isPos ? "#34d399" : "#f87171",
+                      } as React.CSSProperties
+                    }
                     onClick={() => setActiveStockChart(s.symbol)}
                   >
                     {/* Card top: symbol + trend badge */}
@@ -458,10 +656,17 @@ export default function StockSection({ compact = false }: { compact?: boolean })
                       <div>
                         <div className="stocks-card-symbol">{s.symbol}</div>
                         <div className="stocks-card-name">
-                          {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ?? ""}
+                          {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ??
+                            ""}
                         </div>
                       </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={(e) => {
@@ -477,12 +682,20 @@ export default function StockSection({ compact = false }: { compact?: boolean })
                         <div
                           className="stocks-change-badge"
                           style={{
-                            background: isPos ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)",
-                            borderColor: isPos ? "rgba(52,211,153,0.3)" : "rgba(248,113,113,0.3)",
+                            background: isPos
+                              ? "rgba(52,211,153,0.12)"
+                              : "rgba(248,113,113,0.12)",
+                            borderColor: isPos
+                              ? "rgba(52,211,153,0.3)"
+                              : "rgba(248,113,113,0.3)",
                             color: isPos ? "#34d399" : "#f87171",
                           }}
                         >
-                          {isPos ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                          {isPos ? (
+                            <TrendingUp className="w-3 h-3" />
+                          ) : (
+                            <TrendingDown className="w-3 h-3" />
+                          )}
                           {pctStr}
                         </div>
                       </div>
@@ -490,12 +703,20 @@ export default function StockSection({ compact = false }: { compact?: boolean })
 
                     {/* Sparkline */}
                     <div className="stocks-card-sparkline">
-                      <Sparkline data={s.history} isPos={isPos} width={100} height={32} />
+                      <Sparkline
+                        data={s.history}
+                        isPos={isPos}
+                        width={100}
+                        height={32}
+                      />
                     </div>
 
                     {/* Price + volume */}
                     <div className="stocks-card-footer">
-                      <div className="stocks-card-price" style={{ color: "var(--text-primary, #ffffff)" }}>
+                      <div
+                        className="stocks-card-price"
+                        style={{ color: "var(--text-primary, #ffffff)" }}
+                      >
                         {formatPrice(s.price)}
                       </div>
                       {s.volume && (
@@ -514,16 +735,18 @@ export default function StockSection({ compact = false }: { compact?: boolean })
       })}
 
       {/* Render detailed stock chart modal */}
-      {activeStockChart && (() => {
-        const activeStock = data.stocks.find(s => s.symbol === activeStockChart);
-        return activeStock ? (
-          <StockChartDetail
-            stock={activeStock}
-            onClose={() => setActiveStockChart(null)}
-          />
-        ) : null;
-      })()}
-
+      {activeStockChart &&
+        (() => {
+          const activeStock = data.stocks.find(
+            (s) => s.symbol === activeStockChart,
+          );
+          return activeStock ? (
+            <StockChartDetail
+              stock={activeStock}
+              onClose={() => setActiveStockChart(null)}
+            />
+          ) : null;
+        })()}
 
       <style>{`
         .stocks-root {

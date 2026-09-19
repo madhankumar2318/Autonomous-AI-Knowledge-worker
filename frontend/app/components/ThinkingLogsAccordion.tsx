@@ -71,7 +71,9 @@ export default function ThinkingLogsAccordion({
   isGenerating,
 }: ThinkingLogsAccordionProps) {
   const [isOpen, setIsOpen] = useState(isGenerating ?? false);
-  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // Auto-open while generating so the user sees live tool activity
   useEffect(() => {
@@ -149,7 +151,9 @@ export default function ThinkingLogsAccordion({
           <Settings
             size={13}
             style={{
-              animation: isGenerating ? "agent-spin 3s linear infinite" : "none",
+              animation: isGenerating
+                ? "agent-spin 3s linear infinite"
+                : "none",
               color: "#22d3ee",
             }}
           />
@@ -182,81 +186,206 @@ export default function ThinkingLogsAccordion({
             boxSizing: "border-box",
           }}
         >
-          {!hasStructuredLogs ? (
-            // Simple plaintext thinking logs
-            logs.map((log, idx) => (
-              <div
-                key={idx}
-                style={{ display: "flex", alignItems: "center", gap: "8px", color: "rgba(224, 242, 254, 0.75)" }}
-              >
-                <span
-                  style={{ width: "4px", height: "4px", borderRadius: "50%", background: "#22d3ee", boxShadow: "0 0 4px #22d3ee", flexShrink: 0 }}
-                />
-                <span style={{ lineHeight: "1.4", fontFamily: "monospace", color: "#a5f3fc" }}>{log}</span>
-              </div>
-            ))
-          ) : (
-            // Structured tool-call logs with expand/collapse per step
-            toolLogs.map((tool) => {
-              const isStepExpanded = !!expandedSteps[tool.id];
-              return (
+          {!hasStructuredLogs
+            ? // Simple plaintext thinking logs
+              logs.map((log, idx) => (
                 <div
-                  key={tool.id}
-                  className="tool-log-item"
-                  style={{ borderRadius: "6px", border: "1px solid rgba(255,255,255,0.03)", background: "rgba(255,255,255,0.01)", overflow: "hidden" }}
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    color: "rgba(224, 242, 254, 0.75)",
+                  }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleStep(tool.id)}
-                    style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", background: "none", border: "none", color: "inherit", cursor: "pointer", textAlign: "left", fontFamily: "inherit", fontSize: "inherit", outline: "none" }}
+                  <span
+                    style={{
+                      width: "4px",
+                      height: "4px",
+                      borderRadius: "50%",
+                      background: "#22d3ee",
+                      boxShadow: "0 0 4px #22d3ee",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    style={{
+                      lineHeight: "1.4",
+                      fontFamily: "monospace",
+                      color: "#a5f3fc",
+                    }}
                   >
-                    <span style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                      {tool.status === "executing" ? (
-                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#eab308", boxShadow: "0 0 6px #eab308", animation: "pulse-light 1s infinite", flexShrink: 0 }} />
-                      ) : tool.status === "success" ? (
-                        <CheckCircle2 size={12} style={{ color: "#10b981", flexShrink: 0 }} />
-                      ) : (
-                        <AlertCircle size={12} style={{ color: "#ef4444", flexShrink: 0 }} />
-                      )}
-                      {getToolIcon(tool.name)}
-                      <span style={{ fontWeight: 550, color: "rgba(255,255,255,0.85)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                        {getFriendlyToolName(tool.name)}
-                      </span>
-                      {tool.status === "executing" && (
-                        <span style={{ color: "rgba(234,179,8,0.7)", fontStyle: "italic", fontSize: "10px" }}>(executing...)</span>
-                      )}
-                    </span>
-                    <span style={{ transform: isStepExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s ease", fontSize: "8px", color: "rgba(255,255,255,0.35)", paddingRight: "2px" }}>
-                      ▶
-                    </span>
-                  </button>
-
-                  {/* Expanded detail panel for each tool step */}
-                  {isStepExpanded && (
-                    <div style={{ padding: "8px", background: "rgba(0,0,0,0.25)", borderTop: "1px solid rgba(255,255,255,0.02)", display: "flex", flexDirection: "column", gap: "6px" }}>
-                      {tool.arguments && (
-                        <div>
-                          <div style={{ color: "rgba(255,255,255,0.4)", fontWeight: 500, fontSize: "9px", marginBottom: "2px" }}>ARGUMENTS</div>
-                          <pre className="tool-code-block">
-                            {(() => {
-                              try { return JSON.stringify(JSON.parse(tool.arguments), null, 2); }
-                              catch { return tool.arguments; }
-                            })()}
-                          </pre>
-                        </div>
-                      )}
-                      {tool.output && (
-                        <div>
-                          <div style={{ color: "rgba(255,255,255,0.4)", fontWeight: 500, fontSize: "9px", marginBottom: "2px" }}>RESULT</div>
-                          <pre className="tool-code-block" style={{ maxHeight: "120px", overflowY: "auto" }}>{tool.output}</pre>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    {log}
+                  </span>
                 </div>
-              );
-            })
-          )}
+              ))
+            : // Structured tool-call logs with expand/collapse per step
+              toolLogs.map((tool) => {
+                const isStepExpanded = !!expandedSteps[tool.id];
+                return (
+                  <div
+                    key={tool.id}
+                    className="tool-log-item"
+                    style={{
+                      borderRadius: "6px",
+                      border: "1px solid rgba(255,255,255,0.03)",
+                      background: "rgba(255,255,255,0.01)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleStep(tool.id)}
+                      style={{
+                        width: "100%",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "6px 8px",
+                        background: "none",
+                        border: "none",
+                        color: "inherit",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                        fontSize: "inherit",
+                        outline: "none",
+                      }}
+                    >
+                      <span
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          minWidth: 0,
+                        }}
+                      >
+                        {tool.status === "executing" ? (
+                          <span
+                            style={{
+                              width: "6px",
+                              height: "6px",
+                              borderRadius: "50%",
+                              background: "#eab308",
+                              boxShadow: "0 0 6px #eab308",
+                              animation: "pulse-light 1s infinite",
+                              flexShrink: 0,
+                            }}
+                          />
+                        ) : tool.status === "success" ? (
+                          <CheckCircle2
+                            size={12}
+                            style={{ color: "#10b981", flexShrink: 0 }}
+                          />
+                        ) : (
+                          <AlertCircle
+                            size={12}
+                            style={{ color: "#ef4444", flexShrink: 0 }}
+                          />
+                        )}
+                        {getToolIcon(tool.name)}
+                        <span
+                          style={{
+                            fontWeight: 550,
+                            color: "rgba(255,255,255,0.85)",
+                            textOverflow: "ellipsis",
+                            overflow: "hidden",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {getFriendlyToolName(tool.name)}
+                        </span>
+                        {tool.status === "executing" && (
+                          <span
+                            style={{
+                              color: "rgba(234,179,8,0.7)",
+                              fontStyle: "italic",
+                              fontSize: "10px",
+                            }}
+                          >
+                            (executing...)
+                          </span>
+                        )}
+                      </span>
+                      <span
+                        style={{
+                          transform: isStepExpanded
+                            ? "rotate(90deg)"
+                            : "rotate(0deg)",
+                          transition: "transform 0.15s ease",
+                          fontSize: "8px",
+                          color: "rgba(255,255,255,0.35)",
+                          paddingRight: "2px",
+                        }}
+                      >
+                        ▶
+                      </span>
+                    </button>
+
+                    {/* Expanded detail panel for each tool step */}
+                    {isStepExpanded && (
+                      <div
+                        style={{
+                          padding: "8px",
+                          background: "rgba(0,0,0,0.25)",
+                          borderTop: "1px solid rgba(255,255,255,0.02)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "6px",
+                        }}
+                      >
+                        {tool.arguments && (
+                          <div>
+                            <div
+                              style={{
+                                color: "rgba(255,255,255,0.4)",
+                                fontWeight: 500,
+                                fontSize: "9px",
+                                marginBottom: "2px",
+                              }}
+                            >
+                              ARGUMENTS
+                            </div>
+                            <pre className="tool-code-block">
+                              {(() => {
+                                try {
+                                  return JSON.stringify(
+                                    JSON.parse(tool.arguments),
+                                    null,
+                                    2,
+                                  );
+                                } catch {
+                                  return tool.arguments;
+                                }
+                              })()}
+                            </pre>
+                          </div>
+                        )}
+                        {tool.output && (
+                          <div>
+                            <div
+                              style={{
+                                color: "rgba(255,255,255,0.4)",
+                                fontWeight: 500,
+                                fontSize: "9px",
+                                marginBottom: "2px",
+                              }}
+                            >
+                              RESULT
+                            </div>
+                            <pre
+                              className="tool-code-block"
+                              style={{ maxHeight: "120px", overflowY: "auto" }}
+                            >
+                              {tool.output}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
         </div>
       )}
     </div>

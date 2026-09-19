@@ -52,11 +52,16 @@ function getFileExt(filename: string): string {
 
 function FileTypeIcon({ filename }: { filename: string }) {
   const ext = getFileExt(filename);
-  if (ext === "json") return <FileJson className="w-4 h-4" style={{ color: "#fbbf24" }} />;
-  if (ext === "pdf")  return <FileText className="w-4 h-4" style={{ color: "#f87171" }} />;
-  if (ext === "csv" || ext === "xlsx" || ext === "xls") return <Table className="w-4 h-4" style={{ color: "#34d399" }} />;
-  if (ext === "docx" || ext === "doc") return <FileText className="w-4 h-4" style={{ color: "#60a5fa" }} />;
-  if (ext === "md" || ext === "txt")   return <FileText className="w-4 h-4" style={{ color: "#c084fc" }} />;
+  if (ext === "json")
+    return <FileJson className="w-4 h-4" style={{ color: "#fbbf24" }} />;
+  if (ext === "pdf")
+    return <FileText className="w-4 h-4" style={{ color: "#f87171" }} />;
+  if (ext === "csv" || ext === "xlsx" || ext === "xls")
+    return <Table className="w-4 h-4" style={{ color: "#34d399" }} />;
+  if (ext === "docx" || ext === "doc")
+    return <FileText className="w-4 h-4" style={{ color: "#60a5fa" }} />;
+  if (ext === "md" || ext === "txt")
+    return <FileText className="w-4 h-4" style={{ color: "#c084fc" }} />;
   return <File className="w-4 h-4" style={{ color: "#94a3b8" }} />;
 }
 
@@ -74,15 +79,18 @@ export default function DocumentWorkspace({
   const isJson = ext === "json";
   const isMarkdown = ext === "md" || ext === "txt";
   const fileUrl = `${API_BASE_URL}/upload/download/${encodeURIComponent(file.filename)}`;
-  
+
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfZoom, setPdfZoom] = useState(100);
 
   // Local state initialized with props for RAG passage scroll/highlight synchronization
-  const [localHighlightPhrase, setLocalHighlightPhrase] = useState(highlightPhrase);
-  const [localTargetPage, setLocalTargetPage] = useState<number | null>(targetPage);
+  const [localHighlightPhrase, setLocalHighlightPhrase] =
+    useState(highlightPhrase);
+  const [localTargetPage, setLocalTargetPage] = useState<number | null>(
+    targetPage,
+  );
 
   useEffect(() => {
     setLocalHighlightPhrase(highlightPhrase);
@@ -113,7 +121,9 @@ export default function DocumentWorkspace({
     pdfHash = `page=${localTargetPage}`;
   }
   if (localHighlightPhrase) {
-    pdfHash = pdfHash ? `${pdfHash}&search="${encodeURIComponent(localHighlightPhrase)}"` : `search="${encodeURIComponent(localHighlightPhrase)}"`;
+    pdfHash = pdfHash
+      ? `${pdfHash}&search="${encodeURIComponent(localHighlightPhrase)}"`
+      : `search="${encodeURIComponent(localHighlightPhrase)}"`;
   }
   if (pdfUrl && pdfHash) {
     pdfUrl += `#${pdfHash}`;
@@ -146,37 +156,85 @@ export default function DocumentWorkspace({
   const getQuickPrompts = () => {
     if (isSpreadsheet) {
       return [
-        { label: "📊 Summary Metrics", prompt: `Calculate summary metrics, totals, and column statistics for ${file.filename}` },
-        { label: "🔍 Highs & Lows", prompt: `What are the highest and lowest key values in ${file.filename}?` },
-        { label: "📈 Trend Analysis", prompt: `Analyze the main patterns, categories, or trends in ${file.filename}` },
-        { label: "📋 Key Rows", prompt: `Summarize the most significant rows and data points in ${file.filename}` },
+        {
+          label: "📊 Summary Metrics",
+          prompt: `Calculate summary metrics, totals, and column statistics for ${file.filename}`,
+        },
+        {
+          label: "🔍 Highs & Lows",
+          prompt: `What are the highest and lowest key values in ${file.filename}?`,
+        },
+        {
+          label: "📈 Trend Analysis",
+          prompt: `Analyze the main patterns, categories, or trends in ${file.filename}`,
+        },
+        {
+          label: "📋 Key Rows",
+          prompt: `Summarize the most significant rows and data points in ${file.filename}`,
+        },
       ];
     }
     if (isDocx) {
       return [
-        { label: "📑 Executive Summary", prompt: `Provide a concise executive summary of the Word document ${file.filename}` },
-        { label: "✅ Action Items", prompt: `Extract all key action items, tasks, and deliverables from ${file.filename}` },
-        { label: "💡 Key Recommendations", prompt: `What are the core conclusions and recommendations in ${file.filename}?` },
+        {
+          label: "📑 Executive Summary",
+          prompt: `Provide a concise executive summary of the Word document ${file.filename}`,
+        },
+        {
+          label: "✅ Action Items",
+          prompt: `Extract all key action items, tasks, and deliverables from ${file.filename}`,
+        },
+        {
+          label: "💡 Key Recommendations",
+          prompt: `What are the core conclusions and recommendations in ${file.filename}?`,
+        },
       ];
     }
     if (isJson) {
       return [
-        { label: "🧩 Schema & Structure", prompt: `Explain the structure and main data fields in ${file.filename}` },
-        { label: "🔢 Record Counts", prompt: `Count total items, objects, and summary statistics in ${file.filename}` },
-        { label: "🔎 Key Values", prompt: `Extract the primary entities and important values from ${file.filename}` },
+        {
+          label: "🧩 Schema & Structure",
+          prompt: `Explain the structure and main data fields in ${file.filename}`,
+        },
+        {
+          label: "🔢 Record Counts",
+          prompt: `Count total items, objects, and summary statistics in ${file.filename}`,
+        },
+        {
+          label: "🔎 Key Values",
+          prompt: `Extract the primary entities and important values from ${file.filename}`,
+        },
       ];
     }
     if (isPDF) {
       return [
-        { label: "📑 Full Summary", prompt: `Summarize the essential findings and sections of ${file.filename}` },
-        { label: "📌 Key Takeaways", prompt: `What are the top takeaways and conclusions from ${file.filename}?` },
-        { label: "❓ Section Breakdown", prompt: `Give an overview of the main sections and chapters in ${file.filename}` },
+        {
+          label: "📑 Full Summary",
+          prompt: `Summarize the essential findings and sections of ${file.filename}`,
+        },
+        {
+          label: "📌 Key Takeaways",
+          prompt: `What are the top takeaways and conclusions from ${file.filename}?`,
+        },
+        {
+          label: "❓ Section Breakdown",
+          prompt: `Give an overview of the main sections and chapters in ${file.filename}`,
+        },
       ];
     }
     return [
-      { label: "📝 Summarize", prompt: `Summarize the core takeaways of ${file.filename}` },
-      { label: "🔍 Extract Facts", prompt: `Extract the main facts and key points from ${file.filename}` },
-      { label: "✏️ Polish & Review", prompt: `Review ${file.filename} and suggest improvements or next steps` },
+      {
+        label: "📝 Summarize",
+        prompt: `Summarize the core takeaways of ${file.filename}`,
+      },
+      {
+        label: "🔍 Extract Facts",
+        prompt: `Extract the main facts and key points from ${file.filename}`,
+      },
+      {
+        label: "✏️ Polish & Review",
+        prompt: `Review ${file.filename} and suggest improvements or next steps`,
+      },
     ];
   };
 
@@ -188,7 +246,9 @@ export default function DocumentWorkspace({
   };
 
   const handleSendPrompt = (prompt: string) => {
-    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
+    window.dispatchEvent(
+      new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }),
+    );
   };
 
   const handleReupload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,8 +265,14 @@ export default function DocumentWorkspace({
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to re-upload file");
-      showToast("success", `${selectedFile.name} uploaded and saved to persistent database!`);
-      const contentRes = await fetch(`${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`, { credentials: "include" });
+      showToast(
+        "success",
+        `${selectedFile.name} uploaded and saved to persistent database!`,
+      );
+      const contentRes = await fetch(
+        `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`,
+        { credentials: "include" },
+      );
       if (contentRes.ok) {
         const data = await contentRes.json();
         let txt = data.content || "";
@@ -239,8 +305,13 @@ export default function DocumentWorkspace({
         if (r.ok) {
           const data = await r.json();
           let txt = data.content || "";
-          if (txt.startsWith("File '") && txt.includes("was not found on server storage")) {
-            throw new Error(`"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`);
+          if (
+            txt.startsWith("File '") &&
+            txt.includes("was not found on server storage")
+          ) {
+            throw new Error(
+              `"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`,
+            );
           }
           if (isJson) {
             try {
@@ -250,16 +321,25 @@ export default function DocumentWorkspace({
           return txt;
         }
         if (r.status === 404) {
-          throw new Error(`"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`);
+          throw new Error(
+            `"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`,
+          );
         }
         // Fallback to direct raw file
         const fallbackRes = await fetch(fileUrl, { credentials: "include" });
         if (!fallbackRes.ok) {
-          throw new Error(`"${file.filename}" was not found on server storage. Please re-upload it to view and analyze.`);
+          throw new Error(
+            `"${file.filename}" was not found on server storage. Please re-upload it to view and analyze.`,
+          );
         }
         let raw = await fallbackRes.text();
-        if (raw.startsWith("File '") && raw.includes("was not found on server storage")) {
-          throw new Error(`"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`);
+        if (
+          raw.startsWith("File '") &&
+          raw.includes("was not found on server storage")
+        ) {
+          throw new Error(
+            `"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`,
+          );
         }
         if (isJson) {
           try {
@@ -280,7 +360,8 @@ export default function DocumentWorkspace({
     if (!isSpreadsheet) return;
     setGridLoading(true);
     setGridError(null);
-    const url = `${API_BASE_URL}/upload/parse-table/${encodeURIComponent(file.filename)}` + 
+    const url =
+      `${API_BASE_URL}/upload/parse-table/${encodeURIComponent(file.filename)}` +
       (activeSheet ? `?sheet_name=${encodeURIComponent(activeSheet)}` : "");
     fetch(url, { credentials: "include" })
       .then((r) => {
@@ -378,12 +459,11 @@ export default function DocumentWorkspace({
     }
   };
 
-
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     },
-    [onClose]
+    [onClose],
   );
 
   const handleSave = async () => {
@@ -393,19 +473,25 @@ export default function DocumentWorkspace({
     }
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/upload/edit/${encodeURIComponent(file.filename)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: editedContent }),
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/upload/edit/${encodeURIComponent(file.filename)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: editedContent }),
+          credentials: "include",
+        },
+      );
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.detail || "Failed to save file updates.");
       }
       setTextContent(editedContent);
       setIsEditing(false);
-      showToast("success", `File saved! Re-indexed into RAG with ${data.chunks} chunks.`);
+      showToast(
+        "success",
+        `File saved! Re-indexed into RAG with ${data.chunks} chunks.`,
+      );
     } catch (err) {
       showToast("error", String(err));
     } finally {
@@ -422,7 +508,6 @@ export default function DocumentWorkspace({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
-
 
   return (
     <div className="dw-overlay">
@@ -1020,14 +1105,20 @@ export default function DocumentWorkspace({
 
       {/* ── Top Bar ── */}
       <div className="dw-topbar">
-        <button className="dw-back-btn" onClick={onClose} title="Close workspace (Esc)">
+        <button
+          className="dw-back-btn"
+          onClick={onClose}
+          title="Close workspace (Esc)"
+        >
           <ChevronLeft className="w-4 h-4" />
           Back
         </button>
 
         <div className="dw-file-info">
           <FileTypeIcon filename={file.filename} />
-          <span className="dw-file-name" title={file.filename}>{file.filename}</span>
+          <span className="dw-file-name" title={file.filename}>
+            {file.filename}
+          </span>
           <div className="dw-file-badges">
             <span className="dw-badge dw-badge-ext">{ext}</span>
             {file.rag_indexed && (
@@ -1055,16 +1146,16 @@ export default function DocumentWorkspace({
                 {isEditing
                   ? "📝 Editing Document"
                   : isPDF
-                  ? "📑 PDF Preview"
-                  : isSpreadsheet
-                  ? "📊 Spreadsheet Grid"
-                  : isDocx
-                  ? "📄 Word Document Preview"
-                  : isJson
-                  ? "🧩 JSON Structure"
-                  : isMarkdown
-                  ? "📝 Markdown Document"
-                  : "📄 Document Preview"}
+                    ? "📑 PDF Preview"
+                    : isSpreadsheet
+                      ? "📊 Spreadsheet Grid"
+                      : isDocx
+                        ? "📄 Word Document Preview"
+                        : isJson
+                          ? "🧩 JSON Structure"
+                          : isMarkdown
+                            ? "📝 Markdown Document"
+                            : "📄 Document Preview"}
               </span>
               {isSpreadsheet && gridData && (
                 <span className="dw-grid-meta-badge">
@@ -1103,63 +1194,72 @@ export default function DocumentWorkspace({
               )}
 
               {/* Copy Content (for text, docx, json) */}
-              {!isPDF && !isSpreadsheet && !textLoading && !textError && textContent !== null && (
-                <button
-                  type="button"
-                  className="dw-toolbar-action-btn"
-                  onClick={() => handleCopyText(textContent)}
-                  title="Copy document content to clipboard"
-                >
-                  {copiedText ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy Text</span>
-                    </>
-                  )}
-                </button>
-              )}
+              {!isPDF &&
+                !isSpreadsheet &&
+                !textLoading &&
+                !textError &&
+                textContent !== null && (
+                  <button
+                    type="button"
+                    className="dw-toolbar-action-btn"
+                    onClick={() => handleCopyText(textContent)}
+                    title="Copy document content to clipboard"
+                  >
+                    {copiedText ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Text</span>
+                      </>
+                    )}
+                  </button>
+                )}
 
               {/* Edit Controls (for txt, md, json - not docx/pdf/spreadsheet) */}
-              {!isPDF && !isSpreadsheet && !isDocx && !textLoading && !textError && textContent !== null && (
-                <div className="dw-zoom-controls">
-                  {isEditing ? (
-                    <>
+              {!isPDF &&
+                !isSpreadsheet &&
+                !isDocx &&
+                !textLoading &&
+                !textError &&
+                textContent !== null && (
+                  <div className="dw-zoom-controls">
+                    {isEditing ? (
+                      <>
+                        <button
+                          className="dw-edit-btn dw-save-btn"
+                          onClick={handleSave}
+                          disabled={saving}
+                          title="Save changes and re-index"
+                        >
+                          <Save className="w-3.5 h-3.5" />
+                          {saving ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          className="dw-edit-btn dw-cancel-btn"
+                          onClick={handleCancel}
+                          disabled={saving}
+                          title="Cancel edits"
+                        >
+                          <Undo className="w-3.5 h-3.5" />
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        className="dw-edit-btn dw-save-btn"
-                        onClick={handleSave}
-                        disabled={saving}
-                        title="Save changes and re-index"
+                        className="dw-edit-btn"
+                        onClick={() => setIsEditing(true)}
+                        title="Edit file content"
                       >
-                        <Save className="w-3.5 h-3.5" />
-                        {saving ? "Saving..." : "Save"}
+                        <Edit3 className="w-3.5 h-3.5" />
+                        Edit Content
                       </button>
-                      <button
-                        className="dw-edit-btn dw-cancel-btn"
-                        onClick={handleCancel}
-                        disabled={saving}
-                        title="Cancel edits"
-                      >
-                        <Undo className="w-3.5 h-3.5" />
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      className="dw-edit-btn"
-                      onClick={() => setIsEditing(true)}
-                      title="Edit file content"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      Edit Content
-                    </button>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
 
               {/* Download link for any document */}
               <a
@@ -1192,7 +1292,11 @@ export default function DocumentWorkspace({
                         : pdfError}
                     </div>
                     <div className="dw-error-actions">
-                      <button type="button" onClick={onClose} className="dw-error-btn">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="dw-error-btn"
+                      >
                         ← Return to File Workspace
                       </button>
                     </div>
@@ -1203,7 +1307,11 @@ export default function DocumentWorkspace({
                   className="dw-pdf-frame"
                   src={pdfUrl}
                   title={file.filename}
-                  style={{ transform: `scale(${pdfZoom / 100})`, transformOrigin: "top center", height: pdfZoom === 100 ? "100%" : `${10000 / pdfZoom}%` }}
+                  style={{
+                    transform: `scale(${pdfZoom / 100})`,
+                    transformOrigin: "top center",
+                    height: pdfZoom === 100 ? "100%" : `${10000 / pdfZoom}%`,
+                  }}
                 />
               ) : null
             ) : textLoading ? (
@@ -1215,10 +1323,10 @@ export default function DocumentWorkspace({
               <div className="dw-error">
                 <div className="dw-error-card">
                   <div className="dw-error-icon">📄</div>
-                  <div className="dw-error-title">Document Needs Re-uploading</div>
-                  <div className="dw-error-desc">
-                    {textError}
+                  <div className="dw-error-title">
+                    Document Needs Re-uploading
                   </div>
+                  <div className="dw-error-desc">{textError}</div>
                   <div className="dw-error-actions">
                     <label className="dw-reupload-btn">
                       <UploadCloud className="w-4 h-4 mr-1.5 inline" />
@@ -1229,7 +1337,11 @@ export default function DocumentWorkspace({
                         onChange={handleReupload}
                       />
                     </label>
-                    <button type="button" onClick={onClose} className="dw-error-btn">
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="dw-error-btn"
+                    >
                       ← Return to File Workspace
                     </button>
                   </div>
@@ -1260,7 +1372,11 @@ export default function DocumentWorkspace({
                         : gridError}
                     </div>
                     <div className="dw-error-actions">
-                      <button type="button" onClick={onClose} className="dw-error-btn">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="dw-error-btn"
+                      >
                         ← Return to File Workspace
                       </button>
                     </div>
@@ -1270,19 +1386,20 @@ export default function DocumentWorkspace({
                 <div className="dw-spreadsheet-container">
                   {/* Search and Sheet Selector Bar */}
                   <div className="dw-spreadsheet-bar">
-                    {gridData.sheet_names && gridData.sheet_names.length > 1 && (
-                      <div className="dw-sheet-tabs">
-                        {gridData.sheet_names.map((sheet) => (
-                          <button
-                            key={sheet}
-                            onClick={() => setActiveSheet(sheet)}
-                            className={`dw-sheet-tab ${activeSheet === sheet ? "dw-sheet-tab-active" : ""}`}
-                          >
-                            {sheet}
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {gridData.sheet_names &&
+                      gridData.sheet_names.length > 1 && (
+                        <div className="dw-sheet-tabs">
+                          {gridData.sheet_names.map((sheet) => (
+                            <button
+                              key={sheet}
+                              onClick={() => setActiveSheet(sheet)}
+                              className={`dw-sheet-tab ${activeSheet === sheet ? "dw-sheet-tab-active" : ""}`}
+                            >
+                              {sheet}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     <input
                       type="text"
                       placeholder="Search rows..."
@@ -1307,12 +1424,16 @@ export default function DocumentWorkspace({
                         {gridData.rows
                           .filter((row) =>
                             row.some((cell) =>
-                              cell.toLowerCase().includes(gridSearch.toLowerCase())
-                            )
+                              cell
+                                .toLowerCase()
+                                .includes(gridSearch.toLowerCase()),
+                            ),
                           )
                           .map((row, rowIndex) => (
                             <tr key={rowIndex}>
-                              <td className="dw-grid-row-num">{rowIndex + 1}</td>
+                              <td className="dw-grid-row-num">
+                                {rowIndex + 1}
+                              </td>
                               {row.map((cell, cellIndex) => (
                                 <td key={cellIndex}>{cell}</td>
                               ))}
@@ -1325,7 +1446,10 @@ export default function DocumentWorkspace({
               ) : null
             ) : (
               <div className="dw-text-content">
-                {renderTextWithHighlight(textContent || "", localHighlightPhrase)}
+                {renderTextWithHighlight(
+                  textContent || "",
+                  localHighlightPhrase,
+                )}
               </div>
             )}
           </div>

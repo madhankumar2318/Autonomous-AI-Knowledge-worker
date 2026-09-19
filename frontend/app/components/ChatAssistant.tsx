@@ -42,35 +42,35 @@ export const PRESETS = {
   },
   finance: {
     name: "Finance Guru",
-    prompt: "You are a professional Financial Analyst. Present stock comparisons, news, and stats in structured tables. Emphasize price variations, market capitalization, daily percentage changes, and key trends. Provide short, bulleted summaries followed by a clear, bold market takeaway at the end.",
+    prompt:
+      "You are a professional Financial Analyst. Present stock comparisons, news, and stats in structured tables. Emphasize price variations, market capitalization, daily percentage changes, and key trends. Provide short, bulleted summaries followed by a clear, bold market takeaway at the end.",
     temp: 0.1,
     icon: "📊",
     desc: "Optimized for market & stock analysis",
   },
   research: {
     name: "Scholar",
-    prompt: "You are a thorough Research Scholar. Focus on detailed, long-form explanations with clear academic citation of source files. When referencing knowledge base data, always mention the document and the relevance percentage inline. Structure your answer with clear headers, bullet lists, and a final insight summary.",
+    prompt:
+      "You are a thorough Research Scholar. Focus on detailed, long-form explanations with clear academic citation of source files. When referencing knowledge base data, always mention the document and the relevance percentage inline. Structure your answer with clear headers, bullet lists, and a final insight summary.",
     temp: 0.2,
     icon: "🔍",
     desc: "Long-form detailed answers with RAG",
   },
   code: {
     name: "Code Wizard",
-    prompt: "You are an expert Software Engineer. Write clean, commented, and syntactically correct code blocks. Walk through the logic step-by-step using ordered bullet lists. Highlight security best practices and optimization suggestions.",
+    prompt:
+      "You are an expert Software Engineer. Write clean, commented, and syntactically correct code blocks. Walk through the logic step-by-step using ordered bullet lists. Highlight security best practices and optimization suggestions.",
     temp: 0.1,
     icon: "💻",
     desc: "Optimized for programming & code design",
-  }
+  },
 };
-
-
 
 interface ChatAssistantProps {
   username?: string;
   inline?: boolean;
   activeDocumentFilename?: string | null;
 }
-
 
 // ThinkingLogsAccordion extracted → ./ThinkingLogsAccordion.tsx
 // chatFormatters extracted → ./chatFormatters.tsx
@@ -81,7 +81,6 @@ const QUICK_PROMPTS = [
   "🔍 Analyze market sentiment",
   "💡 What should I know today?",
 ];
-
 
 export default function ChatAssistant({
   username = "guest",
@@ -100,7 +99,7 @@ export default function ChatAssistant({
     }
     return "llama-70b";
   });
-  
+
   const handleModelChange = (model: string) => {
     const targetModel = model === "gemini-pro" ? "gemini-flash" : model;
     setSelectedModel(targetModel);
@@ -119,7 +118,10 @@ export default function ChatAssistant({
         })
         .then((data) => {
           if (data && data.default_model) {
-            if (typeof window !== "undefined" && !localStorage.getItem("ak_selected_model_modified")) {
+            if (
+              typeof window !== "undefined" &&
+              !localStorage.getItem("ak_selected_model_modified")
+            ) {
               setSelectedModel(data.default_model);
             }
           }
@@ -135,7 +137,8 @@ export default function ChatAssistant({
   const [showHomePortal, setShowHomePortal] = useState(true);
 
   const [temperature, setTemperature] = useState(0.1);
-  const [activePreset, setActivePreset] = useState<keyof typeof PRESETS>("default");
+  const [activePreset, setActivePreset] =
+    useState<keyof typeof PRESETS>("default");
   const [showParamsPanel, setShowParamsPanel] = useState(false);
 
   // ── Artifact Canvas State ──────────────────────────────────────────────────
@@ -145,7 +148,7 @@ export default function ChatAssistant({
   // Parse an <artifact title="..." type="..." language="...">content</artifact> block
   const parseArtifactFromContent = (content: string): Artifact | null => {
     const match = content.match(
-      /<artifact\s+title="([^"]+)"\s+type="([^"]+)"(?:\s+language="([^"]*)")?[^>]*>([\s\S]*?)<\/artifact>/i
+      /<artifact\s+title="([^"]+)"\s+type="([^"]+)"(?:\s+language="([^"]*)")?[^>]*>([\s\S]*?)<\/artifact>/i,
     );
     if (match) {
       return {
@@ -162,17 +165,22 @@ export default function ChatAssistant({
   // Determine if a completed AI message qualifies for "Open in Canvas"
   const messageQualifiesForCanvas = (content: string): boolean => {
     if (!content || content.length < 400) return false;
-    const hasTable    = /^\|.+\|$/m.test(content);
-    const hasCode     = content.includes("```") && content.split("```").length > 2;
-    const hasHeading  = /^#{1,4} .+/m.test(content);
-    const isLong      = content.length > 800;
+    const hasTable = /^\|.+\|$/m.test(content);
+    const hasCode = content.includes("```") && content.split("```").length > 2;
+    const hasHeading = /^#{1,4} .+/m.test(content);
+    const isLong = content.length > 800;
     return hasTable || hasCode || (hasHeading && isLong);
   };
 
   // Build a canvas artifact from a plain AI message (no <artifact> tag)
-  const buildArtifactFromMessage = (content: string, index: number): Artifact => {
+  const buildArtifactFromMessage = (
+    content: string,
+    index: number,
+  ): Artifact => {
     const headingMatch = content.match(/^#{1,3} (.+)/m);
-    const title = headingMatch ? headingMatch[1].trim() : `AI Response #${index + 1}`;
+    const title = headingMatch
+      ? headingMatch[1].trim()
+      : `AI Response #${index + 1}`;
     const hasCode = content.includes("```");
     const type: Artifact["type"] = hasCode ? "code" : "markdown";
     const langMatch = content.match(/```(\w+)/);
@@ -184,7 +192,6 @@ export default function ChatAssistant({
       content,
     };
   };
-
 
   // Hook up useChatStream
   const {
@@ -211,9 +218,11 @@ export default function ChatAssistant({
   });
 
   // Hook up useSpeechRecognition (Speech-to-Text)
-  const { isListening, toggleListening, transcriptPreview } = useSpeechRecognition({
-    onTranscript: (text) => setInput((prev) => (prev ? prev + " " + text : text)),
-  });
+  const { isListening, toggleListening, transcriptPreview } =
+    useSpeechRecognition({
+      onTranscript: (text) =>
+        setInput((prev) => (prev ? prev + " " + text : text)),
+    });
 
   // ── Auto-detect <artifact> tags when streaming finishes ───────────────────
   const prevLoadingRef = React.useRef(false);
@@ -230,7 +239,7 @@ export default function ChatAssistant({
       }
     }
     prevLoadingRef.current = loading;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, messages]);
 
   // Listen to command palette model updates
@@ -242,7 +251,8 @@ export default function ChatAssistant({
       }
     };
     window.addEventListener("ak-model-changed", handleModelEvent);
-    return () => window.removeEventListener("ak-model-changed", handleModelEvent);
+    return () =>
+      window.removeEventListener("ak-model-changed", handleModelEvent);
   }, []);
 
   // Listen to One-Click AI Analysis Bridge prompt events
@@ -260,27 +270,22 @@ export default function ChatAssistant({
       }
     };
     window.addEventListener("ak-set-chat-prompt", handlePromptEvent);
-    return () => window.removeEventListener("ak-set-chat-prompt", handlePromptEvent);
+    return () =>
+      window.removeEventListener("ak-set-chat-prompt", handlePromptEvent);
   }, [sendMessage]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-
   // â”€â”€ Thread CRUD Helpers â”€â”€
-
-
-
-
-
-
-
-
 
   const exportThread = (thread: ChatThread) => {
     let md = `# ${thread.title}\n\n`;
     for (const msg of messages) {
-      md += msg.role === "user" ? `**You:** ${msg.content}\n\n` : `**AI:** ${msg.content}\n\n`;
+      md +=
+        msg.role === "user"
+          ? `**You:** ${msg.content}\n\n`
+          : `**AI:** ${msg.content}\n\n`;
     }
     const blob = new Blob([md], { type: "text/markdown" });
     const url = URL.createObjectURL(blob);
@@ -291,16 +296,14 @@ export default function ChatAssistant({
     URL.revokeObjectURL(url);
   };
 
-
-
   const timeAgo = (dateStr: any) => {
     if (!dateStr) return "Just now";
     const str = String(dateStr);
-    
+
     // Normalise spaces to 'T' for full ISO-8601 browser parse compatibility
     const isoStr = str.includes(" ") ? str.replace(" ", "T") : str;
     const parsed = new Date(isoStr);
-    
+
     if (isNaN(parsed.getTime())) {
       // Fallback for custom formats
       const epoch = Date.parse(str);
@@ -322,7 +325,7 @@ export default function ChatAssistant({
   // Load threads on mount
   useEffect(() => {
     fetchThreads();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
 
   const scrollToBottom = () => {
@@ -340,7 +343,11 @@ export default function ChatAssistant({
   }, [inline]);
 
   // Citation click â€” fires a custom DOM event so the PDF viewer can scroll to the page
-  const handleCitationClick = (filename: string, phrase: string, pageNum?: number) => {
+  const handleCitationClick = (
+    filename: string,
+    phrase: string,
+    pageNum?: number,
+  ) => {
     const event = new CustomEvent("open-rag-document", {
       detail: { filename, phrase, pageNum },
     });
@@ -348,9 +355,8 @@ export default function ChatAssistant({
   };
 
   // Bind citation handler into the imported formatter so call-sites stay simple
-  const renderMessage = (text: string) => formatMessage(text, handleCitationClick);
-
-
+  const renderMessage = (text: string) =>
+    formatMessage(text, handleCitationClick);
 
   // â”€â”€ INLINE (full-page tab) MODE â”€â”€
   if (inline) {
@@ -364,7 +370,11 @@ export default function ChatAssistant({
             onClick={() => setShowThreadSidebar(!showThreadSidebar)}
             title={showThreadSidebar ? "Hide history" : "Show history"}
           >
-            {showThreadSidebar ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+            {showThreadSidebar ? (
+              <PanelLeftClose size={16} />
+            ) : (
+              <PanelLeftOpen size={16} />
+            )}
           </button>
           <div className="chat-inline-avatar">
             <Sparkles className="w-4 h-4" style={{ color: "#67e8f9" }} />
@@ -372,21 +382,44 @@ export default function ChatAssistant({
           <div className="chat-inline-info">
             <div className="chat-inline-title">AI Knowledge Worker</div>
             <div className="chat-inline-status">
-              <span className="chat-status-dot" style={{
-                background: selectedModel === "llama-70b" ? "#c084fc" : "#34d399",
-                boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : "0 0 6px #34d399"
-              }} />
-              <span>Online · {selectedModel === "llama-70b" ? "Groq Llama" : "Gemini 2.5"}</span>
+              <span
+                className="chat-status-dot"
+                style={{
+                  background:
+                    selectedModel === "llama-70b" ? "#c084fc" : "#34d399",
+                  boxShadow:
+                    selectedModel === "llama-70b"
+                      ? "0 0 6px #c084fc"
+                      : "0 0 6px #34d399",
+                }}
+              />
+              <span>
+                Online ·{" "}
+                {selectedModel === "llama-70b" ? "Groq Llama" : "Gemini 2.5"}
+              </span>
             </div>
           </div>
-          <div className="chat-header-actions" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            className="chat-header-actions"
+            style={{ display: "flex", alignItems: "center", gap: "8px" }}
+          >
             <select
               value={selectedModel}
               onChange={(e) => handleModelChange(e.target.value)}
               className="chat-model-select"
             >
-              <option value="llama-70b" style={{ background: "#080814", color: "#ffffff" }}>Groq (Ultra-Fast)</option>
-              <option value="gemini-flash" style={{ background: "#080814", color: "#ffffff" }}>Google Gemini 2.5</option>
+              <option
+                value="llama-70b"
+                style={{ background: "#080814", color: "#ffffff" }}
+              >
+                Groq (Ultra-Fast)
+              </option>
+              <option
+                value="gemini-flash"
+                style={{ background: "#080814", color: "#ffffff" }}
+              >
+                Google Gemini 2.5
+              </option>
             </select>
             <button
               type="button"
@@ -430,27 +463,55 @@ export default function ChatAssistant({
                         value={renameValue}
                         onChange={(e) => setRenameValue(e.target.value)}
                         onBlur={() => renameThread(thread.id, renameValue)}
-                        onKeyDown={(e) => { if (e.key === "Enter") renameThread(thread.id, renameValue); if (e.key === "Escape") setRenamingThreadId(null); }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter")
+                            renameThread(thread.id, renameValue);
+                          if (e.key === "Escape") setRenamingThreadId(null);
+                        }}
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
                       <>
                         <div className="chat-thread-info">
-                          <span className="chat-thread-title">{thread.title}</span>
+                          <span className="chat-thread-title">
+                            {thread.title}
+                          </span>
                           <span className="chat-thread-time">
                             <Clock size={10} />
                             {timeAgo(thread.updated_at)}
                           </span>
                         </div>
-                        <div className="chat-thread-actions" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" title="Rename" onClick={() => { setRenamingThreadId(thread.id); setRenameValue(thread.title); }}>
+                        <div
+                          className="chat-thread-actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            title="Rename"
+                            onClick={() => {
+                              setRenamingThreadId(thread.id);
+                              setRenameValue(thread.title);
+                            }}
+                          >
                             <Pencil size={11} />
                           </button>
-                          <button type="button" title="Export" onClick={() => { switchThread(thread.id); setTimeout(() => exportThread(thread), 300); }}>
+                          <button
+                            type="button"
+                            title="Export"
+                            onClick={() => {
+                              switchThread(thread.id);
+                              setTimeout(() => exportThread(thread), 300);
+                            }}
+                          >
                             <Download size={11} />
                           </button>
-                          <button type="button" title="Delete" className="chat-thread-delete" onClick={() => deleteThread(thread.id)}>
+                          <button
+                            type="button"
+                            title="Delete"
+                            className="chat-thread-delete"
+                            onClick={() => deleteThread(thread.id)}
+                          >
                             <Trash2 size={11} />
                           </button>
                         </div>
@@ -464,189 +525,265 @@ export default function ChatAssistant({
 
           {/* Main Chat Area */}
           <div className="chat-inline-main">
-        {/* Messages */}
-        <div className="chat-inline-messages">
-          {messages.map((msg, idx) => {
-            const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
-            return (
-              <div
-                key={idx}
-                className={`chat-msg-row ${msg.role === "user" ? "chat-msg-user" : "chat-msg-ai"}`}
-              >
-                <div className="chat-msg-avatar">
-                  {msg.role === "user" ? (
-                    <User className="w-3.5 h-3.5" style={{ color: "#fff" }} />
-                  ) : (
-                    <Bot className="w-3.5 h-3.5" style={{ color: "#67e8f9" }} />
-                  )}
-                </div>
-                <div className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"} chat-bubble-copyable`}>
-                  {/* Per-message Copy Button */}
-                  {msg.content && !isLastAi && (
-                    <button
-                      type="button"
-                      className="chat-msg-copy-btn"
-                      title="Copy message"
-                      onClick={() => {
-                        navigator.clipboard.writeText(msg.content);
-                        const el = document.getElementById(`msg-copy-${idx}`);
-                        if (el) {
-                          el.textContent = "✓ Copied";
-                          el.style.color = "#10b981";
-                          setTimeout(() => { if (el) { el.textContent = "Copy"; el.style.color = ""; } }, 1500);
-                        }
-                      }}
+            {/* Messages */}
+            <div className="chat-inline-messages">
+              {messages.map((msg, idx) => {
+                const isLastAi =
+                  msg.role === "ai" && idx === messages.length - 1 && loading;
+                return (
+                  <div
+                    key={idx}
+                    className={`chat-msg-row ${msg.role === "user" ? "chat-msg-user" : "chat-msg-ai"}`}
+                  >
+                    <div className="chat-msg-avatar">
+                      {msg.role === "user" ? (
+                        <User
+                          className="w-3.5 h-3.5"
+                          style={{ color: "#fff" }}
+                        />
+                      ) : (
+                        <Bot
+                          className="w-3.5 h-3.5"
+                          style={{ color: "#67e8f9" }}
+                        />
+                      )}
+                    </div>
+                    <div
+                      className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"} chat-bubble-copyable`}
                     >
-                      <span id={`msg-copy-${idx}`}>Copy</span>
-                    </button>
-                  )}
-                  {/* Open in Canvas Button — for qualifying AI messages */}
-                  {msg.role === "ai" && msg.content && !isLastAi && messageQualifiesForCanvas(msg.content) && (
-                    <button
-                      type="button"
-                      className="chat-msg-canvas-btn"
-                      title="Open in Canvas"
-                      onClick={() => {
-                        const artifact = parseArtifactFromContent(msg.content)
-                          || buildArtifactFromMessage(msg.content, idx);
-                        setActiveArtifact(artifact);
-                        setIsCanvasMinimized(false);
-                      }}
-                    >
-                      📄 Canvas
-                    </button>
-                  )}
-                  <div className="chat-bubble-content">
-                    {/* Research Plan Stepper — shown for autonomous deep research responses */}
-                    {msg.role === "ai" && msg.researchPlan && (
-                      <ResearchStepper plan={msg.researchPlan} />
-                    )}
-                    {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
-                      <ThinkingLogsAccordion
-                        logs={msg.thinkingLogs || []}
-                        toolLogs={msg.toolLogs}
-                        isGenerating={isLastAi}
-                      />
-                    )}
-                    {msg.content === "" && isLastAi ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0" }}>
-                        <span className="chat-typing">
-                          <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                          <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                          <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
-                        </span>
-                        {streamingStatus && (
-                          <span style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: 600 }}>
-                            {streamingStatus}
-                          </span>
+                      {/* Per-message Copy Button */}
+                      {msg.content && !isLastAi && (
+                        <button
+                          type="button"
+                          className="chat-msg-copy-btn"
+                          title="Copy message"
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.content);
+                            const el = document.getElementById(
+                              `msg-copy-${idx}`,
+                            );
+                            if (el) {
+                              el.textContent = "✓ Copied";
+                              el.style.color = "#10b981";
+                              setTimeout(() => {
+                                if (el) {
+                                  el.textContent = "Copy";
+                                  el.style.color = "";
+                                }
+                              }, 1500);
+                            }
+                          }}
+                        >
+                          <span id={`msg-copy-${idx}`}>Copy</span>
+                        </button>
+                      )}
+                      {/* Open in Canvas Button — for qualifying AI messages */}
+                      {msg.role === "ai" &&
+                        msg.content &&
+                        !isLastAi &&
+                        messageQualifiesForCanvas(msg.content) && (
+                          <button
+                            type="button"
+                            className="chat-msg-canvas-btn"
+                            title="Open in Canvas"
+                            onClick={() => {
+                              const artifact =
+                                parseArtifactFromContent(msg.content) ||
+                                buildArtifactFromMessage(msg.content, idx);
+                              setActiveArtifact(artifact);
+                              setIsCanvasMinimized(false);
+                            }}
+                          >
+                            📄 Canvas
+                          </button>
+                        )}
+                      <div className="chat-bubble-content">
+                        {/* Research Plan Stepper — shown for autonomous deep research responses */}
+                        {msg.role === "ai" && msg.researchPlan && (
+                          <ResearchStepper plan={msg.researchPlan} />
+                        )}
+                        {((msg.toolLogs && msg.toolLogs.length > 0) ||
+                          (msg.thinkingLogs &&
+                            msg.thinkingLogs.length > 0)) && (
+                          <ThinkingLogsAccordion
+                            logs={msg.thinkingLogs || []}
+                            toolLogs={msg.toolLogs}
+                            isGenerating={isLastAi}
+                          />
+                        )}
+                        {msg.content === "" && isLastAi ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              padding: "2px 0",
+                            }}
+                          >
+                            <span className="chat-typing">
+                              <span
+                                className="chat-typing-dot"
+                                style={{ animationDelay: "0ms" }}
+                              />
+                              <span
+                                className="chat-typing-dot"
+                                style={{ animationDelay: "150ms" }}
+                              />
+                              <span
+                                className="chat-typing-dot"
+                                style={{ animationDelay: "300ms" }}
+                              />
+                            </span>
+                            {streamingStatus && (
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  color: "var(--accent-primary)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {streamingStatus}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            {renderMessage(msg.content)}
+                            {isLastAi && (
+                              <span className="chat-stream-cursor">
+                                &#x258B;
+                              </span>
+                            )}
+                            {msg.role === "ai" && msg.model && (
+                              <div
+                                style={{
+                                  fontSize: "10px",
+                                  color: "var(--text-muted)",
+                                  marginTop: "4px",
+                                  textAlign: "right",
+                                  opacity: 0.8,
+                                }}
+                              >
+                                ⚡ {msg.model}
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
-                    ) : (
-                      <>
-                        {renderMessage(msg.content)}
-                        {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
-                        {msg.role === "ai" && msg.model && (
-                          <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.8 }}>
-                            ⚡ {msg.model}
-                          </div>
-                        )}
-                      </>
-                    )}
+                    </div>
                   </div>
+                );
+              })}
+              {loading && streamingStatus && (
+                <div className="chat-status-pill">
+                  <span className="chat-status-pill-dot" />
+                  {streamingStatus}
                 </div>
-              </div>
-            );
-          })}
-          {loading && streamingStatus && (
-            <div className="chat-status-pill">
-              <span className="chat-status-pill-dot" />
-              {streamingStatus}
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Quick prompts (only if few messages) */}
-        {messages.length <= 1 && !loading && (
-          <div className="chat-quick-prompts">
-            {(activeDocumentFilename
-              ? [
-                  "📄 Summarize this document",
-                  "💡 Key takeaways & insights",
-                  "🔍 Find action items/decisions",
-                ]
-              : QUICK_PROMPTS
-            ).map((prompt, i) => (
-              <button
-                key={i}
-                type="button"
-                className="chat-quick-btn"
-                onClick={() => sendMessage(prompt.replace(/^[\p{Emoji}\s]+/u, "").trim())}
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Input */}
-        <div className="chat-inline-input">
-          <form
-            onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(input, () => setInput("")); } }}
-            className="chat-input-form"
-          >
-            {/* Voice Input Mic button */}
-            <button
-              type="button"
-              className={`chat-mic-btn ${isListening ? "chat-mic-btn--active" : ""}`}
-              onClick={toggleListening}
-              title={isListening ? "Listening... Click to stop" : "Voice Input (Speech-to-Text)"}
-            >
-              {isListening ? (
-                <div className="chat-mic-active-wrap">
-                  <MicOff className="w-4 h-4" />
-                  <span className="chat-mic-pulse-ring" />
-                </div>
-              ) : (
-                <Mic className="w-4 h-4" />
               )}
-            </button>
+              <div ref={messagesEndRef} />
+            </div>
 
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={isListening ? (transcriptPreview ? `🎙️ "${transcriptPreview}"` : "Listening... Speak now...") : "Ask me anything about news, stocks, or your files…"}
-              className="chat-input-field"
-              disabled={loading}
-              id="chat-inline-input"
-            />
-            {loading ? (
-              <button
-                type="button"
-                onClick={stopGeneration}
-                className="chat-send-btn chat-stop-active"
-                title="Stop generation"
-              >
-                <Square className="w-4 h-4" fill="currentColor" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className={`chat-send-btn ${input.trim() ? "chat-send-active" : ""}`}
-              >
-                <Send className="w-4 h-4" />
-              </button>
+            {/* Quick prompts (only if few messages) */}
+            {messages.length <= 1 && !loading && (
+              <div className="chat-quick-prompts">
+                {(activeDocumentFilename
+                  ? [
+                      "📄 Summarize this document",
+                      "💡 Key takeaways & insights",
+                      "🔍 Find action items/decisions",
+                    ]
+                  : QUICK_PROMPTS
+                ).map((prompt, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="chat-quick-btn"
+                    onClick={() =>
+                      sendMessage(prompt.replace(/^[\p{Emoji}\s]+/u, "").trim())
+                    }
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             )}
-          </form>
-          <div className="chat-input-hint">
-            <Zap className="w-3 h-3" />
-            Powered by Gemini AI · Your conversations are private
+
+            {/* Input */}
+            <div className="chat-inline-input">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (loading) {
+                    stopGeneration();
+                  } else {
+                    sendMessage(input, () => setInput(""));
+                  }
+                }}
+                className="chat-input-form"
+              >
+                {/* Voice Input Mic button */}
+                <button
+                  type="button"
+                  className={`chat-mic-btn ${isListening ? "chat-mic-btn--active" : ""}`}
+                  onClick={toggleListening}
+                  title={
+                    isListening
+                      ? "Listening... Click to stop"
+                      : "Voice Input (Speech-to-Text)"
+                  }
+                >
+                  {isListening ? (
+                    <div className="chat-mic-active-wrap">
+                      <MicOff className="w-4 h-4" />
+                      <span className="chat-mic-pulse-ring" />
+                    </div>
+                  ) : (
+                    <Mic className="w-4 h-4" />
+                  )}
+                </button>
+
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={
+                    isListening
+                      ? transcriptPreview
+                        ? `🎙️ "${transcriptPreview}"`
+                        : "Listening... Speak now..."
+                      : "Ask me anything about news, stocks, or your files…"
+                  }
+                  className="chat-input-field"
+                  disabled={loading}
+                  id="chat-inline-input"
+                />
+                {loading ? (
+                  <button
+                    type="button"
+                    onClick={stopGeneration}
+                    className="chat-send-btn chat-stop-active"
+                    title="Stop generation"
+                  >
+                    <Square className="w-4 h-4" fill="currentColor" />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim()}
+                    className={`chat-send-btn ${input.trim() ? "chat-send-active" : ""}`}
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                )}
+              </form>
+              <div className="chat-input-hint">
+                <Zap className="w-3 h-3" />
+                Powered by Gemini AI · Your conversations are private
+              </div>
+            </div>
           </div>
-        </div>
-          </div>{/* /chat-inline-main */}
+          {/* /chat-inline-main */}
 
           {/* ── Artifact Canvas — right split-view pane ── */}
           {activeArtifact && !isCanvasMinimized && (
@@ -657,7 +794,8 @@ export default function ChatAssistant({
               />
             </div>
           )}
-        </div>{/* /chat-inline-body */}
+        </div>
+        {/* /chat-inline-body */}
 
         {/* Minimized Artifact Pill — shown when canvas is hidden but artifact exists */}
         {activeArtifact && isCanvasMinimized && (
@@ -669,13 +807,18 @@ export default function ChatAssistant({
               title="Reopen canvas"
             >
               <span>📄</span>
-              <span className="artifact-pill-title">{activeArtifact.title}</span>
+              <span className="artifact-pill-title">
+                {activeArtifact.title}
+              </span>
               <span className="artifact-pill-open">Open ↗</span>
             </button>
             <button
               type="button"
               className="artifact-pill-dismiss"
-              onClick={() => { setActiveArtifact(null); setIsCanvasMinimized(false); }}
+              onClick={() => {
+                setActiveArtifact(null);
+                setIsCanvasMinimized(false);
+              }}
               title="Dismiss artifact"
             >
               ×
@@ -1380,7 +1523,6 @@ export default function ChatAssistant({
     <div className="chat-floating-wrapper">
       {isOpen && (
         <div className="chat-floating-window scale-in-smooth">
-
           {/* ── Header ── */}
           <div className="cfab-header">
             {/* Back button (Only shown when inside a chat feed) */}
@@ -1409,8 +1551,12 @@ export default function ChatAssistant({
                 <span
                   className="cfab-dot"
                   style={{
-                    background: selectedModel === "llama-70b" ? "#c084fc" : "#34d399",
-                    boxShadow: selectedModel === "llama-70b" ? "0 0 6px #c084fc" : "0 0 6px #34d399",
+                    background:
+                      selectedModel === "llama-70b" ? "#c084fc" : "#34d399",
+                    boxShadow:
+                      selectedModel === "llama-70b"
+                        ? "0 0 6px #c084fc"
+                        : "0 0 6px #34d399",
                   }}
                 />
                 Online
@@ -1418,12 +1564,31 @@ export default function ChatAssistant({
             </div>
             <div className="cfab-header-actions">
               {!showHomePortal && (
-                <select value={selectedModel} onChange={(e) => handleModelChange(e.target.value)} className="chat-model-select">
-                  <option value="llama-70b" style={{ background: "#080814", color: "#fff" }}>Groq (Ultra-Fast)</option>
-                  <option value="gemini-flash" style={{ background: "#080814", color: "#fff" }}>Google Gemini 2.5</option>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => handleModelChange(e.target.value)}
+                  className="chat-model-select"
+                >
+                  <option
+                    value="llama-70b"
+                    style={{ background: "#080814", color: "#fff" }}
+                  >
+                    Groq (Ultra-Fast)
+                  </option>
+                  <option
+                    value="gemini-flash"
+                    style={{ background: "#080814", color: "#fff" }}
+                  >
+                    Google Gemini 2.5
+                  </option>
                 </select>
               )}
-              <button type="button" className="cfab-icon-btn" onClick={() => setIsOpen(false)} title="Close">
+              <button
+                type="button"
+                className="cfab-icon-btn"
+                onClick={() => setIsOpen(false)}
+                title="Close"
+              >
                 <X size={14} />
               </button>
             </div>
@@ -1431,7 +1596,6 @@ export default function ChatAssistant({
 
           {/* ── Body ── */}
           <div className="cfab-body" style={{ position: "relative" }}>
-
             {showHomePortal ? (
               /* HOME SCREEN PORTAL VIEW */
               <div className="cfab-home-portal">
@@ -1459,11 +1623,16 @@ export default function ChatAssistant({
 
                 {/* Recent Chats list */}
                 <div className="cfab-home-section">
-                  <div className="cfab-home-section-title">Recent conversations</div>
+                  <div className="cfab-home-section-title">
+                    Recent conversations
+                  </div>
                   <div className="cfab-home-list">
                     {threads.length === 0 ? (
                       <div className="cfab-home-empty">
-                        <MessageSquare size={18} style={{ opacity: 0.25, marginBottom: "6px" }} />
+                        <MessageSquare
+                          size={18}
+                          style={{ opacity: 0.25, marginBottom: "6px" }}
+                        />
                         <span>No recent conversations</span>
                       </div>
                     ) : (
@@ -1476,21 +1645,41 @@ export default function ChatAssistant({
                             setShowHomePortal(false);
                           }}
                         >
-                          <div style={{ display: "flex", gap: "10px", alignItems: "center", minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "10px",
+                              alignItems: "center",
+                              minWidth: 0,
+                              flex: 1,
+                            }}
+                          >
                             <div className="cfab-home-item-avatar">
                               <MessageSquare size={12} color="#22d3ee" />
                             </div>
-                            <div style={{ minWidth: 0, flex: 1, textAlign: "left" }}>
+                            <div
+                              style={{
+                                minWidth: 0,
+                                flex: 1,
+                                textAlign: "left",
+                              }}
+                            >
                               {renamingThreadId === thread.id ? (
                                 <input
                                   type="text"
                                   className="cfab-rename-input"
                                   value={renameValue}
-                                  onChange={(e) => setRenameValue(e.target.value)}
-                                  onBlur={() => renameThread(thread.id, renameValue)}
+                                  onChange={(e) =>
+                                    setRenameValue(e.target.value)
+                                  }
+                                  onBlur={() =>
+                                    renameThread(thread.id, renameValue)
+                                  }
                                   onKeyDown={(e) => {
-                                    if (e.key === "Enter") renameThread(thread.id, renameValue);
-                                    if (e.key === "Escape") setRenamingThreadId(null);
+                                    if (e.key === "Enter")
+                                      renameThread(thread.id, renameValue);
+                                    if (e.key === "Escape")
+                                      setRenamingThreadId(null);
                                   }}
                                   autoFocus
                                   onClick={(e) => e.stopPropagation()}
@@ -1498,7 +1687,9 @@ export default function ChatAssistant({
                                 />
                               ) : (
                                 <>
-                                  <div className="cfab-home-item-title">{thread.title}</div>
+                                  <div className="cfab-home-item-title">
+                                    {thread.title}
+                                  </div>
                                   <div className="cfab-home-item-time">
                                     <Clock size={8} />
                                     {timeAgo(thread.updated_at)}
@@ -1508,7 +1699,10 @@ export default function ChatAssistant({
                             </div>
                           </div>
                           {/* Hover action bar */}
-                          <div className="cfab-home-item-actions" onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className="cfab-home-item-actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <button
                               type="button"
                               title="Rename"
@@ -1539,29 +1733,84 @@ export default function ChatAssistant({
               <div className="cfab-chat">
                 <div className="cfab-messages">
                   {messages.map((msg, idx) => {
-                    const isLastAi = msg.role === "ai" && idx === messages.length - 1 && loading;
+                    const isLastAi =
+                      msg.role === "ai" &&
+                      idx === messages.length - 1 &&
+                      loading;
                     return (
-                      <div key={idx} className="animate-message-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start", flexDirection: msg.role === "user" ? "row-reverse" : "row" }}>
-                        <div className={`cfab-avatar-sm ${msg.role === "user" ? "cfab-avatar-user" : "cfab-avatar-ai"}`}>
-                          {msg.role === "user" ? <User size={12} color="#fff" /> : <Bot size={12} color="#67e8f9" />}
+                      <div
+                        key={idx}
+                        className="animate-message-bubble"
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          alignItems: "flex-start",
+                          flexDirection:
+                            msg.role === "user" ? "row-reverse" : "row",
+                        }}
+                      >
+                        <div
+                          className={`cfab-avatar-sm ${msg.role === "user" ? "cfab-avatar-user" : "cfab-avatar-ai"}`}
+                        >
+                          {msg.role === "user" ? (
+                            <User size={12} color="#fff" />
+                          ) : (
+                            <Bot size={12} color="#67e8f9" />
+                          )}
                         </div>
-                        <div className={`cfab-bubble ${msg.role === "user" ? "cfab-bubble-user" : "cfab-bubble-ai"}`}>
+                        <div
+                          className={`cfab-bubble ${msg.role === "user" ? "cfab-bubble-user" : "cfab-bubble-ai"}`}
+                        >
                           {/* Research Plan Stepper */}
                           {msg.role === "ai" && msg.researchPlan && (
                             <ResearchStepper plan={msg.researchPlan} />
                           )}
-                          {((msg.toolLogs && msg.toolLogs.length > 0) || (msg.thinkingLogs && msg.thinkingLogs.length > 0)) && (
-                            <ThinkingLogsAccordion logs={msg.thinkingLogs || []} toolLogs={msg.toolLogs} isGenerating={isLastAi} />
+                          {((msg.toolLogs && msg.toolLogs.length > 0) ||
+                            (msg.thinkingLogs &&
+                              msg.thinkingLogs.length > 0)) && (
+                            <ThinkingLogsAccordion
+                              logs={msg.thinkingLogs || []}
+                              toolLogs={msg.toolLogs}
+                              isGenerating={isLastAi}
+                            />
                           )}
                           {msg.content === "" && isLastAi ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "2px 0" }}>
-                              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                <span className="chat-typing-dot" style={{ animationDelay: "0ms" }} />
-                                <span className="chat-typing-dot" style={{ animationDelay: "150ms" }} />
-                                <span className="chat-typing-dot" style={{ animationDelay: "300ms" }} />
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                padding: "2px 0",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                <span
+                                  className="chat-typing-dot"
+                                  style={{ animationDelay: "0ms" }}
+                                />
+                                <span
+                                  className="chat-typing-dot"
+                                  style={{ animationDelay: "150ms" }}
+                                />
+                                <span
+                                  className="chat-typing-dot"
+                                  style={{ animationDelay: "300ms" }}
+                                />
                               </span>
                               {streamingStatus && (
-                                <span style={{ fontSize: "11px", color: "var(--accent-primary)", fontWeight: 600 }}>
+                                <span
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "var(--accent-primary)",
+                                    fontWeight: 600,
+                                  }}
+                                >
                                   {streamingStatus}
                                 </span>
                               )}
@@ -1569,9 +1818,21 @@ export default function ChatAssistant({
                           ) : (
                             <>
                               {renderMessage(msg.content)}
-                              {isLastAi && <span className="chat-stream-cursor">&#x258B;</span>}
+                              {isLastAi && (
+                                <span className="chat-stream-cursor">
+                                  &#x258B;
+                                </span>
+                              )}
                               {msg.role === "ai" && msg.model && (
-                                <div style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "4px", textAlign: "right", opacity: 0.7 }}>
+                                <div
+                                  style={{
+                                    fontSize: "10px",
+                                    color: "var(--text-muted)",
+                                    marginTop: "4px",
+                                    textAlign: "right",
+                                    opacity: 0.7,
+                                  }}
+                                >
                                   ⚡ {msg.model}
                                 </div>
                               )}
@@ -1592,13 +1853,27 @@ export default function ChatAssistant({
 
                 {/* Input bar */}
                 <div className="cfab-input-bar">
-                  <form onSubmit={(e) => { e.preventDefault(); if (loading) { stopGeneration(); } else { sendMessage(input, () => setInput("")); } }} className="cfab-input-form">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (loading) {
+                        stopGeneration();
+                      } else {
+                        sendMessage(input, () => setInput(""));
+                      }
+                    }}
+                    className="cfab-input-form"
+                  >
                     {/* Hands-free Voice Input toggle */}
                     <button
                       type="button"
                       className={`cfab-mic-btn ${isListening ? "cfab-mic-btn--active" : ""}`}
                       onClick={toggleListening}
-                      title={isListening ? "Listening... Click to stop" : "Voice Input (Speech-to-Text)"}
+                      title={
+                        isListening
+                          ? "Listening... Click to stop"
+                          : "Voice Input (Speech-to-Text)"
+                      }
                     >
                       {isListening ? (
                         <div className="chat-mic-active-wrap">
@@ -1614,18 +1889,37 @@ export default function ChatAssistant({
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      placeholder={isListening ? (transcriptPreview ? `🎙️ "${transcriptPreview}"` : "Listening... Speak now...") : "Ask me anything…"}
+                      placeholder={
+                        isListening
+                          ? transcriptPreview
+                            ? `🎙️ "${transcriptPreview}"`
+                            : "Listening... Speak now..."
+                          : "Ask me anything…"
+                      }
                       disabled={loading}
                       className="cfab-input-field"
-                      onFocus={(e) => (e.target.style.borderColor = "rgba(34,211,238,0.5)")}
-                      onBlur={(e) => (e.target.style.borderColor = "var(--border-light)")}
+                      onFocus={(e) =>
+                        (e.target.style.borderColor = "rgba(34,211,238,0.5)")
+                      }
+                      onBlur={(e) =>
+                        (e.target.style.borderColor = "var(--border-light)")
+                      }
                     />
                     {loading ? (
-                      <button type="button" onClick={stopGeneration} className="cfab-send-btn cfab-stop" title="Stop">
+                      <button
+                        type="button"
+                        onClick={stopGeneration}
+                        className="cfab-send-btn cfab-stop"
+                        title="Stop"
+                      >
                         <Square size={13} fill="currentColor" />
                       </button>
                     ) : (
-                      <button type="submit" disabled={!input.trim()} className={`cfab-send-btn ${input.trim() ? "cfab-send-active" : ""}`}>
+                      <button
+                        type="submit"
+                        disabled={!input.trim()}
+                        className={`cfab-send-btn ${input.trim() ? "cfab-send-active" : ""}`}
+                      >
                         <Send size={13} />
                       </button>
                     )}
@@ -1644,7 +1938,11 @@ export default function ChatAssistant({
         title="AI Assistant"
         className={`chat-fab ${isOpen ? "chat-fab-active" : "fab-pulse-glow"}`}
       >
-        {isOpen ? <X size={22} color="#fff" /> : <MessageSquare size={22} color="#fff" />}
+        {isOpen ? (
+          <X size={22} color="#fff" />
+        ) : (
+          <MessageSquare size={22} color="#fff" />
+        )}
       </button>
 
       <style>{`

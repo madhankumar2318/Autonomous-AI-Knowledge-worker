@@ -51,7 +51,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Santa Clara, California, USA",
     leadership: "Jensen Huang (Founder & CEO)",
     marketCap: "$3.15 Trillion",
-    keyProducts: ["Blackwell B200", "H100/H200 Tensor Core", "CUDA Platform", "GeForce RTX"],
+    keyProducts: [
+      "Blackwell B200",
+      "H100/H200 Tensor Core",
+      "CUDA Platform",
+      "GeForce RTX",
+    ],
     website: "https://www.nvidia.com",
     accentColor: "#22c55e",
   },
@@ -68,7 +73,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Cupertino, California, USA",
     leadership: "Tim Cook (CEO)",
     marketCap: "$3.42 Trillion",
-    keyProducts: ["iPhone", "MacBook / M-Series Silicon", "Apple Intelligence", "Services / iCloud"],
+    keyProducts: [
+      "iPhone",
+      "MacBook / M-Series Silicon",
+      "Apple Intelligence",
+      "Services / iCloud",
+    ],
     website: "https://www.apple.com",
     accentColor: "#38bdf8",
   },
@@ -85,7 +95,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Redmond, Washington, USA",
     leadership: "Satya Nadella (Chairman & CEO)",
     marketCap: "$3.20 Trillion",
-    keyProducts: ["Azure Cloud", "Microsoft Copilot", "Windows 11", "GitHub & Office 365"],
+    keyProducts: [
+      "Azure Cloud",
+      "Microsoft Copilot",
+      "Windows 11",
+      "GitHub & Office 365",
+    ],
     website: "https://www.microsoft.com",
     accentColor: "#60a5fa",
   },
@@ -102,7 +117,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Austin, Texas, USA",
     leadership: "Elon Musk (Technoking & CEO)",
     marketCap: "$720 Billion",
-    keyProducts: ["Model Y / Model 3", "Full Self-Driving (FSD)", "Optimus Humanoid Robot", "Megapack Energy"],
+    keyProducts: [
+      "Model Y / Model 3",
+      "Full Self-Driving (FSD)",
+      "Optimus Humanoid Robot",
+      "Megapack Energy",
+    ],
     website: "https://www.tesla.com",
     accentColor: "#ef4444",
   },
@@ -119,7 +139,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Mountain View, California, USA",
     leadership: "Sundar Pichai (CEO)",
     marketCap: "$2.15 Trillion",
-    keyProducts: ["Google Search", "Gemini 2.5 AI Models", "Google Cloud Platform", "YouTube & Android"],
+    keyProducts: [
+      "Google Search",
+      "Gemini 2.5 AI Models",
+      "Google Cloud Platform",
+      "YouTube & Android",
+    ],
     website: "https://abc.xyz",
     accentColor: "#3b82f6",
   },
@@ -136,7 +161,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Seattle, Washington, USA",
     leadership: "Andy Jassy (President & CEO)",
     marketCap: "$2.05 Trillion",
-    keyProducts: ["AWS Cloud Infrastructure", "Amazon Bedrock", "Amazon Prime E-Commerce", "Trainium / Inferentia"],
+    keyProducts: [
+      "AWS Cloud Infrastructure",
+      "Amazon Bedrock",
+      "Amazon Prime E-Commerce",
+      "Trainium / Inferentia",
+    ],
     website: "https://www.amazon.com",
     accentColor: "#f59e0b",
   },
@@ -153,7 +183,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Menlo Park, California, USA",
     leadership: "Mark Zuckerberg (Founder, Chairman & CEO)",
     marketCap: "$1.45 Trillion",
-    keyProducts: ["Llama 3.3 Open Foundation Models", "Instagram & WhatsApp", "Meta AI Assistant", "Quest VR / Reality Labs"],
+    keyProducts: [
+      "Llama 3.3 Open Foundation Models",
+      "Instagram & WhatsApp",
+      "Meta AI Assistant",
+      "Quest VR / Reality Labs",
+    ],
     website: "https://about.meta.com",
     accentColor: "#06b6d4",
   },
@@ -167,7 +202,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     founded: "2015 (San Francisco, CA)",
     headquarters: "San Francisco, California, USA",
     leadership: "Sam Altman (CEO) & Greg Brockman (President)",
-    keyProducts: ["GPT-4o / GPT-4.5", "ChatGPT Enterprise", "OpenAI o1 / o3 Reasoning", "Sora Video Generator"],
+    keyProducts: [
+      "GPT-4o / GPT-4.5",
+      "ChatGPT Enterprise",
+      "OpenAI o1 / o3 Reasoning",
+      "Sora Video Generator",
+    ],
     website: "https://openai.com",
     accentColor: "#10b981",
   },
@@ -181,7 +221,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     founded: "2021 (San Francisco, CA)",
     headquarters: "San Francisco, California, USA",
     leadership: "Dario Amodei (CEO) & Daniela Amodei (President)",
-    keyProducts: ["Claude 3.5 Sonnet", "Claude 3 Opus", "Constitutional AI Safety", "Computer Use API"],
+    keyProducts: [
+      "Claude 3.5 Sonnet",
+      "Claude 3 Opus",
+      "Constitutional AI Safety",
+      "Computer Use API",
+    ],
     website: "https://www.anthropic.com",
     accentColor: "#d97706",
   },
@@ -195,7 +240,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     founded: "2023 (Hangzhou, China)",
     headquarters: "Hangzhou, China",
     leadership: "Liang Wenfeng (Founder & CEO)",
-    keyProducts: ["DeepSeek-R1 (Reasoning)", "DeepSeek-V3 (MoE Architecture)", "DeepSeek Coder", "DualPipe Engine"],
+    keyProducts: [
+      "DeepSeek-R1 (Reasoning)",
+      "DeepSeek-V3 (MoE Architecture)",
+      "DeepSeek Coder",
+      "DualPipe Engine",
+    ],
     website: "https://www.deepseek.com",
     accentColor: "#3b82f6",
   },
@@ -209,7 +259,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     founded: "2010 (London, UK)",
     headquarters: "London, United Kingdom",
     leadership: "Demis Hassabis (CEO & Nobel Laureate)",
-    keyProducts: ["Gemini 2.5 Multimodal", "AlphaFold 3 (Biomolecular)", "AlphaCode", "Imagen 3"],
+    keyProducts: [
+      "Gemini 2.5 Multimodal",
+      "AlphaFold 3 (Biomolecular)",
+      "AlphaCode",
+      "Imagen 3",
+    ],
     website: "https://deepmind.google",
     accentColor: "#8b5cf6",
   },
@@ -225,7 +280,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     headquarters: "Decentralized Global Network",
     leadership: "Satoshi Nakamoto (Pseudonymous Creator)",
     marketCap: "$1.90 Trillion",
-    keyProducts: ["Bitcoin Core", "Lightning Network", "Proof of Work Ledger", "UTXO Consensus"],
+    keyProducts: [
+      "Bitcoin Core",
+      "Lightning Network",
+      "Proof of Work Ledger",
+      "UTXO Consensus",
+    ],
     website: "https://bitcoin.org",
     accentColor: "#f59e0b",
   },
@@ -239,7 +299,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     founded: "2016 (Vercel)",
     headquarters: "San Francisco, CA (Vercel Inc.)",
     leadership: "Guillermo Rauch & Tim Neutkens",
-    keyProducts: ["App Router & Server Actions", "Turbopack Rust Bundler", "React Server Components (RSC)", "Next/Image & Next/Font"],
+    keyProducts: [
+      "App Router & Server Actions",
+      "Turbopack Rust Bundler",
+      "React Server Components (RSC)",
+      "Next/Image & Next/Font",
+    ],
     website: "https://nextjs.org",
     accentColor: "#ffffff",
   },
@@ -253,7 +318,12 @@ export const KNOWLEDGE_ENTITIES: KnowledgeEntity[] = [
     founded: "1991 (Centrum Wiskunde & Informatica)",
     headquarters: "Python Software Foundation",
     leadership: "Guido van Rossum (Creator) & PSF Council",
-    keyProducts: ["CPython 3.12/3.13", "PyTorch / TorchVision", "FastAPI / Pydantic", "NumPy / Pandas"],
+    keyProducts: [
+      "CPython 3.12/3.13",
+      "PyTorch / TorchVision",
+      "FastAPI / Pydantic",
+      "NumPy / Pandas",
+    ],
     website: "https://www.python.org",
     accentColor: "#3b82f6",
   },
@@ -272,22 +342,83 @@ export function detectEntity(query: string): KnowledgeEntity | null {
     // Name exact or substring match
     const cleanName = entity.name.toLowerCase();
     if (q === cleanName) return entity;
-    
+
     // Multi-word / synonym triggers
-    if (entity.id === "nvda" && (q.includes("nvidia") || q === "nvda")) return entity;
-    if (entity.id === "aapl" && (q.includes("apple") || q === "aapl" || q.includes("iphone"))) return entity;
-    if (entity.id === "msft" && (q.includes("microsoft") || q === "msft" || q.includes("copilot"))) return entity;
-    if (entity.id === "tsla" && (q.includes("tesla") || q === "tsla" || q.includes("elon musk"))) return entity;
-    if (entity.id === "googl" && (q.includes("google") || q === "googl" || q === "goog" || q.includes("alphabet"))) return entity;
-    if (entity.id === "amzn" && (q.includes("amazon") || q === "amzn" || q === "aws")) return entity;
-    if (entity.id === "meta" && (q.includes("meta") || q === "meta platforms" || q.includes("facebook") || q.includes("llama"))) return entity;
-    if (entity.id === "openai" && (q.includes("openai") || q.includes("chatgpt") || q === "gpt" || q.includes("sam altman"))) return entity;
-    if (entity.id === "anthropic" && (q.includes("anthropic") || q.includes("claude"))) return entity;
-    if (entity.id === "deepseek" && (q.includes("deepseek") || q.includes("deep seek"))) return entity;
-    if (entity.id === "deepmind" && (q.includes("deepmind") || q.includes("demis hassabis") || q.includes("alphafold"))) return entity;
-    if (entity.id === "btc" && (q.includes("bitcoin") || q === "btc" || q.includes("crypto"))) return entity;
-    if (entity.id === "nextjs" && (q.includes("nextjs") || q.includes("next.js") || q === "next js")) return entity;
-    if (entity.id === "python" && (q.includes("python") || q === "py")) return entity;
+    if (entity.id === "nvda" && (q.includes("nvidia") || q === "nvda"))
+      return entity;
+    if (
+      entity.id === "aapl" &&
+      (q.includes("apple") || q === "aapl" || q.includes("iphone"))
+    )
+      return entity;
+    if (
+      entity.id === "msft" &&
+      (q.includes("microsoft") || q === "msft" || q.includes("copilot"))
+    )
+      return entity;
+    if (
+      entity.id === "tsla" &&
+      (q.includes("tesla") || q === "tsla" || q.includes("elon musk"))
+    )
+      return entity;
+    if (
+      entity.id === "googl" &&
+      (q.includes("google") ||
+        q === "googl" ||
+        q === "goog" ||
+        q.includes("alphabet"))
+    )
+      return entity;
+    if (
+      entity.id === "amzn" &&
+      (q.includes("amazon") || q === "amzn" || q === "aws")
+    )
+      return entity;
+    if (
+      entity.id === "meta" &&
+      (q.includes("meta") ||
+        q === "meta platforms" ||
+        q.includes("facebook") ||
+        q.includes("llama"))
+    )
+      return entity;
+    if (
+      entity.id === "openai" &&
+      (q.includes("openai") ||
+        q.includes("chatgpt") ||
+        q === "gpt" ||
+        q.includes("sam altman"))
+    )
+      return entity;
+    if (
+      entity.id === "anthropic" &&
+      (q.includes("anthropic") || q.includes("claude"))
+    )
+      return entity;
+    if (
+      entity.id === "deepseek" &&
+      (q.includes("deepseek") || q.includes("deep seek"))
+    )
+      return entity;
+    if (
+      entity.id === "deepmind" &&
+      (q.includes("deepmind") ||
+        q.includes("demis hassabis") ||
+        q.includes("alphafold"))
+    )
+      return entity;
+    if (
+      entity.id === "btc" &&
+      (q.includes("bitcoin") || q === "btc" || q.includes("crypto"))
+    )
+      return entity;
+    if (
+      entity.id === "nextjs" &&
+      (q.includes("nextjs") || q.includes("next.js") || q === "next js")
+    )
+      return entity;
+    if (entity.id === "python" && (q.includes("python") || q === "py"))
+      return entity;
   }
 
   return null;
@@ -299,7 +430,10 @@ interface KnowledgeCardProps {
   onFilterNews?: () => void;
 }
 
-export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardProps) {
+export default function KnowledgeCard({
+  entity,
+  onFilterNews,
+}: KnowledgeCardProps) {
   const [stockQuote, setStockQuote] = useState<{
     price: number;
     change: number;
@@ -319,7 +453,9 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
 
     async function fetchQuote() {
       try {
-        const res = await fetch(`${API_BASE_URL}/stock/?symbol=${entity.ticker}`);
+        const res = await fetch(
+          `${API_BASE_URL}/stock/?symbol=${entity.ticker}`,
+        );
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data && data.price) {
@@ -342,7 +478,9 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
   // Handler: Trigger AI Assistant deep-dive on this entity
   const triggerAiBriefing = () => {
     const prompt = `Give me an executive, up-to-date briefing on ${entity.name}. Outline its core technology architecture, latest breakthroughs, financial/market standing, and future strategic outlook.`;
-    window.dispatchEvent(new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }));
+    window.dispatchEvent(
+      new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }),
+    );
     window.dispatchEvent(
       new CustomEvent("ak-add-notification", {
         detail: {
@@ -350,13 +488,15 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
           title: "AI Knowledge Briefing",
           message: `Generated instant research prompt for ${entity.name}.`,
         },
-      })
+      }),
     );
   };
 
   // Handler: Navigate to Stocks tab
   const navigateToStocks = () => {
-    window.dispatchEvent(new CustomEvent("ak-navigate-tab", { detail: { tab: "stocks" } }));
+    window.dispatchEvent(
+      new CustomEvent("ak-navigate-tab", { detail: { tab: "stocks" } }),
+    );
   };
 
   const isPositive = stockQuote ? stockQuote.change >= 0 : true;
@@ -367,7 +507,8 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
       style={{
         marginBottom: "20px",
         borderRadius: "18px",
-        background: "linear-gradient(145deg, var(--bg-surface, #0f172a) 0%, rgba(15,23,42,0.6) 100%)",
+        background:
+          "linear-gradient(145deg, var(--bg-surface, #0f172a) 0%, rgba(15,23,42,0.6) 100%)",
         border: `1px solid color-mix(in srgb, ${accentColor} 30%, var(--border-light))`,
         boxShadow: `0 12px 36px -10px color-mix(in srgb, ${accentColor} 12%, rgba(0,0,0,0.5))`,
         padding: "22px 24px",
@@ -389,7 +530,15 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
       />
 
       {/* Header Row */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: "16px",
+          flexWrap: "wrap",
+        }}
+      >
         <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
           <div
             style={{
@@ -414,8 +563,22 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
           </div>
 
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "20px",
+                  fontWeight: 800,
+                  color: "var(--text-primary)",
+                }}
+              >
                 {entity.name}
               </h2>
               {entity.ticker && (
@@ -452,7 +615,14 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               </span>
             </div>
 
-            <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--text-muted)", fontWeight: 600 }}>
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontSize: "12px",
+                color: "var(--text-muted)",
+                fontWeight: 600,
+              }}
+            >
               {entity.badge}
             </p>
           </div>
@@ -465,14 +635,22 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               display: "flex",
               flexDirection: "column",
               alignItems: "flex-end",
-              background: isPositive ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)",
+              background: isPositive
+                ? "rgba(34,197,94,0.08)"
+                : "rgba(239,68,68,0.08)",
               border: `1px solid ${isPositive ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`,
               padding: "8px 14px",
               borderRadius: "12px",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ fontSize: "20px", fontWeight: 800, color: "var(--text-primary)" }}>
+              <span
+                style={{
+                  fontSize: "20px",
+                  fontWeight: 800,
+                  color: "var(--text-primary)",
+                }}
+              >
                 ${stockQuote.price.toFixed(2)}
               </span>
               <span
@@ -485,15 +663,26 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
                   color: isPositive ? "#22c55e" : "#ef4444",
                 }}
               >
-                {isPositive ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                {isPositive ? (
+                  <TrendingUp size={13} />
+                ) : (
+                  <TrendingDown size={13} />
+                )}
                 {isPositive ? "+" : ""}
                 {stockQuote.change.toFixed(2)} ({isPositive ? "+" : ""}
                 {stockQuote.change_percent.toFixed(2)}%)
               </span>
             </div>
             {stockQuote.day_high && stockQuote.day_low && (
-              <span style={{ fontSize: "10px", color: "var(--text-muted)", marginTop: "2px" }}>
-                Range: ${stockQuote.day_low.toFixed(2)} – ${stockQuote.day_high.toFixed(2)}
+              <span
+                style={{
+                  fontSize: "10px",
+                  color: "var(--text-muted)",
+                  marginTop: "2px",
+                }}
+              >
+                Range: ${stockQuote.day_low.toFixed(2)} – $
+                {stockQuote.day_high.toFixed(2)}
               </span>
             )}
           </div>
@@ -530,10 +719,25 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               border: "1px solid var(--border-light)",
             }}
           >
-            <span style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <span
+              style={{
+                display: "block",
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
               Leadership
             </span>
-            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)" }}>
+            <span
+              style={{
+                fontSize: "12.5px",
+                fontWeight: 700,
+                color: "var(--text-primary)",
+              }}
+            >
               {entity.leadership}
             </span>
           </div>
@@ -548,10 +752,21 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               border: "1px solid var(--border-light)",
             }}
           >
-            <span style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <span
+              style={{
+                display: "block",
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
               Market Valuation
             </span>
-            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#38bdf8" }}>
+            <span
+              style={{ fontSize: "12.5px", fontWeight: 700, color: "#38bdf8" }}
+            >
               {entity.marketCap}
             </span>
           </div>
@@ -566,10 +781,25 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               border: "1px solid var(--border-light)",
             }}
           >
-            <span style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <span
+              style={{
+                display: "block",
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
               Headquarters
             </span>
-            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)" }}>
+            <span
+              style={{
+                fontSize: "12.5px",
+                fontWeight: 700,
+                color: "var(--text-primary)",
+              }}
+            >
               {entity.headquarters}
             </span>
           </div>
@@ -584,10 +814,25 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               border: "1px solid var(--border-light)",
             }}
           >
-            <span style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <span
+              style={{
+                display: "block",
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "var(--text-muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+              }}
+            >
               Founded
             </span>
-            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "var(--text-primary)" }}>
+            <span
+              style={{
+                fontSize: "12.5px",
+                fontWeight: 700,
+                color: "var(--text-primary)",
+              }}
+            >
               {entity.founded}
             </span>
           </div>
@@ -596,8 +841,23 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
 
       {/* Flagship Products / Architectures */}
       {entity.keyProducts && entity.keyProducts.length > 0 && (
-        <div style={{ marginBottom: "18px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
+        <div
+          style={{
+            marginBottom: "18px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 700,
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+            }}
+          >
             Key Systems:
           </span>
           {entity.keyProducts.map((prod, idx) => (
@@ -608,8 +868,10 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
                 fontWeight: 600,
                 padding: "3px 9px",
                 borderRadius: "6px",
-                background: "color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent)",
-                border: "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 22%, transparent)",
+                background:
+                  "color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent)",
+                border:
+                  "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 22%, transparent)",
                 color: "var(--accent-primary, #22d3ee)",
               }}
             >
@@ -648,8 +910,12 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
             boxShadow: "0 4px 14px rgba(34,211,238,0.25)",
             transition: "all 0.18s ease",
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = "translateY(-1px)")
+          }
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.transform = "translateY(0)")
+          }
         >
           <Sparkles size={14} /> Ask AI Deep-Dive
         </button>
@@ -672,10 +938,15 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               cursor: "pointer",
               transition: "all 0.18s ease",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#38bdf8")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-light)")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.borderColor = "#38bdf8")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.borderColor = "var(--border-light)")
+            }
           >
-            <BarChart2 size={14} style={{ color: "#38bdf8" }} /> Open Stock Center
+            <BarChart2 size={14} style={{ color: "#38bdf8" }} /> Open Stock
+            Center
           </button>
         )}
 
@@ -718,8 +989,12 @@ export default function KnowledgeCard({ entity, onFilterNews }: KnowledgeCardPro
               textDecoration: "none",
               transition: "color 0.15s ease",
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.color = "var(--text-primary)")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.color = "var(--text-muted)")
+            }
           >
             <Globe size={13} /> Official Website <ExternalLink size={11} />
           </a>

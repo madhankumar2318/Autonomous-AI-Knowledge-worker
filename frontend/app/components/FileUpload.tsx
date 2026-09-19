@@ -57,12 +57,20 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<UploadedFile | null>(null);
-  const [workspaceHighlightPhrase, setWorkspaceHighlightPhrase] = useState<string>("");
-  const [workspaceHighlightPage, setWorkspaceHighlightPage] = useState<number | null>(null);
-  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string | null>(null);
+  const [activeWorkspaceFile, setActiveWorkspaceFile] =
+    useState<UploadedFile | null>(null);
+  const [workspaceHighlightPhrase, setWorkspaceHighlightPhrase] =
+    useState<string>("");
+  const [workspaceHighlightPage, setWorkspaceHighlightPage] = useState<
+    number | null
+  >(null);
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<string | null>(
+    null,
+  );
   const dragCounter = useRef(0);
-  const [reindexingFiles, setReindexingFiles] = useState<Set<string>>(new Set());
+  const [reindexingFiles, setReindexingFiles] = useState<Set<string>>(
+    new Set(),
+  );
 
   const fetchUploads = async () => {
     try {
@@ -73,12 +81,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       const rawList = Array.isArray(data)
         ? data
         : data && Array.isArray(data.uploads)
-        ? data.uploads
-        : [];
+          ? data.uploads
+          : [];
       const normalized = rawList.map((item: any) => ({
         ...item,
         rag_indexed: item.rag_indexed !== undefined ? item.rag_indexed : true,
-        chunks: item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
+        chunks:
+          item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
       }));
       setUploads(normalized);
     } catch (_err) {
@@ -93,7 +102,11 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
 
   useEffect(() => {
     const handleOpenDocument = (e: Event) => {
-      const customEvent = e as CustomEvent<{ filename: string; phrase?: string; pageNum?: number }>;
+      const customEvent = e as CustomEvent<{
+        filename: string;
+        phrase?: string;
+        pageNum?: number;
+      }>;
       const { filename, phrase, pageNum } = customEvent.detail;
       setWorkspaceHighlightPhrase(phrase || "");
       setWorkspaceHighlightPage(pageNum || null);
@@ -139,15 +152,18 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     dragCounter.current++;
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) setIsDragging(true);
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0)
+      setIsDragging(true);
   };
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     dragCounter.current--;
     if (dragCounter.current === 0) setIsDragging(false);
   };
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
-  
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
@@ -155,10 +171,26 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     const dropped = e.dataTransfer.files[0];
     if (dropped) {
       const ext = dropped.name.split(".").pop()?.toLowerCase();
-      if (ext && ["csv", "json", "pdf", "txt", "md", "docx", "doc", "xlsx", "xls"].includes(ext)) {
+      if (
+        ext &&
+        [
+          "csv",
+          "json",
+          "pdf",
+          "txt",
+          "md",
+          "docx",
+          "doc",
+          "xlsx",
+          "xls",
+        ].includes(ext)
+      ) {
         setFile(dropped);
       } else {
-        showToast("error", "Supported formats: CSV, JSON, PDF, TXT, MD, DOCX, XLSX.");
+        showToast(
+          "error",
+          "Supported formats: CSV, JSON, PDF, TXT, MD, DOCX, XLSX.",
+        );
       }
     }
   };
@@ -184,39 +216,75 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       });
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
+
       if (res.ok) {
         const data = await res.json();
         setTimeout(() => {
           setFile(null);
           setUploadProgress(0);
-          
+
           if (data.rag_status === "success") {
-            showToast("success", `"${file.name}" uploaded & RAG indexed successfully!`);
-            window.dispatchEvent(new CustomEvent("ak-add-notification", {
-              detail: { title: "RAG Document Indexed", message: `"${file.name}" has been fully parsed and indexed for semantic searches.`, type: "success" }
-            }));
+            showToast(
+              "success",
+              `"${file.name}" uploaded & RAG indexed successfully!`,
+            );
+            window.dispatchEvent(
+              new CustomEvent("ak-add-notification", {
+                detail: {
+                  title: "RAG Document Indexed",
+                  message: `"${file.name}" has been fully parsed and indexed for semantic searches.`,
+                  type: "success",
+                },
+              }),
+            );
           } else if (data.rag_status === "keyword_only") {
-            showToast("success", `"${file.name}" uploaded & indexed! (Keyword search active — semantic search needs Gemini API key.)`);
-            window.dispatchEvent(new CustomEvent("ak-add-notification", {
-              detail: { title: "Document Keyword-Indexed", message: `"${file.name}" indexed for keyword matching. Connect a Gemini key to activate semantic searches.`, type: "info" }
-            }));
+            showToast(
+              "success",
+              `"${file.name}" uploaded & indexed! (Keyword search active — semantic search needs Gemini API key.)`,
+            );
+            window.dispatchEvent(
+              new CustomEvent("ak-add-notification", {
+                detail: {
+                  title: "Document Keyword-Indexed",
+                  message: `"${file.name}" indexed for keyword matching. Connect a Gemini key to activate semantic searches.`,
+                  type: "info",
+                },
+              }),
+            );
           } else if (data.rag_status === "failed") {
-            showToast("warning", `Uploaded "${file.name}", but indexing failed: ${data.error || "Check server logs."}`);
-            window.dispatchEvent(new CustomEvent("ak-add-notification", {
-              detail: { title: "Document Indexing Failed", message: `"${file.name}" uploaded but indexing failed: ${data.error || "unknown error"}`, type: "warning" }
-            }));
+            showToast(
+              "warning",
+              `Uploaded "${file.name}", but indexing failed: ${data.error || "Check server logs."}`,
+            );
+            window.dispatchEvent(
+              new CustomEvent("ak-add-notification", {
+                detail: {
+                  title: "Document Indexing Failed",
+                  message: `"${file.name}" uploaded but indexing failed: ${data.error || "unknown error"}`,
+                  type: "warning",
+                },
+              }),
+            );
           } else {
             showToast("success", `"${file.name}" uploaded successfully!`);
-            window.dispatchEvent(new CustomEvent("ak-add-notification", {
-              detail: { title: "File Uploaded", message: `"${file.name}" uploaded successfully to workspace.`, type: "success" }
-            }));
+            window.dispatchEvent(
+              new CustomEvent("ak-add-notification", {
+                detail: {
+                  title: "File Uploaded",
+                  message: `"${file.name}" uploaded successfully to workspace.`,
+                  type: "success",
+                },
+              }),
+            );
           }
           fetchUploads();
         }, 500);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        const errMsg = errorData.message || errorData.error || "Upload failed. Please try again.";
+        const errMsg =
+          errorData.message ||
+          errorData.error ||
+          "Upload failed. Please try again.";
         showToast(res.status === 429 ? "warning" : "error", errMsg);
         setUploadProgress(0);
       }
@@ -232,34 +300,70 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const handleReindex = async (filename: string) => {
     setReindexingFiles((prev) => new Set(prev).add(filename));
     try {
-      const res = await fetch(`${API_BASE_URL}/upload/reindex/${encodeURIComponent(filename)}`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${API_BASE_URL}/upload/reindex/${encodeURIComponent(filename)}`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
       const data = await res.json();
       if (res.ok) {
         if (data.rag_status === "success") {
-          showToast("success", `"${filename}" re-indexed successfully with ${data.chunks} chunks!`);
-          window.dispatchEvent(new CustomEvent("ak-add-notification", {
-            detail: { title: "Document Re-indexed", message: `"${filename}" re-parsed successfully into ${data.chunks} chunks.`, type: "success" }
-          }));
+          showToast(
+            "success",
+            `"${filename}" re-indexed successfully with ${data.chunks} chunks!`,
+          );
+          window.dispatchEvent(
+            new CustomEvent("ak-add-notification", {
+              detail: {
+                title: "Document Re-indexed",
+                message: `"${filename}" re-parsed successfully into ${data.chunks} chunks.`,
+                type: "success",
+              },
+            }),
+          );
         } else if (data.rag_status === "keyword_only") {
-          showToast("success", `"${filename}" indexed for keyword search (${data.chunks} chunks).`);
-          window.dispatchEvent(new CustomEvent("ak-add-notification", {
-            detail: { title: "Document Keyword-Indexed", message: `"${filename}" re-indexed for keyword search. Connect Gemini key to activate semantic index.`, type: "info" }
-          }));
+          showToast(
+            "success",
+            `"${filename}" indexed for keyword search (${data.chunks} chunks).`,
+          );
+          window.dispatchEvent(
+            new CustomEvent("ak-add-notification", {
+              detail: {
+                title: "Document Keyword-Indexed",
+                message: `"${filename}" re-indexed for keyword search. Connect Gemini key to activate semantic index.`,
+                type: "info",
+              },
+            }),
+          );
         } else {
-          showToast("warning", `Re-indexing failed: ${data.error || "Unknown error"}`);
-          window.dispatchEvent(new CustomEvent("ak-add-notification", {
-            detail: { title: "Re-indexing Failed", message: `Failed to re-index "${filename}": ${data.error}`, type: "warning" }
-          }));
+          showToast(
+            "warning",
+            `Re-indexing failed: ${data.error || "Unknown error"}`,
+          );
+          window.dispatchEvent(
+            new CustomEvent("ak-add-notification", {
+              detail: {
+                title: "Re-indexing Failed",
+                message: `Failed to re-index "${filename}": ${data.error}`,
+                type: "warning",
+              },
+            }),
+          );
         }
         fetchUploads();
       } else {
         showToast("error", data.detail || "Re-indexing failed.");
-        window.dispatchEvent(new CustomEvent("ak-add-notification", {
-          detail: { title: "Re-indexing Failed", message: `Server error during re-indexing: ${data.detail}`, type: "warning" }
-        }));
+        window.dispatchEvent(
+          new CustomEvent("ak-add-notification", {
+            detail: {
+              title: "Re-indexing Failed",
+              message: `Server error during re-indexing: ${data.detail}`,
+              type: "warning",
+            },
+          }),
+        );
       }
     } catch (_err) {
       showToast("error", "Connection error during re-indexing.");
@@ -273,33 +377,56 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   };
 
   const handleDelete = async (filename: string) => {
-    if (!confirm(`Are you sure you want to delete "${filename}"? This removes it permanently.`)) return;
+    if (
+      !confirm(
+        `Are you sure you want to delete "${filename}"? This removes it permanently.`,
+      )
+    )
+      return;
     try {
-      let res = await fetch(`${API_BASE_URL}/upload/${encodeURIComponent(filename)}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        // Fallback: try query param delete if path-based route was rejected
-        res = await fetch(`${API_BASE_URL}/upload?filename=${encodeURIComponent(filename)}`, {
+      let res = await fetch(
+        `${API_BASE_URL}/upload/${encodeURIComponent(filename)}`,
+        {
           method: "DELETE",
           credentials: "include",
-        });
+        },
+      );
+      if (!res.ok) {
+        // Fallback: try query param delete if path-based route was rejected
+        res = await fetch(
+          `${API_BASE_URL}/upload?filename=${encodeURIComponent(filename)}`,
+          {
+            method: "DELETE",
+            credentials: "include",
+          },
+        );
       }
       if (res.ok) {
         if (activeWorkspaceFile?.filename === filename) {
           setActiveWorkspaceFile(null);
         }
         showToast("success", `"${filename}" removed.`);
-        window.dispatchEvent(new CustomEvent("ak-add-notification", {
-          detail: { title: "Document Removed", message: `"${filename}" deleted from workspace permanently.`, type: "info" }
-        }));
+        window.dispatchEvent(
+          new CustomEvent("ak-add-notification", {
+            detail: {
+              title: "Document Removed",
+              message: `"${filename}" deleted from workspace permanently.`,
+              type: "info",
+            },
+          }),
+        );
         fetchUploads();
       } else {
         showToast("error", "Failed to delete file.");
-        window.dispatchEvent(new CustomEvent("ak-add-notification", {
-          detail: { title: "Deletion Failed", message: `Failed to delete file "${filename}" from server storage.`, type: "warning" }
-        }));
+        window.dispatchEvent(
+          new CustomEvent("ak-add-notification", {
+            detail: {
+              title: "Deletion Failed",
+              message: `Failed to delete file "${filename}" from server storage.`,
+              type: "warning",
+            },
+          }),
+        );
       }
     } catch (_err) {
       showToast("error", "Connection error during file deletion.");
@@ -324,433 +451,679 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       )}
 
       <div className="fw-root">
-      {/* ── HEADER ── */}
-      <div className="fw-header">
-        <div className="fw-header-icon">
-          <FolderOpen className="w-5 h-5" style={{ color: "#fbbf24" }} />
-        </div>
-        <div>
-          <h2 className="fw-title">File Workspace</h2>
-          <p className="fw-subtitle">Upload CSV, JSON, PDF, TXT, MD, DOCX, or XLSX files to index with AI Knowledge Worker</p>
-        </div>
-        <button
-          type="button"
-          onClick={fetchUploads}
-          className="fw-refresh-btn"
-          title="Refresh file list"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* ── MAIN LAYOUT ── */}
-      <div className="fw-layout">
-        {/* Upload Panel */}
-        <div className="fw-upload-panel">
-          <div className="fw-panel-title">Upload New File</div>
-
-          {/* Drop Zone */}
-          <div
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            className={`fw-dropzone ${isDragging ? "fw-dropzone-dragging" : ""} ${file ? "fw-dropzone-ready" : ""}`}
+        {/* ── HEADER ── */}
+        <div className="fw-header">
+          <div className="fw-header-icon">
+            <FolderOpen className="w-5 h-5" style={{ color: "#fbbf24" }} />
+          </div>
+          <div>
+            <h2 className="fw-title">File Workspace</h2>
+            <p className="fw-subtitle">
+              Upload CSV, JSON, PDF, TXT, MD, DOCX, or XLSX files to index with
+              AI Knowledge Worker
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={fetchUploads}
+            className="fw-refresh-btn"
+            title="Refresh file list"
           >
-            <div className="fw-dropzone-icon">
-              <CloudUpload
-                className="w-8 h-8"
-                style={{ color: isDragging ? "#22d3ee" : file ? "#34d399" : "var(--text-muted)" }}
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* ── MAIN LAYOUT ── */}
+        <div className="fw-layout">
+          {/* Upload Panel */}
+          <div className="fw-upload-panel">
+            <div className="fw-panel-title">Upload New File</div>
+
+            {/* Drop Zone */}
+            <div
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={`fw-dropzone ${isDragging ? "fw-dropzone-dragging" : ""} ${file ? "fw-dropzone-ready" : ""}`}
+            >
+              <div className="fw-dropzone-icon">
+                <CloudUpload
+                  className="w-8 h-8"
+                  style={{
+                    color: isDragging
+                      ? "#22d3ee"
+                      : file
+                        ? "#34d399"
+                        : "var(--text-muted)",
+                  }}
+                />
+              </div>
+
+              {file ? (
+                <div className="fw-file-preview">
+                  <div className="fw-file-preview-name">
+                    <FileIcon filename={file.name} />
+                    <span>{file.name}</span>
+                  </div>
+                  <div className="fw-file-preview-size">
+                    {formatSize(file.size)}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFile(null)}
+                    className="fw-file-clear"
+                    aria-label="Remove file"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="fw-dropzone-text">
+                    {isDragging ? (
+                      "Drop it here!"
+                    ) : (
+                      <>
+                        <label
+                          htmlFor="file-upload"
+                          className="fw-dropzone-link"
+                        >
+                          Click to browse
+                        </label>
+                        {" or drag & drop"}
+                      </>
+                    )}
+                  </p>
+                  <p className="fw-dropzone-hint">
+                    CSV, JSON, PDF, TXT, MD, DOCX, XLSX · Max 50MB
+                  </p>
+                </>
+              )}
+
+              <input
+                type="file"
+                onChange={(e) => {
+                  const selected = e.target.files?.[0] || null;
+                  if (selected) {
+                    const ext = selected.name.split(".").pop()?.toLowerCase();
+                    if (
+                      ext &&
+                      [
+                        "csv",
+                        "json",
+                        "pdf",
+                        "txt",
+                        "md",
+                        "docx",
+                        "xlsx",
+                      ].includes(ext)
+                    ) {
+                      setFile(selected);
+                    } else {
+                      showToast(
+                        "error",
+                        "Only CSV, JSON, PDF, TXT, MD, DOCX, and XLSX formats are supported.",
+                      );
+                    }
+                  }
+                }}
+                className="hidden"
+                id="file-upload"
+                accept=".csv,.json,.pdf,.txt,.md,.docx,.xlsx"
               />
             </div>
 
-            {file ? (
-              <div className="fw-file-preview">
-                <div className="fw-file-preview-name">
-                  <FileIcon filename={file.name} />
-                  <span>{file.name}</span>
+            {/* Upload Progress */}
+            {uploading && (
+              <div className="fw-progress-wrap">
+                <div className="fw-progress-bar-bg">
+                  <div
+                    className="fw-progress-bar"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
                 </div>
-                <div className="fw-file-preview-size">{formatSize(file.size)}</div>
-                <button
-                  type="button"
-                  onClick={() => setFile(null)}
-                  className="fw-file-clear"
-                  aria-label="Remove file"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className="fw-dropzone-text">
-                  {isDragging ? (
-                    "Drop it here!"
-                  ) : (
-                    <>
-                      <label htmlFor="file-upload" className="fw-dropzone-link">
-                        Click to browse
-                      </label>
-                      {" or drag & drop"}
-                    </>
-                  )}
-                </p>
-                <p className="fw-dropzone-hint">CSV, JSON, PDF, TXT, MD, DOCX, XLSX · Max 50MB</p>
-              </>
-            )}
-
-            <input
-              type="file"
-              onChange={(e) => {
-                const selected = e.target.files?.[0] || null;
-                if (selected) {
-                  const ext = selected.name.split(".").pop()?.toLowerCase();
-                  if (ext && ["csv", "json", "pdf", "txt", "md", "docx", "xlsx"].includes(ext)) {
-                    setFile(selected);
-                  } else {
-                    showToast("error", "Only CSV, JSON, PDF, TXT, MD, DOCX, and XLSX formats are supported.");
-                  }
-                }
-              }}
-              className="hidden"
-              id="file-upload"
-              accept=".csv,.json,.pdf,.txt,.md,.docx,.xlsx"
-            />
-          </div>
-
-          {/* Upload Progress */}
-          {uploading && (
-            <div className="fw-progress-wrap">
-              <div className="fw-progress-bar-bg">
-                <div
-                  className="fw-progress-bar"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-              <span className="fw-progress-label">
-                {uploadProgress < 100 ? "Indexing..." : "Done!"}
-              </span>
-            </div>
-          )}
-
-          {/* Upload Button */}
-          {file && !uploading && (
-            <button
-              type="button"
-              onClick={handleUpload}
-              className="fw-upload-btn"
-            >
-              <CloudUpload className="w-4 h-4" />
-              Upload & Index RAG
-            </button>
-          )}
-
-          {/* Supported types & Filter Badges */}
-          {(() => {
-            const counts = {
-              all: uploads.length,
-              csv: uploads.filter((u) => u.filename.toLowerCase().endsWith(".csv")).length,
-              json: uploads.filter((u) => u.filename.toLowerCase().endsWith(".json")).length,
-              pdf: uploads.filter((u) => u.filename.toLowerCase().endsWith(".pdf")).length,
-              txt: uploads.filter((u) => {
-                const l = u.filename.toLowerCase();
-                return l.endsWith(".txt") || l.endsWith(".md");
-              }).length,
-              docx: uploads.filter((u) => {
-                const l = u.filename.toLowerCase();
-                return l.endsWith(".docx") || l.endsWith(".doc");
-              }).length,
-              xlsx: uploads.filter((u) => {
-                const l = u.filename.toLowerCase();
-                return l.endsWith(".xlsx") || l.endsWith(".xls");
-              }).length,
-            };
-
-            return (
-              <div className="fw-format-badges">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTypeFilter(selectedTypeFilter === "csv" ? null : "csv")}
-                  className={`fw-format-badge ${selectedTypeFilter === "csv" ? "active" : ""}`}
-                  style={{
-                    borderColor: selectedTypeFilter === "csv" ? "#34d399" : "rgba(52,211,153,0.3)",
-                    color: "#34d399",
-                    background: selectedTypeFilter === "csv" ? "rgba(52,211,153,0.22)" : "rgba(52,211,153,0.08)",
-                    cursor: "pointer",
-                    boxShadow: selectedTypeFilter === "csv" ? "0 0 10px rgba(52,211,153,0.3)" : "none",
-                  }}
-                  title="Filter CSV files"
-                >
-                  <FileText className="w-3 h-3" /> CSV {counts.csv > 0 && <span style={{ opacity: 0.85, fontSize: '10px', fontWeight: 700 }}>({counts.csv})</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTypeFilter(selectedTypeFilter === "json" ? null : "json")}
-                  className={`fw-format-badge ${selectedTypeFilter === "json" ? "active" : ""}`}
-                  style={{
-                    borderColor: selectedTypeFilter === "json" ? "#fbbf24" : "rgba(251,191,36,0.3)",
-                    color: "#fbbf24",
-                    background: selectedTypeFilter === "json" ? "rgba(251,191,36,0.22)" : "rgba(251,191,36,0.08)",
-                    cursor: "pointer",
-                    boxShadow: selectedTypeFilter === "json" ? "0 0 10px rgba(251,191,36,0.3)" : "none",
-                  }}
-                  title="Filter JSON files"
-                >
-                  <FileJson className="w-3 h-3" /> JSON {counts.json > 0 && <span style={{ opacity: 0.85, fontSize: '10px', fontWeight: 700 }}>({counts.json})</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTypeFilter(selectedTypeFilter === "pdf" ? null : "pdf")}
-                  className={`fw-format-badge ${selectedTypeFilter === "pdf" ? "active" : ""}`}
-                  style={{
-                    borderColor: selectedTypeFilter === "pdf" ? "#f87171" : "rgba(248,113,113,0.3)",
-                    color: "#f87171",
-                    background: selectedTypeFilter === "pdf" ? "rgba(248,113,113,0.22)" : "rgba(248,113,113,0.08)",
-                    cursor: "pointer",
-                    boxShadow: selectedTypeFilter === "pdf" ? "0 0 10px rgba(248,113,113,0.3)" : "none",
-                  }}
-                  title="Filter PDF documents"
-                >
-                  <FileText className="w-3 h-3" /> PDF {counts.pdf > 0 && <span style={{ opacity: 0.85, fontSize: '10px', fontWeight: 700 }}>({counts.pdf})</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTypeFilter(selectedTypeFilter === "txt" ? null : "txt")}
-                  className={`fw-format-badge ${selectedTypeFilter === "txt" ? "active" : ""}`}
-                  style={{
-                    borderColor: selectedTypeFilter === "txt" ? "#c084fc" : "rgba(192,132,252,0.3)",
-                    color: "#c084fc",
-                    background: selectedTypeFilter === "txt" ? "rgba(192,132,252,0.22)" : "rgba(192,132,252,0.08)",
-                    cursor: "pointer",
-                    boxShadow: selectedTypeFilter === "txt" ? "0 0 10px rgba(192,132,252,0.3)" : "none",
-                  }}
-                  title="Filter TXT / Markdown files"
-                >
-                  <FileText className="w-3 h-3" /> TXT/MD {counts.txt > 0 && <span style={{ opacity: 0.85, fontSize: '10px', fontWeight: 700 }}>({counts.txt})</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTypeFilter(selectedTypeFilter === "docx" ? null : "docx")}
-                  className={`fw-format-badge ${selectedTypeFilter === "docx" ? "active" : ""}`}
-                  style={{
-                    borderColor: selectedTypeFilter === "docx" ? "#60a5fa" : "rgba(96,165,250,0.3)",
-                    color: "#60a5fa",
-                    background: selectedTypeFilter === "docx" ? "rgba(96,165,250,0.22)" : "rgba(96,165,250,0.08)",
-                    cursor: "pointer",
-                    boxShadow: selectedTypeFilter === "docx" ? "0 0 10px rgba(96,165,250,0.3)" : "none",
-                  }}
-                  title="Filter Word (DOCX) files"
-                >
-                  <FileText className="w-3 h-3" /> DOCX {counts.docx > 0 && <span style={{ opacity: 0.85, fontSize: '10px', fontWeight: 700 }}>({counts.docx})</span>}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTypeFilter(selectedTypeFilter === "xlsx" ? null : "xlsx")}
-                  className={`fw-format-badge ${selectedTypeFilter === "xlsx" ? "active" : ""}`}
-                  style={{
-                    borderColor: selectedTypeFilter === "xlsx" ? "#4ade80" : "rgba(74,222,128,0.3)",
-                    color: "#4ade80",
-                    background: selectedTypeFilter === "xlsx" ? "rgba(74,222,128,0.22)" : "rgba(74,222,128,0.08)",
-                    cursor: "pointer",
-                    boxShadow: selectedTypeFilter === "xlsx" ? "0 0 10px rgba(74,222,128,0.3)" : "none",
-                  }}
-                  title="Filter Excel (XLSX) spreadsheets"
-                >
-                  <FileText className="w-3 h-3" /> XLSX {counts.xlsx > 0 && <span style={{ opacity: 0.85, fontSize: '10px', fontWeight: 700 }}>({counts.xlsx})</span>}
-                </button>
-                {selectedTypeFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setSelectedTypeFilter(null)}
-                    className="fw-format-badge"
-                    style={{
-                      borderColor: "rgba(255,255,255,0.25)",
-                      color: "#f8fafc",
-                      background: "rgba(255,255,255,0.12)",
-                      cursor: "pointer",
-                    }}
-                    title="Show all files"
-                  >
-                    Clear Filter ✕
-                  </button>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Files Panel */}
-        <div className="fw-files-panel">
-          {(() => {
-            const filteredUploads = selectedTypeFilter
-              ? uploads.filter((u) => {
-                  const lower = u.filename.toLowerCase();
-                  if (selectedTypeFilter === "csv") return lower.endsWith(".csv");
-                  if (selectedTypeFilter === "json") return lower.endsWith(".json");
-                  if (selectedTypeFilter === "pdf") return lower.endsWith(".pdf");
-                  if (selectedTypeFilter === "txt") return lower.endsWith(".txt") || lower.endsWith(".md");
-                  if (selectedTypeFilter === "docx") return lower.endsWith(".docx") || lower.endsWith(".doc");
-                  if (selectedTypeFilter === "xlsx") return lower.endsWith(".xlsx") || lower.endsWith(".xls");
-                  return true;
-                })
-              : uploads;
-
-            return (
-              <>
-                <div className="fw-panel-header">
-                  <div className="fw-panel-title">
-                    Workspace Documents
-                    {selectedTypeFilter && (
-                      <span style={{ fontSize: '11px', color: '#38bdf8', marginLeft: '8px', fontWeight: 600 }}>
-                        · Filtered by {selectedTypeFilter.toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <span className="fw-file-count">
-                    {filteredUploads.length} file{filteredUploads.length !== 1 ? "s" : ""}
-                    {selectedTypeFilter && ` (of ${uploads.length})`}
-                  </span>
-                </div>
-
-                {filteredUploads.length === 0 ? (
-                  <div className="fw-files-empty">
-                    <div className="fw-files-empty-icon">
-                      <FolderOpen className="w-6 h-6" style={{ color: "var(--text-muted)" }} />
-                    </div>
-                    <p className="fw-files-empty-text">
-                      {selectedTypeFilter
-                        ? `No ${selectedTypeFilter.toUpperCase()} files found`
-                        : "No files uploaded yet"}
-                    </p>
-                    <p className="fw-files-empty-sub">
-                      {selectedTypeFilter
-                        ? `Upload a .${selectedTypeFilter} file or click "Clear Filter" to view all documents.`
-                        : "Upload CSV, JSON, PDF, TXT, MD, DOCX, or XLSX files to index with AI Knowledge Worker"}
-                    </p>
-                    {selectedTypeFilter && (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTypeFilter(null)}
-                        className="fw-upload-btn"
-                        style={{ marginTop: '12px', width: 'auto', padding: '6px 16px', fontSize: '12px' }}
-                      >
-                        Show All Documents
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="fw-files-list">
-                    {filteredUploads.map((u) => (
-                      <div
-                        key={u.id}
-                        className={`fw-file-item premium-card-hover file-glow-${u.filename.split(".").pop()?.toLowerCase() || ""}`}
-                        onClick={() => setActiveWorkspaceFile(u)}
-                        style={{ cursor: "pointer" }}
-                        title="Click to view and chat with document"
-                      >
-                        <div className="fw-file-icon-wrap">
-                          <FileIcon filename={u.filename} />
-                        </div>
-                        <div className="fw-file-info">
-                          <div className="fw-file-name">{u.filename}</div>
-                          <div className="fw-file-meta">
-                            <span className="fw-file-ext-badge">
-                              {u.filename.split(".").pop()?.toUpperCase()}
-                            </span>
-                            <span className="fw-file-size">{formatSize(u.size)}</span>
-                            {u.rag_indexed ? (
-                              <span className="fw-file-rag-badge" title={`Indexed in AI memory with ${u.chunks || 0} chunks`}>
-                                <Brain className="w-3 h-3" style={{ marginRight: '4px', flexShrink: 0 }} />
-                                RAG Indexed ({u.chunks || 0} chunks)
-                              </span>
-                            ) : (
-                              <span className="fw-file-rag-badge-pending" title="AI indexing pending or failed">
-                                RAG Pending
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="fw-file-actions" onClick={(e) => e.stopPropagation()}>
-                          {/* Analyze button — opens document workspace */}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveWorkspaceFile(u);
-                            }}
-                            className="fw-file-action-btn fw-analyze-btn"
-                            title="Open in Document Workspace (AI Chat)"
-                          >
-                            <Brain className="w-3.5 h-3.5" />
-                            <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '3px' }}>Analyze</span>
-                          </button>
-                    {/* Re-index button */}
-                    {!u.rag_indexed && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleReindex(u.filename);
-                        }}
-                        disabled={reindexingFiles.has(u.filename)}
-                        className="fw-file-action-btn fw-reindex-btn"
-                        title="Re-index this file for AI search"
-                      >
-                        <RotateCw
-                          className="w-3.5 h-3.5"
-                          style={reindexingFiles.has(u.filename) ? { animation: 'spin 1s linear infinite' } : {}}
-                        />
-                        <span style={{ fontSize: '10px', fontWeight: 700, marginLeft: '3px' }}>
-                          {reindexingFiles.has(u.filename) ? 'Indexing...' : 'Re-index'}
-                        </span>
-                      </button>
-                    )}
-                    <a
-                      href={`${API_BASE_URL}/upload/download/${encodeURIComponent(u.filename)}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="fw-file-action-btn"
-                      title="Download File"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(u.filename);
-                      }}
-                      className="fw-file-action-btn fw-delete-btn"
-                      title="Delete from workspace"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      );
-    })()}
-
-          {/* AI Hint */}
-          {uploads.length > 0 && (
-            <div className="fw-ai-hint">
-              <div className="fw-ai-hint-icon">
-                <Zap className="w-3.5 h-3.5" style={{ color: "#22d3ee" }} />
-              </div>
-              <div className="fw-ai-hint-text">
-                <span className="fw-ai-hint-title">AI Knowledge Base Active</span>
-                <span className="fw-ai-hint-sub">
-                  Ask the AI Chat widget a question like: "what was in the report I uploaded?" or "search my documents for APC results".
+                <span className="fw-progress-label">
+                  {uploadProgress < 100 ? "Indexing..." : "Done!"}
                 </span>
               </div>
-              <MessageSquare className="w-4 h-4" style={{ color: "rgba(34,211,238,0.4)", flexShrink: 0 }} />
-            </div>
-          )}
-        </div>
-      </div>
+            )}
 
-      <style>{`
+            {/* Upload Button */}
+            {file && !uploading && (
+              <button
+                type="button"
+                onClick={handleUpload}
+                className="fw-upload-btn"
+              >
+                <CloudUpload className="w-4 h-4" />
+                Upload & Index RAG
+              </button>
+            )}
+
+            {/* Supported types & Filter Badges */}
+            {(() => {
+              const counts = {
+                all: uploads.length,
+                csv: uploads.filter((u) =>
+                  u.filename.toLowerCase().endsWith(".csv"),
+                ).length,
+                json: uploads.filter((u) =>
+                  u.filename.toLowerCase().endsWith(".json"),
+                ).length,
+                pdf: uploads.filter((u) =>
+                  u.filename.toLowerCase().endsWith(".pdf"),
+                ).length,
+                txt: uploads.filter((u) => {
+                  const l = u.filename.toLowerCase();
+                  return l.endsWith(".txt") || l.endsWith(".md");
+                }).length,
+                docx: uploads.filter((u) => {
+                  const l = u.filename.toLowerCase();
+                  return l.endsWith(".docx") || l.endsWith(".doc");
+                }).length,
+                xlsx: uploads.filter((u) => {
+                  const l = u.filename.toLowerCase();
+                  return l.endsWith(".xlsx") || l.endsWith(".xls");
+                }).length,
+              };
+
+              return (
+                <div className="fw-format-badges">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTypeFilter(
+                        selectedTypeFilter === "csv" ? null : "csv",
+                      )
+                    }
+                    className={`fw-format-badge ${selectedTypeFilter === "csv" ? "active" : ""}`}
+                    style={{
+                      borderColor:
+                        selectedTypeFilter === "csv"
+                          ? "#34d399"
+                          : "rgba(52,211,153,0.3)",
+                      color: "#34d399",
+                      background:
+                        selectedTypeFilter === "csv"
+                          ? "rgba(52,211,153,0.22)"
+                          : "rgba(52,211,153,0.08)",
+                      cursor: "pointer",
+                      boxShadow:
+                        selectedTypeFilter === "csv"
+                          ? "0 0 10px rgba(52,211,153,0.3)"
+                          : "none",
+                    }}
+                    title="Filter CSV files"
+                  >
+                    <FileText className="w-3 h-3" /> CSV{" "}
+                    {counts.csv > 0 && (
+                      <span
+                        style={{
+                          opacity: 0.85,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        ({counts.csv})
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTypeFilter(
+                        selectedTypeFilter === "json" ? null : "json",
+                      )
+                    }
+                    className={`fw-format-badge ${selectedTypeFilter === "json" ? "active" : ""}`}
+                    style={{
+                      borderColor:
+                        selectedTypeFilter === "json"
+                          ? "#fbbf24"
+                          : "rgba(251,191,36,0.3)",
+                      color: "#fbbf24",
+                      background:
+                        selectedTypeFilter === "json"
+                          ? "rgba(251,191,36,0.22)"
+                          : "rgba(251,191,36,0.08)",
+                      cursor: "pointer",
+                      boxShadow:
+                        selectedTypeFilter === "json"
+                          ? "0 0 10px rgba(251,191,36,0.3)"
+                          : "none",
+                    }}
+                    title="Filter JSON files"
+                  >
+                    <FileJson className="w-3 h-3" /> JSON{" "}
+                    {counts.json > 0 && (
+                      <span
+                        style={{
+                          opacity: 0.85,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        ({counts.json})
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTypeFilter(
+                        selectedTypeFilter === "pdf" ? null : "pdf",
+                      )
+                    }
+                    className={`fw-format-badge ${selectedTypeFilter === "pdf" ? "active" : ""}`}
+                    style={{
+                      borderColor:
+                        selectedTypeFilter === "pdf"
+                          ? "#f87171"
+                          : "rgba(248,113,113,0.3)",
+                      color: "#f87171",
+                      background:
+                        selectedTypeFilter === "pdf"
+                          ? "rgba(248,113,113,0.22)"
+                          : "rgba(248,113,113,0.08)",
+                      cursor: "pointer",
+                      boxShadow:
+                        selectedTypeFilter === "pdf"
+                          ? "0 0 10px rgba(248,113,113,0.3)"
+                          : "none",
+                    }}
+                    title="Filter PDF documents"
+                  >
+                    <FileText className="w-3 h-3" /> PDF{" "}
+                    {counts.pdf > 0 && (
+                      <span
+                        style={{
+                          opacity: 0.85,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        ({counts.pdf})
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTypeFilter(
+                        selectedTypeFilter === "txt" ? null : "txt",
+                      )
+                    }
+                    className={`fw-format-badge ${selectedTypeFilter === "txt" ? "active" : ""}`}
+                    style={{
+                      borderColor:
+                        selectedTypeFilter === "txt"
+                          ? "#c084fc"
+                          : "rgba(192,132,252,0.3)",
+                      color: "#c084fc",
+                      background:
+                        selectedTypeFilter === "txt"
+                          ? "rgba(192,132,252,0.22)"
+                          : "rgba(192,132,252,0.08)",
+                      cursor: "pointer",
+                      boxShadow:
+                        selectedTypeFilter === "txt"
+                          ? "0 0 10px rgba(192,132,252,0.3)"
+                          : "none",
+                    }}
+                    title="Filter TXT / Markdown files"
+                  >
+                    <FileText className="w-3 h-3" /> TXT/MD{" "}
+                    {counts.txt > 0 && (
+                      <span
+                        style={{
+                          opacity: 0.85,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        ({counts.txt})
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTypeFilter(
+                        selectedTypeFilter === "docx" ? null : "docx",
+                      )
+                    }
+                    className={`fw-format-badge ${selectedTypeFilter === "docx" ? "active" : ""}`}
+                    style={{
+                      borderColor:
+                        selectedTypeFilter === "docx"
+                          ? "#60a5fa"
+                          : "rgba(96,165,250,0.3)",
+                      color: "#60a5fa",
+                      background:
+                        selectedTypeFilter === "docx"
+                          ? "rgba(96,165,250,0.22)"
+                          : "rgba(96,165,250,0.08)",
+                      cursor: "pointer",
+                      boxShadow:
+                        selectedTypeFilter === "docx"
+                          ? "0 0 10px rgba(96,165,250,0.3)"
+                          : "none",
+                    }}
+                    title="Filter Word (DOCX) files"
+                  >
+                    <FileText className="w-3 h-3" /> DOCX{" "}
+                    {counts.docx > 0 && (
+                      <span
+                        style={{
+                          opacity: 0.85,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        ({counts.docx})
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedTypeFilter(
+                        selectedTypeFilter === "xlsx" ? null : "xlsx",
+                      )
+                    }
+                    className={`fw-format-badge ${selectedTypeFilter === "xlsx" ? "active" : ""}`}
+                    style={{
+                      borderColor:
+                        selectedTypeFilter === "xlsx"
+                          ? "#4ade80"
+                          : "rgba(74,222,128,0.3)",
+                      color: "#4ade80",
+                      background:
+                        selectedTypeFilter === "xlsx"
+                          ? "rgba(74,222,128,0.22)"
+                          : "rgba(74,222,128,0.08)",
+                      cursor: "pointer",
+                      boxShadow:
+                        selectedTypeFilter === "xlsx"
+                          ? "0 0 10px rgba(74,222,128,0.3)"
+                          : "none",
+                    }}
+                    title="Filter Excel (XLSX) spreadsheets"
+                  >
+                    <FileText className="w-3 h-3" /> XLSX{" "}
+                    {counts.xlsx > 0 && (
+                      <span
+                        style={{
+                          opacity: 0.85,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        ({counts.xlsx})
+                      </span>
+                    )}
+                  </button>
+                  {selectedTypeFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTypeFilter(null)}
+                      className="fw-format-badge"
+                      style={{
+                        borderColor: "rgba(255,255,255,0.25)",
+                        color: "#f8fafc",
+                        background: "rgba(255,255,255,0.12)",
+                        cursor: "pointer",
+                      }}
+                      title="Show all files"
+                    >
+                      Clear Filter ✕
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Files Panel */}
+          <div className="fw-files-panel">
+            {(() => {
+              const filteredUploads = selectedTypeFilter
+                ? uploads.filter((u) => {
+                    const lower = u.filename.toLowerCase();
+                    if (selectedTypeFilter === "csv")
+                      return lower.endsWith(".csv");
+                    if (selectedTypeFilter === "json")
+                      return lower.endsWith(".json");
+                    if (selectedTypeFilter === "pdf")
+                      return lower.endsWith(".pdf");
+                    if (selectedTypeFilter === "txt")
+                      return lower.endsWith(".txt") || lower.endsWith(".md");
+                    if (selectedTypeFilter === "docx")
+                      return lower.endsWith(".docx") || lower.endsWith(".doc");
+                    if (selectedTypeFilter === "xlsx")
+                      return lower.endsWith(".xlsx") || lower.endsWith(".xls");
+                    return true;
+                  })
+                : uploads;
+
+              return (
+                <>
+                  <div className="fw-panel-header">
+                    <div className="fw-panel-title">
+                      Workspace Documents
+                      {selectedTypeFilter && (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "#38bdf8",
+                            marginLeft: "8px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          · Filtered by {selectedTypeFilter.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <span className="fw-file-count">
+                      {filteredUploads.length} file
+                      {filteredUploads.length !== 1 ? "s" : ""}
+                      {selectedTypeFilter && ` (of ${uploads.length})`}
+                    </span>
+                  </div>
+
+                  {filteredUploads.length === 0 ? (
+                    <div className="fw-files-empty">
+                      <div className="fw-files-empty-icon">
+                        <FolderOpen
+                          className="w-6 h-6"
+                          style={{ color: "var(--text-muted)" }}
+                        />
+                      </div>
+                      <p className="fw-files-empty-text">
+                        {selectedTypeFilter
+                          ? `No ${selectedTypeFilter.toUpperCase()} files found`
+                          : "No files uploaded yet"}
+                      </p>
+                      <p className="fw-files-empty-sub">
+                        {selectedTypeFilter
+                          ? `Upload a .${selectedTypeFilter} file or click "Clear Filter" to view all documents.`
+                          : "Upload CSV, JSON, PDF, TXT, MD, DOCX, or XLSX files to index with AI Knowledge Worker"}
+                      </p>
+                      {selectedTypeFilter && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTypeFilter(null)}
+                          className="fw-upload-btn"
+                          style={{
+                            marginTop: "12px",
+                            width: "auto",
+                            padding: "6px 16px",
+                            fontSize: "12px",
+                          }}
+                        >
+                          Show All Documents
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="fw-files-list">
+                      {filteredUploads.map((u) => (
+                        <div
+                          key={u.id}
+                          className={`fw-file-item premium-card-hover file-glow-${u.filename.split(".").pop()?.toLowerCase() || ""}`}
+                          onClick={() => setActiveWorkspaceFile(u)}
+                          style={{ cursor: "pointer" }}
+                          title="Click to view and chat with document"
+                        >
+                          <div className="fw-file-icon-wrap">
+                            <FileIcon filename={u.filename} />
+                          </div>
+                          <div className="fw-file-info">
+                            <div className="fw-file-name">{u.filename}</div>
+                            <div className="fw-file-meta">
+                              <span className="fw-file-ext-badge">
+                                {u.filename.split(".").pop()?.toUpperCase()}
+                              </span>
+                              <span className="fw-file-size">
+                                {formatSize(u.size)}
+                              </span>
+                              {u.rag_indexed ? (
+                                <span
+                                  className="fw-file-rag-badge"
+                                  title={`Indexed in AI memory with ${u.chunks || 0} chunks`}
+                                >
+                                  <Brain
+                                    className="w-3 h-3"
+                                    style={{
+                                      marginRight: "4px",
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                  RAG Indexed ({u.chunks || 0} chunks)
+                                </span>
+                              ) : (
+                                <span
+                                  className="fw-file-rag-badge-pending"
+                                  title="AI indexing pending or failed"
+                                >
+                                  RAG Pending
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div
+                            className="fw-file-actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {/* Analyze button — opens document workspace */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveWorkspaceFile(u);
+                              }}
+                              className="fw-file-action-btn fw-analyze-btn"
+                              title="Open in Document Workspace (AI Chat)"
+                            >
+                              <Brain className="w-3.5 h-3.5" />
+                              <span
+                                style={{
+                                  fontSize: "10px",
+                                  fontWeight: 700,
+                                  marginLeft: "3px",
+                                }}
+                              >
+                                Analyze
+                              </span>
+                            </button>
+                            {/* Re-index button */}
+                            {!u.rag_indexed && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReindex(u.filename);
+                                }}
+                                disabled={reindexingFiles.has(u.filename)}
+                                className="fw-file-action-btn fw-reindex-btn"
+                                title="Re-index this file for AI search"
+                              >
+                                <RotateCw
+                                  className="w-3.5 h-3.5"
+                                  style={
+                                    reindexingFiles.has(u.filename)
+                                      ? { animation: "spin 1s linear infinite" }
+                                      : {}
+                                  }
+                                />
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    marginLeft: "3px",
+                                  }}
+                                >
+                                  {reindexingFiles.has(u.filename)
+                                    ? "Indexing..."
+                                    : "Re-index"}
+                                </span>
+                              </button>
+                            )}
+                            <a
+                              href={`${API_BASE_URL}/upload/download/${encodeURIComponent(u.filename)}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="fw-file-action-btn"
+                              title="Download File"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(u.filename);
+                              }}
+                              className="fw-file-action-btn fw-delete-btn"
+                              title="Delete from workspace"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* AI Hint */}
+            {uploads.length > 0 && (
+              <div className="fw-ai-hint">
+                <div className="fw-ai-hint-icon">
+                  <Zap className="w-3.5 h-3.5" style={{ color: "#22d3ee" }} />
+                </div>
+                <div className="fw-ai-hint-text">
+                  <span className="fw-ai-hint-title">
+                    AI Knowledge Base Active
+                  </span>
+                  <span className="fw-ai-hint-sub">
+                    Ask the AI Chat widget a question like: "what was in the
+                    report I uploaded?" or "search my documents for APC
+                    results".
+                  </span>
+                </div>
+                <MessageSquare
+                  className="w-4 h-4"
+                  style={{ color: "rgba(34,211,238,0.4)", flexShrink: 0 }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <style>{`
         .fw-root {
           display: flex;
           flex-direction: column;
@@ -1304,7 +1677,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           }
         }
       `}</style>
-    </div>
+      </div>
     </>
   );
 }

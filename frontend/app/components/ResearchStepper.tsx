@@ -11,7 +11,13 @@
  *   "running"   → cyan spinner  [⟳]  — actively executing
  *   "completed" → emerald check [✓]  — finished
  */
-import { CheckCircle2, ChevronDown, ChevronRight, Compass, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Compass,
+  Loader2,
+} from "lucide-react";
 import React, { useState } from "react";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -19,9 +25,9 @@ import React, { useState } from "react";
 export interface ResearchStep {
   id: string;
   label: string;
-  tool?: string;          // associated tool name, if known
+  tool?: string; // associated tool name, if known
   status: "pending" | "running" | "completed";
-  details?: string;       // tool output snippet shown on expand
+  details?: string; // tool output snippet shown on expand
 }
 
 export interface ResearchPlan {
@@ -70,15 +76,19 @@ export default function ResearchStepper({ plan }: ResearchStepperProps) {
       return next;
     });
 
-  const completedCount = plan.steps.filter((s) => s.status === "completed").length;
-  const runningStep   = plan.steps.find((s) => s.status === "running");
-  const totalSteps    = plan.steps.length;
-  const progressPct   = totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
-  const isAllDone     = completedCount === totalSteps && totalSteps > 0;
+  const completedCount = plan.steps.filter(
+    (s) => s.status === "completed",
+  ).length;
+  const runningStep = plan.steps.find((s) => s.status === "running");
+  const totalSteps = plan.steps.length;
+  const progressPct =
+    totalSteps > 0 ? Math.round((completedCount / totalSteps) * 100) : 0;
+  const isAllDone = completedCount === totalSteps && totalSteps > 0;
 
   return (
-    <div className={`research-stepper-root${isAllDone ? " research-stepper--done" : ""}`}>
-
+    <div
+      className={`research-stepper-root${isAllDone ? " research-stepper--done" : ""}`}
+    >
       {/* ── Header ── */}
       <button
         type="button"
@@ -93,7 +103,9 @@ export default function ResearchStepper({ plan }: ResearchStepperProps) {
         <span className="research-stepper-counter">
           {completedCount} / {totalSteps} steps
         </span>
-        {isAllDone && <span className="research-complete-badge">✓ Complete</span>}
+        {isAllDone && (
+          <span className="research-complete-badge">✓ Complete</span>
+        )}
         <span className="research-stepper-chevron">
           {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
         </span>
@@ -114,8 +126,8 @@ export default function ResearchStepper({ plan }: ResearchStepperProps) {
         <div className="research-step-list">
           {plan.steps.map((step, idx) => {
             const isExpanded = expandedIds.has(step.id);
-            const isActive   = step.status === "running";
-            const isDone     = step.status === "completed";
+            const isActive = step.status === "running";
+            const isDone = step.status === "completed";
 
             return (
               <div
@@ -126,14 +138,14 @@ export default function ResearchStepper({ plan }: ResearchStepperProps) {
                 <div className="research-step-row">
                   {/* Connector line (not on last item) */}
                   {idx < plan.steps.length - 1 && (
-                    <span className={`research-step-connector${isDone ? " research-step-connector--done" : ""}`} />
+                    <span
+                      className={`research-step-connector${isDone ? " research-step-connector--done" : ""}`}
+                    />
                   )}
 
                   <StepIcon status={step.status} />
 
-                  <span className="research-step-label">
-                    {step.label}
-                  </span>
+                  <span className="research-step-label">{step.label}</span>
 
                   {isActive && (
                     <span className="research-step-status-text">Running…</span>
@@ -144,10 +156,17 @@ export default function ResearchStepper({ plan }: ResearchStepperProps) {
                     <button
                       type="button"
                       className="research-step-expand-btn"
-                      onClick={(e) => { e.stopPropagation(); toggleStep(step.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleStep(step.id);
+                      }}
                       title="View tool output"
                     >
-                      {isExpanded ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                      {isExpanded ? (
+                        <ChevronDown size={10} />
+                      ) : (
+                        <ChevronRight size={10} />
+                      )}
                     </button>
                   )}
                 </div>
@@ -155,7 +174,10 @@ export default function ResearchStepper({ plan }: ResearchStepperProps) {
                 {/* Expanded detail view */}
                 {isExpanded && step.details && (
                   <div className="research-step-detail">
-                    <pre className="research-step-detail-text">{step.details.slice(0, 400)}{step.details.length > 400 ? "…" : ""}</pre>
+                    <pre className="research-step-detail-text">
+                      {step.details.slice(0, 400)}
+                      {step.details.length > 400 ? "…" : ""}
+                    </pre>
                   </div>
                 )}
               </div>
