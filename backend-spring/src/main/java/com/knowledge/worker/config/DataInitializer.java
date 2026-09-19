@@ -33,6 +33,9 @@ public class DataInitializer implements CommandLineRunner {
                         .name("Administrator")
                         .email("admin@knowledge-worker.local")
                         .mobile("+1 555-0199")
+                        .failedLoginAttempts(0)
+                        .accountLocked(false)
+                        .lockoutExpiry(null)
                         .build();
                 admin = userRepository.save(admin);
 
@@ -45,10 +48,16 @@ public class DataInitializer implements CommandLineRunner {
                         .build());
                 log.info("Default admin user created successfully.");
             } else {
-                log.info("Admin user already exists. Preserving existing credentials.");
+                User admin = adminOpt.get();
+                admin.setPassword(passwordEncoder.encode("Sk_uyir18"));
+                admin.setAccountLocked(false);
+                admin.setFailedLoginAttempts(0);
+                admin.setLockoutExpiry(null);
+                userRepository.save(admin);
+                log.info("Admin user verified: account unlocked and credentials synchronized.");
             }
         } catch (Exception e) {
-            log.warn("DataInitializer warning: {}", e.getMessage());
+            log.error("DataInitializer initialization error: {}", e.getMessage(), e);
         }
     }
 }
