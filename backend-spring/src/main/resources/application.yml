@@ -31,7 +31,7 @@ app:
   encryption:
     key: ${DB_ENCRYPTION_KEY:}
   cors:
-    allowed-origins: ${CORS_ORIGINS:${FRONTEND_URL:http://localhost:3000,http://127.0.0.1:3000}}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,https://autonomous-ai-knowledge-worker.vercel.app}
   ai:
     groq:
       api-key: ${GROQ_API_KEY:}

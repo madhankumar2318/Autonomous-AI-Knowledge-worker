@@ -11,3 +11,7 @@ services:
         value: 8080
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      - key: CORS_ORIGINS
+        value: http://localhost:3000,http://127.0.0.1:3000,https://autonomous-ai-knowledge-worker.vercel.app
+      - key: FRONTEND_URL
+        value: https://autonomous-ai-knowledge-worker.vercel.app
