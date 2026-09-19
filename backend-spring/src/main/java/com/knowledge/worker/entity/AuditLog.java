@@ -12,7 +12,7 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "audit_logs", indexes = {
-        @Index(name = "idx_audit_timestamp", columnList = "timestamp DESC"),
+        @Index(name = "idx_audit_timestamp", columnList = "timestamp"),
         @Index(name = "idx_audit_event_type", columnList = "eventType"),
         @Index(name = "idx_audit_username", columnList = "username")
 })

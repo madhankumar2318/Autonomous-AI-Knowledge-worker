@@ -1,13 +1,8 @@
 package com.knowledge.worker.service;
 
-import com.knowledge.worker.entity.AuditLog;
-import com.knowledge.worker.repository.AuditLogRepository;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -15,13 +10,33 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class AuditService {
 
-    private final AuditLogRepository auditLogRepository;
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class AuditLog {
+        private Long id;
+        private Instant timestamp;
+        private String eventType;
+        private String username;
+        private String clientIp;
+        private String resource;
+        private String status;
+        private String details;
+        private String prevHash;
+        private String currentHash;
+    }
+
+    private final List<AuditLog> auditLogs = Collections.synchronizedList(new ArrayList<>());
+    private final AtomicLong idGenerator = new AtomicLong(1);
 
     private static final String GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -29,7 +44,6 @@ public class AuditService {
      * Records a tamper-evident audit log event.
      * Uses synchronized execution to preserve strict serial hash chaining.
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public synchronized AuditLog recordEvent(String eventType, String username, String clientIp,
                                             String resource, String status, String details) {
         try {
@@ -40,9 +54,12 @@ public class AuditService {
             String safeDetails = details != null ? details : "";
 
             // 1. Retrieve the previous hash in the chain
-            String prevHash = auditLogRepository.findTop1ByOrderByIdDesc()
-                    .map(AuditLog::getCurrentHash)
-                    .orElse(GENESIS_HASH);
+            String prevHash;
+            synchronized (auditLogs) {
+                prevHash = auditLogs.isEmpty()
+                        ? GENESIS_HASH
+                        : auditLogs.get(auditLogs.size() - 1).getCurrentHash();
+            }
 
             // 2. Compute current record hash
             String payloadToHash = String.join(":",
@@ -57,8 +74,9 @@ public class AuditService {
             );
             String currentHash = calculateSha256(payloadToHash);
 
-            // 3. Build and persist entity
+            // 3. Build and record in-memory audit log
             AuditLog auditLog = AuditLog.builder()
+                    .id(idGenerator.getAndIncrement())
                     .timestamp(now)
                     .eventType(eventType)
                     .username(safeUsername)
@@ -70,12 +88,16 @@ public class AuditService {
                     .currentHash(currentHash)
                     .build();
 
-            AuditLog saved = auditLogRepository.save(auditLog);
+            auditLogs.add(auditLog);
+            if (auditLogs.size() > 5000) {
+                auditLogs.remove(0);
+            }
+
             log.info("[AUDIT] [{}] [{}] user={} ip={} status={} res={}",
                     eventType, status, safeUsername, safeIp, status, safeResource);
-            return saved;
+            return auditLog;
         } catch (Exception e) {
-            log.error("Failed to persist security audit event: {}", e.getMessage(), e);
+            log.error("Failed to record security audit event: {}", e.getMessage(), e);
             return null;
         }
     }
@@ -84,9 +106,11 @@ public class AuditService {
      * Verifies the cryptographic integrity of the entire audit chain from genesis to head.
      * Detects if any record was modified, deleted, or injected.
      */
-    @Transactional(readOnly = true)
     public Map<String, Object> verifyChainIntegrity() {
-        List<AuditLog> logs = auditLogRepository.findAllByOrderByIdAsc();
+        List<AuditLog> logs;
+        synchronized (auditLogs) {
+            logs = new ArrayList<>(auditLogs);
+        }
         Map<String, Object> result = new HashMap<>();
 
         if (logs.isEmpty()) {
@@ -147,24 +171,31 @@ public class AuditService {
     /**
      * Retrieves recent audit logs (most recent first).
      */
-    @Transactional(readOnly = true)
     public List<AuditLog> getRecentLogs(int limit) {
         int safeLimit = Math.min(Math.max(limit, 1), 200);
-        return auditLogRepository.findAllByOrderByTimestampDesc(PageRequest.of(0, safeLimit));
+        List<AuditLog> copy;
+        synchronized (auditLogs) {
+            copy = new ArrayList<>(auditLogs);
+        }
+        Collections.reverse(copy);
+        return copy.subList(0, Math.min(safeLimit, copy.size()));
     }
 
     /**
      * Calculates security summary statistics for the last 24 hours.
      */
-    @Transactional(readOnly = true)
     public Map<String, Object> getAuditStats() {
         Instant past24Hours = Instant.now().minus(24, ChronoUnit.HOURS);
+        List<AuditLog> copy;
+        synchronized (auditLogs) {
+            copy = new ArrayList<>(auditLogs);
+        }
 
-        long totalEvents = auditLogRepository.countByTimestampAfter(past24Hours);
-        long blockedEvents = auditLogRepository.countByStatusAndTimestampAfter("BLOCKED", past24Hours);
-        long failureEvents = auditLogRepository.countByStatusAndTimestampAfter("FAILURE", past24Hours);
-        long rateLimitBlocks = auditLogRepository.countByEventTypeAndTimestampAfter("RATE_LIMIT_BLOCKED", past24Hours);
-        long loginFailures = auditLogRepository.countByEventTypeAndTimestampAfter("AUTH_LOGIN_FAILURE", past24Hours);
+        long totalEvents = copy.stream().filter(l -> l.getTimestamp().isAfter(past24Hours)).count();
+        long blockedEvents = copy.stream().filter(l -> "BLOCKED".equalsIgnoreCase(l.getStatus()) && l.getTimestamp().isAfter(past24Hours)).count();
+        long failureEvents = copy.stream().filter(l -> "FAILURE".equalsIgnoreCase(l.getStatus()) && l.getTimestamp().isAfter(past24Hours)).count();
+        long rateLimitBlocks = copy.stream().filter(l -> "RATE_LIMIT_BLOCKED".equalsIgnoreCase(l.getEventType()) && l.getTimestamp().isAfter(past24Hours)).count();
+        long loginFailures = copy.stream().filter(l -> "AUTH_LOGIN_FAILURE".equalsIgnoreCase(l.getEventType()) && l.getTimestamp().isAfter(past24Hours)).count();
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("timeframe", "Last 24 Hours");

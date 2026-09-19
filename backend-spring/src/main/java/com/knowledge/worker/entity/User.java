@@ -1,6 +1,5 @@
 package com.knowledge.worker.entity;
 
-import com.knowledge.worker.converter.EncryptedStringConverter;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,15 +24,12 @@ public class User {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String password;
 
-    @Convert(converter = EncryptedStringConverter.class)
     @Column(columnDefinition = "TEXT")
     private String name;
 
-    @Convert(converter = EncryptedStringConverter.class)
     @Column(columnDefinition = "TEXT")
     private String email;
 
-    @Convert(converter = EncryptedStringConverter.class)
     @Column(columnDefinition = "TEXT")
     private String mobile;
 

@@ -1,7 +1,7 @@
 package com.knowledge.worker.controller;
 
-import com.knowledge.worker.entity.AuditLog;
 import com.knowledge.worker.service.AuditService;
+import com.knowledge.worker.service.AuditService.AuditLog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
