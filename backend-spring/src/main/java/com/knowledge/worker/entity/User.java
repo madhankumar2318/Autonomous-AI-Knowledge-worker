@@ -38,11 +38,11 @@ public class User {
     private String mobile;
 
     @Builder.Default
-    @Column(name = "failed_login_attempts", nullable = false)
+    @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "integer default 0")
     private int failedLoginAttempts = 0;
 
     @Builder.Default
-    @Column(name = "account_locked", nullable = false)
+    @Column(name = "account_locked", nullable = false, columnDefinition = "boolean default false")
     private boolean accountLocked = false;
 
     @Column(name = "lockout_expiry")

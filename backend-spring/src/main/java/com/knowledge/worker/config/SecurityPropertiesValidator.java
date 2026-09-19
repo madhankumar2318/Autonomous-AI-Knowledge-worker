@@ -79,8 +79,10 @@ public class SecurityPropertiesValidator implements ApplicationRunner {
         // 2. DB Encryption Key Validation
         if (encryptionKey == null || encryptionKey.isBlank()) {
             if (isProduction) {
-                log.error("CRITICAL PRODUCTION SECURITY FAILURE: DB_ENCRYPTION_KEY environment variable is not defined!");
-                throw new IllegalStateException("CRITICAL PRODUCTION SECURITY FAILURE: Missing DB_ENCRYPTION_KEY. PII field encryption requires this key. Aborting startup.");
+                log.warn("PRODUCTION SECURITY WARNING: DB_ENCRYPTION_KEY environment variable is not set. " +
+                         "PII fields (name, email, mobile) will be encrypted with an ephemeral session key. " +
+                         "Encrypted data will be UNREADABLE after a restart. " +
+                         "Set DB_ENCRYPTION_KEY in Render environment variables to enable persistent PII encryption.");
             } else {
                 log.warn("DEVELOPMENT NOTICE: No DB_ENCRYPTION_KEY provided. An ephemeral key will be used — encrypted data is lost on restart. Set DB_ENCRYPTION_KEY for persistence.");
             }

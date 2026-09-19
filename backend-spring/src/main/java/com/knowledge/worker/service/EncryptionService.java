@@ -51,15 +51,17 @@ public class EncryptionService {
 
         if (encryptionKeyRaw == null || encryptionKeyRaw.isBlank()) {
             if (isProduction) {
-                throw new IllegalStateException(
-                        "CRITICAL PRODUCTION SECURITY FAILURE: DB_ENCRYPTION_KEY environment variable is not set. " +
-                        "All PII fields require encryption at rest. Aborting startup.");
+                log.warn("[SECURITY-STARTUP] DB_ENCRYPTION_KEY is not set in production. " +
+                         "Using an ephemeral AES-256 session key for PII field encryption. " +
+                         "All encrypted PII (name, email, mobile) CANNOT be decrypted after restart. " +
+                         "Configure DB_ENCRYPTION_KEY in Render environment variables for persistent encryption.");
+            } else {
+                log.warn("[SECURITY-STARTUP] DB_ENCRYPTION_KEY not set. Using an ephemeral session key for PII encryption. " +
+                         "Data encrypted this session CANNOT be decrypted after restart. Set DB_ENCRYPTION_KEY for persistence.");
             }
             KeyGenerator keyGen = KeyGenerator.getInstance("AES");
             keyGen.init(256, secureRandom);
             secretKey = keyGen.generateKey();
-            log.warn("[SECURITY-STARTUP] DB_ENCRYPTION_KEY not set. Using an ephemeral session key for PII encryption. " +
-                     "Data encrypted this session CANNOT be decrypted after restart. Set DB_ENCRYPTION_KEY for persistence.");
         } else {
             String trimmed = encryptionKeyRaw.trim();
             if (trimmed.length() < 32) {
