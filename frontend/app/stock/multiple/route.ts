@@ -12,14 +12,22 @@ export async function GET(req: Request) {
     if (list.length === 0) list = STOCKS_DATA;
   }
 
-  const sectors: Record<string, typeof STOCKS_DATA> = {};
-  for (const s of list) {
+  // Ensure every item has both change_percent and percent_change
+  const normalizedList = list.map((s) => ({
+    ...s,
+    change_percent: s.change_percent ?? s.percent_change ?? 0,
+    percent_change: s.percent_change ?? s.change_percent ?? 0,
+  }));
+
+  // Group symbols by sector as string[] (matching client expectation)
+  const sectors: Record<string, string[]> = {};
+  for (const s of normalizedList) {
     if (!sectors[s.sector]) sectors[s.sector] = [];
-    sectors[s.sector].push(s);
+    sectors[s.sector].push(s.symbol);
   }
 
   return NextResponse.json({
-    stocks: list,
+    stocks: normalizedList,
     cached: false,
     sectors,
   });

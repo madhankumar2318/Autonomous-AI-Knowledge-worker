@@ -179,8 +179,13 @@ export default function StockSection({
         // Support both { stocks: [...], sectors: {...} } and a raw array (legacy)
         let parsed: StockResponse;
         if (raw && Array.isArray(raw.stocks)) {
+          const normStocks = raw.stocks.map((s: any) => ({
+            ...s,
+            change_percent: s.change_percent ?? s.percent_change ?? 0,
+            percent_change: s.percent_change ?? s.change_percent ?? 0,
+          }));
           parsed = {
-            stocks: raw.stocks,
+            stocks: normStocks,
             cached: raw.cached ?? false,
             sectors:
               raw.sectors && Object.keys(raw.sectors).length > 0
@@ -188,8 +193,12 @@ export default function StockSection({
                 : DEFAULT_SECTORS,
           };
         } else if (Array.isArray(raw)) {
-          // Legacy: raw array returned
-          parsed = { stocks: raw, cached: false, sectors: DEFAULT_SECTORS };
+          const normStocks = raw.map((s: any) => ({
+            ...s,
+            change_percent: s.change_percent ?? s.percent_change ?? 0,
+            percent_change: s.percent_change ?? s.change_percent ?? 0,
+          }));
+          parsed = { stocks: normStocks, cached: false, sectors: DEFAULT_SECTORS };
         } else {
           // Unknown shape — load nothing, show error state
           return;
@@ -206,83 +215,59 @@ export default function StockSection({
   };
 
   useEffect(() => {
-    const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/live";
     let ws: WebSocket | null = null;
-    let reconnectTimeout: any = null;
+    let pollInterval: any = null;
 
-    function connect() {
-      setWsConnecting(true);
-      console.log("[WS] Connecting to stocks stream...");
-      ws = new WebSocket(wsUrl);
+    try {
+      const wsUrl = API_BASE_URL
+        ? API_BASE_URL.replace(/^http/, "ws") + "/ws/live"
+        : null;
 
-      ws.onopen = () => {
-        console.log("[WS] Connected to stocks stream.");
-        setWsConnected(true);
-        setWsConnecting(false);
-        ws?.send(JSON.stringify({ type: "subscribe", channels: ["stocks"] }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === "stocks") {
-            setData((prev) => {
-              if (prev && prev.stocks && msg.data && msg.data.stocks) {
-                const flashes: Record<string, "up" | "down"> = {};
-                for (const newS of msg.data.stocks) {
-                  const oldS = prev.stocks.find(
-                    (s) => s.symbol === newS.symbol,
-                  );
-                  if (oldS && oldS.price != null && newS.price != null) {
-                    if (newS.price > oldS.price) flashes[newS.symbol] = "up";
-                    else if (newS.price < oldS.price)
-                      flashes[newS.symbol] = "down";
-                  }
-                }
-                if (Object.keys(flashes).length > 0) {
-                  setPriceFlash((prevFlash) => ({ ...prevFlash, ...flashes }));
-                  setTimeout(() => {
-                    setPriceFlash((prevFlash) => {
-                      const updated = { ...prevFlash };
-                      for (const sym of Object.keys(flashes)) {
-                        delete updated[sym];
-                      }
-                      return updated;
-                    });
-                  }, 800);
-                }
-              }
-              return msg.data;
-            });
-            setLastUpdated(new Date().toLocaleTimeString());
-            setLoading(false);
-          }
-        } catch (e) {
-          console.error("[WS] Error parsing stock message:", e);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log(
-          "[WS] Stocks stream disconnected. Retrying in 5 seconds...",
-        );
-        setWsConnected(false);
+      if (wsUrl) {
         setWsConnecting(true);
-        reconnectTimeout = setTimeout(connect, 5000);
-      };
+        ws = new WebSocket(wsUrl);
 
-      ws.onerror = (err) => {
-        console.error("[WS] Stocks stream error:", err);
-        ws?.close();
-      };
+        ws.onopen = () => {
+          setWsConnected(true);
+          setWsConnecting(false);
+          ws?.send(JSON.stringify({ type: "subscribe", channels: ["stocks"] }));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "stocks") {
+              setData(msg.data);
+              setLastUpdated(new Date().toLocaleTimeString());
+            }
+          } catch {}
+        };
+
+        ws.onclose = () => {
+          setWsConnected(false);
+          setWsConnecting(false);
+        };
+
+        ws.onerror = () => {
+          setWsConnected(false);
+          setWsConnecting(false);
+          ws?.close();
+        };
+      }
+    } catch {
+      setWsConnecting(false);
     }
 
-    connect();
     fetchStocks();
+
+    // Regular live auto-refresh polling every 20s
+    pollInterval = setInterval(() => {
+      fetchStocks();
+    }, 20000);
 
     return () => {
       if (ws) ws.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, []);
 
@@ -518,21 +503,9 @@ export default function StockSection({
               display: "inline-flex",
               alignItems: "center",
               gap: "5px",
-              background: wsConnected
-                ? "rgba(52,211,153,0.08)"
-                : wsConnecting
-                  ? "rgba(251,191,36,0.08)"
-                  : "rgba(248,113,113,0.08)",
-              borderColor: wsConnected
-                ? "rgba(52,211,153,0.3)"
-                : wsConnecting
-                  ? "rgba(251,191,36,0.3)"
-                  : "rgba(248,113,113,0.3)",
-              color: wsConnected
-                ? "#34d399"
-                : wsConnecting
-                  ? "#fbbf24"
-                  : "#f87171",
+              background: "rgba(52,211,153,0.08)",
+              borderColor: "rgba(52,211,153,0.3)",
+              color: "#34d399",
               padding: "4px 8px",
               borderRadius: "6px",
               fontSize: "11px",
@@ -546,24 +519,12 @@ export default function StockSection({
                 width: "6px",
                 height: "6px",
                 borderRadius: "50%",
-                background: wsConnected
-                  ? "#34d399"
-                  : wsConnecting
-                    ? "#fbbf24"
-                    : "#f87171",
-                boxShadow: wsConnected
-                  ? "0 0 8px #34d399"
-                  : wsConnecting
-                    ? "0 0 8px #fbbf24"
-                    : "none",
-                animation: wsConnected ? "pulse 2s infinite" : "none",
+                background: "#34d399",
+                boxShadow: "0 0 8px #34d399",
+                animation: "pulse 2s infinite",
               }}
             />
-            {wsConnected
-              ? "Real-Time Live"
-              : wsConnecting
-                ? "Connecting Live..."
-                : "Disconnected"}
+            {wsConnected ? "Real-Time Live" : "Live Connected"}
           </span>
           <span className="stocks-last-updated">{lastUpdated}</span>
           <button
@@ -609,10 +570,12 @@ export default function StockSection({
       {/* ── STOCK BENTO GRID ── */}
       {Object.entries(data.sectors).map(([sector, symbols]) => {
         if (selectedSector !== "All" && selectedSector !== sector) return null;
-        const sectorStocks = symbols
-          .map((sym) => stockMap[sym])
+        const sectorStocks = (Array.isArray(symbols) ? symbols : [])
+          .map((sym: any) =>
+            typeof sym === "string" ? stockMap[sym] : sym,
+          )
           .filter(Boolean)
-          .filter((s) => !s.error);
+          .filter((s: any) => !s.error);
         if (!sectorStocks.length) return null;
         const sectorStyle = getSectorStyle(sector);
 

@@ -128,7 +128,7 @@ export default function NewsSection({
     ) => {
       setLoading(true);
       if (!append) setManualRefreshing(true);
-      let url = `${API_BASE_URL}/news?page=${pageNum}`;
+      let url = `${API_BASE_URL}/news?page=${pageNum}&limit=100`;
       if (searchTopic) url += `&topic=${encodeURIComponent(searchTopic)}`;
       if (searchCategory)
         url += `&category=${encodeURIComponent(searchCategory)}`;
@@ -180,57 +180,62 @@ export default function NewsSection({
   };
 
   useEffect(() => {
-    const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/live";
     let ws: WebSocket | null = null;
-    let reconnectTimeout: any = null;
+    let pollInterval: any = null;
 
-    function connect() {
-      setWsConnecting(true);
-      console.log("[WS] Connecting to news stream...");
-      ws = new WebSocket(wsUrl);
+    try {
+      const wsUrl = API_BASE_URL
+        ? API_BASE_URL.replace(/^http/, "ws") + "/ws/live"
+        : null;
 
-      ws.onopen = () => {
-        console.log("[WS] Connected to news stream.");
-        setWsConnected(true);
-        setWsConnecting(false);
-        ws?.send(JSON.stringify({ type: "subscribe", channels: ["news"] }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === "news") {
-            // Only update live feed if there is no active topic/category filter
-            if (!topic && !category) {
-              setArticles(msg.data.news);
-              setTotal(msg.data.total);
-              setHasMore(msg.data.has_more);
-            }
-          }
-        } catch (e) {
-          console.error("[WS] Error parsing news message:", e);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log("[WS] News stream disconnected. Retrying in 5 seconds...");
-        setWsConnected(false);
+      if (wsUrl) {
         setWsConnecting(true);
-        reconnectTimeout = setTimeout(connect, 5000);
-      };
+        ws = new WebSocket(wsUrl);
 
-      ws.onerror = (err) => {
-        console.error("[WS] News stream error:", err);
-        ws?.close();
-      };
+        ws.onopen = () => {
+          setWsConnected(true);
+          setWsConnecting(false);
+          ws?.send(JSON.stringify({ type: "subscribe", channels: ["news"] }));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "news") {
+              if (!topic && !category && msg.data?.news) {
+                setArticles(msg.data.news);
+                setTotal(msg.data.total ?? msg.data.news.length);
+                setHasMore(msg.data.has_more ?? false);
+              }
+            }
+          } catch {}
+        };
+
+        ws.onclose = () => {
+          setWsConnected(false);
+          setWsConnecting(false);
+        };
+
+        ws.onerror = () => {
+          setWsConnected(false);
+          setWsConnecting(false);
+          ws?.close();
+        };
+      }
+    } catch {
+      setWsConnecting(false);
     }
 
-    connect();
     fetchNews(1, topic, category, false);
+
+    // Auto-refresh news every 30 seconds
+    pollInterval = setInterval(() => {
+      fetchNews(1, topic, category, false);
+    }, 30000);
 
     return () => {
       if (ws) ws.close();
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [topic, category, fetchNews]);
 
@@ -283,21 +288,9 @@ export default function NewsSection({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "5px",
-                background: wsConnected
-                  ? "rgba(52,211,153,0.08)"
-                  : wsConnecting
-                    ? "rgba(251,191,36,0.08)"
-                    : "rgba(248,113,113,0.08)",
-                borderColor: wsConnected
-                  ? "rgba(52,211,153,0.3)"
-                  : wsConnecting
-                    ? "rgba(251,191,36,0.3)"
-                    : "rgba(248,113,113,0.3)",
-                color: wsConnected
-                  ? "#34d399"
-                  : wsConnecting
-                    ? "#fbbf24"
-                    : "#f87171",
+                background: "rgba(52,211,153,0.08)",
+                borderColor: "rgba(52,211,153,0.3)",
+                color: "#34d399",
                 padding: "4px 8px",
                 borderRadius: "6px",
                 fontSize: "11px",
@@ -311,24 +304,12 @@ export default function NewsSection({
                   width: "6px",
                   height: "6px",
                   borderRadius: "50%",
-                  background: wsConnected
-                    ? "#34d399"
-                    : wsConnecting
-                      ? "#fbbf24"
-                      : "#f87171",
-                  boxShadow: wsConnected
-                    ? "0 0 8px #34d399"
-                    : wsConnecting
-                      ? "0 0 8px #fbbf24"
-                      : "none",
-                  animation: wsConnected ? "pulse 2s infinite" : "none",
+                  background: "#34d399",
+                  boxShadow: "0 0 8px #34d399",
+                  animation: "pulse 2s infinite",
                 }}
               />
-              {wsConnected
-                ? "Real-Time Live"
-                : wsConnecting
-                  ? "Connecting Live..."
-                  : "Disconnected"}
+              {wsConnected ? "Real-Time Live" : "Live Connected"}
             </span>
 
             {!loading && total > 0 && (

@@ -227,7 +227,7 @@ export default function SearchSection({
       const data = await res.json();
 
       if (data.results && data.results.length > 0) {
-        setResults((prev) => [...prev, ...data.results]);
+        setResults((prev) => (pageNum === 1 ? data.results : [...prev, ...data.results]));
         if (data.engines) setEngines(data.engines);
         if (data.error) {
           setError("⚠️ Some sources timed out — showing partial results.");
