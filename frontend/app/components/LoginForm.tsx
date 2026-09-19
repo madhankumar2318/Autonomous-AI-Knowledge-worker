@@ -202,6 +202,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         ? `${API_BASE_URL}/auth/register`
         : `${API_BASE_URL}/auth/login`;
 
+      console.log(`[AUTH] Sending ${isRegistering ? "register" : "login"} request to:`, endpoint);
+
       if (isRegistering) {
         if (name) payload.name = name;
         if (email) payload.email = email;
@@ -212,21 +214,41 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
       }
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      });
+      let res: Response;
+      try {
+        res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          credentials: "include",
+        });
+      } catch (networkErr: any) {
+        // fetch() itself threw — network error, CORS block, or service is down
+        console.error("[AUTH] Network/CORS error:", networkErr);
+        const host = new URL(endpoint).hostname;
+        throw new Error(
+          `Cannot reach server (${host}). The backend may be starting up or CORS is misconfigured. Please wait 30 seconds and try again.`
+        );
+      }
+
+      console.log(`[AUTH] Response: HTTP ${res.status}`);
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
+        let errorData: any = null;
+        try {
+          const text = await res.text();
+          console.log("[AUTH] Error body:", text);
+          errorData = text ? JSON.parse(text) : null;
+        } catch (_) {
+          // non-JSON error body
+        }
         throw new Error(
           errorData?.message ||
-            errorData?.detail ||
-            (isRegistering ? "Registration failed" : "Login failed"),
+          errorData?.error ||
+          errorData?.detail ||
+          `HTTP ${res.status}: ${isRegistering ? "Registration failed" : "Login failed"}`
         );
       }
 
@@ -250,7 +272,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           /* ignore */
         }
 
-        const authToken = data.token || data.access_token || "";
+        // Backend sends: { access_token: "...", token: "..." (alias), ... }
+        const authToken = data.access_token || data.token || "";
         if (authToken) {
           localStorage.setItem("ak_token", authToken);
         }
