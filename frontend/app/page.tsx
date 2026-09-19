@@ -23,10 +23,15 @@ import ThemeToggle from "./components/ThemeToggle";
 import { ToastContainer } from "./components/Toast";
 import UserProfile from "./components/UserProfile";
 import CmdKPalette from "./components/CmdKPalette";
-import NotificationDropdown, { NotificationItem } from "./components/NotificationDropdown";
+import NotificationDropdown, {
+  NotificationItem,
+} from "./components/NotificationDropdown";
 import { API_BASE_URL } from "./config";
 
-const NewspaperIconCustom = ({ size = 24, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) => (
+const NewspaperIconCustom = ({
+  size = 24,
+  ...props
+}: React.SVGProps<SVGSVGElement> & { size?: number }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -96,13 +101,15 @@ const NAV_TABS = [
     accentRgb: "148,163,184",
     description: "Profile & Preferences",
     badge: null,
-  }
+  },
 ];
 
 export default function Home_Page() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     if (typeof window !== "undefined") {
-      return !!(localStorage.getItem("ak_token") || localStorage.getItem("ak_session"));
+      return !!(
+        localStorage.getItem("ak_token") || localStorage.getItem("ak_session")
+      );
     }
     return false;
   });
@@ -122,24 +129,32 @@ export default function Home_Page() {
       id: "welcome",
       type: "info",
       title: "Welcome Back!",
-      message: "Press Ctrl+K to toggle the command palette, or select any tab to begin.",
+      message:
+        "Press Ctrl+K to toggle the command palette, or select any tab to begin.",
       timestamp: new Date(),
       read: false,
-    }
+    },
   ]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
-  const addNotification = useCallback((title: string, message: string, type: "info" | "success" | "warning" = "info") => {
-    const item: NotificationItem = {
-      id: String(Math.random() + Date.now()),
-      type,
-      title,
-      message,
-      timestamp: new Date(),
-      read: false,
-    };
-    setNotifications((prev) => [item, ...prev]);
-  }, []);
+  const addNotification = useCallback(
+    (
+      title: string,
+      message: string,
+      type: "info" | "success" | "warning" = "info",
+    ) => {
+      const item: NotificationItem = {
+        id: String(Math.random() + Date.now()),
+        type,
+        title,
+        message,
+        timestamp: new Date(),
+        read: false,
+      };
+      setNotifications((prev) => [item, ...prev]);
+    },
+    [],
+  );
 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -150,7 +165,9 @@ export default function Home_Page() {
   };
 
   const markNotificationRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
   };
 
   const deleteNotification = (id: string) => {
@@ -165,12 +182,13 @@ export default function Home_Page() {
         addNotification(
           customEvent.detail.title || "Notification",
           customEvent.detail.message || "",
-          customEvent.detail.type || "info"
+          customEvent.detail.type || "info",
         );
       }
     };
     window.addEventListener("ak-add-notification", handleAddNotif);
-    return () => window.removeEventListener("ak-add-notification", handleAddNotif);
+    return () =>
+      window.removeEventListener("ak-add-notification", handleAddNotif);
   }, [addNotification]);
 
   // Intercept themes/models changes to display notifications
@@ -181,7 +199,7 @@ export default function Home_Page() {
         addNotification(
           "Theme Updated",
           `Workspace theme changed to "${customEvent.detail.toUpperCase()}".`,
-          "info"
+          "info",
         );
       }
     };
@@ -191,7 +209,7 @@ export default function Home_Page() {
         addNotification(
           "AI Model Swapped",
           `Active chatbot reasoning model updated to "${customEvent.detail}".`,
-          "info"
+          "info",
         );
       }
     };
@@ -227,16 +245,27 @@ export default function Home_Page() {
 
   useEffect(() => {
     // Intercept global fetch to attach Authorization header and catch 401s
-    const originalFetch = window.fetch;
-    window.fetch = async (...args) => {
+    if (typeof window === "undefined" || !window.fetch) return;
+
+    const originalFetch = window.fetch.bind(window);
+    const customFetch = async (...args: Parameters<typeof fetch>) => {
       let [resource, config] = args;
-      const urlStr = typeof resource === "string" ? resource : (resource instanceof Request ? resource.url : "");
-      
+      const urlStr =
+        typeof resource === "string"
+          ? resource
+          : resource instanceof Request
+            ? resource.url
+            : "";
+
       // Auto-attach Bearer token to API requests if available
-      const token = typeof window !== "undefined" ? localStorage.getItem("ak_token") : null;
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("ak_token") : null;
       if (token && urlStr.startsWith(API_BASE_URL)) {
         config = config || {};
-        const headers = new Headers(config.headers || (resource instanceof Request ? resource.headers : {}));
+        const headers = new Headers(
+          config.headers ||
+            (resource instanceof Request ? resource.headers : {}),
+        );
         if (!headers.has("Authorization")) {
           headers.set("Authorization", `Bearer ${token}`);
         }
@@ -254,14 +283,19 @@ export default function Home_Page() {
         ) {
           try {
             // Attempt silent token refresh
-            const refreshRes = await originalFetch(`${API_BASE_URL}/auth/refresh`, {
-              method: "POST",
-              credentials: "include"
-            });
+            const refreshRes = await originalFetch(
+              `${API_BASE_URL}/auth/refresh`,
+              {
+                method: "POST",
+                credentials: "include",
+              },
+            );
             if (refreshRes.ok) {
               const refreshData = await refreshRes.json();
-              const newAccess = refreshData?.accessToken || refreshData?.access_token;
-              const newRefresh = refreshData?.refreshToken || refreshData?.refresh_token;
+              const newAccess =
+                refreshData?.accessToken || refreshData?.access_token;
+              const newRefresh =
+                refreshData?.refreshToken || refreshData?.refresh_token;
               if (newAccess) {
                 localStorage.setItem("ak_token", newAccess);
               }
@@ -281,8 +315,35 @@ export default function Home_Page() {
       }
       return response;
     };
+
+    try {
+      Object.defineProperty(window, "fetch", {
+        value: customFetch,
+        writable: true,
+        configurable: true,
+      });
+    } catch (_defErr) {
+      try {
+        window.fetch = customFetch;
+      } catch (_assignErr) {
+        console.warn("Could not patch window.fetch:", _assignErr);
+      }
+    }
+
     return () => {
-      window.fetch = originalFetch;
+      try {
+        Object.defineProperty(window, "fetch", {
+          value: originalFetch,
+          writable: true,
+          configurable: true,
+        });
+      } catch (_restoreErr) {
+        try {
+          window.fetch = originalFetch;
+        } catch {
+          // ignore
+        }
+      }
     };
   }, []);
 
@@ -298,7 +359,10 @@ export default function Home_Page() {
     };
     document.documentElement.setAttribute("data-theme", savedTheme);
     if (accentColors[savedAccent]) {
-      document.documentElement.style.setProperty("--accent-primary", accentColors[savedAccent]);
+      document.documentElement.style.setProperty(
+        "--accent-primary",
+        accentColors[savedAccent],
+      );
     }
 
     const token = localStorage.getItem("ak_token");
@@ -318,7 +382,7 @@ export default function Home_Page() {
 
     fetch(`${API_BASE_URL}/auth/verify`, {
       headers,
-      credentials: "include"
+      credentials: "include",
     })
       .then((r) => {
         if (r.status === 401 || r.status === 403) {
@@ -347,7 +411,10 @@ export default function Home_Page() {
       })
       .catch((err) => {
         // Network timeout / Render spinup: KEEP the stored session so the user is not kicked out
-        console.warn("Backend verification temporary connection issue, retaining local session:", err);
+        console.warn(
+          "Backend verification temporary connection issue, retaining local session:",
+          err,
+        );
         if (sessionUser) {
           setLoggedInUser(sessionUser);
           setIsLoggedIn(true);
@@ -373,11 +440,17 @@ export default function Home_Page() {
       }
     };
     window.addEventListener("open-rag-document", handleOpenDocument);
-    window.addEventListener("ak-search-query-changed", handleSearchQueryChanged);
+    window.addEventListener(
+      "ak-search-query-changed",
+      handleSearchQueryChanged,
+    );
     window.addEventListener("ak-navigate-tab", handleNavigateTab);
     return () => {
       window.removeEventListener("open-rag-document", handleOpenDocument);
-      window.removeEventListener("ak-search-query-changed", handleSearchQueryChanged);
+      window.removeEventListener(
+        "ak-search-query-changed",
+        handleSearchQueryChanged,
+      );
       window.removeEventListener("ak-navigate-tab", handleNavigateTab);
     };
   }, []);
@@ -398,12 +471,52 @@ export default function Home_Page() {
 
   if (!sessionChecked) {
     return (
-      <div style={{ minHeight: "100vh", background: "#030f1a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }}>
-        <div style={{ width: "52px", height: "52px", borderRadius: "18px", background: "linear-gradient(135deg, #22d3ee, #0891b2)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 32px rgba(34,211,238,0.4)" }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#030f1a",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "20px",
+        }}
+      >
+        <div
+          style={{
+            width: "52px",
+            height: "52px",
+            borderRadius: "18px",
+            background: "linear-gradient(135deg, #22d3ee, #0891b2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 8px 32px rgba(34,211,238,0.4)",
+          }}
+        >
           <Brain size={26} style={{ color: "white" }} />
         </div>
-        <div style={{ width: "32px", height: "32px", borderRadius: "50%", border: "2.5px solid rgba(34,211,238,0.2)", borderTopColor: "#22d3ee", animation: "spin 0.8s linear infinite" }} />
-        <p style={{ color: "#52525b", fontSize: "12px", fontWeight: 600, letterSpacing: "1.5px", textTransform: "uppercase" }}>Initializing…</p>
+        <div
+          style={{
+            width: "32px",
+            height: "32px",
+            borderRadius: "50%",
+            border: "2.5px solid rgba(34,211,238,0.2)",
+            borderTopColor: "#22d3ee",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+        <p
+          style={{
+            color: "#52525b",
+            fontSize: "12px",
+            fontWeight: 600,
+            letterSpacing: "1.5px",
+            textTransform: "uppercase",
+          }}
+        >
+          Initializing…
+        </p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -411,55 +524,79 @@ export default function Home_Page() {
 
   if (!isLoggedIn) {
     return (
-      <div style={{
-        height: "100dvh",
-        width: "100vw",
-        maxWidth: "100vw",
-        background: "#030f1a",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        overflow: "hidden",
-        overscrollBehavior: "none",
-        touchAction: "none",
-        boxSizing: "border-box",
-      }}>
+      <div
+        style={{
+          height: "100dvh",
+          width: "100vw",
+          maxWidth: "100vw",
+          background: "#030f1a",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          overflow: "hidden",
+          overscrollBehavior: "none",
+          touchAction: "none",
+          boxSizing: "border-box",
+        }}
+      >
         {/* Background blobs — clipped inside fixed container */}
-        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none", filter: "blur(120px)", zIndex: 0 }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            overflow: "hidden",
+            pointerEvents: "none",
+            filter: "blur(120px)",
+            zIndex: 0,
+          }}
+        >
           <div className="absolute top-[-20%] left-[-15%] w-[80vw] h-[80vw] rounded-full mix-blend-screen bg-[#7c3aed] opacity-45 animate-liquid-1" />
           <div className="absolute top-[15%] right-[-20%] w-[70vw] h-[70vw] rounded-full mix-blend-screen bg-[#ec4899] opacity-30 animate-liquid-2" />
           <div className="absolute bottom-[-30%] left-[10%] w-[75vw] h-[75vw] rounded-full mix-blend-screen bg-[#06b6d4] opacity-35 animate-liquid-3" />
         </div>
         {/* Form wrapper — centered, no scroll, fully locked */}
-        <div style={{
-          position: "relative",
-          zIndex: 10,
-          width: "100%",
-          maxWidth: "100vw",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "16px",
-          boxSizing: "border-box",
-          overflow: "hidden",
-          touchAction: "none",
-        }}>
-          <div className="auth-glow-backing" style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1 }} />
-          <LoginForm onLoginSuccess={(username, token) => {
-            setIsLoggedIn(true);
-            setLoggedInUser(username);
-            localStorage.setItem("ak_session", username);
-            if (token) {
-              localStorage.setItem("ak_token", token);
-            }
-          }} />
+        <div
+          style={{
+            position: "relative",
+            zIndex: 10,
+            width: "100%",
+            maxWidth: "100vw",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+            boxSizing: "border-box",
+            overflow: "hidden",
+            touchAction: "none",
+          }}
+        >
+          <div
+            className="auth-glow-backing"
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: -1,
+            }}
+          />
+          <LoginForm
+            onLoginSuccess={(username, token) => {
+              setIsLoggedIn(true);
+              setLoggedInUser(username);
+              localStorage.setItem("ak_session", username);
+              if (token) {
+                localStorage.setItem("ak_token", token);
+              }
+            }}
+          />
         </div>
         <ToastContainer />
       </div>
@@ -490,8 +627,6 @@ export default function Home_Page() {
               </div>
             </div>
           </div>
-
-
 
           {/* Actions */}
           <div className="header-actions">
@@ -541,7 +676,10 @@ export default function Home_Page() {
               type="button"
               onClick={async () => {
                 try {
-                  await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+                  await fetch(`${API_BASE_URL}/auth/logout`, {
+                    method: "POST",
+                    credentials: "include",
+                  });
                 } catch (err) {
                   console.error("Logout failed on server:", err);
                 }
@@ -570,7 +708,9 @@ export default function Home_Page() {
         )}
 
         {/* ── PREMIUM SIDEBAR ── */}
-        <aside className={`app-sidebar ${sidebarExpanded ? "sidebar-expanded" : "sidebar-collapsed"} ${isMobileMenuOpen ? "mobile-menu-open" : ""}`}>
+        <aside
+          className={`app-sidebar ${sidebarExpanded ? "sidebar-expanded" : "sidebar-collapsed"} ${isMobileMenuOpen ? "mobile-menu-open" : ""}`}
+        >
           <div className="sidebar-inner">
             {/* Nav Items */}
             <nav className="sidebar-nav">
@@ -591,10 +731,12 @@ export default function Home_Page() {
                       setIsMobileMenuOpen(false);
                     }}
                     className={`sidebar-nav-item ${isActive ? "sidebar-nav-active" : ""}`}
-                    style={{
-                      "--tab-accent": tab.accent,
-                      "--tab-accent-rgb": tab.accentRgb,
-                    } as React.CSSProperties}
+                    style={
+                      {
+                        "--tab-accent": tab.accent,
+                        "--tab-accent-rgb": tab.accentRgb,
+                      } as React.CSSProperties
+                    }
                     title={!sidebarExpanded ? tab.label : undefined}
                   >
                     <div className="sidebar-nav-icon-wrap">
@@ -602,7 +744,9 @@ export default function Home_Page() {
                     </div>
                     <div className="sidebar-nav-text">
                       <span className="sidebar-nav-label">{tab.label}</span>
-                      <span className="sidebar-nav-desc">{tab.description}</span>
+                      <span className="sidebar-nav-desc">
+                        {tab.description}
+                      </span>
                     </div>
                     {tab.badge && (
                       <span className="sidebar-badge">{tab.badge}</span>
@@ -621,7 +765,9 @@ export default function Home_Page() {
             onClick={() => setSidebarExpanded(!sidebarExpanded)}
             title={sidebarExpanded ? "Collapse sidebar" : "Expand sidebar"}
           >
-            <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${sidebarExpanded ? "rotate-180" : ""}`} />
+            <ChevronRight
+              className={`w-4 h-4 transition-transform duration-300 ${sidebarExpanded ? "rotate-180" : ""}`}
+            />
           </button>
         </aside>
 
@@ -632,13 +778,21 @@ export default function Home_Page() {
             <div className="content-topbar-left">
               <div
                 className="content-tab-icon"
-                style={{ background: `rgba(${activeTabData.accentRgb},0.15)`, border: `1px solid rgba(${activeTabData.accentRgb},0.3)` }}
+                style={{
+                  background: `rgba(${activeTabData.accentRgb},0.15)`,
+                  border: `1px solid rgba(${activeTabData.accentRgb},0.3)`,
+                }}
               >
-                <activeTabData.icon className="w-4 h-4" style={{ color: activeTabData.accent }} />
+                <activeTabData.icon
+                  className="w-4 h-4"
+                  style={{ color: activeTabData.accent }}
+                />
               </div>
               <div>
                 <h2 className="content-title">
-                  {activeTab === "search" ? "Search Results" : activeTabData.label}
+                  {activeTab === "search"
+                    ? "Search Results"
+                    : activeTabData.label}
                   {activeTab === "news" && (
                     <span className="live-pill">
                       <Zap className="w-2.5 h-2.5" /> LIVE
@@ -646,7 +800,9 @@ export default function Home_Page() {
                   )}
                 </h2>
                 <p className="content-subtitle">
-                  {activeTab === "search" ? `Results for "${globalSearchTrigger}"` : activeTabData.description}
+                  {activeTab === "search"
+                    ? `Results for "${globalSearchTrigger}"`
+                    : activeTabData.description}
                 </p>
               </div>
             </div>
@@ -674,7 +830,10 @@ export default function Home_Page() {
 
             {activeTab === "search" && (
               <div className="animate-fade-in tab-content-wrapper">
-                <SearchSection infiniteScroll={true} initialQuery={globalSearchTrigger} />
+                <SearchSection
+                  infiniteScroll={true}
+                  initialQuery={globalSearchTrigger}
+                />
               </div>
             )}
           </div>
@@ -683,7 +842,7 @@ export default function Home_Page() {
 
       {/* Floating AI Chat */}
       {!showProfile && <ChatAssistant username={loggedInUser} inline={false} />}
-      
+
       {/* Command Palette */}
       <CmdKPalette isOpen={isCmdKOpen} onClose={() => setIsCmdKOpen(false)} />
 
@@ -694,7 +853,10 @@ export default function Home_Page() {
           onClose={() => setShowProfile(false)}
           onLogout={async () => {
             try {
-              await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+              await fetch(`${API_BASE_URL}/auth/logout`, {
+                method: "POST",
+                credentials: "include",
+              });
             } catch (err) {
               console.error("Logout failed on server:", err);
             }
@@ -706,7 +868,6 @@ export default function Home_Page() {
           }}
         />
       )}
-
 
       <style>{`
         /* ── APP SHELL ── */
