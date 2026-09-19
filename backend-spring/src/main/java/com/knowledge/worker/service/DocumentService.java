@@ -2,6 +2,7 @@ package com.knowledge.worker.service;
 
 import com.knowledge.worker.entity.Upload;
 import com.knowledge.worker.repository.UploadRepository;
+import com.knowledge.worker.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DocumentService {
 
     private final UploadRepository uploadRepository;
+    private final UserRepository userRepository;
 
     @Value("${app.storage.upload-dir:./uploads}")
     private String uploadDir;
@@ -59,25 +61,75 @@ public class DocumentService {
     }
 
     /**
-     * Return all uploaded documents in the workspace.
+     * Retrieve uploads strictly authorized for the given user.
      */
+    public List<Upload> getUploadsForUser(String username) {
+        if (username == null || username.isBlank() || "anonymousUser".equalsIgnoreCase(username) || "guest".equalsIgnoreCase(username)) {
+            return Collections.emptyList();
+        }
+        if ("admin".equalsIgnoreCase(username)) {
+            return uploadRepository.findAllByOrderByUploadedAtDesc();
+        }
+        return userRepository.findByUsername(username)
+                .map(u -> uploadRepository.findByUserIdOrUserIdIsNullOrderByUploadedAtDesc(u.getId()))
+                .orElse(Collections.emptyList());
+    }
+
     public List<Upload> getAllUploads() {
         return uploadRepository.findAll();
     }
 
+    public List<Upload> getAllUploadsForUser(String username) {
+        return getUploadsForUser(username);
+    }
+
     /**
-     * Find an uploaded file by exact, fuzzy, or semantic query matching.
+     * Validate whether a user is authorized to access a document.
      */
-    public Optional<Upload> findMatchingUpload(String queryOrFilename) {
+    public boolean isAuthorized(String filename, String username) {
+        if (filename == null || filename.isBlank()) return false;
+        if (username != null && "admin".equalsIgnoreCase(username)) return true;
+        Optional<Upload> uploadOpt = uploadRepository.findByFilename(filename);
+        if (uploadOpt.isEmpty()) return false;
+        Upload upload = uploadOpt.get();
+        if (upload.getUserId() == null) return true; // Public workspace document
+        if (username == null || username.isBlank() || "guest".equalsIgnoreCase(username)) return false;
+        return userRepository.findByUsername(username)
+                .map(u -> u.getId().equals(upload.getUserId()))
+                .orElse(false);
+    }
+
+    /**
+     * Extract document text with authorization check.
+     */
+    public String extractDocumentTextForUser(String filename, String username) {
+        if (filename == null || filename.isBlank()) return "";
+        if (!isAuthorized(filename, username)) {
+            log.warn("[SECURITY-RAG] Blocked unauthorized document access: user '{}' attempted to read '{}'", username, filename);
+            return "Access denied: Document '" + filename + "' is not accessible in your workspace.";
+        }
+        return extractDocumentText(filename);
+    }
+
+    /**
+     * Find matching upload scoped strictly to the requesting user's workspace.
+     */
+    public Optional<Upload> findMatchingUpload(String queryOrFilename, String username) {
         if (queryOrFilename == null || queryOrFilename.isBlank()) {
             return Optional.empty();
         }
-
-        List<Upload> all = uploadRepository.findAll();
-        if (all.isEmpty()) {
+        List<Upload> allowed = getUploadsForUser(username);
+        if (allowed.isEmpty()) {
             return Optional.empty();
         }
+        return matchFromList(queryOrFilename, allowed);
+    }
 
+    public Optional<Upload> findMatchingUpload(String queryOrFilename) {
+        return findMatchingUpload(queryOrFilename, "admin");
+    }
+
+    private Optional<Upload> matchFromList(String queryOrFilename, List<Upload> all) {
         String clean = queryOrFilename.trim().toLowerCase();
         String normalizedQuery = clean.replaceAll("[^a-z0-9]", "");
 
@@ -88,7 +140,7 @@ public class DocumentService {
             }
         }
 
-        // 2. Normalized alphanumeric match (e.g. "activity4jan10xlsx" vs "whatisintheactivity4jan10xlsx")
+        // 2. Normalized alphanumeric match
         for (Upload u : all) {
             if (u.getFilename() == null) continue;
             String normU = u.getFilename().toLowerCase().replaceAll("[^a-z0-9]", "");
@@ -102,7 +154,7 @@ public class DocumentService {
             }
         }
 
-        // 3. Keyword / token match (e.g. "activity", "jan")
+        // 3. Keyword / token match
         for (Upload u : all) {
             if (u.getFilename() == null) continue;
             String uName = u.getFilename().toLowerCase();
@@ -137,7 +189,7 @@ public class DocumentService {
             }
         }
 
-        // 6. Generic queries about uploaded document or data ("file", "document", "upload", "data", "table", "activity")
+        // 6. Generic queries about uploaded document or data
         if (clean.contains("file") || clean.contains("document") || clean.contains("upload") ||
             clean.contains("workspace") || clean.contains("data") || clean.contains("table") ||
             clean.contains("summarize") || clean.contains("what is in") || clean.contains("analyze")) {
@@ -158,295 +210,225 @@ public class DocumentService {
             return "";
         }
 
-        long now = System.currentTimeMillis();
-        if (documentCache.containsKey(filename) && (now - documentCacheTime.getOrDefault(filename, 0L) < CACHE_TTL_MS)) {
-            return documentCache.get(filename);
+        String decoded = filename;
+        try {
+            decoded = URLDecoder.decode(filename, StandardCharsets.UTF_8);
+        } catch (Exception ignored) {}
+
+        // Check cache first
+        Long cachedAt = documentCacheTime.get(decoded);
+        if (cachedAt != null && (System.currentTimeMillis() - cachedAt) < CACHE_TTL_MS) {
+            String cached = documentCache.get(decoded);
+            if (cached != null) return cached;
         }
 
-        Path target = Paths.get(uploadDir, filename);
-        File file = target.toFile();
+        // Try to get from persistent database first
+        Optional<Upload> uploadOpt = uploadRepository.findByFilename(decoded);
+        if (uploadOpt.isEmpty() && !decoded.equals(filename)) {
+            uploadOpt = uploadRepository.findByFilename(filename);
+        }
+        if (uploadOpt.isPresent() && uploadOpt.get().getExtractedContent() != null && !uploadOpt.get().getExtractedContent().isBlank()) {
+            String dbContent = uploadOpt.get().getExtractedContent();
+            documentCache.put(decoded, dbContent);
+            documentCacheTime.put(decoded, System.currentTimeMillis());
+            return dbContent;
+        }
+
+        // Locate file on disk with path traversal safety check
+        String sanitizedName = Paths.get(decoded).getFileName().toString();
+        Path basePath = Paths.get(uploadDir).toAbsolutePath().normalize();
+        Path targetPath = basePath.resolve(sanitizedName).normalize();
+        if (!targetPath.startsWith(basePath)) {
+            log.warn("Path traversal attempted in extractDocumentText: {}", filename);
+            return "Error: Invalid filename";
+        }
+
+        File file = targetPath.toFile();
         if (!file.exists()) {
-            Optional<Upload> up = uploadRepository.findByFilename(filename);
-            if (up.isEmpty()) {
-                String lowerName = filename.toLowerCase();
-                up = uploadRepository.findAll().stream()
-                        .filter(u -> u.getFilename() != null && u.getFilename().equalsIgnoreCase(lowerName))
-                        .findFirst();
-            }
-            if (up.isPresent() && up.get().getFilepath() != null) {
-                file = new File(up.get().getFilepath());
+            // Also check raw filename if different
+            if (!decoded.equals(filename)) {
+                String rawSanitized = Paths.get(filename).getFileName().toString();
+                Path rawTarget = basePath.resolve(rawSanitized).normalize();
+                if (rawTarget.startsWith(basePath) && rawTarget.toFile().exists()) {
+                    file = rawTarget.toFile();
+                }
             }
         }
+
         if (!file.exists()) {
-            try {
-                String decoded = URLDecoder.decode(filename, StandardCharsets.UTF_8);
-                File decodedFile = Paths.get(uploadDir, decoded).toFile();
-                if (decodedFile.exists()) {
-                    file = decodedFile;
-                }
-            } catch (Exception ignored) {}
-        }
-        if (!file.exists()) {
-            File dir = new File(uploadDir);
-            if (dir.exists() && dir.isDirectory()) {
-                File[] list = dir.listFiles();
-                if (list != null) {
-                    for (File f : list) {
-                        if (f.getName().equalsIgnoreCase(filename)) {
-                            file = f;
-                            break;
-                        }
-                    }
-                }
-            }
+            return "File '" + decoded + "' was not found on server storage.";
         }
 
-        if (!file.exists() || !file.canRead()) {
-            String[] candidateDirs = {
-                uploadDir,
-                "./uploads",
-                "uploads",
-                "/app/uploads",
-                "/tmp/uploads",
-                System.getProperty("java.io.tmpdir") + "/uploads",
-                System.getProperty("user.dir") + "/uploads",
-                System.getProperty("user.home") + "/uploads"
-            };
-            for (String cDir : candidateDirs) {
-                if (cDir == null) continue;
-                File cand = Paths.get(cDir, filename).toFile();
-                if (cand.exists() && cand.canRead()) {
-                    file = cand;
-                    break;
-                }
-                File dir = new File(cDir);
-                if (dir.exists() && dir.isDirectory()) {
-                    File[] list = dir.listFiles();
-                    if (list != null) {
-                        for (File f : list) {
-                            if (f.getName().equalsIgnoreCase(filename)) {
-                                file = f;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (file.exists() && file.canRead()) break;
-            }
-        }
-
-        // If still not found on disk, check if we have persistent extractedContent in the database!
-        if (!file.exists() || !file.canRead()) {
-            Optional<Upload> up = uploadRepository.findByFilename(filename);
-            if (up.isEmpty()) {
-                String lowerName = filename.toLowerCase();
-                up = uploadRepository.findAll().stream()
-                        .filter(u -> u.getFilename() != null && u.getFilename().equalsIgnoreCase(lowerName))
-                        .findFirst();
-            }
-            if (up.isPresent() && up.get().getExtractedContent() != null && !up.get().getExtractedContent().isBlank()) {
-                String dbContent = up.get().getExtractedContent();
-                documentCache.put(filename, dbContent);
-                documentCacheTime.put(filename, now);
-                return dbContent;
-            }
-            log.warn("File {} not found or unreadable on disk at {} and no extracted content in DB", filename, target.toAbsolutePath());
-            return "File '" + filename + "' was not found on server storage.";
-        }
-
-        String lower = filename.toLowerCase();
-        String extracted;
+        String lower = file.getName().toLowerCase();
+        String result;
 
         try {
             if (lower.endsWith(".pdf")) {
-                // Limit PDFBox to 50 MB of main memory to guard against memory exhaustion
-                try (PDDocument document = PDDocument.load(file,
-                        MemoryUsageSetting.setupMainMemoryOnly(50 * 1024 * 1024L))) {
-                    PDFTextStripper stripper = new PDFTextStripper();
-                    stripper.setSortByPosition(true);
-                    stripper.setEndPage(500); // cap at 500 pages to prevent DoS
-                    extracted = stripper.getText(document);
-                }
-            } else if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) {
-                extracted = extractExcelText(file);
+                result = parsePdf(file);
             } else if (lower.endsWith(".docx")) {
-                extracted = extractWordText(file);
+                result = parseDocx(file);
+            } else if (lower.endsWith(".doc")) {
+                result = "Legacy Word document (.doc) detected. Please re-save as .docx for full parsing support.";
+            } else if (lower.endsWith(".xlsx")) {
+                result = parseXlsx(file);
+            } else if (lower.endsWith(".xls")) {
+                result = parseXls(file);
+            } else if (lower.endsWith(".csv")) {
+                result = parseCsv(file);
+            } else if (lower.endsWith(".json")) {
+                result = parseJson(file);
+            } else if (lower.endsWith(".txt") || lower.endsWith(".md") || lower.endsWith(".log") || lower.endsWith(".env")) {
+                result = parsePlainText(file);
             } else {
-                extracted = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+                result = "Unsupported document format: " + file.getName();
             }
 
-            if (extracted != null && !extracted.isBlank()) {
-                documentCache.put(filename, extracted);
-                documentCacheTime.put(filename, now);
-                // Also update DB if upload exists and extractedContent is null
-                try {
-                    Optional<Upload> up = uploadRepository.findByFilename(filename);
-                    if (up.isPresent() && (up.get().getExtractedContent() == null || up.get().getExtractedContent().isBlank())) {
-                        Upload u = up.get();
-                        u.setExtractedContent(extracted);
-                        uploadRepository.save(u);
-                    }
-                } catch (Exception ignored) {}
-                return extracted;
+            // Update database and cache
+            if (uploadOpt.isPresent() && result != null && !result.isBlank() && !result.startsWith("Error")) {
+                Upload u = uploadOpt.get();
+                u.setExtractedContent(result);
+                uploadRepository.save(u);
             }
+
+            documentCache.put(decoded, result != null ? result : "");
+            documentCacheTime.put(decoded, System.currentTimeMillis());
+            return result != null ? result : "";
+
         } catch (Exception e) {
-            log.error("Failed to extract text from {}: {}", filename, e.getMessage());
-            return "Error parsing document '" + filename + "': " + e.getMessage();
+            log.error("Failed to parse document {}: {}", file.getName(), e.getMessage());
+            return "Error parsing document: " + e.getMessage();
         }
-
-        return "No text content could be extracted from " + filename;
     }
 
-    private String extractExcelText(File file) {
-        StringBuilder sb = new StringBuilder();
-        DataFormatter formatter = new DataFormatter();
-        try (InputStream is = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(is)) {
-
-            int numberOfSheets = workbook.getNumberOfSheets();
-            for (int s = 0; s < numberOfSheets; s++) {
-                Sheet sheet = workbook.getSheetAt(s);
-                String sheetName = sheet.getSheetName();
-                sb.append("\n### Sheet: ").append(sheetName).append("\n\n");
-
-                int firstRow = sheet.getFirstRowNum();
-                int lastRow = sheet.getLastRowNum();
-                if (lastRow < firstRow) {
-                    sb.append("*(Empty sheet)*\n\n");
-                    continue;
-                }
-
-                int maxRows = Math.min(lastRow + 1, firstRow + 300);
-                boolean headerWritten = false;
-                int maxCols = 0;
-
-                for (int r = firstRow; r < maxRows; r++) {
-                    Row row = sheet.getRow(r);
-                    if (row != null && row.getLastCellNum() > maxCols) {
-                        maxCols = Math.min((int) row.getLastCellNum(), 40);
-                    }
-                }
-                if (maxCols <= 0) maxCols = 1;
-
-                for (int r = firstRow; r < maxRows; r++) {
-                    Row row = sheet.getRow(r);
-                    if (row == null) continue;
-
-                    List<String> cellValues = new ArrayList<>();
-                    boolean hasContent = false;
-
-                    for (int c = 0; c < maxCols; c++) {
-                        Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-                        if (cell == null) {
-                            cellValues.add("");
-                        } else {
-                            String val = formatter.formatCellValue(cell).trim();
-                            val = val.replace("\n", " ").replace("|", "\\|");
-                            if (!val.isEmpty()) hasContent = true;
-                            cellValues.add(val);
-                        }
-                    }
-
-                    if (hasContent) {
-                        if (!headerWritten) {
-                            sb.append("| ").append(String.join(" | ", cellValues)).append(" |\n");
-                            sb.append("|").append(" --- |".repeat(cellValues.size())).append("\n");
-                            headerWritten = true;
-                        } else {
-                            sb.append("| ").append(String.join(" | ", cellValues)).append(" |\n");
-                        }
-                    }
-                }
-
-                if (lastRow + 1 > maxRows) {
-                    sb.append("\n*... [").append(lastRow + 1 - maxRows).append(" more rows in sheet '").append(sheetName).append("']*\n\n");
-                } else {
-                    sb.append("\n\n");
-                }
-            }
-        } catch (Exception e) {
-            log.error("Failed to parse Excel file {}: {}", file.getName(), e.getMessage(), e);
-            return "Error parsing Excel document '" + file.getName() + "': " + e.getMessage();
+    private String parsePdf(File file) throws IOException {
+        try (PDDocument doc = PDDocument.load(file, MemoryUsageSetting.setupMainMemoryOnly(50 * 1024 * 1024L))) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setSortByPosition(true);
+            String text = stripper.getText(doc);
+            return text != null && !text.isBlank() ? text.trim() : "PDF document contains no readable text (it may be scanned/image-only).";
         }
-        return sb.toString().trim();
     }
 
-    private String extractWordText(File file) {
-        StringBuilder sb = new StringBuilder();
+    private String parseDocx(File file) throws IOException {
         try (InputStream is = new FileInputStream(file);
              XWPFDocument doc = new XWPFDocument(is)) {
-
+            StringBuilder sb = new StringBuilder();
             for (XWPFParagraph p : doc.getParagraphs()) {
-                String text = p.getText();
-                if (text != null && !text.isBlank()) {
-                    sb.append(text).append("\n");
+                String t = p.getText();
+                if (t != null && !t.isBlank()) {
+                    sb.append(t).append("\n");
                 }
             }
-
-            for (XWPFTable table : doc.getTables()) {
-                sb.append("\n");
-                for (XWPFTableRow row : table.getRows()) {
+            for (XWPFTable tbl : doc.getTables()) {
+                for (XWPFTableRow row : tbl.getRows()) {
                     List<String> cells = new ArrayList<>();
-                    for (XWPFTableCell cell : row.getTableCells()) {
-                        cells.add(cell.getText().trim());
+                    for (XWPFTableCell c : row.getTableCells()) {
+                        cells.add(c.getText().trim());
                     }
                     sb.append("| ").append(String.join(" | ", cells)).append(" |\n");
                 }
                 sb.append("\n");
             }
-        } catch (Exception e) {
-            log.error("Failed to parse Word document {}: {}", file.getName(), e.getMessage(), e);
-            return "Error parsing Word document '" + file.getName() + "': " + e.getMessage();
+            return sb.length() > 0 ? sb.toString().trim() : "DOCX file is empty.";
+        }
+    }
+
+    private String parseXlsx(File file) throws IOException {
+        try (InputStream is = new FileInputStream(file);
+             Workbook workbook = WorkbookFactory.create(is)) {
+            return extractWorkbookText(workbook, file.getName());
+        }
+    }
+
+    private String parseXls(File file) throws IOException {
+        try (InputStream is = new FileInputStream(file);
+             Workbook workbook = WorkbookFactory.create(is)) {
+            return extractWorkbookText(workbook, file.getName());
+        }
+    }
+
+    private String extractWorkbookText(Workbook workbook, String filename) {
+        StringBuilder sb = new StringBuilder();
+        DataFormatter formatter = new DataFormatter();
+        int totalSheets = workbook.getNumberOfSheets();
+
+        sb.append("=== Spreadsheet: ").append(filename).append(" (").append(totalSheets).append(" sheets) ===\n\n");
+
+        for (int s = 0; s < Math.min(totalSheets, 10); s++) {
+            Sheet sheet = workbook.getSheetAt(s);
+            sb.append("--- Sheet: ").append(sheet.getSheetName()).append(" ---\n");
+
+            int firstRow = sheet.getFirstRowNum();
+            int lastRow = Math.min(sheet.getLastRowNum(), firstRow + 300); // max 300 rows per sheet
+
+            for (int r = firstRow; r <= lastRow; r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                List<String> cellValues = new ArrayList<>();
+                boolean hasContent = false;
+                short lastCell = row.getLastCellNum();
+
+                for (int c = 0; c < Math.min((int) lastCell, 30); c++) {
+                    Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+                    String val = cell == null ? "" : formatter.formatCellValue(cell).trim();
+                    if (!val.isEmpty()) hasContent = true;
+                    cellValues.add(val);
+                }
+
+                if (hasContent) {
+                    sb.append(String.join(" | ", cellValues)).append("\n");
+                }
+            }
+            sb.append("\n");
         }
         return sb.toString().trim();
     }
 
-    public Map<String, Object> parseSpreadsheetData(String filename, String requestedSheet) {
-        Path target = Paths.get(uploadDir, filename);
-        File file = target.toFile();
-        if (!file.exists()) {
-            Optional<Upload> up = uploadRepository.findByFilename(filename);
-            if (up.isPresent() && up.get().getFilepath() != null) {
-                file = new File(up.get().getFilepath());
-            }
-        }
-        if (!file.exists()) {
-            File dir = new File(uploadDir);
-            if (dir.exists() && dir.isDirectory()) {
-                File[] list = dir.listFiles();
-                if (list != null) {
-                    for (File f : list) {
-                        if (f.getName().equalsIgnoreCase(filename)) {
-                            file = f;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+    private String parseCsv(File file) throws IOException {
+        List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+        if (lines.isEmpty()) return "CSV file is empty.";
 
+        StringBuilder sb = new StringBuilder();
+        int limit = Math.min(lines.size(), 500);
+        for (int i = 0; i < limit; i++) {
+            sb.append(lines.get(i)).append("\n");
+        }
+        if (lines.size() > 500) {
+            sb.append(String.format("\n... [Showing 500 of %d rows total]", lines.size()));
+        }
+        return sb.toString().trim();
+    }
+
+    private String parseJson(File file) throws IOException {
+        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        return content != null && !content.isBlank() ? content.trim() : "JSON file is empty.";
+    }
+
+    private String parsePlainText(File file) throws IOException {
+        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+        return content != null && !content.isBlank() ? content.trim() : "File is empty.";
+    }
+
+    public Map<String, Object> parseSpreadsheetData(String filename, String sheetNameParam) {
+        String sanitizedName = Paths.get(filename).getFileName().toString();
+        File file = Paths.get(uploadDir, sanitizedName).toFile();
         String lower = filename.toLowerCase();
+
         if (file.exists() && (lower.endsWith(".xlsx") || lower.endsWith(".xls"))) {
-            DataFormatter formatter = new DataFormatter();
             try (InputStream is = new FileInputStream(file);
                  Workbook workbook = WorkbookFactory.create(is)) {
 
                 List<String> sheetNames = new ArrayList<>();
-                for (int s = 0; s < workbook.getNumberOfSheets(); s++) {
-                    sheetNames.add(workbook.getSheetAt(s).getSheetName());
+                for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                    sheetNames.add(workbook.getSheetName(i));
                 }
 
-                String activeSheetName = sheetNames.isEmpty() ? "Sheet1" : sheetNames.get(0);
-                if (requestedSheet != null && sheetNames.contains(requestedSheet)) {
-                    activeSheetName = requestedSheet;
-                }
+                String activeSheetName = (sheetNameParam != null && !sheetNameParam.isBlank() && sheetNames.contains(sheetNameParam))
+                        ? sheetNameParam : (sheetNames.isEmpty() ? "Sheet1" : sheetNames.get(0));
 
                 Sheet sheet = workbook.getSheet(activeSheetName);
-                if (sheet == null && !sheetNames.isEmpty()) {
-                    sheet = workbook.getSheetAt(0);
-                    activeSheetName = sheetNames.get(0);
-                }
-
+                DataFormatter formatter = new DataFormatter();
                 List<String> headers = new ArrayList<>();
                 List<List<String>> rows = new ArrayList<>();
 
@@ -547,37 +529,40 @@ public class DocumentService {
     }
 
     /**
-     * Search across workspace uploaded files for text passages relevant to a query.
+     * Search across user's workspace uploaded files for text passages relevant to a query.
      */
-    public String searchKnowledge(String query, String activeFilename) {
+    public String searchKnowledge(String query, String activeFilename, String username) {
         if (query == null || query.isBlank()) {
             return "No query provided.";
         }
 
+        List<Upload> allowed = getUploadsForUser(username);
+        if (allowed.isEmpty()) {
+            return "No uploaded documents found in your workspace knowledge base.";
+        }
+
         List<Upload> targets = new ArrayList<>();
         if (activeFilename != null && !activeFilename.isBlank()) {
-            uploadRepository.findByFilename(activeFilename).ifPresent(targets::add);
+            allowed.stream()
+                    .filter(u -> u.getFilename() != null && u.getFilename().equalsIgnoreCase(activeFilename.trim()))
+                    .findFirst()
+                    .ifPresent(targets::add);
         }
 
         if (targets.isEmpty()) {
-            Optional<Upload> matched = findMatchingUpload(query);
-            matched.ifPresent(targets::add);
+            matchFromList(query, allowed).ifPresent(targets::add);
         }
 
         if (targets.isEmpty()) {
-            targets = uploadRepository.findAll();
-        }
-
-        if (targets.isEmpty()) {
-            return "No uploaded documents found in workspace knowledge base.";
+            targets = allowed;
         }
 
         StringBuilder results = new StringBuilder();
         String[] keywords = query.toLowerCase().replaceAll("[^a-z0-9\\s]", " ").split("\\s+");
 
         for (Upload u : targets) {
-            String fullText = extractDocumentText(u.getFilename());
-            if (fullText.startsWith("File '") || fullText.startsWith("Error parsing")) {
+            String fullText = extractDocumentTextForUser(u.getFilename(), username);
+            if (fullText.startsWith("File '") || fullText.startsWith("Error parsing") || fullText.startsWith("Access denied")) {
                 continue;
             }
 
@@ -613,14 +598,17 @@ public class DocumentService {
         }
 
         if (results.length() == 0) {
-            // Return first 1500 characters of the target document as default excerpt
             Upload first = targets.get(0);
-            String text = extractDocumentText(first.getFilename());
+            String text = extractDocumentTextForUser(first.getFilename(), username);
             String excerpt = text.length() > 1500 ? text.substring(0, 1500) + "..." : text;
             return String.format("--- [Source: %s, Full Overview] ---\n%s\n", first.getFilename(), excerpt);
         }
 
         return results.toString();
+    }
+
+    public String searchKnowledge(String query, String activeFilename) {
+        return searchKnowledge(query, activeFilename, "guest");
     }
 
     private static class ScoredChunk {

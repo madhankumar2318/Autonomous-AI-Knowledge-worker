@@ -74,7 +74,7 @@ public class AgentTools {
                         "type", "function",
                         "function", Map.of(
                                 "name", "search_knowledge_base",
-                                "description", "Search the uploaded documents in the workspace (PDFs, CSVs, TXT, JSON, MD, resumes) for relevant facts, numbers, and excerpts.",
+                                "description", "Search the uploaded documents in the user's workspace (PDFs, CSVs, TXT, JSON, MD, resumes) for relevant facts, numbers, and excerpts.",
                                 "parameters", Map.of(
                                         "type", "object",
                                         "properties", Map.of(
@@ -88,7 +88,7 @@ public class AgentTools {
                         "type", "function",
                         "function", Map.of(
                                 "name", "read_uploaded_file",
-                                "description", "Read the entire text content of a specific uploaded file in the workspace by filename (e.g. Madhans_Resume_1.pdf).",
+                                "description", "Read the entire text content of a specific uploaded file in the user's workspace by filename (e.g. Madhans_Resume_1.pdf).",
                                 "parameters", Map.of(
                                         "type", "object",
                                         "properties", Map.of(
@@ -101,8 +101,8 @@ public class AgentTools {
         );
     }
 
-    public String executeTool(String toolName, Map<String, Object> arguments) {
-        log.info("[Agent Tool Call] {} with args: {}", toolName, arguments);
+    public String executeTool(String toolName, Map<String, Object> arguments, String username) {
+        log.info("[Agent Tool Call] {} with args: {} for user: {}", toolName, arguments, username);
         try {
             switch (toolName) {
                 case "get_stock_price": {
@@ -135,11 +135,11 @@ public class AgentTools {
                 }
                 case "search_knowledge_base": {
                     String query = String.valueOf(arguments.getOrDefault("query", ""));
-                    return documentService.searchKnowledge(query, null);
+                    return documentService.searchKnowledge(query, null, username);
                 }
                 case "read_uploaded_file": {
                     String filename = String.valueOf(arguments.getOrDefault("filename", ""));
-                    return documentService.extractDocumentText(filename);
+                    return documentService.extractDocumentTextForUser(filename, username);
                 }
                 default:
                     return "Error: Unknown tool " + toolName;
@@ -148,5 +148,9 @@ public class AgentTools {
             log.error("Tool execution failed: {}", e.getMessage());
             return "Error executing tool " + toolName + ": " + e.getMessage();
         }
+    }
+
+    public String executeTool(String toolName, Map<String, Object> arguments) {
+        return executeTool(toolName, arguments, "guest");
     }
 }

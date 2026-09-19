@@ -28,6 +28,7 @@ public class ChatController {
     @PostMapping
     public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest req, Authentication authentication) {
         String username = resolveUsername(authentication, req.getUsername());
+        req.setUsername(username);
         rateLimitingService.checkChatRateLimit(username);
         return ResponseEntity.ok(agentService.processChat(req));
     }
@@ -35,6 +36,7 @@ public class ChatController {
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamChat(@RequestBody ChatRequest req, Authentication authentication) {
         String username = resolveUsername(authentication, req.getUsername());
+        req.setUsername(username);
         rateLimitingService.checkChatRateLimit(username);
         rateLimitingService.acquireStreamLock(username);
 
