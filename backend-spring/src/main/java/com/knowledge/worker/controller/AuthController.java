@@ -6,7 +6,6 @@ import com.knowledge.worker.service.RateLimitingService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +40,7 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
-            @Valid @RequestBody(required = false) RegisterRequest bodyReq,
+            @RequestBody(required = false) RegisterRequest bodyReq,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String password,
             @RequestParam(required = false) String name,
@@ -63,7 +62,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @Valid @RequestBody(required = false) LoginRequest bodyReq,
+            @RequestBody(required = false) LoginRequest bodyReq,
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String password,
             HttpServletRequest request,
@@ -151,14 +150,14 @@ public class AuthController {
 
     @PutMapping("/profile")
     public ResponseEntity<UserDto> updateProfile(Authentication authentication,
-                                                @Valid @RequestBody ProfileUpdateRequest req) {
+                                                @RequestBody ProfileUpdateRequest req) {
         String username = authentication != null ? authentication.getName() : "guest";
         return ResponseEntity.ok(authService.updateProfile(username, req));
     }
 
     @PutMapping("/password")
     public ResponseEntity<Map<String, String>> changePassword(Authentication authentication,
-                                                              @Valid @RequestBody PasswordChangeRequest req) {
+                                                              @RequestBody PasswordChangeRequest req) {
         String username = authentication != null ? authentication.getName() : "guest";
         authService.changePassword(username, req);
         auditService.recordEvent("AUTH_PASSWORD_CHANGE", username, "authenticated", "/auth/password", "SUCCESS", "User changed password");

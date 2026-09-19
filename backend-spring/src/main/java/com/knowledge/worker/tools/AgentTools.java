@@ -1,6 +1,5 @@
 package com.knowledge.worker.tools;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledge.worker.dto.NewsDto;
 import com.knowledge.worker.dto.SearchDto;
 import com.knowledge.worker.dto.StockDto;
@@ -24,7 +23,6 @@ public class AgentTools {
     private final NewsService newsService;
     private final SearchService searchService;
     private final DocumentService documentService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<Map<String, Object>> getOpenAiToolDefinitions() {
         return List.of(

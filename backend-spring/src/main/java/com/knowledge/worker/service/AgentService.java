@@ -1,5 +1,6 @@
 package com.knowledge.worker.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledge.worker.dto.ChatDtos.*;
@@ -166,7 +167,7 @@ CRITICAL SECURITY PROTOCOL:
                             String toolCallId = tc.path("id").asText();
                             String funcName = tc.path("function").path("name").asText();
                             String funcArgsStr = tc.path("function").path("arguments").asText("{}");
-                            Map<String, Object> args = objectMapper.readValue(funcArgsStr, Map.class);
+                            Map<String, Object> args = objectMapper.readValue(funcArgsStr, new TypeReference<Map<String, Object>>() {});
 
                             sendEvent(emitter, "tool_start", objectMapper.writeValueAsString(Map.of(
                                     "id", toolCallId,

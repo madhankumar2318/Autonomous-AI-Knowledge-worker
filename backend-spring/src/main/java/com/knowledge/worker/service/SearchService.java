@@ -369,7 +369,6 @@ public class SearchService {
                     for (JsonNode result : search) {
                         String title = result.path("title").asText("");
                         String snippet = result.path("snippet").asText("").replaceAll("<[^>]+>", "").trim();
-                        String pageid = result.path("pageid").asText("");
                         String link = "https://en.wikipedia.org/wiki/"
                                 + URLEncoder.encode(title.replace(" ", "_"), StandardCharsets.UTF_8);
 

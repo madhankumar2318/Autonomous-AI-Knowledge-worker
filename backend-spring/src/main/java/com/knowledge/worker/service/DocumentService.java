@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -300,7 +299,7 @@ public class DocumentService {
         }
     }
 
-    private String parsePdf(File file) throws IOException {
+    private String parsePdf(File file) throws Exception {
         try (PDDocument doc = PDDocument.load(file, MemoryUsageSetting.setupMainMemoryOnly(50 * 1024 * 1024L))) {
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
@@ -309,7 +308,7 @@ public class DocumentService {
         }
     }
 
-    private String parseDocx(File file) throws IOException {
+    private String parseDocx(File file) throws Exception {
         try (InputStream is = new FileInputStream(file);
              XWPFDocument doc = new XWPFDocument(is)) {
             StringBuilder sb = new StringBuilder();
@@ -333,14 +332,14 @@ public class DocumentService {
         }
     }
 
-    private String parseXlsx(File file) throws IOException {
+    private String parseXlsx(File file) throws Exception {
         try (InputStream is = new FileInputStream(file);
              Workbook workbook = WorkbookFactory.create(is)) {
             return extractWorkbookText(workbook, file.getName());
         }
     }
 
-    private String parseXls(File file) throws IOException {
+    private String parseXls(File file) throws Exception {
         try (InputStream is = new FileInputStream(file);
              Workbook workbook = WorkbookFactory.create(is)) {
             return extractWorkbookText(workbook, file.getName());
@@ -385,7 +384,7 @@ public class DocumentService {
         return sb.toString().trim();
     }
 
-    private String parseCsv(File file) throws IOException {
+    private String parseCsv(File file) throws Exception {
         List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
         if (lines.isEmpty()) return "CSV file is empty.";
 
@@ -400,12 +399,12 @@ public class DocumentService {
         return sb.toString().trim();
     }
 
-    private String parseJson(File file) throws IOException {
+    private String parseJson(File file) throws Exception {
         String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
         return content != null && !content.isBlank() ? content.trim() : "JSON file is empty.";
     }
 
-    private String parsePlainText(File file) throws IOException {
+    private String parsePlainText(File file) throws Exception {
         String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
         return content != null && !content.isBlank() ? content.trim() : "File is empty.";
     }
