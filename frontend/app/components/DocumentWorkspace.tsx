@@ -24,6 +24,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import ChatAssistant from "./ChatAssistant";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
+import PdfCanvasViewer from "./PdfCanvasViewer";
 
 interface UploadedFile {
   id: string | number;
@@ -85,6 +86,9 @@ export default function DocumentWorkspace({
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfZoom, setPdfZoom] = useState(100);
+  const [pdfDocTab, setPdfDocTab] = useState<"canvas" | "text" | "stats">(
+    "canvas",
+  );
 
   // Local state initialized with props for RAG passage scroll/highlight synchronization
   const [localHighlightPhrase, setLocalHighlightPhrase] =
@@ -346,7 +350,7 @@ export default function DocumentWorkspace({
   };
 
   useEffect(() => {
-    if (isPDF || isSpreadsheet) return;
+    if (isSpreadsheet) return;
     setTextLoading(true);
     setTextError(null);
 
@@ -361,7 +365,7 @@ export default function DocumentWorkspace({
             txt.includes("was not found on server storage")
           ) {
             throw new Error(
-              `"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`,
+              `"${file.filename}" was not found on server storage. Please re-upload it once to save it permanently.`,
             );
           }
           if (isJson) {
@@ -373,10 +377,13 @@ export default function DocumentWorkspace({
         }
         if (r.status === 404) {
           throw new Error(
-            `"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`,
+            `"${file.filename}" was not found on server storage. Please re-upload it to view and analyze.`,
           );
         }
-        // Fallback to direct raw file
+        if (isPDF) {
+          return "PDF Document loaded.";
+        }
+        // Fallback to direct raw file for text formats
         const fallbackRes = await fetch(fileUrl, { credentials: "include" });
         if (!fallbackRes.ok) {
           throw new Error(
@@ -389,7 +396,7 @@ export default function DocumentWorkspace({
           raw.includes("was not found on server storage")
         ) {
           throw new Error(
-            `"${file.filename}" was not found on server storage. Cloud hosting resets temporary files on server restarts. Please re-upload it once to save it permanently in database.`,
+            `"${file.filename}" was not found on server storage. Please re-upload it once to save it permanently.`,
           );
         }
         if (isJson) {
@@ -1193,30 +1200,44 @@ export default function DocumentWorkspace({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* PDF Zoom Controls */}
+              {/* PDF Viewing Mode Tabs */}
               {isPDF && (
-                <div className="dw-zoom-controls">
+                <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10">
                   <button
-                    className="dw-zoom-btn"
-                    onClick={() => setPdfZoom((z) => Math.max(50, z - 10))}
-                    title="Zoom out"
+                    type="button"
+                    onClick={() => setPdfDocTab("canvas")}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      pdfDocTab === "canvas"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs"
+                        : "text-gray-400 hover:text-white"
+                    }`}
                   >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="dw-zoom-label">{pdfZoom}%</span>
-                  <button
-                    className="dw-zoom-btn"
-                    onClick={() => setPdfZoom((z) => Math.min(200, z + 10))}
-                    title="Zoom in"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Visual Pages</span>
                   </button>
                   <button
-                    className="dw-zoom-btn"
-                    onClick={() => setPdfZoom(100)}
-                    title="Reset zoom"
+                    type="button"
+                    onClick={() => setPdfDocTab("text")}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      pdfDocTab === "text"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs"
+                        : "text-gray-400 hover:text-white"
+                    }`}
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Extracted Text</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPdfDocTab("stats")}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      pdfDocTab === "stats"
+                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Overview</span>
                   </button>
                 </div>
               )}
@@ -1304,84 +1325,98 @@ export default function DocumentWorkspace({
 
           <div className="dw-viewer-content">
             {isPDF ? (
-              pdfLoading ? (
-                <div className="dw-loading">
-                  <div className="dw-spinner" />
-                  <span>Loading PDF preview…</span>
-                </div>
-              ) : pdfError ? (
-                <div className="dw-error">
-                  <div className="dw-error-card">
-                    <div className="dw-error-icon">📄</div>
-                    <div className="dw-error-title">Document Not Found</div>
-                    <div className="dw-error-desc">
-                      {pdfError.includes("403") || pdfError.includes("404")
-                        ? `"${file.filename}" was not found in active storage or needs to be restored.`
-                        : pdfError}
-                    </div>
-                    <div className="dw-error-actions">
-                      <label className="dw-reupload-btn">
-                        <UploadCloud className="w-4 h-4 mr-1.5 inline" />
-                        Re-upload & Restore {file.filename}
-                        <input
-                          type="file"
-                          accept=".pdf,application/pdf"
-                          style={{ display: "none" }}
-                          onChange={handleReupload}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={loadPdf}
-                        className="dw-error-btn"
-                        style={{ marginLeft: 8 }}
-                      >
-                        <RotateCw className="w-3.5 h-3.5 mr-1 inline" />
-                        Retry Loading
-                      </button>
-                      {textContent && (
-                        <button
-                          type="button"
-                          onClick={() => setPdfError(null)}
-                          className="dw-error-btn"
-                          style={{ marginLeft: 8 }}
-                        >
-                          View Extracted Text
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className="dw-error-btn"
-                        style={{ marginLeft: 8 }}
-                      >
-                        ← Return to File Workspace
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : pdfUrl ? (
-                <iframe
-                  className="dw-pdf-frame"
-                  src={pdfUrl}
-                  title={file.filename}
-                  style={{
-                    transform: `scale(${pdfZoom / 100})`,
-                    transformOrigin: "top center",
-                    height: pdfZoom === 100 ? "100%" : `${10000 / pdfZoom}%`,
-                  }}
+              pdfDocTab === "canvas" ? (
+                <PdfCanvasViewer
+                  url={fileUrl}
+                  filename={file.filename}
+                  highlightPhrase={localHighlightPhrase}
+                  targetPage={localTargetPage}
+                  onFallbackToText={() => setPdfDocTab("text")}
                 />
-              ) : textContent ? (
+              ) : pdfDocTab === "text" ? (
                 <div className="dw-text-content">
-                  <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 font-semibold uppercase tracking-wider">
-                    Extracted Text Content ({file.filename})
+                  <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
+                    <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
+                      Extracted Text Content ({file.filename})
+                    </div>
+                    {textContent && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(textContent)}
+                        className="flex items-center gap-1.5 text-xs text-cyan-400 hover:text-cyan-300 font-medium cursor-pointer bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded border border-white/10 transition-colors"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy All</span>
+                      </button>
+                    )}
                   </div>
                   {renderTextWithHighlight(
-                    textContent || "",
+                    textContent || "Extracting document content…",
                     localHighlightPhrase,
                   )}
                 </div>
-              ) : null
+              ) : (
+                <div className="p-8 max-w-xl mx-auto space-y-6 text-gray-200">
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
+                    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-cyan-400" />
+                      Document Intelligence Overview
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span className="text-gray-400 block">File Name</span>
+                        <span
+                          className="text-white font-mono font-semibold text-xs mt-0.5 block truncate"
+                          title={file.filename}
+                        >
+                          {file.filename}
+                        </span>
+                      </div>
+                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span className="text-gray-400 block">File Size</span>
+                        <span className="text-white font-mono font-semibold text-sm mt-0.5 block">
+                          {formatSize(file.size)}
+                        </span>
+                      </div>
+                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span className="text-gray-400 block">RAG Chunks</span>
+                        <span className="text-white font-mono font-semibold text-sm mt-0.5 block">
+                          {file.chunks || 1} indexed
+                        </span>
+                      </div>
+                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
+                        <span className="text-gray-400 block">
+                          Approx. Words
+                        </span>
+                        <span className="text-white font-mono font-semibold text-sm mt-0.5 block">
+                          {textContent
+                            ? textContent.split(/\s+/).filter(Boolean).length
+                            : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                      Suggested AI Actions
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {getQuickPrompts().map((qp, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => handleSendPrompt(qp.prompt)}
+                          className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-gray-200 transition-colors flex items-center justify-between group cursor-pointer"
+                        >
+                          <span>{qp.label}</span>
+                          <Sparkles className="w-3.5 h-3.5 text-cyan-400 opacity-60 group-hover:opacity-100" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )
             ) : textLoading ? (
               <div className="dw-loading">
                 <div className="dw-spinner" />

@@ -7,8 +7,8 @@ export async function GET(
   const { filename: rawFilename } = await params;
   const filename = decodeURIComponent(rawFilename);
 
-  const doc = uploadsStore.get(filename);
-  const buffer = getUploadBuffer(filename);
+  const doc = uploadsStore.get(filename) || uploadsStore.get(rawFilename);
+  const buffer = getUploadBuffer(filename) || getUploadBuffer(rawFilename);
 
   if (!buffer && !doc) {
     return new Response("File not found", { status: 404 });
@@ -26,6 +26,8 @@ export async function GET(
       "Content-Type": contentType,
       "Content-Disposition": `inline; filename="${encodeURIComponent(filename)}"`,
       "Content-Length": responseData.length.toString(),
+      "Accept-Ranges": "bytes",
+      "Access-Control-Allow-Origin": "*",
       "Cache-Control": "public, max-age=3600",
     },
   });

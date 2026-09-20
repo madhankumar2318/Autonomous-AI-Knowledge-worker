@@ -149,6 +149,7 @@ const globalStore = globalThis as unknown as {
   __AKW_SETTINGS__?: Map<string, UserSettingRecord>;
   __AKW_THREADS__?: Map<string, ChatThreadRecord>;
   __AKW_UPLOADS__?: Map<string, UploadRecord>;
+  __AKW_BUFFERS__?: Map<string, Buffer>;
 };
 
 if (!globalStore.__AKW_USERS__) {
@@ -248,13 +249,27 @@ if (!globalStore.__AKW_UPLOADS__) {
   globalStore.__AKW_UPLOADS__ = uploads;
 }
 
+if (!globalStore.__AKW_BUFFERS__) {
+  globalStore.__AKW_BUFFERS__ = new Map<string, Buffer>();
+}
+
 export const usersStore = globalStore.__AKW_USERS__!;
 export const settingsStore = globalStore.__AKW_SETTINGS__!;
 export const threadsStore = globalStore.__AKW_THREADS__!;
 export const uploadsStore = globalStore.__AKW_UPLOADS__!;
+export const buffersStore = globalStore.__AKW_BUFFERS__!;
 
 export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
   uploadsStore.set(record.filename, record);
+
+  // Cache in-memory buffer
+  if (buffer) {
+    buffersStore.set(record.filename, buffer);
+    const decoded = decodeURIComponent(record.filename);
+    if (decoded !== record.filename) {
+      buffersStore.set(decoded, buffer);
+    }
+  }
 
   // Save to disk
   if (buffer) {
@@ -277,17 +292,36 @@ export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
 }
 
 export function getUploadBuffer(filename: string): Buffer | null {
+  const decoded = decodeURIComponent(filename);
+
+  // 1. Check in-memory buffer store
+  if (buffersStore.has(filename)) {
+    return buffersStore.get(filename)!;
+  }
+  if (buffersStore.has(decoded)) {
+    return buffersStore.get(decoded)!;
+  }
+
+  // 2. Check disk storage directories
   for (const dir of getStorageDirs()) {
     try {
       const filePath = path.join(dir, filename);
       if (fs.existsSync(filePath)) {
-        return fs.readFileSync(filePath);
+        const buf = fs.readFileSync(filePath);
+        buffersStore.set(filename, buf);
+        return buf;
+      }
+      const decodedPath = path.join(dir, decoded);
+      if (fs.existsSync(decodedPath)) {
+        const buf = fs.readFileSync(decodedPath);
+        buffersStore.set(filename, buf);
+        return buf;
       }
     } catch (_e) {}
   }
 
-  const doc = uploadsStore.get(filename);
-  if (doc?.content) {
+  const doc = uploadsStore.get(filename) || uploadsStore.get(decoded);
+  if (doc?.content && !filename.toLowerCase().endsWith(".pdf")) {
     return Buffer.from(doc.content, "utf-8");
   }
   return null;
@@ -297,9 +331,11 @@ export function deleteUploadFile(filename: string) {
   const decoded = decodeURIComponent(filename).trim();
   const lower = decoded.toLowerCase();
 
-  // 1. Delete from in-memory uploadsStore
+  // 1. Delete from in-memory stores
   uploadsStore.delete(filename);
   uploadsStore.delete(decoded);
+  buffersStore.delete(filename);
+  buffersStore.delete(decoded);
   for (const [key, val] of Array.from(uploadsStore.entries())) {
     if (
       key === filename ||
@@ -309,6 +345,7 @@ export function deleteUploadFile(filename: string) {
       val.originalName?.toLowerCase() === lower
     ) {
       uploadsStore.delete(key);
+      buffersStore.delete(key);
     }
   }
 
