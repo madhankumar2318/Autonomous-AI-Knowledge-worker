@@ -71,9 +71,6 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [reindexingFiles, setReindexingFiles] = useState<Set<string>>(
     new Set(),
   );
-  const [deleteConfirmFile, setDeleteConfirmFile] = useState<string | null>(
-    null,
-  );
   const [deletingFilename, setDeletingFilename] = useState<string | null>(
     null,
   );
@@ -382,19 +379,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     }
   };
 
-  const handleDelete = (filename: string) => {
-    // Open in-app confirmation modal (100% safe and functional in iframes)
-    setDeleteConfirmFile(filename);
-  };
-
-  const confirmDelete = async (filename: string) => {
+  const handleDelete = async (filename: string) => {
     setDeletingFilename(filename);
     // Instant optimistic removal from UI so user immediately sees file disappear
     setUploads((prev) => prev.filter((u) => u.filename !== filename));
     if (activeWorkspaceFile?.filename === filename) {
       setActiveWorkspaceFile(null);
     }
-    setDeleteConfirmFile(null);
 
     try {
       let res = await fetch(
@@ -415,12 +406,12 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         );
       }
       if (res.ok) {
-        showToast("success", `"${filename}" removed.`);
+        showToast("success", `"${filename}" deleted.`);
         window.dispatchEvent(
           new CustomEvent("ak-add-notification", {
             detail: {
-              title: "Document Removed",
-              message: `"${filename}" deleted from workspace permanently.`,
+              title: "Document Deleted",
+              message: `"${filename}" removed permanently from workspace.`,
               type: "info",
             },
           }),
@@ -452,56 +443,6 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           highlightPhrase={workspaceHighlightPhrase}
           targetPage={workspaceHighlightPage}
         />
-      )}
-
-      {/* ── Iframe-Safe Delete Confirmation Modal ── */}
-      {deleteConfirmFile && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 animate-in fade-in duration-150"
-          onClick={() => setDeleteConfirmFile(null)}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="bg-[#12141a] border border-red-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-left"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3.5">
-              <div className="p-3 rounded-xl bg-red-500/15 text-red-400 shrink-0 border border-red-500/20">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-base font-semibold text-white">
-                  Delete Document?
-                </h3>
-                <p className="text-sm text-gray-400 mt-1.5 leading-relaxed">
-                  Are you sure you want to permanently delete{" "}
-                  <span className="font-mono text-xs text-red-300 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-800/40 break-all font-semibold">
-                    {deleteConfirmFile}
-                  </span>
-                  ? This action cannot be undone and will remove it from the knowledge index and server disk.
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => setDeleteConfirmFile(null)}
-                className="px-4 py-2 text-xs font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmDelete(deleteConfirmFile)}
-                className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg shadow-lg shadow-red-900/40 transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete Permanently
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       <div className="fw-root">
@@ -1140,9 +1081,14 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                               }}
                               disabled={deletingFilename === u.filename}
                               className="fw-file-action-btn fw-delete-btn"
-                              title="Delete from workspace"
+                              title="Delete document"
+                              aria-label={`Delete ${u.filename}`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              {deletingFilename === u.filename ? (
+                                <RotateCw className="w-3.5 h-3.5 animate-spin text-red-400" />
+                              ) : (
+                                <Trash2 className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           </div>
                         </div>
@@ -1554,10 +1500,10 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           border: 1px solid var(--border-light);
         }
 
-        .fw-file-actions { display: flex; gap: 6px; flex-shrink: 0; }
+        .fw-file-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
         .fw-file-action-btn {
-          width: 30px;
-          height: 30px;
+          width: 32px;
+          height: 32px;
           border-radius: 8px;
           background: var(--bg-surface);
           border: 1px solid var(--border-light);
@@ -1566,15 +1512,33 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           justify-content: center;
           color: var(--text-secondary);
           cursor: pointer;
-          transition: all 0.15s ease;
+          transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
           text-decoration: none;
           padding: 0;
         }
-        .fw-file-action-btn:hover { background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.3); color: #22d3ee; }
+        .fw-file-action-btn:hover {
+          background: rgba(34,211,238,0.12);
+          border-color: rgba(34,211,238,0.3);
+          color: #22d3ee;
+          transform: translateY(-1px);
+        }
+        .fw-delete-btn {
+          color: rgba(239, 68, 68, 0.65);
+        }
         .fw-delete-btn:hover {
           background: rgba(239,68,68,0.15) !important;
-          border-color: rgba(239,68,68,0.3) !important;
+          border-color: rgba(239,68,68,0.35) !important;
           color: #ef4444 !important;
+          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+          transform: translateY(-1px);
+        }
+        .fw-delete-btn:active {
+          transform: scale(0.93);
+        }
+        .fw-delete-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
         }
         .fw-analyze-btn {
           width: auto !important;

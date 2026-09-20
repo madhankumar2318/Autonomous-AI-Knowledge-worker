@@ -203,28 +203,13 @@ if (!globalStore.__AKW_THREADS__) {
 if (!globalStore.__AKW_UPLOADS__) {
   const uploads = new Map<string, UploadRecord>();
 
-  // Default sample upload
-  const sampleUpload: UploadRecord = {
-    id: "upload-1",
-    username: "admin",
-    filename: "q3_financial_brief.md",
-    originalName: "q3_financial_brief.md",
-    contentType: "text/markdown",
-    size: 2048,
-    uploadedAt: new Date().toISOString(),
-    status: "indexed",
-    chunks: 4,
-    content: `# Q3 Corporate Financial & Technology Overview\n\n## Executive Summary\nRevenue increased by 14.2% YoY driven by cloud infrastructure and enterprise AI subscriptions. Operating margins expanded to 28.5%.\n\n| Metric | Q3 Actual | Q3 Guidance | YoY Growth |\n|---|---|---|---|\n| Revenue | $48.2B | $46.5B | +14.2% |\n| Operating Income | $13.7B | $12.8B | +18.1% |\n| Free Cash Flow | $9.4B | $8.6B | +15.0% |\n| EPS | $1.82 | $1.70 | +19.7% |\n\n## Key Strategic Initiatives\n1. Expansion of Autonomous AI Workflow agents across enterprise deployments.\n2. Optimization of inference latency and distributed caching architecture.\n3. Increased capital expenditure allocated towards high-bandwidth datacenter infrastructure.`,
-  };
-  uploads.set(sampleUpload.filename, sampleUpload);
-
-  // Auto-scan storage directories for existing files (including user's uploaded resume)
+  // Auto-scan storage directories for existing uploaded files
   for (const dir of getStorageDirs()) {
     try {
       if (fs.existsSync(dir)) {
         const files = fs.readdirSync(dir);
         for (const file of files) {
-          if (file.endsWith(".json")) continue;
+          if (file.endsWith(".json") || file.toLowerCase() === "q3_financial_brief.md") continue;
           const filePath = path.join(dir, file);
           const stat = fs.statSync(filePath);
           if (stat.isFile()) {
