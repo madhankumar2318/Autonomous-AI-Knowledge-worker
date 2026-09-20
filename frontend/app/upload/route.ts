@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  deleteUploadFile,
   extractPdfText,
   saveUploadFile,
   verifyToken,
@@ -68,6 +69,32 @@ export async function POST(req: Request) {
   } catch (err: any) {
     return NextResponse.json(
       { message: err?.message || "Upload failed" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const url = new URL(req.url);
+    let filename = url.searchParams.get("filename") || "";
+    if (!filename) {
+      const body = await req.json().catch(() => ({}));
+      filename = body.filename || "";
+    }
+    if (filename) {
+      deleteUploadFile(decodeURIComponent(filename));
+      return NextResponse.json({
+        message: `File ${filename} deleted successfully.`,
+      });
+    }
+    return NextResponse.json(
+      { message: "Filename parameter is required." },
+      { status: 400 }
+    );
+  } catch (err: any) {
+    return NextResponse.json(
+      { message: err?.message || "Delete failed" },
       { status: 500 }
     );
   }

@@ -309,19 +309,59 @@ export function getUploadBuffer(filename: string): Buffer | null {
 }
 
 export function deleteUploadFile(filename: string) {
+  const decoded = decodeURIComponent(filename).trim();
+  const lower = decoded.toLowerCase();
+
+  // 1. Delete from in-memory uploadsStore
   uploadsStore.delete(filename);
+  uploadsStore.delete(decoded);
+  for (const [key, val] of Array.from(uploadsStore.entries())) {
+    if (
+      key === filename ||
+      key === decoded ||
+      key.toLowerCase() === lower ||
+      val.filename.toLowerCase() === lower ||
+      val.originalName?.toLowerCase() === lower
+    ) {
+      uploadsStore.delete(key);
+    }
+  }
+
+  // 2. Delete matching files from all storage directories
   for (const dir of getStorageDirs()) {
     try {
-      const filePath = path.join(dir, filename);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          if (file.endsWith(".json")) continue;
+          if (
+            file === filename ||
+            file === decoded ||
+            file.toLowerCase() === lower ||
+            decodeURIComponent(file).toLowerCase() === lower
+          ) {
+            const filePath = path.join(dir, file);
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+            }
+          }
+        }
+      }
     } catch (_e) {}
   }
-  try {
-    const primary = getPrimaryStorageDir();
-    const registryPath = path.join(primary, "uploads_index.json");
-    const arr = Array.from(uploadsStore.values());
-    fs.writeFileSync(registryPath, JSON.stringify(arr, null, 2), "utf-8");
-  } catch (_e) {}
+
+  // 3. Update persistent registry in all storage directories
+  for (const dir of getStorageDirs()) {
+    try {
+      if (fs.existsSync(dir)) {
+        const registryPath = path.join(dir, "uploads_index.json");
+        if (fs.existsSync(registryPath)) {
+          const arr = Array.from(uploadsStore.values());
+          fs.writeFileSync(registryPath, JSON.stringify(arr, null, 2), "utf-8");
+        }
+      }
+    } catch (_e) {}
+  }
 }
 
 export function generateToken(username: string): string {
