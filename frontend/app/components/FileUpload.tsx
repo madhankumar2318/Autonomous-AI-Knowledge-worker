@@ -209,7 +209,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     formData.append("file", file);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/upload/`, {
+      const res = await fetch(`${API_BASE_URL}/upload`, {
         method: "POST",
         credentials: "include",
         body: formData,

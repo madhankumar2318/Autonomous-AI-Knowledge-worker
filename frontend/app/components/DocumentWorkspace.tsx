@@ -8,6 +8,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
+  RotateCw,
   Brain,
   Edit3,
   Save,
@@ -251,12 +252,54 @@ export default function DocumentWorkspace({
     );
   };
 
+  const loadPdf = useCallback(() => {
+    if (!isPDF) return;
+    setPdfLoading(true);
+    setPdfError(null);
+
+    fetch(fileUrl, { credentials: "include" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Failed to load PDF (${r.status})`);
+        return r.blob();
+      })
+      .then((blob) => {
+        const pdfBlob = new Blob([blob], { type: "application/pdf" });
+        const url = URL.createObjectURL(pdfBlob);
+        setPdfBlobUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+      })
+      .catch((err) => {
+        setPdfError(String(err));
+        // Also attempt to load extracted text if available
+        fetch(
+          `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`,
+          { credentials: "include" },
+        )
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.content) {
+              setTextContent(data.content);
+              setEditedContent(data.content);
+            }
+          })
+          .catch(() => {});
+      })
+      .finally(() => setPdfLoading(false));
+  }, [fileUrl, isPDF, file.filename]);
+
   const handleReupload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
     try {
-      setTextLoading(true);
-      setTextError(null);
+      if (isPDF) {
+        setPdfLoading(true);
+        setPdfError(null);
+      } else {
+        setTextLoading(true);
+        setTextError(null);
+      }
       const formData = new FormData();
       formData.append("file", selectedFile);
       const res = await fetch(`${API_BASE_URL}/upload`, {
@@ -269,6 +312,11 @@ export default function DocumentWorkspace({
         "success",
         `${selectedFile.name} uploaded and saved to persistent database!`,
       );
+
+      if (isPDF) {
+        loadPdf();
+      }
+
       const contentRes = await fetch(
         `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`,
         { credentials: "include" },
@@ -283,14 +331,17 @@ export default function DocumentWorkspace({
         }
         setTextContent(txt);
         setEditedContent(txt);
-      } else {
-        window.location.reload();
       }
     } catch (err: any) {
-      setTextError(err?.message || String(err));
+      if (isPDF) {
+        setPdfError(err?.message || String(err));
+      } else {
+        setTextError(err?.message || String(err));
+      }
       showToast("error", err?.message || String(err));
     } finally {
       setTextLoading(false);
+      setPdfLoading(false);
     }
   };
 
@@ -379,31 +430,8 @@ export default function DocumentWorkspace({
   }, [file.filename, isSpreadsheet, activeSheet]);
 
   useEffect(() => {
-    if (!isPDF) return;
-    setPdfLoading(true);
-    setPdfError(null);
-    let activeUrl: string | null = null;
-
-    fetch(fileUrl, { credentials: "include" })
-      .then((r) => {
-        if (!r.ok) throw new Error(`Failed to load PDF (${r.status})`);
-        return r.blob();
-      })
-      .then((blob) => {
-        const pdfBlob = new Blob([blob], { type: "application/pdf" });
-        const url = URL.createObjectURL(pdfBlob);
-        activeUrl = url;
-        setPdfBlobUrl(url);
-      })
-      .catch((err) => setPdfError(String(err)))
-      .finally(() => setPdfLoading(false));
-
-    return () => {
-      if (activeUrl) {
-        URL.revokeObjectURL(activeUrl);
-      }
-    };
-  }, [fileUrl, isPDF]);
+    loadPdf();
+  }, [loadPdf]);
 
   // Scroll to highlighted text segment if specified
   useEffect(() => {
@@ -1288,14 +1316,44 @@ export default function DocumentWorkspace({
                     <div className="dw-error-title">Document Not Found</div>
                     <div className="dw-error-desc">
                       {pdfError.includes("403") || pdfError.includes("404")
-                        ? `"${file.filename}" is an external citation or was not found in your uploaded workspace files.`
+                        ? `"${file.filename}" was not found in active storage or needs to be restored.`
                         : pdfError}
                     </div>
                     <div className="dw-error-actions">
+                      <label className="dw-reupload-btn">
+                        <UploadCloud className="w-4 h-4 mr-1.5 inline" />
+                        Re-upload & Restore {file.filename}
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          style={{ display: "none" }}
+                          onChange={handleReupload}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={loadPdf}
+                        className="dw-error-btn"
+                        style={{ marginLeft: 8 }}
+                      >
+                        <RotateCw className="w-3.5 h-3.5 mr-1 inline" />
+                        Retry Loading
+                      </button>
+                      {textContent && (
+                        <button
+                          type="button"
+                          onClick={() => setPdfError(null)}
+                          className="dw-error-btn"
+                          style={{ marginLeft: 8 }}
+                        >
+                          View Extracted Text
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={onClose}
                         className="dw-error-btn"
+                        style={{ marginLeft: 8 }}
                       >
                         ← Return to File Workspace
                       </button>
@@ -1313,6 +1371,16 @@ export default function DocumentWorkspace({
                     height: pdfZoom === 100 ? "100%" : `${10000 / pdfZoom}%`,
                   }}
                 />
+              ) : textContent ? (
+                <div className="dw-text-content">
+                  <div className="mb-4 pb-2 border-b border-gray-200 dark:border-gray-700 text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                    Extracted Text Content ({file.filename})
+                  </div>
+                  {renderTextWithHighlight(
+                    textContent || "",
+                    localHighlightPhrase,
+                  )}
+                </div>
               ) : null
             ) : textLoading ? (
               <div className="dw-loading">

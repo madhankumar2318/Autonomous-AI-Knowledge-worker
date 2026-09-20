@@ -2,13 +2,11 @@ import { NextResponse } from "next/server";
 import { uploadsStore } from "@/app/lib/store";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
   const { filename: rawFilename } = await params;
-  const filename = decodeURIComponent(rawFilename);
-
-  const doc = uploadsStore.get(filename);
+  const _filename = decodeURIComponent(rawFilename);
 
   // Return default table parsing
   return NextResponse.json({

@@ -1,24 +1,32 @@
-import { NextResponse } from "next/server";
-import { uploadsStore } from "@/app/lib/store";
+import { getUploadBuffer, uploadsStore } from "@/app/lib/store";
 
 export async function GET(
-  req: Request,
+  _req: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
   const { filename: rawFilename } = await params;
   const filename = decodeURIComponent(rawFilename);
 
   const doc = uploadsStore.get(filename);
-  if (!doc) {
+  const buffer = getUploadBuffer(filename);
+
+  if (!buffer && !doc) {
     return new Response("File not found", { status: 404 });
   }
 
-  const content = doc.content || "Empty file content";
-  return new Response(content, {
+  const isPdf = filename.toLowerCase().endsWith(".pdf");
+  const contentType =
+    doc?.contentType || (isPdf ? "application/pdf" : "application/octet-stream");
+
+  const responseData = buffer || Buffer.from(doc?.content || "", "utf-8");
+
+  return new Response(new Uint8Array(responseData), {
     status: 200,
     headers: {
-      "Content-Type": doc.contentType || "text/plain",
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+      "Content-Type": contentType,
+      "Content-Disposition": `inline; filename="${encodeURIComponent(filename)}"`,
+      "Content-Length": responseData.length.toString(),
+      "Cache-Control": "public, max-age=3600",
     },
   });
 }

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { uploadsStore, verifyToken } from "@/app/lib/store";
+import {
+  extractPdfText,
+  saveUploadFile,
+  verifyToken,
+  type UploadRecord,
+} from "@/app/lib/store";
 
 export async function POST(req: Request) {
   try {
@@ -14,30 +19,56 @@ export async function POST(req: Request) {
     }
 
     const filename = file.name || `file_${Date.now()}`;
-    const textContent = await file.text().catch(() => "Binary file uploaded.");
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    const uploadRecord = {
+    const isPdf =
+      filename.toLowerCase().endsWith(".pdf") ||
+      file.type === "application/pdf";
+
+    let textContent = "";
+    if (isPdf) {
+      textContent = extractPdfText(buffer);
+    } else {
+      try {
+        textContent = buffer.toString("utf-8");
+      } catch {
+        textContent = "Binary document content.";
+      }
+    }
+
+    const chunks = Math.max(
+      1,
+      Math.round(textContent.length > 50 ? textContent.length / 400 : file.size / 500)
+    );
+
+    const uploadRecord: UploadRecord = {
       id: "upl-" + Date.now(),
       username,
       filename,
       originalName: filename,
-      contentType: file.type || "text/plain",
+      contentType: isPdf ? "application/pdf" : file.type || "text/plain",
       size: file.size,
       uploadedAt: new Date().toISOString(),
-      status: "indexed" as const,
+      status: "indexed",
+      chunks,
       content: textContent,
     };
 
-    uploadsStore.set(filename, uploadRecord);
+    saveUploadFile(uploadRecord, buffer);
 
     return NextResponse.json({
       message: "File uploaded successfully",
       filename,
       size: file.size,
       rag_indexed: true,
-      chunks: Math.max(1, Math.round(file.size / 500)),
+      rag_status: "success",
+      chunks,
     });
   } catch (err: any) {
-    return NextResponse.json({ message: err?.message || "Upload failed" }, { status: 500 });
+    return NextResponse.json(
+      { message: err?.message || "Upload failed" },
+      { status: 500 }
+    );
   }
 }

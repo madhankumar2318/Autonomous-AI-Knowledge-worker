@@ -1,3 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
+import zlib from "node:zlib";
+
 // In-memory data store & helper functions for Next.js full-stack routes
 
 export interface UserRecord {
@@ -46,6 +50,97 @@ export interface UploadRecord {
   uploadedAt: string;
   status: "indexed" | "processing" | "ready";
   content?: string;
+  chunks?: number;
+}
+
+// ── Persistent Disk Storage Helpers ──────────────────────────────────────────
+
+export function getStorageDirs(): string[] {
+  return [
+    path.resolve(process.cwd(), "uploads_storage"),
+    path.resolve(process.cwd(), "../uploads_storage"),
+    path.resolve("/app/applet/uploads_storage"),
+    path.resolve("/app/applet/frontend/uploads_storage"),
+  ];
+}
+
+export function getPrimaryStorageDir(): string {
+  const dirs = getStorageDirs();
+  for (const d of dirs) {
+    if (fs.existsSync(d)) return d;
+  }
+  const defaultDir = dirs[0];
+  try {
+    fs.mkdirSync(defaultDir, { recursive: true });
+  } catch {}
+  return defaultDir;
+}
+
+export function extractPdfText(buffer: Buffer): string {
+  try {
+    const content = buffer.toString("binary");
+    const textPieces: string[] = [];
+    const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = streamRegex.exec(content)) !== null) {
+      const rawStream = Buffer.from(match[1], "binary");
+      let decompressed = "";
+      try {
+        decompressed = zlib.inflateSync(rawStream).toString("utf-8");
+      } catch {
+        decompressed = rawStream.toString("utf-8");
+      }
+
+      // Match text inside (...) Tj
+      const tjRegex = /\(([^)]+)\)\s*Tj/g;
+      let m: RegExpExecArray | null;
+      while ((m = tjRegex.exec(decompressed)) !== null) {
+        textPieces.push(unescapePdfText(m[1]));
+      }
+
+      // Match text inside [...] TJ
+      const arrayRegex = /\[([^\]]+)\]\s*TJ/g;
+      while ((m = arrayRegex.exec(decompressed)) !== null) {
+        const innerRegex = /\(([^)]+)\)/g;
+        let inner: RegExpExecArray | null;
+        const arr: string[] = [];
+        while ((inner = innerRegex.exec(m[1])) !== null) {
+          arr.push(unescapePdfText(inner[1]));
+        }
+        if (arr.length) textPieces.push(arr.join(" "));
+      }
+    }
+
+    const full = textPieces.join(" ").replace(/\s+/g, " ").trim();
+    if (full.length > 30) return full;
+
+    // Fallback: search for direct text strings in binary stream
+    const fallbackPieces: string[] = [];
+    const plainRegex = /\(([^)]{3,})\)/g;
+    let fallbackMatch: RegExpExecArray | null;
+    while ((fallbackMatch = plainRegex.exec(content)) !== null) {
+      const cleaned = unescapePdfText(fallbackMatch[1]).trim();
+      if (cleaned.length > 2 && /^[a-zA-Z0-9\s.,;:_/@\-+]+$/.test(cleaned)) {
+        fallbackPieces.push(cleaned);
+      }
+    }
+    return fallbackPieces.join(" ").replace(/\s+/g, " ").trim() || "PDF Document parsed.";
+  } catch (_e) {
+    return "PDF Document loaded.";
+  }
+}
+
+function unescapePdfText(str: string): string {
+  return str
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\b/g, "\b")
+    .replace(/\\f/g, "\f")
+    .replace(/\\\(/g, "(")
+    .replace(/\\\)/g, ")")
+    .replace(/\\\\/g, "\\");
 }
 
 // Global persistent in-memory storage (preserved across HMR / module reloads)
@@ -107,6 +202,8 @@ if (!globalStore.__AKW_THREADS__) {
 
 if (!globalStore.__AKW_UPLOADS__) {
   const uploads = new Map<string, UploadRecord>();
+
+  // Default sample upload
   const sampleUpload: UploadRecord = {
     id: "upload-1",
     username: "admin",
@@ -116,9 +213,53 @@ if (!globalStore.__AKW_UPLOADS__) {
     size: 2048,
     uploadedAt: new Date().toISOString(),
     status: "indexed",
+    chunks: 4,
     content: `# Q3 Corporate Financial & Technology Overview\n\n## Executive Summary\nRevenue increased by 14.2% YoY driven by cloud infrastructure and enterprise AI subscriptions. Operating margins expanded to 28.5%.\n\n| Metric | Q3 Actual | Q3 Guidance | YoY Growth |\n|---|---|---|---|\n| Revenue | $48.2B | $46.5B | +14.2% |\n| Operating Income | $13.7B | $12.8B | +18.1% |\n| Free Cash Flow | $9.4B | $8.6B | +15.0% |\n| EPS | $1.82 | $1.70 | +19.7% |\n\n## Key Strategic Initiatives\n1. Expansion of Autonomous AI Workflow agents across enterprise deployments.\n2. Optimization of inference latency and distributed caching architecture.\n3. Increased capital expenditure allocated towards high-bandwidth datacenter infrastructure.`,
   };
   uploads.set(sampleUpload.filename, sampleUpload);
+
+  // Auto-scan storage directories for existing files (including user's uploaded resume)
+  for (const dir of getStorageDirs()) {
+    try {
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          if (file.endsWith(".json")) continue;
+          const filePath = path.join(dir, file);
+          const stat = fs.statSync(filePath);
+          if (stat.isFile()) {
+            const isPdf = file.toLowerCase().endsWith(".pdf");
+            let extracted = "";
+            if (isPdf) {
+              try {
+                const buf = fs.readFileSync(filePath);
+                extracted = extractPdfText(buf);
+              } catch {}
+            } else {
+              try {
+                extracted = fs.readFileSync(filePath, "utf-8");
+              } catch {}
+            }
+
+            const chunks = Math.max(1, Math.round(stat.size / 500));
+            uploads.set(file, {
+              id: `upl-${file}`,
+              username: "admin",
+              filename: file,
+              originalName: file,
+              contentType: isPdf ? "application/pdf" : "text/plain",
+              size: stat.size,
+              uploadedAt: stat.mtime.toISOString(),
+              status: "indexed",
+              chunks,
+              content: extracted,
+            });
+          }
+        }
+      }
+    } catch (_e) {}
+  }
+
   globalStore.__AKW_UPLOADS__ = uploads;
 }
 
@@ -126,6 +267,62 @@ export const usersStore = globalStore.__AKW_USERS__!;
 export const settingsStore = globalStore.__AKW_SETTINGS__!;
 export const threadsStore = globalStore.__AKW_THREADS__!;
 export const uploadsStore = globalStore.__AKW_UPLOADS__!;
+
+export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
+  uploadsStore.set(record.filename, record);
+
+  // Save to disk
+  if (buffer) {
+    for (const dir of getStorageDirs()) {
+      try {
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        const filePath = path.join(dir, record.filename);
+        fs.writeFileSync(filePath, buffer);
+      } catch (_e) {}
+    }
+  }
+
+  // Update persistent registry
+  try {
+    const primary = getPrimaryStorageDir();
+    const registryPath = path.join(primary, "uploads_index.json");
+    const arr = Array.from(uploadsStore.values());
+    fs.writeFileSync(registryPath, JSON.stringify(arr, null, 2), "utf-8");
+  } catch (_e) {}
+}
+
+export function getUploadBuffer(filename: string): Buffer | null {
+  for (const dir of getStorageDirs()) {
+    try {
+      const filePath = path.join(dir, filename);
+      if (fs.existsSync(filePath)) {
+        return fs.readFileSync(filePath);
+      }
+    } catch (_e) {}
+  }
+
+  const doc = uploadsStore.get(filename);
+  if (doc?.content) {
+    return Buffer.from(doc.content, "utf-8");
+  }
+  return null;
+}
+
+export function deleteUploadFile(filename: string) {
+  uploadsStore.delete(filename);
+  for (const dir of getStorageDirs()) {
+    try {
+      const filePath = path.join(dir, filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (_e) {}
+  }
+  try {
+    const primary = getPrimaryStorageDir();
+    const registryPath = path.join(primary, "uploads_index.json");
+    const arr = Array.from(uploadsStore.values());
+    fs.writeFileSync(registryPath, JSON.stringify(arr, null, 2), "utf-8");
+  } catch (_e) {}
+}
 
 export function generateToken(username: string): string {
   const payload = {
