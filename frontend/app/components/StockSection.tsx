@@ -50,6 +50,14 @@ function formatVolume(v?: number) {
   return v.toString();
 }
 
+function cleanCompanyName(name?: string) {
+  if (!name) return "";
+  return name
+    .replace(/,?\s*\b(Corporation|Corp|Incorporated|Inc|Company|Co|Limited|Ltd|LLC|Plc)\b\.?/gi, "")
+    .replace(/,$/, "")
+    .trim();
+}
+
 function Sparkline({
   data,
   isPos,
@@ -616,51 +624,44 @@ export default function StockSection({
                   >
                     {/* Card top: symbol + trend badge */}
                     <div className="stocks-card-header">
-                      <div>
-                        <div className="stocks-card-symbol">{s.symbol}</div>
-                        <div className="stocks-card-name">
-                          {s.name?.replace(/ Inc\.?| Corp\.?| Ltd\.?/gi, "") ??
-                            ""}
+                      <div className="stocks-card-symbol-group">
+                        <div className="stocks-card-symbol-row">
+                          <span className="stocks-card-symbol">{s.symbol}</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAnalyzeStock(s);
+                            }}
+                            title={`Perform AI checkup on ${s.symbol}`}
+                            className="stocks-sparkle-btn"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="stocks-card-name" title={s.name}>
+                          {cleanCompanyName(s.name)}
                         </div>
                       </div>
+
                       <div
+                        className="stocks-change-badge"
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
+                          background: isPos
+                            ? "rgba(52,211,153,0.12)"
+                            : "rgba(248,113,113,0.12)",
+                          borderColor: isPos
+                            ? "rgba(52,211,153,0.3)"
+                            : "rgba(248,113,113,0.3)",
+                          color: isPos ? "#34d399" : "#f87171",
                         }}
                       >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAnalyzeStock(s);
-                          }}
-                          title={`Perform AI checkup on ${s.symbol}`}
-                          className="news-ai-action-btn-sm"
-                          style={{ padding: "2px 6px" }}
-                        >
-                          <Sparkles className="w-3 h-3" />
-                        </button>
-                        <div
-                          className="stocks-change-badge"
-                          style={{
-                            background: isPos
-                              ? "rgba(52,211,153,0.12)"
-                              : "rgba(248,113,113,0.12)",
-                            borderColor: isPos
-                              ? "rgba(52,211,153,0.3)"
-                              : "rgba(248,113,113,0.3)",
-                            color: isPos ? "#34d399" : "#f87171",
-                          }}
-                        >
-                          {isPos ? (
-                            <TrendingUp className="w-3 h-3" />
-                          ) : (
-                            <TrendingDown className="w-3 h-3" />
-                          )}
-                          {pctStr}
-                        </div>
+                        {isPos ? (
+                          <TrendingUp className="w-3 h-3" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3" />
+                        )}
+                        <span>{pctStr}</span>
                       </div>
                     </div>
 
@@ -884,8 +885,8 @@ export default function StockSection({
         /* ── BENTO GRID ── */
         .stocks-bento-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-          gap: 10px;
+          grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+          gap: 12px;
         }
 
         /* ── STOCK CARD ── */
@@ -925,6 +926,18 @@ export default function StockSection({
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
+          gap: 8px;
+          min-height: 36px;
+        }
+        .stocks-card-symbol-group {
+          display: flex;
+          flex-direction: column;
+          min-width: 0;
+          flex: 1;
+        }
+        .stocks-card-symbol-row {
+          display: flex;
+          align-items: center;
           gap: 6px;
         }
         .stocks-card-symbol {
@@ -934,25 +947,56 @@ export default function StockSection({
           letter-spacing: 0.3px;
           line-height: 1;
         }
+        .stocks-sparkle-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          border-radius: 5px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          color: #94a3b8;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          flex-shrink: 0;
+        }
+        .stocks-sparkle-btn:hover {
+          color: #22d3ee;
+          background: rgba(34,211,238,0.12);
+          border-color: rgba(34,211,238,0.3);
+        }
         .stocks-card-name {
-          font-size: 12px;
+          font-size: 11.5px;
           color: var(--text-secondary);
-          margin-top: 2px;
+          margin-top: 3px;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          max-width: 80px;
+          max-width: 105px;
+          line-height: 1.2;
         }
         .stocks-change-badge {
-          display: flex;
+          display: inline-flex;
           align-items: center;
-          gap: 3px;
-          font-size: 13px;
+          justify-content: center;
+          gap: 4px;
+          font-size: 11.5px;
           font-weight: 700;
-          padding: 3px 7px;
+          line-height: 1;
+          padding: 4px 8px;
           border-radius: 6px;
           border: 1px solid;
           white-space: nowrap;
+          flex-shrink: 0;
+          height: 24px;
+          box-sizing: border-box;
+          letter-spacing: 0.1px;
+        }
+        .stocks-change-badge svg {
+          width: 12px;
+          height: 12px;
+          display: block;
           flex-shrink: 0;
         }
         .stocks-card-sparkline {

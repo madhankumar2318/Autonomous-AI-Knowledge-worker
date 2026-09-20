@@ -12,9 +12,11 @@ export async function GET(req: Request) {
     if (list.length === 0) list = STOCKS_DATA;
   }
 
-  // Ensure every item has both change_percent and percent_change
+  // Ensure every item has both change_percent and percent_change, plus day_high and day_low
   const normalizedList = list.map((s) => ({
     ...s,
+    day_high: s.high,
+    day_low: s.low,
     change_percent: s.change_percent ?? s.percent_change ?? 0,
     percent_change: s.percent_change ?? s.change_percent ?? 0,
   }));
