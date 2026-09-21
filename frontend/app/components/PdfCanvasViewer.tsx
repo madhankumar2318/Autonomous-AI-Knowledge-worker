@@ -3,13 +3,9 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  ZoomIn,
-  ZoomOut,
-  RotateCcw,
   ExternalLink,
   FileText,
   AlertCircle,
-  Maximize2,
   RefreshCw,
 } from "lucide-react";
 
@@ -19,6 +15,7 @@ interface PdfCanvasViewerProps {
   highlightPhrase?: string;
   targetPage?: number | null;
   onFallbackToText?: () => void;
+  fitTrigger?: number;
 }
 
 export default function PdfCanvasViewer({
@@ -27,6 +24,7 @@ export default function PdfCanvasViewer({
   highlightPhrase = "",
   targetPage = null,
   onFallbackToText,
+  fitTrigger = 0,
 }: PdfCanvasViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(targetPage || 1);
@@ -236,81 +234,39 @@ export default function PdfCanvasViewer({
     setZoom((z) => Math.max(50, z - 20));
   };
 
-  const handleResetZoom = () => {
+  const handleResetZoom = useCallback(() => {
     setFitWidth(true);
     setZoom(100);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (fitTrigger !== undefined && fitTrigger > 0) {
+      handleResetZoom();
+    }
+  }, [fitTrigger, handleResetZoom]);
+
+  // Support Ctrl + Wheel zooming for fluid navigation
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          setFitWidth(false);
+          setZoom((z) => Math.min(250, z + 20));
+        } else {
+          setFitWidth(false);
+          setZoom((z) => Math.max(50, z - 20));
+        }
+      }
+    };
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheel);
+  }, []);
 
   return (
-    <div className="flex flex-col h-full w-full bg-[#0b0d13] select-none">
-      {/* ── Toolbar ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 bg-[#12141c] border-b border-white/10 text-xs text-gray-300 shrink-0">
-        {/* Page navigation */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handlePrevPage}
-            disabled={currentPage <= 1 || loading}
-            className="p-1.5 rounded-md hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer"
-            title="Previous page"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div className="flex items-center gap-1 font-mono text-xs text-gray-200">
-            <span className="font-semibold">{currentPage}</span>
-            <span className="text-gray-500">/</span>
-            <span className="text-gray-400">{numPages || "—"}</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleNextPage}
-            disabled={currentPage >= numPages || loading}
-            className="p-1.5 rounded-md hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent transition-colors cursor-pointer"
-            title="Next page"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Zoom controls */}
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleZoomOut}
-            disabled={loading}
-            className="p-1.5 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
-            title="Zoom out"
-          >
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleResetZoom}
-            className="px-2 py-1 font-mono text-xs rounded hover:bg-white/10 transition-colors text-cyan-400 font-medium cursor-pointer"
-            title="Reset fit / zoom"
-          >
-            {fitWidth ? "Fit" : `${zoom}%`}
-          </button>
-          <button
-            type="button"
-            onClick={handleZoomIn}
-            disabled={loading}
-            className="p-1.5 rounded-md hover:bg-white/10 transition-colors cursor-pointer"
-            title="Zoom in"
-          >
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleResetZoom}
-            className="p-1.5 rounded-md hover:bg-white/10 transition-colors cursor-pointer ml-1"
-            title="Fit to width"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
+    <div className="relative flex flex-col h-full w-full bg-[#0b0d13] select-none overflow-hidden">
       {/* ── Main Canvas Viewport ── */}
       <div
         ref={containerRef}
@@ -380,6 +336,35 @@ export default function PdfCanvasViewer({
           </div>
         )}
       </div>
+
+      {/* Floating page navigator if multi-page */}
+      {numPages > 1 && (
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#161922]/90 backdrop-blur-md border border-white/10 shadow-xl text-xs text-gray-200 pointer-events-auto">
+          <button
+            type="button"
+            onClick={handlePrevPage}
+            disabled={currentPage <= 1 || loading}
+            className="p-1 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer text-gray-300 hover:text-white"
+            title="Previous page"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+          </button>
+          <div className="flex items-center gap-1 font-mono text-xs px-1 text-gray-300">
+            <span className="font-semibold text-white">{currentPage}</span>
+            <span className="text-gray-500">/</span>
+            <span className="text-gray-400">{numPages}</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleNextPage}
+            disabled={currentPage >= numPages || loading}
+            className="p-1 rounded-full hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer text-gray-300 hover:text-white"
+            title="Next page"
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

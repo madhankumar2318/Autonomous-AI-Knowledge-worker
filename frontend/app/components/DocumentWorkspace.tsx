@@ -18,6 +18,7 @@ import {
   Download,
   Table,
   UploadCloud,
+  Maximize2,
 } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import ChatAssistant from "./ChatAssistant";
@@ -86,6 +87,7 @@ export default function DocumentWorkspace({
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfZoom, setPdfZoom] = useState(100);
   const [pdfDocTab, setPdfDocTab] = useState<"canvas" | "text">("canvas");
+  const [fitTrigger, setFitTrigger] = useState(0);
 
   // Local state initialized with props for RAG passage scroll/highlight synchronization
   const [localHighlightPhrase, setLocalHighlightPhrase] =
@@ -1106,15 +1108,15 @@ export default function DocumentWorkspace({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* PDF Viewing Mode: Visual Pages, Extract Text, Download */}
+              {/* PDF Viewing Mode: Visual Pages, Extract Text, Fit, Download */}
               {isPDF && (
                 <>
-                  <div className="flex items-center bg-white/[0.04] p-0.5 rounded-lg border border-white/10 shadow-xs">
+                  <div className="h-8 flex items-center bg-white/[0.04] p-0.5 rounded-lg border border-white/10 shadow-xs box-border">
                     <button
                       type="button"
                       id="btn-pdf-visual-pages"
                       onClick={() => setPdfDocTab("canvas")}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                      className={`h-full px-3 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                         pdfDocTab === "canvas"
                           ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs font-semibold"
                           : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
@@ -1128,7 +1130,7 @@ export default function DocumentWorkspace({
                       type="button"
                       id="btn-pdf-extract-text"
                       onClick={() => setPdfDocTab("text")}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                      className={`h-full px-3 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
                         pdfDocTab === "text"
                           ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs font-semibold"
                           : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
@@ -1140,11 +1142,27 @@ export default function DocumentWorkspace({
                     </button>
                   </div>
 
+                  <button
+                    type="button"
+                    id="btn-pdf-fit"
+                    onClick={() => {
+                      if (pdfDocTab !== "canvas") {
+                        setPdfDocTab("canvas");
+                      }
+                      setFitTrigger((prev) => prev + 1);
+                    }}
+                    className="h-8 px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/10 hover:border-white/20 text-xs font-medium transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                    title="Fit page to width"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Fit</span>
+                  </button>
+
                   <a
                     id="btn-pdf-download"
                     href={fileUrl}
                     download={file.filename}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/10 hover:border-white/20 text-xs font-medium transition-all shadow-xs cursor-pointer"
+                    className="h-8 px-3 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/10 hover:border-white/20 text-xs font-medium transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
                     title={`Download ${file.filename}`}
                   >
                     <Download className="w-3.5 h-3.5 text-cyan-400" />
@@ -1244,6 +1262,7 @@ export default function DocumentWorkspace({
                   filename={file.filename}
                   highlightPhrase={localHighlightPhrase}
                   targetPage={localTargetPage}
+                  fitTrigger={fitTrigger}
                   onFallbackToText={() => setPdfDocTab("text")}
                 />
               ) : (
