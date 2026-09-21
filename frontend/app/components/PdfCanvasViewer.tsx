@@ -15,7 +15,6 @@ interface PdfCanvasViewerProps {
   highlightPhrase?: string;
   targetPage?: number | null;
   onFallbackToText?: () => void;
-  fitTrigger?: number;
 }
 
 export default function PdfCanvasViewer({
@@ -24,7 +23,6 @@ export default function PdfCanvasViewer({
   highlightPhrase = "",
   targetPage = null,
   onFallbackToText,
-  fitTrigger = 0,
 }: PdfCanvasViewerProps) {
   const [numPages, setNumPages] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(targetPage || 1);
@@ -238,12 +236,6 @@ export default function PdfCanvasViewer({
     setFitWidth(true);
     setZoom(100);
   }, []);
-
-  useEffect(() => {
-    if (fitTrigger !== undefined && fitTrigger > 0) {
-      handleResetZoom();
-    }
-  }, [fitTrigger, handleResetZoom]);
 
   // Support Ctrl + Wheel zooming for fluid navigation
   useEffect(() => {
