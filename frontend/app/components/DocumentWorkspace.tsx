@@ -1084,7 +1084,7 @@ export default function DocumentWorkspace({
         <div className="dw-viewer">
           <div className="dw-viewer-toolbar">
             <div className="flex items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[11px] font-semibold tracking-wider text-slate-300 uppercase shadow-xs">
+              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-[11px] font-semibold tracking-wider text-slate-300 uppercase shadow-xs whitespace-nowrap">
                 {isEditing ? (
                   <>
                     <Edit3 className="w-3.5 h-3.5 text-amber-400" />
@@ -1124,15 +1124,15 @@ export default function DocumentWorkspace({
               )}
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-3.5">
-              {/* PDF Viewing Mode: Oval buttons with clean spacing and precise alignment */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* PDF Viewing Mode: Oval buttons with ample inner padding and clean spacing */}
               {isPDF && (
                 <>
                   <button
                     type="button"
                     id="btn-pdf-visual-pages"
                     onClick={() => setPdfDocTab("canvas")}
-                    className={`h-8 px-4 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs ${
+                    className={`h-8.5 px-5.5 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs whitespace-nowrap ${
                       pdfDocTab === "canvas"
                         ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/45 shadow-[0_0_12px_rgba(6,182,212,0.15)] font-semibold"
                         : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/10 hover:border-white/20"
@@ -1140,7 +1140,7 @@ export default function DocumentWorkspace({
                     title="View PDF visual pages"
                   >
                     <FileText
-                      className={`w-3.5 h-3.5 ${
+                      className={`w-3.5 h-3.5 shrink-0 ${
                         pdfDocTab === "canvas" ? "text-cyan-400" : "text-slate-400"
                       }`}
                     />
@@ -1151,7 +1151,7 @@ export default function DocumentWorkspace({
                     type="button"
                     id="btn-pdf-extract-text"
                     onClick={() => setPdfDocTab("text")}
-                    className={`h-8 px-4 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs ${
+                    className={`h-8.5 px-5.5 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs whitespace-nowrap ${
                       pdfDocTab === "text"
                         ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/45 shadow-[0_0_12px_rgba(6,182,212,0.15)] font-semibold"
                         : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/10 hover:border-white/20"
@@ -1159,7 +1159,7 @@ export default function DocumentWorkspace({
                     title="View extracted selectable text"
                   >
                     <AlignLeft
-                      className={`w-3.5 h-3.5 ${
+                      className={`w-3.5 h-3.5 shrink-0 ${
                         pdfDocTab === "text" ? "text-cyan-400" : "text-slate-400"
                       }`}
                     />
@@ -1172,17 +1172,17 @@ export default function DocumentWorkspace({
                       type="button"
                       id="btn-pdf-copy-extracted"
                       onClick={() => handleCopyText(textContent)}
-                      className="h-8 px-3.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5 select-none"
+                      className="h-8.5 px-5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all shadow-xs cursor-pointer inline-flex items-center gap-2 select-none whitespace-nowrap"
                       title="Copy extracted text to clipboard"
                     >
                       {copiedText ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                           <span className="text-emerald-300">Copied</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="w-3.5 h-3.5 text-slate-400" />
+                          <Copy className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span>Copy Text</span>
                         </>
                       )}
@@ -1193,10 +1193,10 @@ export default function DocumentWorkspace({
                     id="btn-pdf-download"
                     href={fileUrl}
                     download={file.filename}
-                    className="h-8 px-4 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(6,182,212,0.12)] text-xs font-medium transition-all duration-150 shadow-xs cursor-pointer inline-flex items-center gap-2 select-none group"
+                    className="h-8.5 px-5.5 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(6,182,212,0.12)] text-xs font-medium transition-all duration-150 shadow-xs cursor-pointer inline-flex items-center gap-2 select-none whitespace-nowrap group"
                     title={`Download original file: ${file.filename}`}
                   >
-                    <Download className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-y-0.5 transition-transform" />
+                    <Download className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-y-0.5 transition-transform shrink-0" />
                     <span>Download</span>
                   </a>
                 </>
