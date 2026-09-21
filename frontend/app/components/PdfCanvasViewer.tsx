@@ -6,7 +6,6 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Download,
   ExternalLink,
   FileText,
   AlertCircle,
@@ -309,41 +308,6 @@ export default function PdfCanvasViewer({
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
-        </div>
-
-        {/* External and fallback links */}
-        <div className="flex items-center gap-2">
-          {onFallbackToText && (
-            <button
-              type="button"
-              onClick={onFallbackToText}
-              className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors cursor-pointer"
-              title="View text version"
-            >
-              <FileText className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Extracted Text</span>
-            </button>
-          )}
-
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-            title="Open original file in new browser window"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-            <span>Open in Tab</span>
-          </a>
-
-          <a
-            href={url}
-            download={filename}
-            className="p-1.5 rounded-md hover:bg-white/10 text-gray-300 hover:text-white transition-colors"
-            title="Download PDF"
-          >
-            <Download className="w-3.5 h-3.5" />
-          </a>
         </div>
       </div>
 

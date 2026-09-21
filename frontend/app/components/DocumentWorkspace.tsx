@@ -17,7 +17,6 @@ import {
   Check,
   Download,
   Table,
-  Sparkles,
   UploadCloud,
 } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
@@ -86,9 +85,7 @@ export default function DocumentWorkspace({
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfZoom, setPdfZoom] = useState(100);
-  const [pdfDocTab, setPdfDocTab] = useState<"canvas" | "text" | "stats">(
-    "canvas",
-  );
+  const [pdfDocTab, setPdfDocTab] = useState<"canvas" | "text">("canvas");
 
   // Local state initialized with props for RAG passage scroll/highlight synchronization
   const [localHighlightPhrase, setLocalHighlightPhrase] =
@@ -158,102 +155,11 @@ export default function DocumentWorkspace({
 
   const [copiedText, setCopiedText] = useState(false);
 
-  const getQuickPrompts = () => {
-    if (isSpreadsheet) {
-      return [
-        {
-          label: "📊 Summary Metrics",
-          prompt: `Calculate summary metrics, totals, and column statistics for ${file.filename}`,
-        },
-        {
-          label: "🔍 Highs & Lows",
-          prompt: `What are the highest and lowest key values in ${file.filename}?`,
-        },
-        {
-          label: "📈 Trend Analysis",
-          prompt: `Analyze the main patterns, categories, or trends in ${file.filename}`,
-        },
-        {
-          label: "📋 Key Rows",
-          prompt: `Summarize the most significant rows and data points in ${file.filename}`,
-        },
-      ];
-    }
-    if (isDocx) {
-      return [
-        {
-          label: "📑 Executive Summary",
-          prompt: `Provide a concise executive summary of the Word document ${file.filename}`,
-        },
-        {
-          label: "✅ Action Items",
-          prompt: `Extract all key action items, tasks, and deliverables from ${file.filename}`,
-        },
-        {
-          label: "💡 Key Recommendations",
-          prompt: `What are the core conclusions and recommendations in ${file.filename}?`,
-        },
-      ];
-    }
-    if (isJson) {
-      return [
-        {
-          label: "🧩 Schema & Structure",
-          prompt: `Explain the structure and main data fields in ${file.filename}`,
-        },
-        {
-          label: "🔢 Record Counts",
-          prompt: `Count total items, objects, and summary statistics in ${file.filename}`,
-        },
-        {
-          label: "🔎 Key Values",
-          prompt: `Extract the primary entities and important values from ${file.filename}`,
-        },
-      ];
-    }
-    if (isPDF) {
-      return [
-        {
-          label: "📑 Full Summary",
-          prompt: `Summarize the essential findings and sections of ${file.filename}`,
-        },
-        {
-          label: "📌 Key Takeaways",
-          prompt: `What are the top takeaways and conclusions from ${file.filename}?`,
-        },
-        {
-          label: "❓ Section Breakdown",
-          prompt: `Give an overview of the main sections and chapters in ${file.filename}`,
-        },
-      ];
-    }
-    return [
-      {
-        label: "📝 Summarize",
-        prompt: `Summarize the core takeaways of ${file.filename}`,
-      },
-      {
-        label: "🔍 Extract Facts",
-        prompt: `Extract the main facts and key points from ${file.filename}`,
-      },
-      {
-        label: "✏️ Polish & Review",
-        prompt: `Review ${file.filename} and suggest improvements or next steps`,
-      },
-    ];
-  };
-
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedText(true);
     showToast("success", "Copied to clipboard");
     setTimeout(() => setCopiedText(false), 2000);
-  };
-
-  const handleSendPrompt = (prompt: string) => {
-    window.dispatchEvent(
-      new CustomEvent("ak-set-chat-prompt", { detail: { prompt } }),
-    );
   };
 
   const loadPdf = useCallback(() => {
@@ -1200,46 +1106,51 @@ export default function DocumentWorkspace({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* PDF Viewing Mode Tabs */}
+              {/* PDF Viewing Mode: Visual Pages, Extract Text, Download */}
               {isPDF && (
-                <div className="flex items-center gap-1 bg-white/5 p-0.5 rounded-lg border border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => setPdfDocTab("canvas")}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      pdfDocTab === "canvas"
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs"
-                        : "text-gray-400 hover:text-white"
-                    }`}
+                <>
+                  <div className="flex items-center bg-white/[0.04] p-0.5 rounded-lg border border-white/10 shadow-xs">
+                    <button
+                      type="button"
+                      id="btn-pdf-visual-pages"
+                      onClick={() => setPdfDocTab("canvas")}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                        pdfDocTab === "canvas"
+                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs font-semibold"
+                          : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+                      }`}
+                      title="Switch to Visual Pages view"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Visual Pages</span>
+                    </button>
+                    <button
+                      type="button"
+                      id="btn-pdf-extract-text"
+                      onClick={() => setPdfDocTab("text")}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                        pdfDocTab === "text"
+                          ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs font-semibold"
+                          : "text-gray-400 hover:text-white hover:bg-white/5 border border-transparent"
+                      }`}
+                      title="Switch to Extract Text view"
+                    >
+                      <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Extract Text</span>
+                    </button>
+                  </div>
+
+                  <a
+                    id="btn-pdf-download"
+                    href={fileUrl}
+                    download={file.filename}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/10 hover:border-white/20 text-xs font-medium transition-all shadow-xs cursor-pointer"
+                    title={`Download ${file.filename}`}
                   >
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Visual Pages</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPdfDocTab("text")}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      pdfDocTab === "text"
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs"
-                        : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    <span>Extracted Text</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPdfDocTab("stats")}
-                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
-                      pdfDocTab === "stats"
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs"
-                        : "text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Overview</span>
-                  </button>
-                </div>
+                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Download</span>
+                  </a>
+                </>
               )}
 
               {/* Copy Content (for text, docx, json) */}
@@ -1310,16 +1221,18 @@ export default function DocumentWorkspace({
                   </div>
                 )}
 
-              {/* Download link for any document */}
-              <a
-                href={fileUrl}
-                download={file.filename}
-                className="dw-toolbar-action-btn"
-                title={`Download ${file.filename}`}
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Download</span>
-              </a>
+              {/* Download link for non-PDF documents */}
+              {!isPDF && (
+                <a
+                  href={fileUrl}
+                  download={file.filename}
+                  className="dw-toolbar-action-btn"
+                  title={`Download ${file.filename}`}
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download</span>
+                </a>
+              )}
             </div>
           </div>
 
@@ -1333,7 +1246,7 @@ export default function DocumentWorkspace({
                   targetPage={localTargetPage}
                   onFallbackToText={() => setPdfDocTab("text")}
                 />
-              ) : pdfDocTab === "text" ? (
+              ) : (
                 <div className="dw-text-content">
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-white/10">
                     <div className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
@@ -1354,67 +1267,6 @@ export default function DocumentWorkspace({
                     textContent || "Extracting document content…",
                     localHighlightPhrase,
                   )}
-                </div>
-              ) : (
-                <div className="p-8 max-w-xl mx-auto space-y-6 text-gray-200">
-                  <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
-                    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                      <Brain className="w-4 h-4 text-cyan-400" />
-                      Document Intelligence Overview
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
-                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
-                        <span className="text-gray-400 block">File Name</span>
-                        <span
-                          className="text-white font-mono font-semibold text-xs mt-0.5 block truncate"
-                          title={file.filename}
-                        >
-                          {file.filename}
-                        </span>
-                      </div>
-                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
-                        <span className="text-gray-400 block">File Size</span>
-                        <span className="text-white font-mono font-semibold text-sm mt-0.5 block">
-                          {formatSize(file.size)}
-                        </span>
-                      </div>
-                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
-                        <span className="text-gray-400 block">RAG Chunks</span>
-                        <span className="text-white font-mono font-semibold text-sm mt-0.5 block">
-                          {file.chunks || 1} indexed
-                        </span>
-                      </div>
-                      <div className="bg-black/30 p-3 rounded-lg border border-white/5">
-                        <span className="text-gray-400 block">
-                          Approx. Words
-                        </span>
-                        <span className="text-white font-mono font-semibold text-sm mt-0.5 block">
-                          {textContent
-                            ? textContent.split(/\s+/).filter(Boolean).length
-                            : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                      Suggested AI Actions
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {getQuickPrompts().map((qp, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          onClick={() => handleSendPrompt(qp.prompt)}
-                          className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-gray-200 transition-colors flex items-center justify-between group cursor-pointer"
-                        >
-                          <span>{qp.label}</span>
-                          <Sparkles className="w-3.5 h-3.5 text-cyan-400 opacity-60 group-hover:opacity-100" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )
             ) : textLoading ? (
