@@ -585,6 +585,68 @@ export default function DocumentWorkspace({
           text-transform: uppercase;
           color: var(--text-muted, #64748b);
         }
+        .dw-toolbar-oval-badge {
+          height: 32px;
+          padding: 0 22px;
+          border-radius: 9999px;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.6px;
+          text-transform: uppercase;
+          color: #cbd5e1;
+          white-space: nowrap;
+          user-select: none;
+        }
+        .dw-toolbar-oval-btn {
+          height: 36px;
+          padding: 0 26px;
+          border-radius: 9999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-size: 12px;
+          font-weight: 500;
+          white-space: nowrap;
+          user-select: none;
+          cursor: pointer;
+          transition: all 0.15s ease-in-out;
+          text-decoration: none;
+          box-sizing: border-box;
+        }
+        .dw-toolbar-oval-btn-active {
+          background: rgba(6, 182, 212, 0.15);
+          color: #67e8f9;
+          border: 1px solid rgba(6, 182, 212, 0.45);
+          font-weight: 600;
+          box-shadow: 0 0 14px rgba(6, 182, 212, 0.18);
+        }
+        .dw-toolbar-oval-btn-inactive {
+          background: rgba(255, 255, 255, 0.04);
+          color: #cbd5e1;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .dw-toolbar-oval-btn-inactive:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #ffffff;
+          border-color: rgba(255, 255, 255, 0.22);
+        }
+        .dw-toolbar-oval-btn-action {
+          background: rgba(255, 255, 255, 0.04);
+          color: #cbd5e1;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .dw-toolbar-oval-btn-action:hover {
+          background: rgba(6, 182, 212, 0.15);
+          color: #67e8f9;
+          border-color: rgba(6, 182, 212, 0.45);
+          box-shadow: 0 0 14px rgba(6, 182, 212, 0.15);
+        }
         .dw-zoom-controls {
           display: flex;
           align-items: center;
@@ -1084,35 +1146,35 @@ export default function DocumentWorkspace({
         <div className="dw-viewer">
           <div className="dw-viewer-toolbar">
             <div className="flex items-center gap-2.5">
-              <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-[11px] font-semibold tracking-wider text-slate-300 uppercase shadow-xs whitespace-nowrap">
+              <span className="dw-toolbar-oval-badge shadow-xs">
                 {isEditing ? (
                   <>
-                    <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                    <Edit3 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                     Editing Document
                   </>
                 ) : isPDF ? (
                   <>
-                    <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                    <FileText className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                     PDF Preview
                   </>
                 ) : isSpreadsheet ? (
                   <>
-                    <Table className="w-3.5 h-3.5 text-emerald-400" />
+                    <Table className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     Spreadsheet Grid
                   </>
                 ) : isDocx ? (
                   <>
-                    <FileText className="w-3.5 h-3.5 text-blue-400" />
+                    <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                     Word Document
                   </>
                 ) : isJson ? (
                   <>
-                    <FileJson className="w-3.5 h-3.5 text-orange-400" />
+                    <FileJson className="w-3.5 h-3.5 text-orange-400 shrink-0" />
                     JSON Structure
                   </>
                 ) : (
                   <>
-                    <File className="w-3.5 h-3.5 text-slate-400" />
+                    <File className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     Document Preview
                   </>
                 )}
@@ -1124,7 +1186,7 @@ export default function DocumentWorkspace({
               )}
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-4 sm:gap-5 mr-1 sm:mr-3">
               {/* PDF Viewing Mode: Oval buttons with ample inner padding and clean spacing */}
               {isPDF && (
                 <>
@@ -1132,10 +1194,10 @@ export default function DocumentWorkspace({
                     type="button"
                     id="btn-pdf-visual-pages"
                     onClick={() => setPdfDocTab("canvas")}
-                    className={`h-8.5 px-5.5 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs whitespace-nowrap ${
+                    className={`dw-toolbar-oval-btn shadow-xs ${
                       pdfDocTab === "canvas"
-                        ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/45 shadow-[0_0_12px_rgba(6,182,212,0.15)] font-semibold"
-                        : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/10 hover:border-white/20"
+                        ? "dw-toolbar-oval-btn-active"
+                        : "dw-toolbar-oval-btn-inactive"
                     }`}
                     title="View PDF visual pages"
                   >
@@ -1151,10 +1213,10 @@ export default function DocumentWorkspace({
                     type="button"
                     id="btn-pdf-extract-text"
                     onClick={() => setPdfDocTab("text")}
-                    className={`h-8.5 px-5.5 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs whitespace-nowrap ${
+                    className={`dw-toolbar-oval-btn shadow-xs ${
                       pdfDocTab === "text"
-                        ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/45 shadow-[0_0_12px_rgba(6,182,212,0.15)] font-semibold"
-                        : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/10 hover:border-white/20"
+                        ? "dw-toolbar-oval-btn-active"
+                        : "dw-toolbar-oval-btn-inactive"
                     }`}
                     title="View extracted selectable text"
                   >
@@ -1172,7 +1234,7 @@ export default function DocumentWorkspace({
                       type="button"
                       id="btn-pdf-copy-extracted"
                       onClick={() => handleCopyText(textContent)}
-                      className="h-8.5 px-5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all shadow-xs cursor-pointer inline-flex items-center gap-2 select-none whitespace-nowrap"
+                      className="dw-toolbar-oval-btn dw-toolbar-oval-btn-inactive shadow-xs"
                       title="Copy extracted text to clipboard"
                     >
                       {copiedText ? (
@@ -1193,7 +1255,7 @@ export default function DocumentWorkspace({
                     id="btn-pdf-download"
                     href={fileUrl}
                     download={file.filename}
-                    className="h-8.5 px-5.5 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(6,182,212,0.12)] text-xs font-medium transition-all duration-150 shadow-xs cursor-pointer inline-flex items-center gap-2 select-none whitespace-nowrap group"
+                    className="dw-toolbar-oval-btn dw-toolbar-oval-btn-action shadow-xs group"
                     title={`Download original file: ${file.filename}`}
                   >
                     <Download className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-y-0.5 transition-transform shrink-0" />
