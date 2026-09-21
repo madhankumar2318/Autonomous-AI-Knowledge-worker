@@ -18,6 +18,7 @@ import {
   Download,
   Table,
   UploadCloud,
+  AlignLeft,
 } from "lucide-react";
 import React, { useEffect, useState, useCallback } from "react";
 import ChatAssistant from "./ChatAssistant";
@@ -1082,21 +1083,39 @@ export default function DocumentWorkspace({
         {/* Left: Document Viewer */}
         <div className="dw-viewer">
           <div className="dw-viewer-toolbar">
-            <div className="flex items-center gap-2">
-              <span className="dw-viewer-label">
-                {isEditing
-                  ? "📝 Editing Document"
-                  : isPDF
-                    ? "📑 PDF Preview"
-                    : isSpreadsheet
-                      ? "📊 Spreadsheet Grid"
-                      : isDocx
-                        ? "📄 Word Document Preview"
-                        : isJson
-                          ? "🧩 JSON Structure"
-                          : isMarkdown
-                            ? "📝 Markdown Document"
-                            : "📄 Document Preview"}
+            <div className="flex items-center gap-2.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/10 text-[11px] font-semibold tracking-wider text-slate-300 uppercase">
+                {isEditing ? (
+                  <>
+                    <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                    Editing Document
+                  </>
+                ) : isPDF ? (
+                  <>
+                    <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                    PDF Preview
+                  </>
+                ) : isSpreadsheet ? (
+                  <>
+                    <Table className="w-3.5 h-3.5 text-emerald-400" />
+                    Spreadsheet Grid
+                  </>
+                ) : isDocx ? (
+                  <>
+                    <FileText className="w-3.5 h-3.5 text-blue-400" />
+                    Word Document
+                  </>
+                ) : isJson ? (
+                  <>
+                    <FileJson className="w-3.5 h-3.5 text-orange-400" />
+                    JSON Structure
+                  </>
+                ) : (
+                  <>
+                    <File className="w-3.5 h-3.5 text-slate-400" />
+                    Document Preview
+                  </>
+                )}
               </span>
               {isSpreadsheet && gridData && (
                 <span className="dw-grid-meta-badge">
@@ -1105,48 +1124,83 @@ export default function DocumentWorkspace({
               )}
             </div>
 
-            <div className="flex items-center gap-3 sm:gap-4">
-              {/* PDF Viewing Mode: Visual Pages, Extract Text, Download */}
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              {/* PDF Viewing Mode: Segmented Controller for View Tabs */}
               {isPDF && (
                 <>
-                  <button
-                    type="button"
-                    id="btn-pdf-visual-pages"
-                    onClick={() => setPdfDocTab("canvas")}
-                    className={`h-9 px-4 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-2 ${
-                      pdfDocTab === "canvas"
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs font-semibold"
-                        : "bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/10 hover:border-white/20"
-                    }`}
-                    title="Switch to Visual Pages view"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Visual Pages</span>
-                  </button>
+                  <div className="flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-700/60 shadow-inner">
+                    <button
+                      type="button"
+                      id="btn-pdf-visual-pages"
+                      onClick={() => setPdfDocTab("canvas")}
+                      className={`h-7 px-3 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 select-none ${
+                        pdfDocTab === "canvas"
+                          ? "bg-slate-800 text-cyan-300 font-semibold shadow-xs border border-cyan-500/30"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent"
+                      }`}
+                      title="View PDF visual pages"
+                    >
+                      <FileText
+                        className={`w-3.5 h-3.5 ${
+                          pdfDocTab === "canvas" ? "text-cyan-400" : "text-slate-400"
+                        }`}
+                      />
+                      <span>Visual Pages</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    id="btn-pdf-extract-text"
-                    onClick={() => setPdfDocTab("text")}
-                    className={`h-9 px-4 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-2 ${
-                      pdfDocTab === "text"
-                        ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-xs font-semibold"
-                        : "bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/10 hover:border-white/20"
-                    }`}
-                    title="Switch to Extract Text view"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Extract Text</span>
-                  </button>
+                    <button
+                      type="button"
+                      id="btn-pdf-extract-text"
+                      onClick={() => setPdfDocTab("text")}
+                      className={`h-7 px-3 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 select-none ${
+                        pdfDocTab === "text"
+                          ? "bg-slate-800 text-cyan-300 font-semibold shadow-xs border border-cyan-500/30"
+                          : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent"
+                      }`}
+                      title="View extracted selectable text"
+                    >
+                      <AlignLeft
+                        className={`w-3.5 h-3.5 ${
+                          pdfDocTab === "text" ? "text-cyan-400" : "text-slate-400"
+                        }`}
+                      />
+                      <span>Extract Text</span>
+                    </button>
+                  </div>
+
+                  <div className="h-4 w-px bg-white/10 mx-0.5 hidden sm:block" />
+
+                  {/* Copy Text Shortcut when in Extract Text mode */}
+                  {pdfDocTab === "text" && textContent && (
+                    <button
+                      type="button"
+                      id="btn-pdf-copy-extracted"
+                      onClick={() => handleCopyText(textContent)}
+                      className="h-8 px-3 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                      title="Copy extracted text to clipboard"
+                    >
+                      {copiedText ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-300">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Copy Text</span>
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   <a
                     id="btn-pdf-download"
                     href={fileUrl}
                     download={file.filename}
-                    className="h-9 px-4 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-gray-300 hover:text-white border border-white/10 hover:border-white/20 text-xs font-medium transition-all shadow-xs cursor-pointer flex items-center gap-2"
-                    title={`Download ${file.filename}`}
+                    className="h-8 px-3.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 hover:border-cyan-500/50 text-xs font-medium transition-all shadow-xs cursor-pointer flex items-center gap-2 group"
+                    title={`Download original file: ${file.filename}`}
                   >
-                    <Download className="w-3.5 h-3.5 text-cyan-400" />
+                    <Download className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-y-0.5 transition-transform" />
                     <span>Download</span>
                   </a>
                 </>
