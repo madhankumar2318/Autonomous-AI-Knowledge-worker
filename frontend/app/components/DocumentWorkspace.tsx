@@ -1084,7 +1084,7 @@ export default function DocumentWorkspace({
         <div className="dw-viewer">
           <div className="dw-viewer-toolbar">
             <div className="flex items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/10 text-[11px] font-semibold tracking-wider text-slate-300 uppercase">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[11px] font-semibold tracking-wider text-slate-300 uppercase shadow-xs">
                 {isEditing ? (
                   <>
                     <Edit3 className="w-3.5 h-3.5 text-amber-400" />
@@ -1124,51 +1124,47 @@ export default function DocumentWorkspace({
               )}
             </div>
 
-            <div className="flex items-center gap-2.5 sm:gap-3">
-              {/* PDF Viewing Mode: Segmented Controller for View Tabs */}
+            <div className="flex items-center gap-3 sm:gap-3.5">
+              {/* PDF Viewing Mode: Oval buttons with clean spacing and precise alignment */}
               {isPDF && (
                 <>
-                  <div className="flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-700/60 shadow-inner">
-                    <button
-                      type="button"
-                      id="btn-pdf-visual-pages"
-                      onClick={() => setPdfDocTab("canvas")}
-                      className={`h-7 px-3 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 select-none ${
-                        pdfDocTab === "canvas"
-                          ? "bg-slate-800 text-cyan-300 font-semibold shadow-xs border border-cyan-500/30"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent"
+                  <button
+                    type="button"
+                    id="btn-pdf-visual-pages"
+                    onClick={() => setPdfDocTab("canvas")}
+                    className={`h-8 px-4 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs ${
+                      pdfDocTab === "canvas"
+                        ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/45 shadow-[0_0_12px_rgba(6,182,212,0.15)] font-semibold"
+                        : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/10 hover:border-white/20"
+                    }`}
+                    title="View PDF visual pages"
+                  >
+                    <FileText
+                      className={`w-3.5 h-3.5 ${
+                        pdfDocTab === "canvas" ? "text-cyan-400" : "text-slate-400"
                       }`}
-                      title="View PDF visual pages"
-                    >
-                      <FileText
-                        className={`w-3.5 h-3.5 ${
-                          pdfDocTab === "canvas" ? "text-cyan-400" : "text-slate-400"
-                        }`}
-                      />
-                      <span>Visual Pages</span>
-                    </button>
+                    />
+                    <span>Visual Pages</span>
+                  </button>
 
-                    <button
-                      type="button"
-                      id="btn-pdf-extract-text"
-                      onClick={() => setPdfDocTab("text")}
-                      className={`h-7 px-3 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer flex items-center gap-1.5 select-none ${
-                        pdfDocTab === "text"
-                          ? "bg-slate-800 text-cyan-300 font-semibold shadow-xs border border-cyan-500/30"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent"
+                  <button
+                    type="button"
+                    id="btn-pdf-extract-text"
+                    onClick={() => setPdfDocTab("text")}
+                    className={`h-8 px-4 rounded-full text-xs font-medium transition-all duration-150 cursor-pointer inline-flex items-center gap-2 select-none shadow-xs ${
+                      pdfDocTab === "text"
+                        ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/45 shadow-[0_0_12px_rgba(6,182,212,0.15)] font-semibold"
+                        : "bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 hover:text-white border border-white/10 hover:border-white/20"
+                    }`}
+                    title="View extracted selectable text"
+                  >
+                    <AlignLeft
+                      className={`w-3.5 h-3.5 ${
+                        pdfDocTab === "text" ? "text-cyan-400" : "text-slate-400"
                       }`}
-                      title="View extracted selectable text"
-                    >
-                      <AlignLeft
-                        className={`w-3.5 h-3.5 ${
-                          pdfDocTab === "text" ? "text-cyan-400" : "text-slate-400"
-                        }`}
-                      />
-                      <span>Extract Text</span>
-                    </button>
-                  </div>
-
-                  <div className="h-4 w-px bg-white/10 mx-0.5 hidden sm:block" />
+                    />
+                    <span>Extract Text</span>
+                  </button>
 
                   {/* Copy Text Shortcut when in Extract Text mode */}
                   {pdfDocTab === "text" && textContent && (
@@ -1176,7 +1172,7 @@ export default function DocumentWorkspace({
                       type="button"
                       id="btn-pdf-copy-extracted"
                       onClick={() => handleCopyText(textContent)}
-                      className="h-8 px-3 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                      className="h-8 px-3.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5 select-none"
                       title="Copy extracted text to clipboard"
                     >
                       {copiedText ? (
@@ -1197,7 +1193,7 @@ export default function DocumentWorkspace({
                     id="btn-pdf-download"
                     href={fileUrl}
                     download={file.filename}
-                    className="h-8 px-3.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 hover:border-cyan-500/50 text-xs font-medium transition-all shadow-xs cursor-pointer flex items-center gap-2 group"
+                    className="h-8 px-4 rounded-full bg-white/[0.04] hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 hover:shadow-[0_0_12px_rgba(6,182,212,0.12)] text-xs font-medium transition-all duration-150 shadow-xs cursor-pointer inline-flex items-center gap-2 select-none group"
                     title={`Download original file: ${file.filename}`}
                   >
                     <Download className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-y-0.5 transition-transform" />
