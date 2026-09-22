@@ -25,6 +25,7 @@ import ChatAssistant from "./ChatAssistant";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 import PdfCanvasViewer from "./PdfCanvasViewer";
+import { storeLocalFileBlob, getLocalFileBlob } from "../lib/idb";
 
 interface UploadedFile {
   id: string | number;
@@ -168,12 +169,27 @@ export default function DocumentWorkspace({
     setPdfLoading(true);
     setPdfError(null);
 
+    // 1. Instant render from local IndexedDB if previously cached
+    getLocalFileBlob(file.filename).then((cachedBlob) => {
+      if (cachedBlob) {
+        const url = URL.createObjectURL(cachedBlob);
+        setPdfBlobUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+        setPdfLoading(false);
+      }
+    });
+
+    // 2. Fetch fresh copy from server and update local cache
     fetch(fileUrl, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load PDF (${r.status})`);
         return r.blob();
       })
       .then((blob) => {
+        // Cache to IndexedDB for offline and refresh persistence
+        storeLocalFileBlob(file.filename, blob);
         const pdfBlob = new Blob([blob], { type: "application/pdf" });
         const url = URL.createObjectURL(pdfBlob);
         setPdfBlobUrl((prev) => {
@@ -182,7 +198,12 @@ export default function DocumentWorkspace({
         });
       })
       .catch((err) => {
-        setPdfError(String(err));
+        setPdfBlobUrl((existing) => {
+          if (!existing) {
+            setPdfError(String(err));
+          }
+          return existing;
+        });
         // Also attempt to load extracted text if available
         fetch(
           `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`,
@@ -211,6 +232,10 @@ export default function DocumentWorkspace({
         setTextLoading(true);
         setTextError(null);
       }
+
+      // Persist to local IndexedDB immediately
+      storeLocalFileBlob(selectedFile.name, selectedFile);
+
       const formData = new FormData();
       formData.append("file", selectedFile);
       const res = await fetch(`${API_BASE_URL}/upload`, {
@@ -221,7 +246,7 @@ export default function DocumentWorkspace({
       if (!res.ok) throw new Error("Failed to re-upload file");
       showToast(
         "success",
-        `${selectedFile.name} uploaded and saved to persistent database!`,
+        `${selectedFile.name} uploaded and saved to persistent storage!`,
       );
 
       if (isPDF) {

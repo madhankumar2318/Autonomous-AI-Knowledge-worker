@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 import DocumentWorkspace from "./DocumentWorkspace";
+import { storeLocalFileBlob, deleteLocalFileBlob } from "../lib/idb";
 
 interface UploadedFile {
   id: number;
@@ -53,12 +54,44 @@ interface FileUploadProps {
 
 export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
-  const [uploads, setUploads] = useState<UploadedFile[]>([]);
+  const [uploads, setUploads] = useState<UploadedFile[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("ak_uploads_list_cache");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [activeWorkspaceFile, setActiveWorkspaceFile] =
-    useState<UploadedFile | null>(null);
+    useState<UploadedFile | null>(() => {
+      if (typeof window !== "undefined") {
+        try {
+          const savedFilename = localStorage.getItem("ak_active_file");
+          if (savedFilename) {
+            const cached = localStorage.getItem("ak_uploads_list_cache");
+            if (cached) {
+              const parsed: UploadedFile[] = JSON.parse(cached);
+              const found = parsed.find((u) => u.filename === savedFilename);
+              if (found) return found;
+            }
+            return {
+              id: 0,
+              filename: savedFilename,
+              size: 0,
+              rag_indexed: true,
+            };
+          }
+        } catch {}
+      }
+      return null;
+    });
   const [workspaceHighlightPhrase, setWorkspaceHighlightPhrase] =
     useState<string>("");
   const [workspaceHighlightPage, setWorkspaceHighlightPage] = useState<
@@ -68,6 +101,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     null,
   );
   const dragCounter = useRef(0);
+  const isInitialMount = useRef(true);
   const [reindexingFiles, setReindexingFiles] = useState<Set<string>>(
     new Set(),
   );
@@ -92,7 +126,30 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         chunks:
           item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
       }));
-      setUploads(normalized);
+
+      if (normalized.length > 0) {
+        setUploads(normalized);
+        try {
+          localStorage.setItem(
+            "ak_uploads_list_cache",
+            JSON.stringify(normalized),
+          );
+        } catch {}
+      } else {
+        setUploads((prev) => {
+          if (prev.length > 0 && normalized.length === 0) return prev;
+          return normalized;
+        });
+      }
+
+      // Reconcile active file metadata with server version
+      const savedFilename = localStorage.getItem("ak_active_file");
+      if (savedFilename) {
+        const matched = normalized.find((u: any) => u.filename === savedFilename);
+        if (matched) {
+          setActiveWorkspaceFile(matched);
+        }
+      }
     } catch (_err) {
       console.error("Error fetching uploads:", _err);
     }
@@ -116,14 +173,17 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       const matched = uploads.find((u) => u.filename === filename);
       if (matched) {
         setActiveWorkspaceFile(matched);
+        localStorage.setItem("ak_active_file", filename);
       } else {
         // Fallback: construct a temporary UploadedFile object if not loaded yet
-        setActiveWorkspaceFile({
+        const temp: UploadedFile = {
           id: 0,
           filename: filename,
           size: 0,
           rag_indexed: true,
-        });
+        };
+        setActiveWorkspaceFile(temp);
+        localStorage.setItem("ak_active_file", filename);
       }
     };
     window.addEventListener("open-rag-document", handleOpenDocument);
@@ -133,6 +193,11 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   }, [uploads]);
 
   useEffect(() => {
+    // Avoid deleting saved file on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (activeWorkspaceFile) {
       localStorage.setItem("ak_active_file", activeWorkspaceFile.filename);
     } else {
@@ -222,6 +287,36 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
 
       if (res.ok) {
         const data = await res.json();
+        const uploadedFileObj = file;
+
+        // Persist file blob to IndexedDB
+        storeLocalFileBlob(uploadedFileObj.name, uploadedFileObj);
+
+        const newRecord: UploadedFile = {
+          id: Date.now(),
+          filename: uploadedFileObj.name,
+          size: uploadedFileObj.size,
+          rag_indexed: true,
+          chunks: data.chunks || Math.max(1, Math.round(uploadedFileObj.size / 1500)),
+          uploaded_at: new Date().toISOString(),
+        };
+
+        setUploads((prev) => {
+          const filtered = prev.filter((u) => u.filename !== uploadedFileObj.name);
+          const updated = [newRecord, ...filtered];
+          try {
+            localStorage.setItem(
+              "ak_uploads_list_cache",
+              JSON.stringify(updated),
+            );
+          } catch {}
+          return updated;
+        });
+
+        // Automatically open the uploaded file in Document Workspace!
+        setActiveWorkspaceFile(newRecord);
+        localStorage.setItem("ak_active_file", uploadedFileObj.name);
+
         setTimeout(() => {
           setFile(null);
           setUploadProgress(0);
@@ -229,13 +324,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           if (data.rag_status === "success") {
             showToast(
               "success",
-              `"${file.name}" uploaded & RAG indexed successfully!`,
+              `"${uploadedFileObj.name}" uploaded & RAG indexed successfully!`,
             );
             window.dispatchEvent(
               new CustomEvent("ak-add-notification", {
                 detail: {
                   title: "RAG Document Indexed",
-                  message: `"${file.name}" has been fully parsed and indexed for semantic searches.`,
+                  message: `"${uploadedFileObj.name}" has been fully parsed and indexed for semantic searches.`,
                   type: "success",
                 },
               }),
@@ -243,13 +338,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           } else if (data.rag_status === "keyword_only") {
             showToast(
               "success",
-              `"${file.name}" uploaded & indexed! (Keyword search active — semantic search needs Gemini API key.)`,
+              `"${uploadedFileObj.name}" uploaded & indexed! (Keyword search active — semantic search needs Gemini API key.)`,
             );
             window.dispatchEvent(
               new CustomEvent("ak-add-notification", {
                 detail: {
                   title: "Document Keyword-Indexed",
-                  message: `"${file.name}" indexed for keyword matching. Connect a Gemini key to activate semantic searches.`,
+                  message: `"${uploadedFileObj.name}" indexed for keyword matching. Connect a Gemini key to activate semantic searches.`,
                   type: "info",
                 },
               }),
@@ -257,24 +352,24 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           } else if (data.rag_status === "failed") {
             showToast(
               "warning",
-              `Uploaded "${file.name}", but indexing failed: ${data.error || "Check server logs."}`,
+              `Uploaded "${uploadedFileObj.name}", but indexing failed: ${data.error || "Check server logs."}`,
             );
             window.dispatchEvent(
               new CustomEvent("ak-add-notification", {
                 detail: {
                   title: "Document Indexing Failed",
-                  message: `"${file.name}" uploaded but indexing failed: ${data.error || "unknown error"}`,
+                  message: `"${uploadedFileObj.name}" uploaded but indexing failed: ${data.error || "unknown error"}`,
                   type: "warning",
                 },
               }),
             );
           } else {
-            showToast("success", `"${file.name}" uploaded successfully!`);
+            showToast("success", `"${uploadedFileObj.name}" uploaded successfully!`);
             window.dispatchEvent(
               new CustomEvent("ak-add-notification", {
                 detail: {
                   title: "File Uploaded",
-                  message: `"${file.name}" uploaded successfully to workspace.`,
+                  message: `"${uploadedFileObj.name}" uploaded successfully to workspace.`,
                   type: "success",
                 },
               }),
@@ -381,10 +476,21 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
 
   const handleDelete = async (filename: string) => {
     setDeletingFilename(filename);
-    // Instant optimistic removal from UI so user immediately sees file disappear
-    setUploads((prev) => prev.filter((u) => u.filename !== filename));
+    deleteLocalFileBlob(filename);
+    // Instant optimistic removal from UI and cache so user immediately sees file disappear
+    setUploads((prev) => {
+      const filtered = prev.filter((u) => u.filename !== filename);
+      try {
+        localStorage.setItem(
+          "ak_uploads_list_cache",
+          JSON.stringify(filtered),
+        );
+      } catch {}
+      return filtered;
+    });
     if (activeWorkspaceFile?.filename === filename) {
       setActiveWorkspaceFile(null);
+      localStorage.removeItem("ak_active_file");
     }
 
     try {
@@ -437,6 +543,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           username={username}
           onClose={() => {
             setActiveWorkspaceFile(null);
+            localStorage.removeItem("ak_active_file");
             setWorkspaceHighlightPhrase("");
             setWorkspaceHighlightPage(null);
           }}

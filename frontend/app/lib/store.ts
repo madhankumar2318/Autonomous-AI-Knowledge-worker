@@ -56,12 +56,13 @@ export interface UploadRecord {
 // ── Persistent Disk Storage Helpers ──────────────────────────────────────────
 
 export function getStorageDirs(): string[] {
-  return [
+  const dirs = [
     path.resolve(process.cwd(), "uploads_storage"),
     path.resolve(process.cwd(), "../uploads_storage"),
     path.resolve("/app/applet/uploads_storage"),
     path.resolve("/app/applet/frontend/uploads_storage"),
   ];
+  return Array.from(new Set(dirs));
 }
 
 export function getPrimaryStorageDir(): string {
@@ -201,11 +202,39 @@ if (!globalStore.__AKW_THREADS__) {
   globalStore.__AKW_THREADS__ = threads;
 }
 
-if (!globalStore.__AKW_UPLOADS__) {
-  const uploads = new Map<string, UploadRecord>();
+export function syncUploadsFromDisk(): Map<string, UploadRecord> {
+  if (!globalStore.__AKW_UPLOADS__) {
+    globalStore.__AKW_UPLOADS__ = new Map<string, UploadRecord>();
+  }
+  if (!globalStore.__AKW_BUFFERS__) {
+    globalStore.__AKW_BUFFERS__ = new Map<string, Buffer>();
+  }
 
-  // Auto-scan storage directories for existing uploaded files
-  for (const dir of getStorageDirs()) {
+  const uploads = globalStore.__AKW_UPLOADS__;
+  const dirs = getStorageDirs();
+
+  // 1. First, check for uploads_index.json across all storage directories
+  for (const dir of dirs) {
+    try {
+      if (fs.existsSync(dir)) {
+        const indexFile = path.join(dir, "uploads_index.json");
+        if (fs.existsSync(indexFile)) {
+          const raw = fs.readFileSync(indexFile, "utf-8");
+          const records = JSON.parse(raw);
+          if (Array.isArray(records)) {
+            for (const r of records) {
+              if (r && r.filename && !uploads.has(r.filename)) {
+                uploads.set(r.filename, r);
+              }
+            }
+          }
+        }
+      }
+    } catch (_e) {}
+  }
+
+  // 2. Auto-scan all storage directories for physical files
+  for (const dir of dirs) {
     try {
       if (fs.existsSync(dir)) {
         const files = fs.readdirSync(dir);
@@ -215,43 +244,58 @@ if (!globalStore.__AKW_UPLOADS__) {
           const stat = fs.statSync(filePath);
           if (stat.isFile()) {
             const isPdf = file.toLowerCase().endsWith(".pdf");
-            let extracted = "";
-            if (isPdf) {
-              try {
-                const buf = fs.readFileSync(filePath);
-                extracted = extractPdfText(buf);
-              } catch {}
-            } else {
-              try {
-                extracted = fs.readFileSync(filePath, "utf-8");
-              } catch {}
-            }
+            let buffer: Buffer | null = null;
+            try {
+              buffer = fs.readFileSync(filePath);
+              if (!globalStore.__AKW_BUFFERS__!.has(file)) {
+                globalStore.__AKW_BUFFERS__!.set(file, buffer);
+              }
+            } catch {}
 
-            const chunks = Math.max(1, Math.round(stat.size / 500));
-            uploads.set(file, {
-              id: `upl-${file}`,
-              username: "admin",
-              filename: file,
-              originalName: file,
-              contentType: isPdf ? "application/pdf" : "text/plain",
-              size: stat.size,
-              uploadedAt: stat.mtime.toISOString(),
-              status: "indexed",
-              chunks,
-              content: extracted,
-            });
+            if (!uploads.has(file)) {
+              let extracted = "";
+              if (isPdf && buffer) {
+                try {
+                  extracted = extractPdfText(buffer);
+                } catch {}
+              } else if (buffer) {
+                try {
+                  extracted = buffer.toString("utf-8");
+                } catch {}
+              }
+
+              const chunks = Math.max(1, Math.round(stat.size / 500));
+              uploads.set(file, {
+                id: `upl-${file}`,
+                username: "admin",
+                filename: file,
+                originalName: file,
+                contentType: isPdf ? "application/pdf" : "text/plain",
+                size: stat.size,
+                uploadedAt: stat.mtime.toISOString(),
+                status: "indexed",
+                chunks,
+                content: extracted,
+              });
+            }
           }
         }
       }
     } catch (_e) {}
   }
 
-  globalStore.__AKW_UPLOADS__ = uploads;
+  return uploads;
 }
 
+if (!globalStore.__AKW_UPLOADS__) {
+  globalStore.__AKW_UPLOADS__ = new Map<string, UploadRecord>();
+}
 if (!globalStore.__AKW_BUFFERS__) {
   globalStore.__AKW_BUFFERS__ = new Map<string, Buffer>();
 }
+
+// Initial synchronization from disk
+syncUploadsFromDisk();
 
 export const usersStore = globalStore.__AKW_USERS__!;
 export const settingsStore = globalStore.__AKW_SETTINGS__!;
@@ -271,7 +315,7 @@ export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
     }
   }
 
-  // Save to disk
+  // Save to disk across all storage directories
   if (buffer) {
     for (const dir of getStorageDirs()) {
       try {
@@ -282,13 +326,15 @@ export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
     }
   }
 
-  // Update persistent registry
-  try {
-    const primary = getPrimaryStorageDir();
-    const registryPath = path.join(primary, "uploads_index.json");
-    const arr = Array.from(uploadsStore.values());
-    fs.writeFileSync(registryPath, JSON.stringify(arr, null, 2), "utf-8");
-  } catch (_e) {}
+  // Update persistent registry in all storage directories
+  const arr = Array.from(uploadsStore.values());
+  for (const dir of getStorageDirs()) {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const registryPath = path.join(dir, "uploads_index.json");
+      fs.writeFileSync(registryPath, JSON.stringify(arr, null, 2), "utf-8");
+    } catch (_e) {}
+  }
 }
 
 export function getUploadBuffer(filename: string): Buffer | null {
@@ -319,6 +365,11 @@ export function getUploadBuffer(filename: string): Buffer | null {
       }
     } catch (_e) {}
   }
+
+  // 3. Re-sync from disk if not found yet
+  syncUploadsFromDisk();
+  if (buffersStore.has(filename)) return buffersStore.get(filename)!;
+  if (buffersStore.has(decoded)) return buffersStore.get(decoded)!;
 
   const doc = uploadsStore.get(filename) || uploadsStore.get(decoded);
   if (doc?.content && !filename.toLowerCase().endsWith(".pdf")) {
