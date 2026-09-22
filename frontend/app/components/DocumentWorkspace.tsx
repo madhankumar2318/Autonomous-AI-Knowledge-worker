@@ -1212,81 +1212,18 @@ export default function DocumentWorkspace({
             </div>
 
             <div className="flex items-center gap-4 sm:gap-5 mr-1 sm:mr-3">
-              {/* PDF Viewing Mode: Oval buttons with ample inner padding and clean spacing */}
+              {/* PDF Viewing Mode: Download original PDF */}
               {isPDF && (
-                <>
-                  <button
-                    type="button"
-                    id="btn-pdf-visual-pages"
-                    onClick={() => setPdfDocTab("canvas")}
-                    className={`dw-toolbar-oval-btn shadow-xs ${
-                      pdfDocTab === "canvas"
-                        ? "dw-toolbar-oval-btn-active"
-                        : "dw-toolbar-oval-btn-inactive"
-                    }`}
-                    title="View PDF visual pages"
-                  >
-                    <FileText
-                      className={`w-3.5 h-3.5 shrink-0 ${
-                        pdfDocTab === "canvas" ? "text-cyan-400" : "text-slate-400"
-                      }`}
-                    />
-                    <span>Visual Pages</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    id="btn-pdf-extract-text"
-                    onClick={() => setPdfDocTab("text")}
-                    className={`dw-toolbar-oval-btn shadow-xs ${
-                      pdfDocTab === "text"
-                        ? "dw-toolbar-oval-btn-active"
-                        : "dw-toolbar-oval-btn-inactive"
-                    }`}
-                    title="View extracted selectable text"
-                  >
-                    <AlignLeft
-                      className={`w-3.5 h-3.5 shrink-0 ${
-                        pdfDocTab === "text" ? "text-cyan-400" : "text-slate-400"
-                      }`}
-                    />
-                    <span>Extract Text</span>
-                  </button>
-
-                  {/* Copy Text Shortcut when in Extract Text mode */}
-                  {pdfDocTab === "text" && textContent && (
-                    <button
-                      type="button"
-                      id="btn-pdf-copy-extracted"
-                      onClick={() => handleCopyText(textContent)}
-                      className="dw-toolbar-oval-btn dw-toolbar-oval-btn-inactive shadow-xs"
-                      title="Copy extracted text to clipboard"
-                    >
-                      {copiedText ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span className="text-emerald-300">Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>Copy Text</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  <a
-                    id="btn-pdf-download"
-                    href={fileUrl}
-                    download={file.filename}
-                    className="dw-toolbar-oval-btn dw-toolbar-oval-btn-action shadow-xs group"
-                    title={`Download original file: ${file.filename}`}
-                  >
-                    <Download className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-y-0.5 transition-transform shrink-0" />
-                    <span>Download</span>
-                  </a>
-                </>
+                <a
+                  id="btn-pdf-download"
+                  href={fileUrl}
+                  download={file.filename}
+                  className="dw-toolbar-oval-btn dw-toolbar-oval-btn-action shadow-xs group"
+                  title={`Download original file: ${file.filename}`}
+                >
+                  <Download className="w-3.5 h-3.5 text-cyan-400 group-hover:-translate-y-0.5 transition-transform shrink-0" />
+                  <span>Download</span>
+                </a>
               )}
 
               {/* Copy Content (for text, docx, json) */}

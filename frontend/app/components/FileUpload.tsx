@@ -313,9 +313,8 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           return updated;
         });
 
-        // Automatically open the uploaded file in Document Workspace!
-        setActiveWorkspaceFile(newRecord);
-        localStorage.setItem("ak_active_file", uploadedFileObj.name);
+        // Keep user on the File Workspace without automatically switching pages
+        // The user will open Document Workspace when they touch the "Analyze" button
 
         setTimeout(() => {
           setFile(null);
@@ -1651,23 +1650,28 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           width: auto !important;
           display: flex;
           align-items: center;
-          padding: 0 10px !important;
-          gap: 4px;
-          background: rgba(34,211,238,0.06) !important;
-          border-color: rgba(34,211,238,0.2) !important;
+          padding: 0 12px !important;
+          gap: 5px;
+          background: rgba(34, 211, 238, 0.12) !important;
+          border-color: rgba(34, 211, 238, 0.35) !important;
           color: #22d3ee !important;
           border-radius: 8px !important;
-          height: 30px;
+          height: 32px;
           font-size: 11px;
           font-weight: 700;
-          transition: all 0.2s ease;
+          letter-spacing: 0.2px;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          cursor: pointer;
         }
         .fw-analyze-btn:hover {
-          background: rgba(34,211,238,0.18) !important;
-          border-color: rgba(34,211,238,0.4) !important;
-          color: #67e8f9 !important;
+          background: rgba(34, 211, 238, 0.24) !important;
+          border-color: rgba(34, 211, 238, 0.6) !important;
+          color: #a5f3fc !important;
           transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(34,211,238,0.15);
+          box-shadow: 0 4px 14px rgba(34, 211, 238, 0.22);
+        }
+        .fw-analyze-btn:active {
+          transform: scale(0.96);
         }
         .fw-reindex-btn {
           width: auto !important;
