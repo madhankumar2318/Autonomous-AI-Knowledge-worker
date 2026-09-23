@@ -18,7 +18,7 @@ export async function GET(
     if (buffer) {
       const isPdf = filename.toLowerCase().endsWith(".pdf");
       const content = isPdf
-        ? extractPdfText(buffer)
+        ? await extractPdfText(buffer)
         : buffer.toString("utf-8");
       doc = {
         id: `upl-${filename}`,

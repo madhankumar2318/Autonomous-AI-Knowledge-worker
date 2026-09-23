@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
     let textContent = "";
     if (isPdf) {
-      textContent = extractPdfText(buffer);
+      textContent = await extractPdfText(buffer);
     } else {
       try {
         textContent = buffer.toString("utf-8");

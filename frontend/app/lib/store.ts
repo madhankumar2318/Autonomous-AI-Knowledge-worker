@@ -77,7 +77,60 @@ export function getPrimaryStorageDir(): string {
   return defaultDir;
 }
 
-export function extractPdfText(buffer: Buffer): string {
+declare const __non_webpack_require__: any;
+
+function getPdfJs(): any {
+  try {
+    const req = typeof __non_webpack_require__ !== "undefined" ? __non_webpack_require__ : eval("require");
+    return req("pdfjs-dist/legacy/build/pdf.js");
+  } catch {
+    return null;
+  }
+}
+
+export async function extractPdfText(buffer: Buffer): Promise<string> {
+  // 1. High-accuracy extraction via pdfjs-dist legacy engine
+  try {
+    const pdfjs = getPdfJs();
+    if (pdfjs && typeof pdfjs.getDocument === "function") {
+      const loadingTask = pdfjs.getDocument({
+        data: new Uint8Array(buffer),
+        useSystemFonts: true,
+        disableFontFace: true,
+      });
+      const pdf = await loadingTask.promise;
+      const pagesText: string[] = [];
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        try {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageStrings = textContent.items
+            .map((item: any) => (item && typeof item.str === "string" ? item.str : ""))
+            .filter(Boolean);
+          const pageText = pageStrings.join(" ").trim();
+          if (pageText) {
+            pagesText.push(`[Page ${pageNum}]\n${pageText}`);
+          }
+        } catch (_pageErr) {}
+      }
+
+      const combined = pagesText.join("\n\n").trim();
+      const syncResult = extractPdfTextSync(buffer);
+      if (syncResult.length > combined.length) {
+        return syncResult;
+      }
+      if (combined.length > 20) {
+        return combined;
+      }
+    }
+  } catch (_e) {}
+
+  // 2. Stream decompression and text extraction fallback
+  return extractPdfTextSync(buffer);
+}
+
+export function extractPdfTextSync(buffer: Buffer): string {
   try {
     const content = buffer.toString("binary");
     const textPieces: string[] = [];
@@ -90,7 +143,11 @@ export function extractPdfText(buffer: Buffer): string {
       try {
         decompressed = zlib.inflateSync(rawStream).toString("utf-8");
       } catch {
-        decompressed = rawStream.toString("utf-8");
+        try {
+          decompressed = zlib.inflateRawSync(rawStream).toString("utf-8");
+        } catch {
+          decompressed = rawStream.toString("utf-8");
+        }
       }
 
       // Match text inside (...) Tj
@@ -113,8 +170,22 @@ export function extractPdfText(buffer: Buffer): string {
       }
     }
 
-    const full = textPieces.join(" ").replace(/\s+/g, " ").trim();
-    if (full.length > 30) return full;
+    let full = textPieces.join(" ").replace(/\s+/g, " ").trim();
+
+    // Also extract all direct Tj operators from uncompressed stream or raw binary
+    const directTjRegex = /\(([^)]+)\)\s*Tj/g;
+    let directM: RegExpExecArray | null;
+    const directTjPieces: string[] = [];
+    while ((directM = directTjRegex.exec(content)) !== null) {
+      directTjPieces.push(unescapePdfText(directM[1]));
+    }
+    const directFull = directTjPieces.join(" ").replace(/\s+/g, " ").trim();
+
+    if (directFull.length > full.length) {
+      full = directFull;
+    }
+
+    if (full.length > 20) return full;
 
     // Fallback: search for direct text strings in binary stream
     const fallbackPieces: string[] = [];
@@ -126,7 +197,7 @@ export function extractPdfText(buffer: Buffer): string {
         fallbackPieces.push(cleaned);
       }
     }
-    return fallbackPieces.join(" ").replace(/\s+/g, " ").trim() || "PDF Document parsed.";
+    return fallbackPieces.join(" ").replace(/\s+/g, " ").trim() || full || "PDF Document parsed.";
   } catch (_e) {
     return "PDF Document loaded.";
   }
@@ -256,7 +327,7 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
               let extracted = "";
               if (isPdf && buffer) {
                 try {
-                  extracted = extractPdfText(buffer);
+                  extracted = extractPdfTextSync(buffer);
                 } catch {}
               } else if (buffer) {
                 try {

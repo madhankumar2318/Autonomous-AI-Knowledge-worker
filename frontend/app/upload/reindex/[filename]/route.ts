@@ -16,9 +16,9 @@ export async function POST(
   let doc = uploadsStore.get(filename);
   const buffer = getUploadBuffer(filename);
 
-  if (buffer && (!doc || !doc.content)) {
+  if (buffer) {
     const isPdf = filename.toLowerCase().endsWith(".pdf");
-    const content = isPdf ? extractPdfText(buffer) : buffer.toString("utf-8");
+    const content = isPdf ? await extractPdfText(buffer) : buffer.toString("utf-8");
     doc = {
       id: doc?.id || `upl-${filename}`,
       username: doc?.username || "admin",
