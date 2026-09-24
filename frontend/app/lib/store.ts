@@ -81,6 +81,20 @@ export function getPrimaryStorageDir(): string {
 const nodeRequire = typeof createRequire === "function" ? createRequire(import.meta.url) : null;
 
 function getPdfJs(): any {
+  const candidatePaths = [
+    path.resolve(process.cwd(), "frontend/node_modules/pdfjs-dist/legacy/build/pdf.js"),
+    path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.js"),
+    "/app/applet/frontend/node_modules/pdfjs-dist/legacy/build/pdf.js",
+    "/app/applet/node_modules/pdfjs-dist/legacy/build/pdf.js",
+  ];
+  for (const p of candidatePaths) {
+    try {
+      if (fs.existsSync(p)) {
+        if (nodeRequire) return nodeRequire(p);
+        return require(p);
+      }
+    } catch {}
+  }
   try {
     if (nodeRequire) {
       return nodeRequire("pdfjs-dist/legacy/build/pdf.js");
@@ -121,11 +135,15 @@ export async function extractPdfText(buffer: Buffer): Promise<string> {
       }
 
       const combined = pagesText.join("\n\n").trim();
+      // If pdfjs extracted real text, prioritize it above everything else
+      if (combined.length > 20) {
+        return combined;
+      }
       const syncResult = extractPdfTextSync(buffer);
-      if (syncResult.length > combined.length) {
+      if (syncResult && syncResult.length > combined.length) {
         return syncResult;
       }
-      if (combined.length > 20) {
+      if (combined) {
         return combined;
       }
     }
@@ -257,25 +275,11 @@ if (!globalStore.__AKW_SETTINGS__) {
 }
 
 if (!globalStore.__AKW_THREADS__) {
-  const threads = new Map<string, ChatThreadRecord>();
-  const defaultThread: ChatThreadRecord = {
-    id: "thread-welcome",
-    username: "admin",
-    title: "Market & Knowledge Intelligence",
-    model: "gemini-3.8-flash",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    messages: [
-      {
-        id: "msg-1",
-        role: "assistant",
-        content: "Hello! I am your Autonomous AI Knowledge Worker. How can I assist you today with market analysis, document synthesis, or news research?",
-        timestamp: Date.now(),
-      },
-    ],
-  };
-  threads.set(defaultThread.id, defaultThread);
-  globalStore.__AKW_THREADS__ = threads;
+  globalStore.__AKW_THREADS__ = new Map<string, ChatThreadRecord>();
+}
+// Clean up any legacy default placeholder thread
+if (globalStore.__AKW_THREADS__.has("thread-welcome")) {
+  globalStore.__AKW_THREADS__.delete("thread-welcome");
 }
 
 export function syncUploadsFromDisk(): Map<string, UploadRecord> {
@@ -451,6 +455,41 @@ export function getUploadBuffer(filename: string): Buffer | null {
   if (doc?.content && !filename.toLowerCase().endsWith(".pdf")) {
     return Buffer.from(doc.content, "utf-8");
   }
+  return null;
+}
+
+export function getUploadRecord(filename: string): UploadRecord | null {
+  const decoded = decodeURIComponent(filename).trim();
+  const lower = decoded.toLowerCase();
+
+  if (uploadsStore.has(filename)) return uploadsStore.get(filename)!;
+  if (uploadsStore.has(decoded)) return uploadsStore.get(decoded)!;
+
+  for (const [key, val] of Array.from(uploadsStore.entries())) {
+    if (
+      key === filename ||
+      key === decoded ||
+      key.toLowerCase() === lower ||
+      val.filename.toLowerCase() === lower ||
+      val.originalName?.toLowerCase() === lower
+    ) {
+      return val;
+    }
+  }
+
+  // Check disk sync if not found
+  syncUploadsFromDisk();
+  if (uploadsStore.has(filename)) return uploadsStore.get(filename)!;
+  if (uploadsStore.has(decoded)) return uploadsStore.get(decoded)!;
+  for (const [, val] of Array.from(uploadsStore.entries())) {
+    if (
+      val.filename.toLowerCase() === lower ||
+      val.originalName?.toLowerCase() === lower
+    ) {
+      return val;
+    }
+  }
+
   return null;
 }
 

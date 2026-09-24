@@ -67,7 +67,13 @@ function loadGuestThreads(): ChatThread[] {
     const raw = localStorage.getItem(GUEST_THREADS_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (t) =>
+        t &&
+        t.id !== "thread-welcome" &&
+        t.title !== "Market & Knowledge Intelligence",
+    );
   } catch {
     return [];
   }
@@ -146,7 +152,9 @@ export function useChatStream({
   const fetchThreads = useCallback(async () => {
     if (isGuest) {
       // Guest: read entirely from localStorage — zero network calls
-      setThreads(loadGuestThreads());
+      const guestList = loadGuestThreads();
+      saveGuestThreads(guestList);
+      setThreads(guestList);
       return;
     }
     // Authenticated: fetch from backend API
@@ -157,7 +165,15 @@ export function useChatStream({
       );
       if (res.ok) {
         const data = await res.json();
-        setThreads(Array.isArray(data) ? data : []);
+        const validThreads = Array.isArray(data)
+          ? data.filter(
+              (t: any) =>
+                t &&
+                t.id !== "thread-welcome" &&
+                t.title !== "Market & Knowledge Intelligence",
+            )
+          : [];
+        setThreads(validThreads);
       }
     } catch { /* silent */ }
   }, [username, isGuest]);
@@ -381,6 +397,12 @@ export function useChatStream({
     abortControllerRef.current = controller;
 
     try {
+      const docToSend =
+        activeDocumentFilename ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("ak_active_file")
+          : null);
+
       const res = await fetch(`${API_BASE_URL}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -394,7 +416,7 @@ export function useChatStream({
           thread_id: threadId,
           temperature,
           system_prompt: PRESETS[activePreset].prompt || undefined,
-          ...(activeDocumentFilename ? { filename: activeDocumentFilename } : {}),
+          ...(docToSend ? { filename: docToSend } : {}),
         }),
       });
 

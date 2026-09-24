@@ -2,14 +2,25 @@ import { NextResponse } from "next/server";
 import { threadsStore } from "@/app/lib/store";
 
 export async function GET() {
-  const threads = Array.from(threadsStore.values()).map((t) => ({
-    id: t.id,
-    title: t.title,
-    model: t.model,
-    created_at: t.createdAt,
-    updated_at: t.updatedAt,
-    message_count: t.messages.length,
-  }));
+  if (threadsStore.has("thread-welcome")) {
+    threadsStore.delete("thread-welcome");
+  }
+
+  const threads = Array.from(threadsStore.values())
+    .filter(
+      (t) =>
+        t &&
+        t.id !== "thread-welcome" &&
+        t.title !== "Market & Knowledge Intelligence",
+    )
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      model: t.model,
+      created_at: t.createdAt,
+      updated_at: t.updatedAt,
+      message_count: t.messages.length,
+    }));
 
   return NextResponse.json(threads);
 }

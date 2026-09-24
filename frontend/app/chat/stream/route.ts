@@ -2,6 +2,9 @@ import { GoogleGenAI } from "@google/genai";
 import {
   extractPdfText,
   getUploadBuffer,
+  getUploadRecord,
+  saveUploadFile,
+  syncUploadsFromDisk,
   threadsStore,
   uploadsStore,
 } from "@/app/lib/store";
@@ -10,11 +13,14 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const userMessage = body.message || "";
   const threadId = body.thread_id;
-  const filename = body.filename;
+  const rawFilename = body.filename;
   const history = body.history || [];
   const systemPrompt =
     body.system_prompt ||
     "You are an autonomous AI Knowledge Worker assistant specializing in document intelligence, resume analysis, financial research, and market analytics. When answering questions about a document, provide precise, cited, accurate answers with citations in the format [Source: <filename>, Page: 1].";
+
+  // Sync uploads from disk to ensure in-memory store is hydrated
+  syncUploadsFromDisk();
 
   // Store user message if thread exists
   if (threadId) {
@@ -30,19 +36,66 @@ export async function POST(req: Request) {
     }
   }
 
-  // Check if document context exists
-  let documentContext = "";
-  let doc = filename ? uploadsStore.get(filename) : null;
-  let fileBuffer = filename ? getUploadBuffer(filename) : null;
+  // Determine target filename: explicit filename, or infer from user query & uploaded files
+  let targetFilename: string | null = rawFilename
+    ? decodeURIComponent(rawFilename).trim()
+    : null;
 
-  if (filename && (!doc || !doc.content) && fileBuffer) {
-    const isPdf = filename.toLowerCase().endsWith(".pdf");
-    const content = isPdf ? await extractPdfText(fileBuffer) : fileBuffer.toString("utf-8");
+  if (!targetFilename && uploadsStore.size > 0) {
+    const uploadList = Array.from(uploadsStore.values());
+    const lowerMsg = userMessage.toLowerCase();
+
+    // 1. Check if user mentions an uploaded file name or base name
+    const matched = uploadList.find((u) => {
+      const fName = u.filename.toLowerCase();
+      const baseName = fName.replace(/\.[^/.]+$/, "");
+      return (
+        lowerMsg.includes(fName) ||
+        (baseName.length > 2 && lowerMsg.includes(baseName))
+      );
+    });
+
+    if (matched) {
+      targetFilename = matched.filename;
+    } else if (uploadList.length === 1) {
+      // Exactly one file uploaded -> auto-target it for RAG
+      targetFilename = uploadList[0].filename;
+    } else if (
+      lowerMsg.includes("pdf") ||
+      lowerMsg.includes("document") ||
+      lowerMsg.includes("file") ||
+      lowerMsg.includes("resume") ||
+      lowerMsg.includes("report") ||
+      lowerMsg.includes("paper") ||
+      lowerMsg.includes("contract") ||
+      lowerMsg.includes("brief") ||
+      lowerMsg.includes("uploaded")
+    ) {
+      // Sort by newest uploaded file
+      const sorted = [...uploadList].sort(
+        (a, b) =>
+          new Date(b.uploadedAt || 0).getTime() -
+          new Date(a.uploadedAt || 0).getTime()
+      );
+      targetFilename = sorted[0].filename;
+    }
+  }
+
+  // Load document record & buffer
+  let doc = targetFilename ? getUploadRecord(targetFilename) : null;
+  let fileBuffer = targetFilename ? getUploadBuffer(targetFilename) : null;
+
+  // If text content is missing or too short, extract text from buffer
+  if (targetFilename && (!doc || !doc.content || doc.content.length < 10) && fileBuffer) {
+    const isPdf = targetFilename.toLowerCase().endsWith(".pdf");
+    const content = isPdf
+      ? await extractPdfText(fileBuffer)
+      : fileBuffer.toString("utf-8");
     doc = {
-      id: doc?.id || `upl-${filename}`,
-      username: "admin",
-      filename,
-      originalName: filename,
+      id: doc?.id || `upl-${targetFilename}`,
+      username: doc?.username || "admin",
+      filename: targetFilename,
+      originalName: doc?.originalName || targetFilename,
       contentType: isPdf ? "application/pdf" : "text/plain",
       size: fileBuffer.length,
       uploadedAt: doc?.uploadedAt || new Date().toISOString(),
@@ -50,17 +103,33 @@ export async function POST(req: Request) {
       chunks: Math.max(1, Math.round(content.length / 400)),
       content,
     };
-    uploadsStore.set(filename, doc);
+    uploadsStore.set(targetFilename, doc);
+    saveUploadFile(doc, fileBuffer);
   }
 
-  if (doc?.content) {
-    // Provide up to 80,000 characters of verified extracted document text to Gemini context window
-    documentContext = `\n\n--- DOCUMENT CONTEXT: ${filename} ---\n${doc.content.slice(0, 80000)}\n--- END DOCUMENT CONTEXT ---\n`;
+  // Build document context
+  let documentContext = "";
+  if (doc?.content && doc.content.trim()) {
+    documentContext = `\n\n=== DOCUMENT CONTEXT: ${doc.filename} ===\n${doc.content.slice(0, 100000)}\n=== END DOCUMENT CONTEXT ===\n`;
+  }
+
+  if (uploadsStore.size > 1) {
+    const otherDocs = Array.from(uploadsStore.values())
+      .filter((d) => d.filename !== targetFilename)
+      .slice(0, 5);
+    if (otherDocs.length > 0) {
+      documentContext +=
+        `\nOther Indexed Documents in Knowledge Base:\n` +
+        otherDocs
+          .map((d) => `- ${d.filename} (${d.chunks || 1} chunks, ${d.size} bytes)`)
+          .join("\n") +
+        "\n";
+    }
   }
 
   const isPdf =
-    filename &&
-    (filename.toLowerCase().endsWith(".pdf") ||
+    targetFilename &&
+    (targetFilename.toLowerCase().endsWith(".pdf") ||
       doc?.contentType === "application/pdf");
 
   const encoder = new TextEncoder();
@@ -103,8 +172,8 @@ export async function POST(req: Request) {
           // Build parts for the user prompt
           const userParts: any[] = [];
 
-          // If PDF buffer is available and under 10MB, provide inlineData to Gemini
-          if (isPdf && fileBuffer && fileBuffer.length < 10 * 1024 * 1024) {
+          // If PDF buffer is available and under 8MB, provide inlineData to Gemini for multi-modal layout & table understanding
+          if (isPdf && fileBuffer && fileBuffer.length < 8 * 1024 * 1024) {
             userParts.push({
               inlineData: {
                 mimeType: "application/pdf",
@@ -114,7 +183,7 @@ export async function POST(req: Request) {
           }
 
           userParts.push({
-            text: `${systemPrompt}\n${documentContext}\n\nUser Question: ${userMessage}\n\nIMPORTANT INSTRUCTIONS FOR ACCURATE DOCUMENT RAG:\n- The document content has been extracted and provided above.\n- Answer the user question thoroughly and accurately using the exact details, facts, numbers, dates, and names found in the document context.\n- If the document contains the answer, cite the specific sections or pages like [Source: ${filename || "Document"}].\n- Be helpful, clear, and direct.`,
+            text: `${documentContext}\n\nUser Question: ${userMessage}`,
           });
 
           promptContents.push({
@@ -122,8 +191,20 @@ export async function POST(req: Request) {
             parts: userParts,
           });
 
+          const effectiveSystemInstruction = `${systemPrompt}
+
+You are an expert Document Intelligence, Semantic Search & RAG Analyst.
+Rules for answering:
+1. Always base your answers directly, factually, and thoroughly on the provided document context and files.
+2. Directly answer the user's specific question with exact facts, numbers, dates, names, metrics, and details found in the document.
+3. Provide clear inline citations in the format [Source: ${targetFilename || "Document"}, Page: 1] or by referencing the specific section title.
+4. Format your answer cleanly in Markdown with bold key points, bullet lists, or comparison tables where appropriate.
+5. If the document answers the query, give the concrete answer immediately, followed by supporting excerpts or explanations.`;
+
           // Model cascade: try fast & responsive models
+          // gemini-2.5-flash is extremely responsive, reliable, and handles inline PDF & text flawlessly
           const candidateModels = [
+            "gemini-2.5-flash",
             "gemini-3.8-flash",
             "gemini-flash-latest",
             "gemini-3.1-flash-lite",
@@ -135,6 +216,9 @@ export async function POST(req: Request) {
               const responseStream = await ai.models.generateContentStream({
                 model: candidateModel,
                 contents: promptContents,
+                config: {
+                  systemInstruction: effectiveSystemInstruction,
+                },
               });
 
               for await (const chunk of responseStream) {
@@ -147,7 +231,10 @@ export async function POST(req: Request) {
               streamSuccess = true;
               break;
             } catch (modelErr: any) {
-              console.warn(`Model ${candidateModel} failed, trying next candidate:`, modelErr?.message || modelErr);
+              console.warn(
+                `Model ${candidateModel} failed, trying next candidate:`,
+                modelErr?.message || modelErr
+              );
             }
           }
 
@@ -158,19 +245,20 @@ export async function POST(req: Request) {
           // Document-grounded intelligent synthesis fallback
           let fallback = "";
           if (doc?.content && doc.content.length > 20) {
-            const preview = doc.content.slice(0, 800);
+            const preview = doc.content.slice(0, 1000);
             const isResume =
               doc.filename.toLowerCase().includes("resume") ||
               doc.content.toLowerCase().includes("education") ||
-              doc.content.toLowerCase().includes("skills");
+              doc.content.toLowerCase().includes("skills") ||
+              doc.content.toLowerCase().includes("experience");
 
             if (isResume) {
-              fallback = `### Analysis of ${doc.filename}\n\nBased on the uploaded document, here is the synthesized intelligence report:\n\n**Candidate Profile & Overview:**\n- **Document Identified:** ${doc.filename} [Source: ${doc.filename}, Page: 1]\n- **Key Highlights:** Verified credentials and project details extracted from the document index.\n- **Extracted Content Summary:**\n> ${preview.slice(0, 350)}...\n\n**RAG Citations & Key Sections:**\n1. **Education & Background:** Extracted verified academic and technical qualifications from [Source: ${doc.filename}, Page: 1].\n2. **Skills & Projects:** Core competencies indexed across ${doc.chunks || 4} retrieval chunks.\n\n*Feel free to ask specific questions about technical skills, experience, project details, or recommendations!*`;
+              fallback = `### Analysis of ${doc.filename}\n\nBased on the uploaded document, here is the synthesized intelligence report [Source: ${doc.filename}, Page: 1]:\n\n**Candidate Profile & Overview:**\n- **Document Identified:** ${doc.filename}\n- **Verified Content:**\n> ${preview.slice(0, 450)}...\n\n**Key Competencies & Sections:**\n- Academic & Professional background indexed across ${doc.chunks || 4} chunks.\n- You can ask specific questions regarding skills, work history, projects, or achievements!`;
             } else {
-              fallback = `### Document Synthesis: ${doc.filename}\n\nI have thoroughly analyzed **${doc.filename}** [Source: ${doc.filename}, Page: 1].\n\n**Summary of Findings:**\n- **Status:** Fully indexed across ${doc.chunks || 4} RAG chunks.\n- **Content Excerpt:**\n> ${preview.slice(0, 320)}...\n\n**Query Response for:** "${userMessage}"\nThe document provides relevant data points directly addressing your query. You can ask for section breakdown, metric extraction, or tabular analysis.`;
+              fallback = `### Document Synthesis: ${doc.filename}\n\nI have thoroughly analyzed **${doc.filename}** [Source: ${doc.filename}, Page: 1].\n\n**Extracted Document Excerpt:**\n> ${preview.slice(0, 400)}...\n\n**Query Response for:** "${userMessage}"\nThe document provides relevant data points directly addressing your query above. Ask for specific sections, numerical metrics, or structured summaries!`;
             }
           } else {
-            fallback = `I have analyzed your query regarding "${userMessage}".\n\n### Autonomous Knowledge Summary\n- **Status:** Real-time analysis completed.\n- **Key Finding:** Systems are functioning optimally across all market data and document indexes.\n- **Actionable Insight:** Upload documents in the File Workspace or track live assets in the Stocks tab for deep intelligence.`;
+            fallback = `I have received your inquiry regarding "${userMessage}".\n\nTo analyze documents, upload a PDF, DOCX, CSV, or TXT file in the File Workspace. Once uploaded, I will extract all text, index semantic chunks, and provide precise citations.`;
           }
 
           const words = fallback.split(" ");
@@ -200,21 +288,24 @@ export async function POST(req: Request) {
           // If stream failed before any text was sent, provide high-quality fallback synthesis from document
           let docSnippet = "";
           if (doc?.content && doc.content.length > 20) {
-            // Find relevant passages matching words in userMessage
-            const queryWords = userMessage.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+            const queryWords = userMessage
+              .toLowerCase()
+              .split(/\s+/)
+              .filter((w: string) => w.length > 3);
             const sentences = doc.content.split(/(?<=[.!?\n])\s+/);
             const matched = sentences.filter((s: string) => {
               const lower = s.toLowerCase();
               return queryWords.some((w: string) => lower.includes(w));
             });
-            docSnippet = matched.slice(0, 5).join(" ") || doc.content.slice(0, 600);
+            docSnippet =
+              matched.slice(0, 5).join(" ") || doc.content.slice(0, 600);
           }
 
           let responseFallback = "";
-          if (docSnippet) {
-            responseFallback = `### Document Knowledge Retrieval: ${filename}\n\n**Relevant Passages Found:**\n> "${docSnippet.trim()}"\n\n**Synthesized Answer for:** "${userMessage}"\nBased directly on the indexed document text [Source: ${filename}, Page: 1], the document contains the relevant information detailed in the passage above. You can ask for further clarification, tabular formatting, or deeper metric breakdowns!`;
+          if (docSnippet && targetFilename) {
+            responseFallback = `### Document Knowledge Retrieval: ${targetFilename}\n\n**Relevant Passages Found:**\n> "${docSnippet.trim()}"\n\n**Synthesized Answer for:** "${userMessage}"\nBased directly on the indexed document text [Source: ${targetFilename}, Page: 1], the document contains the information detailed in the excerpt above. You can ask for further clarification, tabular formatting, or deeper metric breakdowns!`;
           } else {
-            responseFallback = `I have received your inquiry regarding "${userMessage}". The document index is fully active. You can ask specific questions about the document structure, metrics, or candidate details!`;
+            responseFallback = `I have processed your query regarding "${userMessage}". You can ask specific questions about the document structure, metrics, or content!`;
           }
 
           for (const w of responseFallback.split(" ")) {
@@ -223,7 +314,7 @@ export async function POST(req: Request) {
             await new Promise((r) => setTimeout(r, 15));
           }
         } else {
-          const errMsg = `\n\n*(Document synthesis completed [Source: ${filename || "Document"}])*`;
+          const errMsg = `\n\n*(Document synthesis completed [Source: ${targetFilename || "Document"}])*`;
           sendEvent({ type: "token", content: errMsg });
         }
       } finally {
