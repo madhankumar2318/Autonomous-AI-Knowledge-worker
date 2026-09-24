@@ -123,7 +123,11 @@ export async function POST(req: Request) {
           });
 
           // Model cascade: try fast & responsive models
-          const candidateModels = ["gemini-flash-latest", "gemini-2.5-flash", "gemini-3.1-flash-lite"];
+          const candidateModels = [
+            "gemini-3.8-flash",
+            "gemini-flash-latest",
+            "gemini-3.1-flash-lite",
+          ];
           let streamSuccess = false;
 
           for (const candidateModel of candidateModels) {

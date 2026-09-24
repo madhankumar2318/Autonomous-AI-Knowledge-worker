@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import zlib from "node:zlib";
 
@@ -77,12 +78,16 @@ export function getPrimaryStorageDir(): string {
   return defaultDir;
 }
 
-declare const __non_webpack_require__: any;
+const nodeRequire = typeof createRequire === "function" ? createRequire(import.meta.url) : null;
 
 function getPdfJs(): any {
   try {
-    const req = typeof __non_webpack_require__ !== "undefined" ? __non_webpack_require__ : eval("require");
-    return req("pdfjs-dist/legacy/build/pdf.js");
+    if (nodeRequire) {
+      return nodeRequire("pdfjs-dist/legacy/build/pdf.js");
+    }
+  } catch {}
+  try {
+    return require("pdfjs-dist/legacy/build/pdf.js");
   } catch {
     return null;
   }
