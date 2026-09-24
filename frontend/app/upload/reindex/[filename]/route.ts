@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  cleanPdfTextFormatting,
   extractPdfText,
   getUploadBuffer,
   saveUploadFile,
@@ -18,7 +19,8 @@ export async function POST(
 
   if (buffer) {
     const isPdf = filename.toLowerCase().endsWith(".pdf");
-    const content = isPdf ? await extractPdfText(buffer) : buffer.toString("utf-8");
+    const rawContent = isPdf ? await extractPdfText(buffer) : buffer.toString("utf-8");
+    const content = cleanPdfTextFormatting(rawContent);
     doc = {
       id: doc?.id || `upl-${filename}`,
       username: doc?.username || "admin",
@@ -35,6 +37,7 @@ export async function POST(
   } else if (doc) {
     doc.status = "indexed";
     if (doc.content) {
+      doc.content = cleanPdfTextFormatting(doc.content);
       doc.chunks = Math.max(1, Math.round(doc.content.length / 400));
     }
     saveUploadFile(doc);

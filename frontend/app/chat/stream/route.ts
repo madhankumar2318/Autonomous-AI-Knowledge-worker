@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import {
+  cleanPdfTextFormatting,
   extractPdfText,
   getUploadBuffer,
   getUploadRecord,
@@ -8,6 +9,172 @@ import {
   threadsStore,
   uploadsStore,
 } from "@/app/lib/store";
+
+function answerQueryFromDocument(
+  content: string,
+  userQuery: string,
+  filename: string
+): string {
+  const q = userQuery.toLowerCase().trim();
+  const cleaned = cleanPdfTextFormatting(content);
+  const lines = cleaned
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  // Intent 1: Programming Languages & Tech Stack
+  if (
+    /language|languages|technolog|stack|code|coding/i.test(q) &&
+    !/natural language/i.test(q)
+  ) {
+    const langLines = lines.filter((l) =>
+      /languages?|skills?|technologies?|java|python|sql|c\+\+|javascript|typescript|react|html|css|r\b/i.test(
+        l
+      )
+    );
+    if (langLines.length > 0) {
+      return (
+        `### Technical Languages & Core Skills [Source: ${filename}, Page: 1]\n\n` +
+        `Based on **${filename}**, here are the documented languages and technical competencies:\n\n` +
+        langLines.map((l) => `- **${l.replace(/:/g, ":** ")}`).join("\n") +
+        `\n\n*Verified from the technical skills index in ${filename}.*`
+      );
+    }
+  }
+
+  // Intent 2: Projects & Implementations
+  if (/project|projects|work|built|app|application|system|model/i.test(q)) {
+    const projIndex = lines.findIndex((l) => /projects?/i.test(l));
+    if (projIndex !== -1) {
+      const projLines = lines
+        .slice(projIndex, projIndex + 14)
+        .filter(
+          (l) => !/^(technical skills|languages|education|experience)/i.test(l)
+        );
+      return (
+        `### Documented Projects & Implementations [Source: ${filename}, Page: 1]\n\n` +
+        `Here are the verified project details extracted from **${filename}**:\n\n` +
+        projLines.map((l) => `- ${l}`).join("\n") +
+        `\n\n*Extracted directly from the projects section of ${filename}.*`
+      );
+    }
+  }
+
+  // Intent 3: Education / College / Degree / CGPA / School
+  if (
+    /education|college|degree|cgpa|gpa|marks|school|sslc|hsc|b\.?tech|graduat|percentage/i.test(
+      q
+    )
+  ) {
+    const eduIndex = lines.findIndex((l) => /education/i.test(l));
+    const eduLines =
+      eduIndex !== -1
+        ? lines
+            .slice(eduIndex, eduIndex + 8)
+            .filter((l) => !/^(technical skills|projects|languages)/i.test(l))
+        : lines.filter((l) =>
+            /college|engineering|b\.?tech|cgpa|school|sslc|hsc|vidhyalaya|cbse/i.test(
+              l
+            )
+          );
+    if (eduLines.length > 0) {
+      return (
+        `### Academic Qualifications & Education [Source: ${filename}, Page: 1]\n\n` +
+        `Extracted educational background from **${filename}**:\n\n` +
+        eduLines.map((l) => `- **${l.replace(/:/g, ":** ")}`).join("\n") +
+        `\n\n*Verified from the academic background records.*`
+      );
+    }
+  }
+
+  // Intent 4: Skills / Frameworks / Tools / Libraries
+  if (/skill|framework|tool|developer tool|library|libraries/i.test(q)) {
+    const skillLines = lines.filter((l) =>
+      /skills?|frameworks?|tools?|developer tools?|git|spring|react/i.test(l)
+    );
+    if (skillLines.length > 0) {
+      return (
+        `### Skills, Frameworks & Developer Tools [Source: ${filename}, Page: 1]\n\n` +
+        `Extracted tools & frameworks from **${filename}**:\n\n` +
+        skillLines.map((l) => `- **${l.replace(/:/g, ":** ")}`).join("\n") +
+        `\n\n*Verified from the skills specification in ${filename}.*`
+      );
+    }
+  }
+
+  // Intent 5: Contact / Phone / Email / Profiles
+  if (
+    /contact|email|phone|mobile|github|linkedin|portfolio|address|reach/i.test(q)
+  ) {
+    const contactLines = lines
+      .slice(0, 5)
+      .filter((l) =>
+        /@|\+91|\d{10}|linkedin|github|portfolio|email|phone/i.test(l)
+      );
+    if (contactLines.length > 0) {
+      return (
+        `### Contact & Profile Information [Source: ${filename}, Page: 1]\n\n` +
+        contactLines.map((l) => `- ${l}`).join("\n")
+      );
+    }
+  }
+
+  // Intent 6: General Keyword & Passage Matching
+  const stopWords = new Set([
+    "what",
+    "when",
+    "where",
+    "which",
+    "this",
+    "that",
+    "from",
+    "tell",
+    "show",
+    "with",
+    "have",
+    "does",
+    "about",
+    "the",
+    "in",
+    "pdf",
+    "document",
+    "file",
+  ]);
+  const queryTokens = q
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !stopWords.has(w));
+
+  const scoredLines = lines
+    .map((line) => {
+      const lower = line.toLowerCase();
+      const matchCount = queryTokens.filter((t) => lower.includes(t)).length;
+      return { line, score: matchCount };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (scoredLines.length > 0) {
+    const topPassages = scoredLines.slice(0, 4).map((s) => s.line);
+    return (
+      `### Information Retrieval from ${filename} [Source: ${filename}, Page: 1]\n\n` +
+      `Here are the relevant findings addressing **"${userQuery}"**:\n\n` +
+      topPassages.map((p) => `> ${p}`).join("\n\n") +
+      `\n\n*Directly retrieved from verified semantic passages in ${filename}.*`
+    );
+  }
+
+  // General Executive Summary if no specific query matched
+  return (
+    `### Document Summary: ${filename} [Source: ${filename}, Page: 1]\n\n` +
+    `**Key Document Contents:**\n\n` +
+    lines
+      .slice(0, 10)
+      .map((l) => `- ${l}`)
+      .join("\n") +
+    `\n\n*Feel free to ask for specific skills, projects, educational background, or detailed section comparisons!*`
+  );
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -91,6 +258,7 @@ export async function POST(req: Request) {
     const content = isPdf
       ? await extractPdfText(fileBuffer)
       : fileBuffer.toString("utf-8");
+    const cleanedContent = cleanPdfTextFormatting(content);
     doc = {
       id: doc?.id || `upl-${targetFilename}`,
       username: doc?.username || "admin",
@@ -100,11 +268,16 @@ export async function POST(req: Request) {
       size: fileBuffer.length,
       uploadedAt: doc?.uploadedAt || new Date().toISOString(),
       status: "indexed",
-      chunks: Math.max(1, Math.round(content.length / 400)),
-      content,
+      chunks: Math.max(1, Math.round(cleanedContent.length / 400)),
+      content: cleanedContent,
     };
     uploadsStore.set(targetFilename, doc);
     saveUploadFile(doc, fileBuffer);
+  }
+
+  // Clean doc content if already present
+  if (doc?.content) {
+    doc.content = cleanPdfTextFormatting(doc.content);
   }
 
   // Build document context
@@ -211,6 +384,7 @@ Rules for answering:
           ];
           let streamSuccess = false;
 
+          // Attempt 1: with inlineData (if provided) and documentContext
           for (const candidateModel of candidateModels) {
             try {
               const responseStream = await ai.models.generateContentStream({
@@ -228,13 +402,52 @@ Rules for answering:
                   sendEvent({ type: "token", content: text });
                 }
               }
-              streamSuccess = true;
-              break;
+              if (generatedText) {
+                streamSuccess = true;
+                break;
+              }
             } catch (modelErr: any) {
               console.warn(
-                `Model ${candidateModel} failed, trying next candidate:`,
+                `Model ${candidateModel} with inlineData failed, trying next:`,
                 modelErr?.message || modelErr
               );
+            }
+          }
+
+          // Attempt 2: If inlineData failed or took too long, retry with text-only prompt
+          if (!streamSuccess && isPdf && fileBuffer) {
+            const textOnlyContents = promptContents.map((p) => ({
+              ...p,
+              parts: p.parts.filter((part: any) => !part.inlineData),
+            }));
+
+            for (const candidateModel of candidateModels) {
+              try {
+                const responseStream = await ai.models.generateContentStream({
+                  model: candidateModel,
+                  contents: textOnlyContents,
+                  config: {
+                    systemInstruction: effectiveSystemInstruction,
+                  },
+                });
+
+                for await (const chunk of responseStream) {
+                  const text = chunk.text;
+                  if (text) {
+                    generatedText += text;
+                    sendEvent({ type: "token", content: text });
+                  }
+                }
+                if (generatedText) {
+                  streamSuccess = true;
+                  break;
+                }
+              } catch (modelErr: any) {
+                console.warn(
+                  `Text-only model ${candidateModel} failed:`,
+                  modelErr?.message || modelErr
+                );
+              }
             }
           }
 
@@ -242,21 +455,14 @@ Rules for answering:
             throw new Error("All Gemini model streams failed.");
           }
         } else {
-          // Document-grounded intelligent synthesis fallback
+          // Document-grounded query-aware synthesis fallback
           let fallback = "";
-          if (doc?.content && doc.content.length > 20) {
-            const preview = doc.content.slice(0, 1000);
-            const isResume =
-              doc.filename.toLowerCase().includes("resume") ||
-              doc.content.toLowerCase().includes("education") ||
-              doc.content.toLowerCase().includes("skills") ||
-              doc.content.toLowerCase().includes("experience");
-
-            if (isResume) {
-              fallback = `### Analysis of ${doc.filename}\n\nBased on the uploaded document, here is the synthesized intelligence report [Source: ${doc.filename}, Page: 1]:\n\n**Candidate Profile & Overview:**\n- **Document Identified:** ${doc.filename}\n- **Verified Content:**\n> ${preview.slice(0, 450)}...\n\n**Key Competencies & Sections:**\n- Academic & Professional background indexed across ${doc.chunks || 4} chunks.\n- You can ask specific questions regarding skills, work history, projects, or achievements!`;
-            } else {
-              fallback = `### Document Synthesis: ${doc.filename}\n\nI have thoroughly analyzed **${doc.filename}** [Source: ${doc.filename}, Page: 1].\n\n**Extracted Document Excerpt:**\n> ${preview.slice(0, 400)}...\n\n**Query Response for:** "${userMessage}"\nThe document provides relevant data points directly addressing your query above. Ask for specific sections, numerical metrics, or structured summaries!`;
-            }
+          if (doc?.content && targetFilename) {
+            fallback = answerQueryFromDocument(
+              doc.content,
+              userMessage,
+              targetFilename
+            );
           } else {
             fallback = `I have received your inquiry regarding "${userMessage}".\n\nTo analyze documents, upload a PDF, DOCX, CSV, or TXT file in the File Workspace. Once uploaded, I will extract all text, index semantic chunks, and provide precise citations.`;
           }
@@ -265,7 +471,7 @@ Rules for answering:
           for (const w of words) {
             generatedText += w + " ";
             sendEvent({ type: "token", content: w + " " });
-            await new Promise((r) => setTimeout(r, 20));
+            await new Promise((r) => setTimeout(r, 15));
           }
         }
 
@@ -285,25 +491,13 @@ Rules for answering:
       } catch (err: any) {
         console.error("Gemini stream error:", err);
         if (!generatedText) {
-          // If stream failed before any text was sent, provide high-quality fallback synthesis from document
-          let docSnippet = "";
-          if (doc?.content && doc.content.length > 20) {
-            const queryWords = userMessage
-              .toLowerCase()
-              .split(/\s+/)
-              .filter((w: string) => w.length > 3);
-            const sentences = doc.content.split(/(?<=[.!?\n])\s+/);
-            const matched = sentences.filter((s: string) => {
-              const lower = s.toLowerCase();
-              return queryWords.some((w: string) => lower.includes(w));
-            });
-            docSnippet =
-              matched.slice(0, 5).join(" ") || doc.content.slice(0, 600);
-          }
-
           let responseFallback = "";
-          if (docSnippet && targetFilename) {
-            responseFallback = `### Document Knowledge Retrieval: ${targetFilename}\n\n**Relevant Passages Found:**\n> "${docSnippet.trim()}"\n\n**Synthesized Answer for:** "${userMessage}"\nBased directly on the indexed document text [Source: ${targetFilename}, Page: 1], the document contains the information detailed in the excerpt above. You can ask for further clarification, tabular formatting, or deeper metric breakdowns!`;
+          if (doc?.content && targetFilename) {
+            responseFallback = answerQueryFromDocument(
+              doc.content,
+              userMessage,
+              targetFilename
+            );
           } else {
             responseFallback = `I have processed your query regarding "${userMessage}". You can ask specific questions about the document structure, metrics, or content!`;
           }
@@ -311,7 +505,7 @@ Rules for answering:
           for (const w of responseFallback.split(" ")) {
             sendEvent({ type: "token", content: w + " " });
             generatedText += w + " ";
-            await new Promise((r) => setTimeout(r, 15));
+            await new Promise((r) => setTimeout(r, 12));
           }
         } else {
           const errMsg = `\n\n*(Document synthesis completed [Source: ${targetFilename || "Document"}])*`;

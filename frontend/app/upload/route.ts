@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  cleanPdfTextFormatting,
   deleteUploadFile,
   extractPdfText,
   saveUploadFile,
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
         textContent = "Binary document content.";
       }
     }
+    textContent = cleanPdfTextFormatting(textContent);
 
     const chunks = Math.max(
       1,

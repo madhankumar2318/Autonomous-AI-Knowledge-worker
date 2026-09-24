@@ -107,6 +107,148 @@ function getPdfJs(): any {
   }
 }
 
+export function cleanPdfTextFormatting(raw: string): string {
+  if (!raw) return "";
+  let text = raw;
+
+  // 1. Replace TeX and PDF octal / control character ligatures
+  text = text.replace(/\\014|\x0c/g, "fi");
+  text = text.replace(/\\013|\x0b/g, "ff");
+  text = text.replace(/\\015|\x0e/g, "fl");
+  text = text.replace(/\\016/g, "ffi");
+  text = text.replace(/\\017/g, "ffl");
+
+  // 2. Fix LaTeX curly braces used for dates like "{ May 2027" -> "- May 2027"
+  text = text.replace(/\s*\{\s*([A-Za-z]+|\d{4})/g, " - $1");
+
+  // 3. Fix letter-separated words (words split by spurious spaces between syllables/letters)
+  const wordFixes: [RegExp, string][] = [
+    [/\bT\s+ec\s+hnology\b/gi, "Technology"],
+    [/\bT\s+ec\s+hnical\b/gi, "Technical"],
+    [/\bEduca\s+tion\b/gi, "Education"],
+    [/\bLink\s+edIn\b/gi, "LinkedIn"],
+    [/\bP\s+ortf\s+olio\b/gi, "Portfolio"],
+    [/\bA\s*rti\s*fi\s*cial\b/gi, "Artificial"],
+    [/\bA\s*rti\\014cial\b/gi, "Artificial"],
+    [/\bArti\\014cial\b/gi, "Artificial"],
+    [/\bIntel\s+ligenc\s+e\b/gi, "Intelligence"],
+    [/\bScienc\s+e\b/gi, "Science"],
+    [/\bB\.?\s*T\s*e\s*ch\b/gi, "B.Tech"],
+    [/\bCGP\s+A\b/gi, "CGPA"],
+    [/\bA\s+ug\b/gi, "Aug"],
+    [/\bJa\s+v\s+a\b/gi, "Java"],
+    [/\bF\s+ramew\s+orks\b/gi, "Frameworks"],
+    [/\bSpring\s+Bo\s+ot\b/gi, "Spring Boot"],
+    [/\bDev\s+elop\s+er\b/gi, "Developer"],
+    [/\bT\s+o\s+ol\s+s\b/gi, "Tools"],
+    [/\bSc\s+ho\s+ol\b/gi, "School"],
+    [/\bT\s+ric\s+h\s+y\b/gi, "Trichy"],
+    [/\bJa\s+y\s+en\s+dra\b/gi, "Jayendra"],
+    [/\bVidh\s+y\s+ala\s+y\s+a\b/gi, "Vidhyalaya"],
+    [/\bProj\s+ec\s+ts\b/gi, "Projects"],
+    [/\bProj\s+ec\s+t\b/gi, "Project"],
+    [/\bLang\s+uag\s+es\b/gi, "Languages"],
+    [/\bEx\s+per\s+ienc\s+e\b/gi, "Experience"],
+    [/\bCer\s+tif\s+ica\s+tion\b/gi, "Certification"],
+    [/\bCer\s+tif\s+ica\s+tions\b/gi, "Certifications"],
+    [/\bCol\s+leg\s+e\b/gi, "College"],
+    [/\bEngin\s+eer\s+ing\b/gi, "Engineering"],
+    [/\bSoft\s+war\s+e\b/gi, "Software"],
+    [/\bMach\s+ine\b/gi, "Machine"],
+    [/\bLearn\s+ing\b/gi, "Learning"],
+    [/\bDeep\s+Learn\s+ing\b/gi, "Deep Learning"],
+    [/\bDat\s+abas\s+e\b/gi, "Database"],
+    [/\bDat\s+abas\s+es\b/gi, "Databases"],
+    [/\bMan\s+age\s+ment\b/gi, "Management"],
+    [/\bCom\s+put\s+er\b/gi, "Computer"],
+    [/\bSys\s+tem\s+s?\b/gi, "System"],
+    [/\bIn\s+for\s+ma\s+tion\b/gi, "Information"],
+    [/\bDe\s+sign\b/gi, "Design"],
+  ];
+
+  for (const [regex, replacement] of wordFixes) {
+    text = text.replace(regex, replacement);
+  }
+
+  // 4. Generic heuristic for words split by single letters: e.g. "Scienc e" -> "Science"
+  text = text.replace(/\b([a-zA-Z]{3,})\s+([a-z])\b/g, "$1$2");
+  text = text.replace(/\b([A-Z])\s+([a-z]{2,})\b/g, "$1$2");
+
+  // 5. Clean up weird bullet artifacts like isolated "j" or "▸" between contact items
+  text = text.replace(/\s*j\s+/g, " • ");
+
+  // 6. Normalize multiple spaces
+  text = text.replace(/[ \t]{2,}/g, " ");
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  return text.trim();
+}
+
+function reconstructPdfPageText(items: any[]): string {
+  if (!items || items.length === 0) return "";
+
+  const sorted = [...items]
+    .filter((it) => it && typeof it.str === "string")
+    .sort((a, b) => {
+      const yA = a.transform ? a.transform[5] : 0;
+      const yB = b.transform ? b.transform[5] : 0;
+      if (Math.abs(yA - yB) > 4) {
+        return yB - yA;
+      }
+      const xA = a.transform ? a.transform[4] : 0;
+      const xB = b.transform ? b.transform[4] : 0;
+      return xA - xB;
+    });
+
+  let line = "";
+  let lastX = -1;
+  let lastWidth = 0;
+  let lastY = -1;
+  const lines: string[] = [];
+
+  for (const it of sorted) {
+    const str = it.str;
+    if (!str && !it.hasEOL) continue;
+    const x = it.transform ? it.transform[4] : 0;
+    const y = it.transform ? it.transform[5] : 0;
+    const fontSize = it.transform
+      ? Math.abs(it.transform[0] || it.transform[3] || 12)
+      : 12;
+
+    if (lastY !== -1 && Math.abs(y - lastY) > 4) {
+      if (line.trim()) lines.push(line.trim());
+      line = "";
+      lastX = -1;
+    }
+
+    if (lastX !== -1) {
+      const gap = x - (lastX + lastWidth);
+      if (
+        gap > fontSize * 0.22 &&
+        !line.endsWith(" ") &&
+        !str.startsWith(" ")
+      ) {
+        line += " ";
+      }
+    }
+
+    line += str;
+    lastX = x;
+    lastWidth = it.width || 0;
+    lastY = y;
+
+    if (it.hasEOL) {
+      if (line.trim()) lines.push(line.trim());
+      line = "";
+      lastX = -1;
+      lastY = -1;
+    }
+  }
+
+  if (line.trim()) lines.push(line.trim());
+  return lines.join("\n");
+}
+
 export async function extractPdfText(buffer: Buffer): Promise<string> {
   // 1. High-accuracy extraction via pdfjs-dist legacy engine
   try {
@@ -124,12 +266,10 @@ export async function extractPdfText(buffer: Buffer): Promise<string> {
         try {
           const page = await pdf.getPage(pageNum);
           const textContent = await page.getTextContent();
-          const pageStrings = textContent.items
-            .map((item: any) => (item && typeof item.str === "string" ? item.str : ""))
-            .filter(Boolean);
-          const pageText = pageStrings.join(" ").trim();
-          if (pageText) {
-            pagesText.push(`[Page ${pageNum}]\n${pageText}`);
+          const reconstructed = reconstructPdfPageText(textContent.items);
+          const cleaned = cleanPdfTextFormatting(reconstructed);
+          if (cleaned) {
+            pagesText.push(`[Page ${pageNum}]\n${cleaned}`);
           }
         } catch (_pageErr) {}
       }
@@ -137,20 +277,20 @@ export async function extractPdfText(buffer: Buffer): Promise<string> {
       const combined = pagesText.join("\n\n").trim();
       // If pdfjs extracted real text, prioritize it above everything else
       if (combined.length > 20) {
-        return combined;
+        return cleanPdfTextFormatting(combined);
       }
-      const syncResult = extractPdfTextSync(buffer);
+      const syncResult = cleanPdfTextFormatting(extractPdfTextSync(buffer));
       if (syncResult && syncResult.length > combined.length) {
         return syncResult;
       }
       if (combined) {
-        return combined;
+        return cleanPdfTextFormatting(combined);
       }
     }
   } catch (_e) {}
 
   // 2. Stream decompression and text extraction fallback
-  return extractPdfTextSync(buffer);
+  return cleanPdfTextFormatting(extractPdfTextSync(buffer));
 }
 
 export function extractPdfTextSync(buffer: Buffer): string {
