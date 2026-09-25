@@ -525,6 +525,40 @@ export default function ChatAssistant({
 
           {/* Main Chat Area */}
           <div className="chat-inline-main">
+            {activeDocumentFilename && (
+              <div
+                style={{
+                  margin: "8px 16px 2px 16px",
+                  padding: "6px 12px",
+                  background: "rgba(34, 211, 238, 0.08)",
+                  border: "1px solid rgba(34, 211, 238, 0.22)",
+                  borderRadius: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontSize: "11px",
+                  color: "#67e8f9",
+                  flexShrink: 0,
+                }}
+              >
+                <span
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontWeight: 600,
+                  }}
+                >
+                  📄 Active Document:{" "}
+                  <strong style={{ color: "#ffffff" }}>
+                    {activeDocumentFilename}
+                  </strong>
+                </span>
+                <span style={{ opacity: 0.75, fontSize: "10px" }}>
+                  RAG &amp; Citations Active
+                </span>
+              </div>
+            )}
             {/* Messages */}
             <div className="chat-inline-messages">
               {messages.map((msg, idx) => {
@@ -688,9 +722,10 @@ export default function ChatAssistant({
               <div className="chat-quick-prompts">
                 {(activeDocumentFilename
                   ? [
-                      "📄 Summarize this document",
-                      "💡 Key takeaways & insights",
-                      "🔍 Find action items/decisions",
+                      "📄 Summarize document",
+                      "💻 Technical skills & languages",
+                      "🚀 Projects & implementations",
+                      "🎓 Education & background",
                     ]
                   : QUICK_PROMPTS
                 ).map((prompt, i) => (

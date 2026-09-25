@@ -121,63 +121,86 @@ export function cleanPdfTextFormatting(raw: string): string {
   // 2. Fix LaTeX curly braces used for dates like "{ May 2027" -> "- May 2027"
   text = text.replace(/\s*\{\s*([A-Za-z]+|\d{4})/g, " - $1");
 
-  // 3. Fix letter-separated words (words split by spurious spaces between syllables/letters)
+  // 3. Fix bullet / delimiter artifacts like isolated "j" or "•"
+  text = text.replace(/\s*j\s+/g, " • ");
+
+  // 4. Fix letter-separated words (words split by spurious spaces between syllables/letters)
   const wordFixes: [RegExp, string][] = [
-    [/\bT\s+ec\s+hnology\b/gi, "Technology"],
-    [/\bT\s+ec\s+hnical\b/gi, "Technical"],
-    [/\bEduca\s+tion\b/gi, "Education"],
-    [/\bLink\s+edIn\b/gi, "LinkedIn"],
-    [/\bP\s+ortf\s+olio\b/gi, "Portfolio"],
+    [/\bT\s*ec\s*hnology\b/gi, "Technology"],
+    [/\bT\s*ec\s*hnical\b/gi, "Technical"],
+    [/\bEduca\s*tion\b/gi, "Education"],
+    [/\bLink\s*edIn\b/gi, "LinkedIn"],
+    [/\bP\s*ortf\s*olio\b/gi, "Portfolio"],
     [/\bA\s*rti\s*fi\s*cial\b/gi, "Artificial"],
     [/\bA\s*rti\\014cial\b/gi, "Artificial"],
     [/\bArti\\014cial\b/gi, "Artificial"],
-    [/\bIntel\s+ligenc\s+e\b/gi, "Intelligence"],
-    [/\bScienc\s+e\b/gi, "Science"],
+    [/\bIntel\s*ligenc\s*e\b/gi, "Intelligence"],
+    [/\bScienc\s*e\b/gi, "Science"],
     [/\bB\.?\s*T\s*e\s*ch\b/gi, "B.Tech"],
-    [/\bCGP\s+A\b/gi, "CGPA"],
-    [/\bA\s+ug\b/gi, "Aug"],
-    [/\bJa\s+v\s+a\b/gi, "Java"],
-    [/\bF\s+ramew\s+orks\b/gi, "Frameworks"],
-    [/\bSpring\s+Bo\s+ot\b/gi, "Spring Boot"],
-    [/\bDev\s+elop\s+er\b/gi, "Developer"],
-    [/\bT\s+o\s+ol\s+s\b/gi, "Tools"],
-    [/\bSc\s+ho\s+ol\b/gi, "School"],
-    [/\bT\s+ric\s+h\s+y\b/gi, "Trichy"],
-    [/\bJa\s+y\s+en\s+dra\b/gi, "Jayendra"],
-    [/\bVidh\s+y\s+ala\s+y\s+a\b/gi, "Vidhyalaya"],
-    [/\bProj\s+ec\s+ts\b/gi, "Projects"],
-    [/\bProj\s+ec\s+t\b/gi, "Project"],
-    [/\bLang\s+uag\s+es\b/gi, "Languages"],
-    [/\bEx\s+per\s+ienc\s+e\b/gi, "Experience"],
-    [/\bCer\s+tif\s+ica\s+tion\b/gi, "Certification"],
-    [/\bCer\s+tif\s+ica\s+tions\b/gi, "Certifications"],
-    [/\bCol\s+leg\s+e\b/gi, "College"],
-    [/\bEngin\s+eer\s+ing\b/gi, "Engineering"],
-    [/\bSoft\s+war\s+e\b/gi, "Software"],
-    [/\bMach\s+ine\b/gi, "Machine"],
-    [/\bLearn\s+ing\b/gi, "Learning"],
-    [/\bDeep\s+Learn\s+ing\b/gi, "Deep Learning"],
-    [/\bDat\s+abas\s+e\b/gi, "Database"],
-    [/\bDat\s+abas\s+es\b/gi, "Databases"],
-    [/\bMan\s+age\s+ment\b/gi, "Management"],
-    [/\bCom\s+put\s+er\b/gi, "Computer"],
-    [/\bSys\s+tem\s+s?\b/gi, "System"],
-    [/\bIn\s+for\s+ma\s+tion\b/gi, "Information"],
-    [/\bDe\s+sign\b/gi, "Design"],
+    [/\bCGP\s*A\b/gi, "CGPA"],
+    [/\bSSL\s*C\b/gi, "SSLC"],
+    [/\bHS\s*C\b/gi, "HSC"],
+    [/\bC\s*B\s*S\s*E\b/gi, "CBSE"],
+    [/\bA\s*ug\b/gi, "Aug"],
+    [/\bJa\s*v\s*a\b/gi, "Java"],
+    [/\bF\s*ramew\s*orks\b/gi, "Frameworks"],
+    [/\bF\s*ramew\s*ork\b/gi, "Framework"],
+    [/\bSpring\s*Bo\s*ot\b/gi, "Spring Boot"],
+    [/\bDev\s*elop\s*er\b/gi, "Developer"],
+    [/\bT\s*o\s*ol\s*s\b/gi, "Tools"],
+    [/\bSc\s*ho\s*ol\b/gi, "School"],
+    [/\bT\s*ric\s*h\s*y\b/gi, "Trichy"],
+    [/\bJa\s*y\s*en\s*dra\b/gi, "Jayendra"],
+    [/\bVidh\s*y\s*ala\s*y\s*a\b/gi, "Vidhyalaya"],
+    [/\bMus\s*iri\b/gi, "Musiri"],
+    [/\bProj\s*ec\s*ts\b/gi, "Projects"],
+    [/\bProj\s*ec\s*t\b/gi, "Project"],
+    [/\bLang\s*uag\s*es\b/gi, "Languages"],
+    [/\bEx\s*per\s*ienc\s*e\b/gi, "Experience"],
+    [/\bCer\s*tif\s*ica\s*tion\b/gi, "Certification"],
+    [/\bCer\s*tif\s*ica\s*tions\b/gi, "Certifications"],
+    [/\bCol\s*leg\s*e\b/gi, "College"],
+    [/\bEngin\s*eer\s*ing\b/gi, "Engineering"],
+    [/\bSoft\s*war\s*e\b/gi, "Software"],
+    [/\bMach\s*ine\b/gi, "Machine"],
+    [/\bLearn\s*ing\b/gi, "Learning"],
+    [/\bDeep\s*Learn\s*ing\b/gi, "Deep Learning"],
+    [/\bDat\s*abas\s*e\b/gi, "Database"],
+    [/\bDat\s*abas\s*es\b/gi, "Databases"],
+    [/\bMan\s*age\s*ment\b/gi, "Management"],
+    [/\bCom\s*put\s*er\b/gi, "Computer"],
+    [/\bSys\s*tem\s*s?\b/gi, "System"],
+    [/\bIn\s*for\s*ma\s*tion\b/gi, "Information"],
+    [/\bDe\s*sign\b/gi, "Design"],
+    [/\bRe\s*searc\s*h\b/gi, "Research"],
+    [/\bPro\s*gram\s*ming\b/gi, "Programming"],
+    [/\bAp\s*pli\s*ca\s*tion\b/gi, "Application"],
+    [/\bAp\s*pli\s*ca\s*tions\b/gi, "Applications"],
+    [/\bAlg\s*or\s*ithm\b/gi, "Algorithm"],
+    [/\bAlg\s*or\s*ithms\b/gi, "Algorithms"],
+    [/\bSol\s*u\s*tion\b/gi, "Solution"],
+    [/\bSol\s*u\s*tions\b/gi, "Solutions"],
+    [/\bPer\s*form\s*ance\b/gi, "Performance"],
+    [/\bAn\s*a\s*lyt\s*ics\b/gi, "Analytics"],
+    [/\bAn\s*a\s*ly\s*sis\b/gi, "Analysis"],
+    [/\bAr\s*chi\s*tec\s*ture\b/gi, "Architecture"],
+    [/\bAc\s*a\s*dem\s*ic\b/gi, "Academic"],
+    [/\bIn\s*sti\s*tute\b/gi, "Institute"],
+    [/\bUni\s*ver\s*si\s*ty\b/gi, "University"],
   ];
 
   for (const [regex, replacement] of wordFixes) {
     text = text.replace(regex, replacement);
   }
 
-  // 4. Generic heuristic for words split by single letters: e.g. "Scienc e" -> "Science"
+  // 5. Generic heuristic for words split by single letters: e.g. "Scienc e" -> "Science"
   text = text.replace(/\b([a-zA-Z]{3,})\s+([a-z])\b/g, "$1$2");
   text = text.replace(/\b([A-Z])\s+([a-z]{2,})\b/g, "$1$2");
 
-  // 5. Clean up weird bullet artifacts like isolated "j" or "▸" between contact items
-  text = text.replace(/\s*j\s+/g, " • ");
+  // 6. Fix glued words before prepositions (e.g. "Collegeof" -> "College of", "B.Techin" -> "B.Tech in")
+  text = text.replace(/([a-zA-Z\.]{3,})(of|in|and|at|for|to|with|by|on)\b/g, "$1 $2");
 
-  // 6. Normalize multiple spaces
+  // 7. Normalize multiple spaces
   text = text.replace(/[ \t]{2,}/g, " ");
   text = text.replace(/\n{3,}/g, "\n\n");
 
@@ -224,7 +247,7 @@ function reconstructPdfPageText(items: any[]): string {
     if (lastX !== -1) {
       const gap = x - (lastX + lastWidth);
       if (
-        gap > fontSize * 0.22 &&
+        gap > fontSize * 0.28 &&
         !line.endsWith(" ") &&
         !str.startsWith(" ")
       ) {
@@ -558,30 +581,41 @@ export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
 }
 
 export function getUploadBuffer(filename: string): Buffer | null {
-  const decoded = decodeURIComponent(filename);
+  if (!filename) return null;
+  const decoded = decodeURIComponent(filename).trim();
+  const lower = decoded.toLowerCase();
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normTarget = norm(decoded);
 
   // 1. Check in-memory buffer store
-  if (buffersStore.has(filename)) {
-    return buffersStore.get(filename)!;
-  }
-  if (buffersStore.has(decoded)) {
-    return buffersStore.get(decoded)!;
+  if (buffersStore.has(filename)) return buffersStore.get(filename)!;
+  if (buffersStore.has(decoded)) return buffersStore.get(decoded)!;
+
+  for (const [key, buf] of Array.from(buffersStore.entries())) {
+    if (key.toLowerCase() === lower || norm(key) === normTarget) {
+      return buf;
+    }
   }
 
   // 2. Check disk storage directories
   for (const dir of getStorageDirs()) {
     try {
-      const filePath = path.join(dir, filename);
-      if (fs.existsSync(filePath)) {
-        const buf = fs.readFileSync(filePath);
-        buffersStore.set(filename, buf);
-        return buf;
-      }
-      const decodedPath = path.join(dir, decoded);
-      if (fs.existsSync(decodedPath)) {
-        const buf = fs.readFileSync(decodedPath);
-        buffersStore.set(filename, buf);
-        return buf;
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir);
+        for (const file of files) {
+          if (file.endsWith(".json")) continue;
+          if (
+            file === filename ||
+            file === decoded ||
+            file.toLowerCase() === lower ||
+            norm(file) === normTarget
+          ) {
+            const buf = fs.readFileSync(path.join(dir, file));
+            buffersStore.set(filename, buf);
+            buffersStore.set(file, buf);
+            return buf;
+          }
+        }
       }
     } catch (_e) {}
   }
@@ -590,8 +624,13 @@ export function getUploadBuffer(filename: string): Buffer | null {
   syncUploadsFromDisk();
   if (buffersStore.has(filename)) return buffersStore.get(filename)!;
   if (buffersStore.has(decoded)) return buffersStore.get(decoded)!;
+  for (const [key, buf] of Array.from(buffersStore.entries())) {
+    if (key.toLowerCase() === lower || norm(key) === normTarget) {
+      return buf;
+    }
+  }
 
-  const doc = uploadsStore.get(filename) || uploadsStore.get(decoded);
+  const doc = getUploadRecord(filename);
   if (doc?.content && !filename.toLowerCase().endsWith(".pdf")) {
     return Buffer.from(doc.content, "utf-8");
   }
@@ -599,8 +638,11 @@ export function getUploadBuffer(filename: string): Buffer | null {
 }
 
 export function getUploadRecord(filename: string): UploadRecord | null {
+  if (!filename) return null;
   const decoded = decodeURIComponent(filename).trim();
   const lower = decoded.toLowerCase();
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normTarget = norm(decoded);
 
   if (uploadsStore.has(filename)) return uploadsStore.get(filename)!;
   if (uploadsStore.has(decoded)) return uploadsStore.get(decoded)!;
@@ -611,7 +653,10 @@ export function getUploadRecord(filename: string): UploadRecord | null {
       key === decoded ||
       key.toLowerCase() === lower ||
       val.filename.toLowerCase() === lower ||
-      val.originalName?.toLowerCase() === lower
+      val.originalName?.toLowerCase() === lower ||
+      norm(key) === normTarget ||
+      norm(val.filename) === normTarget ||
+      (val.originalName && norm(val.originalName) === normTarget)
     ) {
       return val;
     }
@@ -624,7 +669,9 @@ export function getUploadRecord(filename: string): UploadRecord | null {
   for (const [, val] of Array.from(uploadsStore.entries())) {
     if (
       val.filename.toLowerCase() === lower ||
-      val.originalName?.toLowerCase() === lower
+      val.originalName?.toLowerCase() === lower ||
+      norm(val.filename) === normTarget ||
+      (val.originalName && norm(val.originalName) === normTarget)
     ) {
       return val;
     }

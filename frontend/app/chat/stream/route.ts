@@ -208,43 +208,80 @@ export async function POST(req: Request) {
     ? decodeURIComponent(rawFilename).trim()
     : null;
 
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  if (targetFilename) {
+    const existing = getUploadRecord(targetFilename);
+    if (existing) targetFilename = existing.filename;
+  }
+
   if (!targetFilename && uploadsStore.size > 0) {
     const uploadList = Array.from(uploadsStore.values());
     const lowerMsg = userMessage.toLowerCase();
+    const normMsg = norm(userMessage);
 
-    // 1. Check if user mentions an uploaded file name or base name
+    // 1. Check if user mentions an uploaded file name or base name (exact or normalized)
     const matched = uploadList.find((u) => {
       const fName = u.filename.toLowerCase();
       const baseName = fName.replace(/\.[^/.]+$/, "");
       return (
         lowerMsg.includes(fName) ||
-        (baseName.length > 2 && lowerMsg.includes(baseName))
+        (baseName.length > 2 && lowerMsg.includes(baseName)) ||
+        normMsg.includes(norm(fName)) ||
+        (norm(baseName).length > 2 && normMsg.includes(norm(baseName)))
       );
     });
 
     if (matched) {
       targetFilename = matched.filename;
-    } else if (uploadList.length === 1) {
-      // Exactly one file uploaded -> auto-target it for RAG
-      targetFilename = uploadList[0].filename;
-    } else if (
-      lowerMsg.includes("pdf") ||
-      lowerMsg.includes("document") ||
-      lowerMsg.includes("file") ||
-      lowerMsg.includes("resume") ||
-      lowerMsg.includes("report") ||
-      lowerMsg.includes("paper") ||
-      lowerMsg.includes("contract") ||
-      lowerMsg.includes("brief") ||
-      lowerMsg.includes("uploaded")
-    ) {
-      // Sort by newest uploaded file
-      const sorted = [...uploadList].sort(
-        (a, b) =>
-          new Date(b.uploadedAt || 0).getTime() -
-          new Date(a.uploadedAt || 0).getTime()
-      );
-      targetFilename = sorted[0].filename;
+    } else if (history && history.length > 0) {
+      // 2. Check conversation history for previously referenced document
+      for (const h of history.slice().reverse()) {
+        const text = (h.content || "").toLowerCase();
+        const normH = norm(text);
+        const histMatch = uploadList.find((u) => {
+          const fName = u.filename.toLowerCase();
+          const baseName = fName.replace(/\.[^/.]+$/, "");
+          return (
+            text.includes(fName) ||
+            (baseName.length > 2 && text.includes(baseName)) ||
+            normH.includes(norm(fName)) ||
+            (norm(baseName).length > 2 && normH.includes(norm(baseName)))
+          );
+        });
+        if (histMatch) {
+          targetFilename = histMatch.filename;
+          break;
+        }
+      }
+    }
+
+    if (!targetFilename) {
+      if (uploadList.length === 1) {
+        // Exactly one file uploaded -> auto-target it for RAG
+        targetFilename = uploadList[0].filename;
+      } else if (
+        lowerMsg.includes("pdf") ||
+        lowerMsg.includes("document") ||
+        lowerMsg.includes("file") ||
+        lowerMsg.includes("resume") ||
+        lowerMsg.includes("report") ||
+        lowerMsg.includes("paper") ||
+        lowerMsg.includes("contract") ||
+        lowerMsg.includes("brief") ||
+        lowerMsg.includes("uploaded") ||
+        /project|skill|language|education|work|experience|cgpa|college|degree|mark|summary/i.test(
+          lowerMsg
+        )
+      ) {
+        // Sort by newest uploaded file
+        const sorted = [...uploadList].sort(
+          (a, b) =>
+            new Date(b.uploadedAt || 0).getTime() -
+            new Date(a.uploadedAt || 0).getTime()
+        );
+        targetFilename = sorted[0].filename;
+      }
     }
   }
 
@@ -404,6 +441,7 @@ Rules for answering:
               }
               if (generatedText) {
                 streamSuccess = true;
+                sendEvent({ type: "model_used", content: "Google Gemini 2.5" });
                 break;
               }
             } catch (modelErr: any) {
@@ -440,6 +478,7 @@ Rules for answering:
                 }
                 if (generatedText) {
                   streamSuccess = true;
+                  sendEvent({ type: "model_used", content: "Google Gemini 2.5" });
                   break;
                 }
               } catch (modelErr: any) {

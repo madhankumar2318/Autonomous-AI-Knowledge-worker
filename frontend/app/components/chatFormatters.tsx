@@ -408,6 +408,25 @@ export function formatMessage(
       continue;
     }
 
+    // ── Blockquote (e.g. > quote line) ─────────────────────────────────────────
+    if (trimmed.startsWith(">")) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        quoteLines.push(lines[i].trim().replace(/^>\s?/, ""));
+        i++;
+      }
+      segments.push(
+        <blockquote key={`quote-${i}`} className="chat-md-blockquote">
+          {quoteLines.map((ql, qIdx) => (
+            <div key={qIdx} className="chat-md-quote-line">
+              {parseInlineStyles(ql, onCitationClick)}
+            </div>
+          ))}
+        </blockquote>
+      );
+      continue;
+    }
+
     // ── Ordered List ──────────────────────────────────────────────────────────
     if (/^\d+\.\s/.test(trimmed)) {
       const items: string[] = [];
@@ -419,20 +438,52 @@ export function formatMessage(
       continue;
     }
 
-    // ── Unordered Bullet List ─────────────────────────────────────────────────
+    // ── Unordered Bullet List (groups consecutive bullets into clean <ul> with nested indent support) ─
     if (
       trimmed.startsWith("- ") ||
       trimmed.startsWith("* ") ||
-      trimmed.startsWith("• ")
+      trimmed.startsWith("• ") ||
+      trimmed.startsWith("▸ ") ||
+      /^[-*•▸]$/.test(trimmed)
     ) {
-      const cleanLine = trimmed.replace(/^[-*•]\s+/, "");
-      segments.push(
-        <div key={`bullet-${i}`} className="chat-md-bullet">
-          <span className="chat-md-bullet-dot">▸</span>
-          <span>{parseInlineStyles(cleanLine, onCitationClick)}</span>
-        </div>
-      );
-      i++;
+      const bulletGroup: { text: string; indent: boolean }[] = [];
+      while (
+        i < lines.length &&
+        (lines[i].trim().startsWith("- ") ||
+          lines[i].trim().startsWith("* ") ||
+          lines[i].trim().startsWith("• ") ||
+          lines[i].trim().startsWith("▸ ") ||
+          /^[-*•▸]$/.test(lines[i].trim()))
+      ) {
+        const rawBulletLine = lines[i];
+        const trimmedBullet = rawBulletLine.trim();
+        // Check if there is leading indentation (e.g. 2 or 4 spaces)
+        const isNested = /^\s{2,}/.test(rawBulletLine);
+        const cleanLine = trimmedBullet.replace(/^[-*•▸]\s*/, "");
+        if (cleanLine) {
+          bulletGroup.push({ text: cleanLine, indent: isNested });
+        }
+        i++;
+      }
+      if (bulletGroup.length > 0) {
+        segments.push(
+          <ul key={`ul-${i}`} className="chat-md-ul">
+            {bulletGroup.map((b, bIdx) => (
+              <li
+                key={bIdx}
+                className={`chat-md-li ${b.indent ? "chat-md-li-nested" : ""}`}
+              >
+                <span className="chat-md-bullet-marker" aria-hidden="true">
+                  ▸
+                </span>
+                <span className="chat-md-li-content">
+                  {parseInlineStyles(b.text, onCitationClick)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        );
+      }
       continue;
     }
 

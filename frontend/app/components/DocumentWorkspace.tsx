@@ -102,6 +102,12 @@ export default function DocumentWorkspace({
   }, [highlightPhrase, targetPage]);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && file?.filename) {
+      localStorage.setItem("ak_active_file", file.filename);
+    }
+  }, [file.filename]);
+
+  useEffect(() => {
     const handleOpenDocument = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail && customEvent.detail.filename === file.filename) {

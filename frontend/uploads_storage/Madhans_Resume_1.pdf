@@ -1,0 +1,49 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 976 >>
+stream
+BT
+/F1 12 Tf
+50 750 Td
+14 TL
+(Madhan Kumar S - Contact: +91 6369461227 - kumarmathan12334@gmail.com) Tj T*
+(Profiles: LinkedIn: linkedin.com/in/madhan - GitHub: github.com/madhankumar - Portfolio: madhan.dev) Tj T*
+(Education:) Tj T*
+(J.J. College of Engineering and Technology, Trichy) Tj T*
+(B.Tech in Artificial Intelligence and Data Science - CGPA: 8.02 \(Aug. 2023 - May 2027\)) Tj T*
+(Shri Jayendra Vidhyalaya CBSE School, Musiri \(SSLC: 81%, HSC: 63%, June 2016 - May 2023\)) Tj T*
+(Technical Skills:) Tj T*
+(Languages: Java, SQL, Python) Tj T*
+(Frameworks: Spring Boot, React, Next.js) Tj T*
+(Developer Tools: Git, GitHub, Docker, VS Code) Tj T*
+(Projects:) Tj T*
+(1. AI Resume Parser & Semantic Intelligence Engine: Built full-stack document analyzer with Spring Boot, Java, and vector similarity search.) Tj T*
+(2. Autonomous Knowledge Worker Assistant: Financial and knowledge research assistant with real-time citations and automated metrics extraction.) Tj T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000227 00000 n 
+0000000306 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1376
+%%EOF

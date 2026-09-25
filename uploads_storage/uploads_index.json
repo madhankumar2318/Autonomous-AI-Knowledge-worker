@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "upl-1790352808457",
+    "username": "admin",
+    "filename": "Madhans_Resume_1.pdf",
+    "originalName": "Madhans_Resume_1.pdf",
+    "contentType": "application/pdf",
+    "size": 1520,
+    "uploadedAt": "2026-09-25T16:13:28.457Z",
+    "status": "indexed",
+    "chunks": 2,
+    "content": "[Page 1]\nMadhan Kumar S - Contact: +91 6369461227 - kumarmathan12334@gmail.com\nProfiles: LinkedIn: LinkedIn.com/in/madhan - GitHub: github.com/madhankumar - Portfolio: madhan.dev\nEducati on:\nJ.J. College of Engineering and Technology, Trichy\nB.Tech in Artificial Intelligence and Data Science - CGPA: 8.02 (Aug. 2023 - May 2027)\nShri Jayendra Vidhyalaya CBSE School, Musiri (SSLC: 81%, HSC: 63%, June 2016 - May 2023)\nTechnical Skills:\nLanguages: Java, SQL, Pyth on\nFrameworks: Spring Boot, React, Next.js\nDeveloper Tools: Git, GitHub, Docker, VS Code\nProjects:\n1. AI Resume Parser & Semantic Intelligence Engine: Built full-stack document analyzer with Spring Boot,\n2. Autonomous Knowledge Worker Assistant: Financial and knowledge Research assistant with real-time ci"
+  }
+]

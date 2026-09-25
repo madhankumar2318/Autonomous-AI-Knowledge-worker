@@ -1116,7 +1116,64 @@ input:-webkit-autofill:active {
   opacity: 0.5;
 }
 
-/* ── Bullet List ──────────────────────────────────────────────────────────── */
+/* ── Blockquote ───────────────────────────────────────────────────────────── */
+.chat-md-blockquote {
+  border-left: 3px solid var(--accent-primary);
+  background: rgba(34, 211, 238, 0.05);
+  border-radius: 0 8px 8px 0;
+  padding: 8px 14px;
+  margin: 10px 0;
+  color: var(--text-primary);
+  font-size: 0.93em;
+  line-height: 1.6;
+}
+
+.chat-md-blockquote .chat-md-quote-line {
+  margin-bottom: 4px;
+}
+
+.chat-md-blockquote .chat-md-quote-line:last-child {
+  margin-bottom: 0;
+}
+
+/* ── Grouped Bullet List (clean alignment & wrapping) ────────────────────── */
+.chat-md-ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-md-li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.chat-md-li-nested {
+  margin-left: 20px;
+}
+
+.chat-md-bullet-marker {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+  user-select: none;
+  font-size: 0.78em;
+  margin-top: 4px;
+  line-height: 1.6;
+}
+
+.chat-md-li-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Bullet List (legacy single row) ──────────────────────────────────────── */
 .chat-md-bullet {
   display: flex;
   gap: 8px;
@@ -1127,6 +1184,7 @@ input:-webkit-autofill:active {
 .chat-md-bullet-dot {
   color: var(--accent-primary);
   flex-shrink: 0;
+  user-select: none;
   line-height: 1.6;
   font-size: 0.8em;
   margin-top: 2px;
