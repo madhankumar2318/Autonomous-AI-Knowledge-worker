@@ -60,7 +60,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         const cached = localStorage.getItem("ak_uploads_list_cache");
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed)) return parsed;
         }
       } catch {}
     }
@@ -114,40 +114,43 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       const res = await fetch(`${API_BASE_URL}/upload/list`, {
         credentials: "include",
       });
+      if (!res.ok) return;
       const data = await res.json();
       const rawList = Array.isArray(data)
         ? data
         : data && Array.isArray(data.uploads)
           ? data.uploads
           : [];
-      const normalized = rawList.map((item: any) => ({
+      const normalized: UploadedFile[] = rawList.map((item: any) => ({
         ...item,
         rag_indexed: item.rag_indexed !== undefined ? item.rag_indexed : true,
         chunks:
           item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
       }));
 
-      if (normalized.length > 0) {
-        setUploads(normalized);
-        try {
-          localStorage.setItem(
-            "ak_uploads_list_cache",
-            JSON.stringify(normalized),
-          );
-        } catch {}
-      } else {
-        setUploads((prev) => {
-          if (prev.length > 0 && normalized.length === 0) return prev;
-          return normalized;
-        });
-      }
+      // Update state and cache with authoritative server records
+      setUploads(normalized);
+      try {
+        localStorage.setItem(
+          "ak_uploads_list_cache",
+          JSON.stringify(normalized),
+        );
+      } catch {}
 
-      // Reconcile active file metadata with server version
-      const savedFilename = localStorage.getItem("ak_active_file");
-      if (savedFilename) {
-        const matched = normalized.find((u: any) => u.filename === savedFilename);
-        if (matched) {
-          setActiveWorkspaceFile(matched);
+      if (normalized.length === 0) {
+        setActiveWorkspaceFile(null);
+        localStorage.removeItem("ak_active_file");
+      } else {
+        // Reconcile active file metadata with server version
+        const savedFilename = localStorage.getItem("ak_active_file");
+        if (savedFilename) {
+          const matched = normalized.find((u: any) => u.filename === savedFilename);
+          if (matched) {
+            setActiveWorkspaceFile(matched);
+          } else {
+            setActiveWorkspaceFile(null);
+            localStorage.removeItem("ak_active_file");
+          }
         }
       }
     } catch (_err) {
@@ -474,11 +477,21 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   };
 
   const handleDelete = async (filename: string) => {
+    if (!filename || deletingFilename) return;
     setDeletingFilename(filename);
     deleteLocalFileBlob(filename);
+
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const targetNorm = norm(filename);
+
     // Instant optimistic removal from UI and cache so user immediately sees file disappear
     setUploads((prev) => {
-      const filtered = prev.filter((u) => u.filename !== filename);
+      const filtered = prev.filter(
+        (u) =>
+          u.filename !== filename &&
+          u.filename.toLowerCase() !== filename.toLowerCase() &&
+          norm(u.filename) !== targetNorm
+      );
       try {
         localStorage.setItem(
           "ak_uploads_list_cache",
@@ -487,12 +500,18 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       } catch {}
       return filtered;
     });
-    if (activeWorkspaceFile?.filename === filename) {
+
+    if (
+      activeWorkspaceFile?.filename === filename ||
+      activeWorkspaceFile?.filename?.toLowerCase() === filename.toLowerCase() ||
+      (activeWorkspaceFile?.filename && norm(activeWorkspaceFile.filename) === targetNorm)
+    ) {
       setActiveWorkspaceFile(null);
       localStorage.removeItem("ak_active_file");
     }
 
     try {
+      // 1. Try dynamic DELETE route: /upload/:filename
       let res = await fetch(
         `${API_BASE_URL}/upload/${encodeURIComponent(filename)}`,
         {
@@ -500,8 +519,9 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           credentials: "include",
         },
       );
+
+      // 2. Fallback: try query-param DELETE route: /upload?filename=...
       if (!res.ok) {
-        // Fallback: try query param delete if path-based route was rejected
         res = await fetch(
           `${API_BASE_URL}/upload?filename=${encodeURIComponent(filename)}`,
           {
@@ -510,6 +530,17 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           },
         );
       }
+
+      // 3. Fallback: try POST /upload/delete in case environment/proxy blocks DELETE requests
+      if (!res.ok) {
+        res = await fetch(`${API_BASE_URL}/upload/delete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ filename }),
+        });
+      }
+
       if (res.ok) {
         showToast("success", `"${filename}" deleted.`);
         window.dispatchEvent(
@@ -522,12 +553,12 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           }),
         );
       } else {
-        showToast("error", "Failed to delete file from server.");
+        showToast("error", `Failed to delete "${filename}" from server.`);
       }
-      fetchUploads();
+      await fetchUploads();
     } catch (_err) {
       showToast("error", "Connection error during file deletion.");
-      fetchUploads();
+      await fetchUploads();
     } finally {
       setDeletingFilename(null);
     }

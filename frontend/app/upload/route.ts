@@ -87,6 +87,7 @@ export async function DELETE(req: Request) {
     if (filename) {
       deleteUploadFile(decodeURIComponent(filename));
       return NextResponse.json({
+        success: true,
         message: `File ${filename} deleted successfully.`,
       });
     }

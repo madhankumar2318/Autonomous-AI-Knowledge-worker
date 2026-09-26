@@ -578,7 +578,29 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
   const uploads = globalStore.__AKW_UPLOADS__;
   const dirs = getStorageDirs();
 
-  // 1. First, check for uploads_index.json across all storage directories
+  // Reconcile in-memory store against disk: if a file in uploadsStore no longer exists on disk in ANY storage dir, REMOVE IT
+  for (const [key, val] of Array.from(uploads.entries())) {
+    let existsOnDisk = false;
+    for (const dir of dirs) {
+      if (fs.existsSync(dir)) {
+        if (
+          fs.existsSync(path.join(dir, val.filename)) ||
+          fs.existsSync(path.join(dir, key)) ||
+          fs.existsSync(path.join(dir, decodeURIComponent(val.filename)))
+        ) {
+          existsOnDisk = true;
+          break;
+        }
+      }
+    }
+    if (!existsOnDisk) {
+      uploads.delete(key);
+      globalStore.__AKW_BUFFERS__?.delete(key);
+      globalStore.__AKW_BUFFERS__?.delete(val.filename);
+    }
+  }
+
+  // 1. Check for uploads_index.json across all storage directories ONLY for files that physically exist on disk
   for (const dir of dirs) {
     try {
       if (fs.existsSync(dir)) {
@@ -588,8 +610,21 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
           const records = JSON.parse(raw);
           if (Array.isArray(records)) {
             for (const r of records) {
-              if (r && r.filename && !uploads.has(r.filename)) {
-                uploads.set(r.filename, r);
+              if (r && r.filename) {
+                // Verify physical file actually exists before restoring into store
+                let physicalExists = false;
+                for (const d of dirs) {
+                  if (
+                    fs.existsSync(path.join(d, r.filename)) ||
+                    fs.existsSync(path.join(d, decodeURIComponent(r.filename)))
+                  ) {
+                    physicalExists = true;
+                    break;
+                  }
+                }
+                if (physicalExists && !uploads.has(r.filename)) {
+                  uploads.set(r.filename, r);
+                }
               }
             }
           }
@@ -804,43 +839,62 @@ export function getUploadRecord(filename: string): UploadRecord | null {
 }
 
 export function deleteUploadFile(filename: string) {
+  if (!filename) return;
   const decoded = decodeURIComponent(filename).trim();
   const lower = decoded.toLowerCase();
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const normTarget = norm(decoded);
 
   // 1. Delete from in-memory stores
   uploadsStore.delete(filename);
   uploadsStore.delete(decoded);
   buffersStore.delete(filename);
   buffersStore.delete(decoded);
+
   for (const [key, val] of Array.from(uploadsStore.entries())) {
+    const kLower = key.toLowerCase();
+    const fLower = val.filename.toLowerCase();
+    const origLower = (val.originalName || "").toLowerCase();
     if (
       key === filename ||
       key === decoded ||
-      key.toLowerCase() === lower ||
-      val.filename.toLowerCase() === lower ||
-      val.originalName?.toLowerCase() === lower
+      kLower === lower ||
+      fLower === lower ||
+      origLower === lower ||
+      norm(key) === normTarget ||
+      norm(val.filename) === normTarget ||
+      norm(val.originalName || "") === normTarget
     ) {
       uploadsStore.delete(key);
       buffersStore.delete(key);
     }
   }
 
-  // 2. Delete matching files from all storage directories
+  // 2. Delete matching physical files from all storage directories
   for (const dir of getStorageDirs()) {
     try {
       if (fs.existsSync(dir)) {
         const files = fs.readdirSync(dir);
         for (const file of files) {
           if (file.endsWith(".json")) continue;
+          const fDecoded = decodeURIComponent(file);
+          const fLower = file.toLowerCase();
           if (
             file === filename ||
             file === decoded ||
-            file.toLowerCase() === lower ||
-            decodeURIComponent(file).toLowerCase() === lower
+            fDecoded === decoded ||
+            fLower === lower ||
+            fLower === filename.toLowerCase() ||
+            norm(file) === normTarget ||
+            norm(fDecoded) === normTarget
           ) {
             const filePath = path.join(dir, file);
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
+            try {
+              if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+              }
+            } catch (unlinkErr) {
+              console.warn(`Failed to unlink ${filePath}:`, unlinkErr);
             }
           }
         }
@@ -849,15 +903,14 @@ export function deleteUploadFile(filename: string) {
   }
 
   // 3. Update persistent registry in all storage directories
+  const currentRecords = Array.from(uploadsStore.values());
   for (const dir of getStorageDirs()) {
     try {
-      if (fs.existsSync(dir)) {
-        const registryPath = path.join(dir, "uploads_index.json");
-        if (fs.existsSync(registryPath)) {
-          const arr = Array.from(uploadsStore.values());
-          fs.writeFileSync(registryPath, JSON.stringify(arr, null, 2), "utf-8");
-        }
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
       }
+      const registryPath = path.join(dir, "uploads_index.json");
+      fs.writeFileSync(registryPath, JSON.stringify(currentRecords, null, 2), "utf-8");
     } catch (_e) {}
   }
 }

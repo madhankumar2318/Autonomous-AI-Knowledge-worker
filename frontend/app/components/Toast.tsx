@@ -73,14 +73,21 @@ export function ToastContainer() {
   useEffect(() => {
     window.addToast = (type: ToastType, message: string) => {
       const id = Math.random().toString(36).substr(2, 9);
-      setToasts((prev) => [...prev, { id, type, message }]);
+      setToasts((prev) => {
+        // De-duplicate identical toast messages and cap at max 3
+        const withoutDuplicate = prev.filter((t) => t.message !== message);
+        const trimmed = withoutDuplicate.slice(-2);
+        return [...trimmed, { id, type, message }];
+      });
     };
   }, []);
 
   return (
-    <div className="fixed top-20 right-6 z-[100] space-y-3">
+    <div className="fixed top-20 right-6 z-[100] space-y-3 pointer-events-none">
       {toasts.map((toast) => (
-        <Toast key={toast.id} {...toast} onClose={removeToast} />
+        <div key={toast.id} className="pointer-events-auto">
+          <Toast {...toast} onClose={removeToast} />
+        </div>
       ))}
     </div>
   );
