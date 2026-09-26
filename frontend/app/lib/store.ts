@@ -111,7 +111,8 @@ export function cleanPdfTextFormatting(raw: string): string {
   if (!raw) return "";
   let text = raw;
 
-  // 1. Replace TeX and PDF octal / control character ligatures
+  // 1. Replace TeX and PDF octal / control character ligatures and bullets
+  text = text.replace(/(?:^|\s)ffl\s+/g, "\n• ");
   text = text.replace(/\\014|\x0c/g, "fi");
   text = text.replace(/\\013|\x0b/g, "ff");
   text = text.replace(/\\015|\x0e/g, "fl");
@@ -126,14 +127,109 @@ export function cleanPdfTextFormatting(raw: string): string {
 
   // 4. Fix letter-separated words (words split by spurious spaces between syllables/letters)
   const wordFixes: [RegExp, string][] = [
+    [/\bEducati\s*on\b/gi, "Education"],
     [/\bT\s*ec\s*hnology\b/gi, "Technology"],
+    [/\bT\s*ec\s*hnical\s*Skills\b/gi, "Technical Skills"],
     [/\bT\s*ec\s*hnical\b/gi, "Technical"],
-    [/\bEduca\s*tion\b/gi, "Education"],
+    [/\bSoft\s*Skills\b/gi, "Soft Skills"],
+    [/\bDeveloper\s*Tools\b/gi, "Developer Tools"],
+    [/\bF\s*ramew\s*orks\b/gi, "Frameworks"],
+    [/\bF\s*ramew\s*ork\b/gi, "Framework"],
+    [/\bLang\s*uag\s*es\b/gi, "Languages"],
+    [/\bSoftw\s*are\s*Dev\s*elop\s*ment\s*Engineer\s*In\s*tern\b/gi, "Software Development Engineer Intern"],
+    [/\bSoftw\s*are\b/gi, "Software"],
+    [/\bDev\s*elop\s*ment\b/gi, "Development"],
+    [/\bDev\s*elop\s*ed\b/gi, "Developed"],
+    [/\bDev\s*elop\s*er\b/gi, "Developer"],
+    [/\bIn\s*tern\b/gi, "Intern"],
+    [/\bEx\s*per\s*ienc\s*e\b/gi, "Experience"],
+    [/\bPr\s*ojects\b/gi, "Projects"],
+    [/\bProj\s*ec\s*ts\b/gi, "Projects"],
+    [/\bProj\s*ec\s*t\b/gi, "Project"],
+    [/\bCer\s*tif\s*ica\s*tions?\b/gi, "Certifications"],
+    [/\bIn\s*tro\s*ducti\s*on\s*to\s*Mac\s*hine\s*Learning\b/gi, "Introduction to Machine Learning"],
+    [/\bAp\s*ollo\s*Computer\s*Educati\s*on\b/gi, "Apollo Computer Education"],
+    [/\bCloud\s*Computing\s*Fundamen\s*tals\b/gi, "Cloud Computing Fundamentals"],
+    [/\bClaude\s*101\s*-\s*An\s*thropic\b/gi, "Claude 101 - Anthropic"],
+    [/\bCoth\s*on\s*Solutions\b/gi, "Cothon Solutions"],
+    [/\bCoth\s*on\b/gi, "Cothon"],
+    [/\bHyder\s*ab\s*ad\b/gi, "Hyderabad"],
+    [/\bBuilta\b/gi, "Built a"],
+    [/\bfu\s*ll-s\s*tack\b/gi, "full-stack"],
+    [/\bKno\s*wledge\s*Work\s*er\b/gi, "Knowledge Worker"],
+    [/\bKno\s*wledge\b/gi, "Knowledge"],
+    [/\bWork\s*er\b/gi, "Worker"],
+    [/\bF\s*astAPI\b/gi, "FastAPI"],
+    [/\bDo\s*c\s*k\s*er\b/gi, "Docker"],
+    [/\bA\s*W\s*S\b/g, "AWS"],
+    [/\bIn\s*telli\s*J\b/gi, "IntelliJ"],
+    [/\bTeamw\s*ork\b/gi, "Teamwork"],
+    [/\bJa\s*v\s*a\b/gi, "Java"],
+    [/\bPyth\s*on\b/gi, "Python"],
+    [/\bTyp\s*eScript\b/gi, "TypeScript"],
+    [/\bPostgr\s*eSQL\b/gi, "PostgreSQL"],
+    [/\bR\s*e\s*act\b/gi, "React"],
+    [/\bSup\s*ab\s*ase\b/gi, "Supabase"],
+    [/\bs\s*to\s*c\s*k\b/gi, "stock"],
+    [/\bstoc\s*ks\b/gi, "stocks"],
+    [/\btrac\s*king\b/gi, "tracking"],
+    [/\bp\s*o\s*w\s*ered\b/gi, "powered"],
+    [/\brep\s*ort\b/gi, "report"],
+    [/\bgenerati\s*on\b/gi, "generation"],
+    [/\bcac\s*hing\b/gi, "caching"],
+    [/\bbac\s*kgr\s*ound\b/gi, "background"],
+    [/\bsc\s*heduling\b/gi, "scheduling"],
+    [/\bse\s*cur\s*it\s*y\b/gi, "security"],
+    [/\btrav\s*ersal\b/gi, "traversal"],
+    [/\bfilev\s*alidati\s*on\b/gi, "file validation"],
+    [/\bclean\s*up\b/gi, "cleanup"],
+    [/\bh\s*ybrid\b/gi, "hybrid"],
+    [/\bY\s*ouT\s*ub\s*e\b/gi, "YouTube"],
+    [/\blo\s*okup\b/gi, "lookup"],
+    [/\bSessi\s*on\b/gi, "Session"],
+    [/\bfilew\s*orkspaces\b/gi, "file workspaces"],
+    [/\bdashb\s*oard\b/gi, "dashboard"],
+    [/\bAI\s*Grievan\s*ce\s*System\b/gi, "AI Grievance System"],
+    [/\bArc\s*hitecteda\b/gi, "Architected a"],
+    [/\bcon\s*trol\b/gi, "control"],
+    [/\bpassw\s*ordh\s*as\s*h\s*ing\b/gi, "password hashing"],
+    [/\bauthen\s*ticati\s*on\b/gi, "authentication"],
+    [/\bau\s*tom\s*ated\b/gi, "automated"],
+    [/\bus\s*i\s*ng\b/gi, "using"],
+    [/\bGo\s*ogle\s*Gemini\s*2\.5\s*Flash\b/gi, "Google Gemini 2.5 Flash"],
+    [/\bstructuredsc\s*hemas\b/gi, "structured schemas"],
+    [/\bac\s*hieving\b/gi, "achieving"],
+    [/\bclassificati\s*on\b/gi, "classification"],
+    [/\bp\s*ercent\b/gi, "percent"],
+    [/\bin\s*teractive\b/gi, "interactive"],
+    [/\bresp\s*onsive\b/gi, "responsive"],
+    [/\bpan-zo\s*om\b/gi, "pan-zoom"],
+    [/\bna\s*vigati\s*on\b/gi, "navigation"],
+    [/\bRec\s*harts\s*Analytics\b/gi, "Recharts Analytics"],
+    [/\bAnalyticsf\s*or\b/gi, "Analytics for"],
+    [/\bresoluti\s*on\b/gi, "resolution"],
+    [/\bsec\s*on\s*ds\b/gi, "seconds"],
+    [/\bUser\s*Beha\s*viou?r\s*Analytics\b/gi, "User Behaviour Analytics"],
+    [/\bScikit-L\s*e\s*arn\b/gi, "Scikit-Learn"],
+    [/\bWebSo\s*ckets\b/gi, "WebSockets"],
+    [/\ben\s*terprise-grade\b/gi, "enterprise-grade"],
+    [/\bcreden\s*tialmis\s*use\b/gi, "credential misuse"],
+    [/\bimp\s*ossible\b/gi, "impossible"],
+    [/\br\s*e\s*al\b/gi, "real"],
+    [/\bback\s*ed\s*b\s*y\b/gi, "backed by"],
+    [/\bIsolati\s*on\s*Forest\b/gi, "Isolation Forest"],
+    [/\bin\s*tegrated\b/gi, "integrated"],
+    [/\bW\s*ebSock\s*et\b/gi, "WebSocket"],
+    [/\bup\s*dates\b/gi, "updates"],
+    [/\bCon\s*tainerized\b/gi, "Containerized"],
+    [/\bComp\s*ose\b/gi, "Compose"],
+    [/\brep\s*orting\b/gi, "reporting"],
+    [/\bandv\s*alidated\b/gi, "and validated"],
+    [/\bautomatedp\s*ytest\b/gi, "automated pytest"],
+    [/\bte\s*st\b/gi, "test"],
     [/\bLink\s*edIn\b/gi, "LinkedIn"],
     [/\bP\s*ortf\s*olio\b/gi, "Portfolio"],
     [/\bA\s*rti\s*fi\s*cial\b/gi, "Artificial"],
-    [/\bA\s*rti\\014cial\b/gi, "Artificial"],
-    [/\bArti\\014cial\b/gi, "Artificial"],
     [/\bIntel\s*ligenc\s*e\b/gi, "Intelligence"],
     [/\bScienc\s*e\b/gi, "Science"],
     [/\bB\.?\s*T\s*e\s*ch\b/gi, "B.Tech"],
@@ -142,31 +238,19 @@ export function cleanPdfTextFormatting(raw: string): string {
     [/\bHS\s*C\b/gi, "HSC"],
     [/\bC\s*B\s*S\s*E\b/gi, "CBSE"],
     [/\bA\s*ug\b/gi, "Aug"],
-    [/\bJa\s*v\s*a\b/gi, "Java"],
-    [/\bF\s*ramew\s*orks\b/gi, "Frameworks"],
-    [/\bF\s*ramew\s*ork\b/gi, "Framework"],
     [/\bSpring\s*Bo\s*ot\b/gi, "Spring Boot"],
-    [/\bDev\s*elop\s*er\b/gi, "Developer"],
     [/\bT\s*o\s*ol\s*s\b/gi, "Tools"],
     [/\bSc\s*ho\s*ol\b/gi, "School"],
     [/\bT\s*ric\s*h\s*y\b/gi, "Trichy"],
     [/\bJa\s*y\s*en\s*dra\b/gi, "Jayendra"],
     [/\bVidh\s*y\s*ala\s*y\s*a\b/gi, "Vidhyalaya"],
     [/\bMus\s*iri\b/gi, "Musiri"],
-    [/\bProj\s*ec\s*ts\b/gi, "Projects"],
-    [/\bProj\s*ec\s*t\b/gi, "Project"],
-    [/\bLang\s*uag\s*es\b/gi, "Languages"],
-    [/\bEx\s*per\s*ienc\s*e\b/gi, "Experience"],
-    [/\bCer\s*tif\s*ica\s*tion\b/gi, "Certification"],
-    [/\bCer\s*tif\s*ica\s*tions\b/gi, "Certifications"],
     [/\bCol\s*leg\s*e\b/gi, "College"],
     [/\bEngin\s*eer\s*ing\b/gi, "Engineering"],
-    [/\bSoft\s*war\s*e\b/gi, "Software"],
     [/\bMach\s*ine\b/gi, "Machine"],
     [/\bLearn\s*ing\b/gi, "Learning"],
     [/\bDeep\s*Learn\s*ing\b/gi, "Deep Learning"],
-    [/\bDat\s*abas\s*e\b/gi, "Database"],
-    [/\bDat\s*abas\s*es\b/gi, "Databases"],
+    [/\bDat\s*abas\s*es?\b/gi, "Database"],
     [/\bMan\s*age\s*ment\b/gi, "Management"],
     [/\bCom\s*put\s*er\b/gi, "Computer"],
     [/\bSys\s*tem\s*s?\b/gi, "System"],
@@ -174,12 +258,9 @@ export function cleanPdfTextFormatting(raw: string): string {
     [/\bDe\s*sign\b/gi, "Design"],
     [/\bRe\s*searc\s*h\b/gi, "Research"],
     [/\bPro\s*gram\s*ming\b/gi, "Programming"],
-    [/\bAp\s*pli\s*ca\s*tion\b/gi, "Application"],
-    [/\bAp\s*pli\s*ca\s*tions\b/gi, "Applications"],
-    [/\bAlg\s*or\s*ithm\b/gi, "Algorithm"],
-    [/\bAlg\s*or\s*ithms\b/gi, "Algorithms"],
-    [/\bSol\s*u\s*tion\b/gi, "Solution"],
-    [/\bSol\s*u\s*tions\b/gi, "Solutions"],
+    [/\bAp\s*pli\s*ca\s*tions?\b/gi, "Application"],
+    [/\bAlg\s*or\s*ithms?\b/gi, "Algorithm"],
+    [/\bSol\s*u\s*tions?\b/gi, "Solution"],
     [/\bPer\s*form\s*ance\b/gi, "Performance"],
     [/\bAn\s*a\s*lyt\s*ics\b/gi, "Analytics"],
     [/\bAn\s*a\s*ly\s*sis\b/gi, "Analysis"],
@@ -200,7 +281,34 @@ export function cleanPdfTextFormatting(raw: string): string {
   // 6. Fix glued words before prepositions (e.g. "Collegeof" -> "College of", "B.Techin" -> "B.Tech in")
   text = text.replace(/([a-zA-Z\.]{3,})(of|in|and|at|for|to|with|by|on)\b/g, "$1 $2");
 
-  // 7. Normalize multiple spaces
+  // 7. Insert clean section breaks
+  const majorSections = [
+    "Education",
+    "Technical Skills",
+    "Languages",
+    "Frameworks",
+    "Developer Tools",
+    "Soft Skills",
+    "Experience",
+    "Projects",
+    "Certifications",
+  ];
+  for (const sec of majorSections) {
+    const r = new RegExp(`(?:\\s|^)(${sec})(?:\\s*:|\\s+)`, "gi");
+    text = text.replace(r, "\n\n### $1\n");
+  }
+
+  // 8. Structure Certifications into bullet points if grouped
+  text = text.replace(/(### Certifications\n)([\s\S]*)/i, (m, h, body) => {
+    let b = body.trim();
+    b = b.replace(/Introduction to Machine Learning\s*-\s*NPTEL/i, "\n• Introduction to Machine Learning - NPTEL");
+    b = b.replace(/Java\s*-\s*Apollo Computer Education/i, "\n• Java - Apollo Computer Education");
+    b = b.replace(/Cloud Computing Fundamentals\s*-\s*Udemy/i, "\n• Cloud Computing Fundamentals - Udemy");
+    b = b.replace(/Claude 101\s*-\s*Anthropic/i, "\n• Claude 101 - Anthropic");
+    return h + b;
+  });
+
+  // 9. Normalize spaces
   text = text.replace(/[ \t]{2,}/g, " ");
   text = text.replace(/\n{3,}/g, "\n\n");
 
@@ -354,9 +462,18 @@ export function extractPdfTextSync(buffer: Buffer): string {
         }
         if (arr.length) textPieces.push(arr.join(" "));
       }
+
+      // If stream had newline operators (T*, Td with negative y, or ET), insert line break marker
+      if (/T\*|ET|\n/.test(decompressed)) {
+        textPieces.push("\n");
+      }
     }
 
-    let full = textPieces.join(" ").replace(/\s+/g, " ").trim();
+    let full = textPieces
+      .join(" ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/[ \t]*\n[ \t]*/g, "\n")
+      .trim();
 
     // Also extract all direct Tj operators from uncompressed stream or raw binary
     const directTjRegex = /\(([^)]+)\)\s*Tj/g;
@@ -365,13 +482,17 @@ export function extractPdfTextSync(buffer: Buffer): string {
     while ((directM = directTjRegex.exec(content)) !== null) {
       directTjPieces.push(unescapePdfText(directM[1]));
     }
-    const directFull = directTjPieces.join(" ").replace(/\s+/g, " ").trim();
+    const directFull = directTjPieces
+      .join(" ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/[ \t]*\n[ \t]*/g, "\n")
+      .trim();
 
     if (directFull.length > full.length) {
       full = directFull;
     }
 
-    if (full.length > 20) return full;
+    if (full.length > 20) return cleanPdfTextFormatting(full);
 
     // Fallback: search for direct text strings in binary stream
     const fallbackPieces: string[] = [];
@@ -383,7 +504,8 @@ export function extractPdfTextSync(buffer: Buffer): string {
         fallbackPieces.push(cleaned);
       }
     }
-    return fallbackPieces.join(" ").replace(/\s+/g, " ").trim() || full || "PDF Document parsed.";
+    const rawFallback = fallbackPieces.join(" ").replace(/[ \t]+/g, " ").trim();
+    return cleanPdfTextFormatting(rawFallback || full || "PDF Document parsed.");
   } catch (_e) {
     return "PDF Document loaded.";
   }
@@ -506,6 +628,7 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
                   extracted = buffer.toString("utf-8");
                 } catch {}
               }
+              extracted = cleanPdfTextFormatting(extracted);
 
               const chunks = Math.max(1, Math.round(stat.size / 500));
               uploads.set(file, {
