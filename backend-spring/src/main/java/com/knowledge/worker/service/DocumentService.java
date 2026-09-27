@@ -1,6 +1,8 @@
 package com.knowledge.worker.service;
 
+import com.knowledge.worker.entity.DocumentChunk;
 import com.knowledge.worker.entity.Upload;
+import com.knowledge.worker.repository.DocumentChunkRepository;
 import com.knowledge.worker.repository.UploadRepository;
 import com.knowledge.worker.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
@@ -37,6 +39,8 @@ public class DocumentService {
 
     private final UploadRepository uploadRepository;
     private final UserRepository userRepository;
+    private final DocumentChunkRepository chunkRepository;
+    private final RagEngineService ragEngineService;
 
     @Value("${app.storage.upload-dir:./uploads}")
     private String uploadDir;
@@ -46,10 +50,8 @@ public class DocumentService {
     private static final long CACHE_TTL_MS = 10 * 60 * 1000L; // 10 minutes
 
     /**
-     * Configure Apache POI global zip-bomb defense at startup.
-     * - minInflateRatio: compressed/uncompressed ratio threshold (0.01 = 100:1 max inflation)
-     * - maxEntrySize:    max bytes for any single ZIP entry (50 MB)
-     * - maxTextSize:     max extracted text bytes (20 MB)
+     * Configure Apache POI global zip-bomb defense at startup
+     * and asynchronously backfill chunks for any legacy uploads.
      */
     @PostConstruct
     public void configureParsingSecurity() {
@@ -57,6 +59,34 @@ public class DocumentService {
         ZipSecureFile.setMaxEntrySize(50 * 1024 * 1024L);   // 50 MB per entry
         ZipSecureFile.setMaxTextSize(20 * 1024 * 1024L);    // 20 MB text
         log.info("DocumentService: Apache POI zip-bomb defenses configured.");
+        backfillLegacyUploadChunksAsync();
+    }
+
+    private void backfillLegacyUploadChunksAsync() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+                List<Upload> all = uploadRepository.findAll();
+                int reindexed = 0;
+                for (Upload u : all) {
+                    if (chunkRepository.countByUploadId(u.getId()) == 0) {
+                        String text = u.getExtractedContent();
+                        if (text == null || text.isBlank()) {
+                            text = extractDocumentText(u.getFilename());
+                        }
+                        if (text != null && !text.isBlank() && !text.startsWith("File '") && !text.startsWith("Error")) {
+                            ragEngineService.chunkDocument(u, text);
+                            reindexed++;
+                        }
+                    }
+                }
+                if (reindexed > 0) {
+                    log.info("[RAG Startup] Successfully indexed {} legacy documents into semantic chunks.", reindexed);
+                }
+            } catch (Exception e) {
+                log.warn("[RAG Startup] Chunk backfill notice: {}", e.getMessage());
+            }
+        }).start();
     }
 
     /**
@@ -202,7 +232,8 @@ public class DocumentService {
     }
 
     /**
-     * Extract full text from an uploaded document (PDF, CSV, JSON, TXT, MD).
+     * Extract full text from an uploaded document (PDF, DOCX, XLSX, CSV, JSON, TXT, MD).
+     * Ensures document chunks are created in the persistent database.
      */
     public String extractDocumentText(String filename) {
         if (filename == null || filename.isBlank()) {
@@ -228,6 +259,9 @@ public class DocumentService {
         }
         if (uploadOpt.isPresent() && uploadOpt.get().getExtractedContent() != null && !uploadOpt.get().getExtractedContent().isBlank()) {
             String dbContent = uploadOpt.get().getExtractedContent();
+            if (chunkRepository.countByUploadId(uploadOpt.get().getId()) == 0) {
+                ragEngineService.chunkDocument(uploadOpt.get(), dbContent);
+            }
             documentCache.put(decoded, dbContent);
             documentCacheTime.put(decoded, System.currentTimeMillis());
             return dbContent;
@@ -282,11 +316,12 @@ public class DocumentService {
                 result = "Unsupported document format: " + file.getName();
             }
 
-            // Update database and cache
+            // Update database and create chunks
             if (uploadOpt.isPresent() && result != null && !result.isBlank() && !result.startsWith("Error")) {
                 Upload u = uploadOpt.get();
                 u.setExtractedContent(result);
                 uploadRepository.save(u);
+                ragEngineService.chunkDocument(u, result);
             }
 
             documentCache.put(decoded, result != null ? result : "");
@@ -299,12 +334,30 @@ public class DocumentService {
         }
     }
 
+    /**
+     * Page-aware PDF Parser.
+     * Extracts text page by page with explicit "[Page X]" markers for citation precision.
+     */
     private String parsePdf(File file) throws Exception {
         try (PDDocument doc = PDDocument.load(file, MemoryUsageSetting.setupMainMemoryOnly(50 * 1024 * 1024L))) {
+            int numPages = doc.getNumberOfPages();
+            if (numPages <= 0) return "PDF document contains no pages.";
+
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
-            String text = stripper.getText(doc);
-            return text != null && !text.isBlank() ? text.trim() : "PDF document contains no readable text (it may be scanned/image-only).";
+
+            StringBuilder sb = new StringBuilder();
+            for (int page = 1; page <= numPages; page++) {
+                stripper.setStartPage(page);
+                stripper.setEndPage(page);
+                String pageText = stripper.getText(doc);
+                if (pageText != null && !pageText.isBlank()) {
+                    sb.append("--- Page ").append(page).append(" ---\n");
+                    sb.append(pageText.trim()).append("\n\n");
+                }
+            }
+
+            return sb.length() > 0 ? sb.toString().trim() : "PDF document contains no readable text (it may be scanned/image-only).";
         }
     }
 
@@ -358,7 +411,7 @@ public class DocumentService {
             sb.append("--- Sheet: ").append(sheet.getSheetName()).append(" ---\n");
 
             int firstRow = sheet.getFirstRowNum();
-            int lastRow = Math.min(sheet.getLastRowNum(), firstRow + 300); // max 300 rows per sheet
+            int lastRow = Math.min(sheet.getLastRowNum(), firstRow + 300);
 
             for (int r = firstRow; r <= lastRow; r++) {
                 Row row = sheet.getRow(r);
@@ -518,17 +571,21 @@ public class DocumentService {
     }
 
     /**
-     * Invalidate cached text for a deleted or updated file.
+     * Invalidate cached text and chunks for a deleted or updated file.
      */
     public void invalidateCache(String filename) {
         if (filename != null) {
             documentCache.remove(filename);
             documentCacheTime.remove(filename);
+            uploadRepository.findByFilename(filename).ifPresent(u -> {
+                chunkRepository.deleteByUploadId(u.getId());
+            });
         }
     }
 
     /**
-     * Search across user's workspace uploaded files for text passages relevant to a query.
+     * Search across user's workspace uploaded files using Hybrid BM25 + Vector Retrieval.
+     * Returns precision excerpts tagged with verified page numbers.
      */
     public String searchKnowledge(String query, String activeFilename, String username) {
         if (query == null || query.isBlank()) {
@@ -556,71 +613,76 @@ public class DocumentService {
             targets = allowed;
         }
 
-        StringBuilder results = new StringBuilder();
-        String[] keywords = query.toLowerCase().replaceAll("[^a-z0-9\\s]", " ").split("\\s+");
+        // Hybrid BM25 + Vector retrieval across target files
+        List<RagEngineService.ScoredResult> ranked = ragEngineService.hybridSearch(query, targets, 6);
 
-        for (Upload u : targets) {
-            String fullText = extractDocumentTextForUser(u.getFilename(), username);
-            if (fullText.startsWith("File '") || fullText.startsWith("Error parsing") || fullText.startsWith("Access denied")) {
-                continue;
-            }
-
-            // Split into paragraph chunks (~400-800 characters)
-            String[] paragraphs = fullText.split("\n\n+");
-            List<ScoredChunk> scored = new ArrayList<>();
-
-            for (int i = 0; i < paragraphs.length; i++) {
-                String p = paragraphs[i].trim();
-                if (p.length() < 20) continue;
-
-                int score = 0;
-                String pLower = p.toLowerCase();
-                for (String kw : keywords) {
-                    if (kw.length() >= 3 && pLower.contains(kw)) {
-                        score += 5;
-                    }
-                }
-
-                if (score > 0 || paragraphs.length <= 4) {
-                    scored.add(new ScoredChunk(u.getFilename(), i + 1, p, score));
-                }
-            }
-
-            scored.sort((a, b) -> Integer.compare(b.score, a.score));
-
-            int take = Math.min(scored.size(), 4);
-            for (int i = 0; i < take; i++) {
-                ScoredChunk c = scored.get(i);
-                results.append(String.format("--- [Source: %s, Passage #%d] ---\n%s\n\n",
-                        c.filename, c.passageIndex, c.text));
-            }
-        }
-
-        if (results.length() == 0) {
+        if (ranked.isEmpty()) {
             Upload first = targets.get(0);
             String text = extractDocumentTextForUser(first.getFilename(), username);
             String excerpt = text.length() > 1500 ? text.substring(0, 1500) + "..." : text;
-            return String.format("--- [Source: %s, Full Overview] ---\n%s\n", first.getFilename(), excerpt);
+            return String.format("--- [Source: %s, Page: 1, Overview] ---\n%s\n", first.getFilename(), excerpt);
         }
 
-        return results.toString();
+        StringBuilder results = new StringBuilder();
+        for (RagEngineService.ScoredResult r : ranked) {
+            String heading = r.getChunk().getSectionHeading() != null ? "Section: " + r.getChunk().getSectionHeading() + "\n" : "";
+            results.append(String.format("--- [Source: %s, Page: %d] ---\n%s%s\n\n",
+                    r.getFilename(), r.getPageNumber(), heading, r.getChunk().getContent()));
+        }
+
+        return results.toString().trim();
     }
 
     public String searchKnowledge(String query, String activeFilename) {
         return searchKnowledge(query, activeFilename, "guest");
     }
 
-    private static class ScoredChunk {
-        String filename;
-        int passageIndex;
-        String text;
-        int score;
+    /**
+     * Build augmented RAG context for prompt injection.
+     * Retrieves the top-K most semantically and lexically relevant chunks across documents.
+     */
+    public String getAugmentedRagContext(String userQuery, String activeFilename, String username) {
+        List<Upload> allowed = getUploadsForUser(username);
+        if (allowed.isEmpty()) return "";
 
-        ScoredChunk(String filename, int passageIndex, String text, int score) {
-            this.filename = filename;
-            this.passageIndex = passageIndex;
-            this.text = text;
-            this.score = score;
+        List<Upload> targets = new ArrayList<>();
+        if (activeFilename != null && !activeFilename.isBlank()) {
+            allowed.stream()
+                    .filter(u -> u.getFilename() != null && u.getFilename().equalsIgnoreCase(activeFilename.trim()))
+                    .findFirst()
+                    .ifPresent(targets::add);
         }
+
+        if (targets.isEmpty()) {
+            matchFromList(userQuery, allowed).ifPresent(targets::add);
+        }
+
+        if (targets.isEmpty()) {
+            targets = allowed;
+        }
+
+        List<RagEngineService.ScoredResult> ranked = ragEngineService.hybridSearch(userQuery, targets, 8);
+
+        if (ranked.isEmpty()) {
+            // Fallback: take initial chunks from first target
+            StringBuilder fallback = new StringBuilder();
+            Upload first = targets.get(0);
+            List<DocumentChunk> chunks = chunkRepository.findByUploadIdOrderByChunkIndexAsc(first.getId());
+            int take = Math.min(chunks.size(), 4);
+            for (int i = 0; i < take; i++) {
+                DocumentChunk c = chunks.get(i);
+                fallback.append(String.format("--- [Source: %s, Page: %d] ---\n%s\n\n",
+                        first.getFilename(), c.getPageNumber(), c.getContent()));
+            }
+            return fallback.toString().trim();
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (RagEngineService.ScoredResult r : ranked) {
+            String heading = r.getChunk().getSectionHeading() != null ? "Section: " + r.getChunk().getSectionHeading() + "\n" : "";
+            sb.append(String.format("--- [Source: %s, Page: %d] ---\n%s%s\n\n",
+                    r.getFilename(), r.getPageNumber(), heading, r.getChunk().getContent()));
+        }
+        return sb.toString().trim();
     }
 }

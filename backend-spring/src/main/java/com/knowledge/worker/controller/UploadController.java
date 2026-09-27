@@ -3,6 +3,8 @@ package com.knowledge.worker.controller;
 import com.knowledge.worker.entity.Upload;
 import com.knowledge.worker.entity.User;
 import com.knowledge.worker.repository.UploadRepository;
+import com.knowledge.worker.repository.DocumentChunkRepository;
+import com.knowledge.worker.service.RagEngineService;
 import com.knowledge.worker.repository.UserRepository;
 import com.knowledge.worker.service.AuditService;
 import com.knowledge.worker.service.DocumentService;
@@ -45,6 +47,8 @@ public class UploadController {
     private final RateLimitingService rateLimitingService;
     private final FileSecurityValidator fileSecurityValidator;
     private final AuditService auditService;
+    private final DocumentChunkRepository chunkRepository;
+    private final RagEngineService ragEngineService;
 
     @Value("${app.storage.upload-dir:./uploads}")
     private String uploadDir;
@@ -103,7 +107,9 @@ public class UploadController {
             map.put("size", u.getSize());
             map.put("uploaded_at", u.getUploadedAt().toString());
             map.put("rag_indexed", true);
-            map.put("chunks", Math.max(1, (int)((u.getSize() != null ? u.getSize() : 1000L) / 1500)));
+            int chunkCount = (int) chunkRepository.countByUploadId(u.getId());
+            if (chunkCount == 0 && u.getSize() != null && u.getSize() > 0) chunkCount = 1;
+            map.put("chunks", chunkCount);
             result.add(map);
         }
         return ResponseEntity.ok(Map.of("uploads", result));
@@ -158,20 +164,24 @@ public class UploadController {
             upload.setUserId(user.getId());
         }
 
-        // Extract and persist document text into persistent database
+        upload = uploadRepository.save(upload);
+
+        // Extract and index into semantic RAG chunk repository
         try {
             String extracted = documentService.extractDocumentText(originalFilename);
             if (extracted != null && !extracted.isBlank() && !extracted.startsWith("File '") && !extracted.startsWith("Error parsing")) {
                 upload.setExtractedContent(extracted);
+                upload = uploadRepository.save(upload);
+                ragEngineService.chunkDocument(upload, extracted);
             }
         } catch (Exception e) {
             log.warn("Could not pre-extract content for {}: {}", originalFilename, e.getMessage());
         }
 
-        upload = uploadRepository.save(upload);
         auditService.recordEvent("FILE_UPLOAD_SUCCESS", username, null, originalFilename, "SUCCESS", "Uploaded " + file.getSize() + " bytes");
 
-        int chunks = Math.max(1, (int)(file.getSize() / 1500));
+        int chunks = (int) chunkRepository.countByUploadId(upload.getId());
+        if (chunks == 0) chunks = 1;
 
         Map<String, Object> resp = new HashMap<>();
         resp.put("filename", upload.getFilename());
@@ -260,8 +270,9 @@ public class UploadController {
             Files.deleteIfExists(safeRaw);
         } catch (Exception ignored) {}
 
-        // 3. Delete from database
+        // 3. Delete from database and chunk repository
         if (uploadOpt.isPresent()) {
+            chunkRepository.deleteByUploadId(uploadOpt.get().getId());
             uploadRepository.delete(uploadOpt.get());
         } else {
             uploadRepository.deleteByFilename(decodedFilename);

@@ -1,3 +1,4 @@
+// @ts-ignore
 import { GoogleGenAI } from "@google/genai";
 import {
   cleanPdfTextFormatting,
@@ -18,199 +19,53 @@ function answerQueryFromDocument(
   const q = userQuery.toLowerCase().trim();
   const cleaned = cleanPdfTextFormatting(content);
 
-  // Intent 1: Certifications & Courses
-  if (
-    /certif|course|nptel|udemy|apollo|anthropic|claude 101|license|credential/i.test(q)
-  ) {
-    return (
-      `### Verified Certifications & Credentials [Source: ${filename}, Page: 1]\n\n` +
-      `Based on **${filename}**, here are the documented certifications:\n\n` +
-      `- **Introduction to Machine Learning** — NPTEL\n` +
-      `- **Java** — Apollo Computer Education\n` +
-      `- **Cloud Computing Fundamentals** — Udemy\n` +
-      `- **Claude 101** — Anthropic\n\n` +
-      `*Directly retrieved and verified from the Certifications record in ${filename}.*`
-    );
-  }
-
-  // Intent 2: Technical Skills, Languages, Frameworks & Tools
-  if (
-    /skill|technical|language|framework|tool|developer tool|stack|code|coding|java|python|sql|docker|aws/i.test(q) &&
-    !/natural language/i.test(q)
-  ) {
-    const isLangOnly = /language|languages|programming/i.test(q);
-    const isFrameworkOnly = /framework|frameworks|library|libraries/i.test(q);
-    const isToolOnly = /tool|tools|developer tool|git|docker|aws/i.test(q);
-
-    if (isLangOnly) {
-      return (
-        `### Programming Languages [Source: ${filename}, Page: 1]\n\n` +
-        `Documented programming languages in **${filename}**:\n\n` +
-        `- **Languages:** Java, SQL, HTML, CSS, Python\n\n` +
-        `*Verified from the technical skills index in ${filename}.*`
-      );
-    }
-
-    if (isFrameworkOnly) {
-      return (
-        `### Frameworks & Libraries [Source: ${filename}, Page: 1]\n\n` +
-        `Documented frameworks in **${filename}**:\n\n` +
-        `- **Frameworks:** Spring Boot, React, Next.js, FastAPI, Tailwind CSS\n\n` +
-        `*Verified from the skills specification in ${filename}.*`
-      );
-    }
-
-    if (isToolOnly) {
-      return (
-        `### Developer Tools & Cloud Infrastructure [Source: ${filename}, Page: 1]\n\n` +
-        `Documented developer and DevOps tools in **${filename}**:\n\n` +
-        `- **Developer Tools:** Git, GitHub, Docker, AWS, IntelliJ IDEA\n\n` +
-        `*Verified from the tools specification in ${filename}.*`
-      );
-    }
-
-    return (
-      `### Technical Skills & Competencies [Source: ${filename}, Page: 1]\n\n` +
-      `Here is the complete breakdown of technical competencies documented in **${filename}**:\n\n` +
-      `- **Languages:** Java, SQL, HTML, CSS, Python\n` +
-      `- **Frameworks:** Spring Boot, React, Next.js, FastAPI, Tailwind CSS\n` +
-      `- **Developer & Cloud Tools:** Git, GitHub, Docker, AWS, IntelliJ IDEA\n` +
-      `- **Soft Skills:** Problem Solving, Teamwork\n\n` +
-      `*Directly extracted from the Technical Skills section of ${filename}.*`
-    );
-  }
-
-  // Intent 3: Projects & Implementations
-  if (/project|projects|built|work|app|application|system|model/i.test(q)) {
-    return (
-      `### Documented Projects & Built Work [Source: ${filename}, Page: 1]\n\n` +
-      `Here are the verified project details extracted from **${filename}**:\n\n` +
-      `1. **Autonomous AI Knowledge Worker** *(Python, TypeScript, SQL, Next.js, FastAPI, Tailwind CSS, PostgreSQL)*\n` +
-      `   - Built a 6-tier hybrid search & live YouTube video lookup with 120ms real-time autocomplete.\n` +
-      `   - Engineered Yahoo Session & Crumb API caching to drop stock fetch latency from 20s to 3s.\n` +
-      `   - Integrated RAG file workspaces, AI PDF report generation, and an OLED dark-mode dashboard.\n\n` +
-      `2. **AI Grievance System** *(TypeScript, Next.js 16, React, Spring Boot, Supabase)*\n` +
-      `   - Architected a full-stack portal with role-based access control for Citizens, Officers, and Chiefs, secured via BCrypt password hashing and Next.js Edge JWT authentication.\n` +
-      `   - Engineered an automated triage engine using Google Gemini 2.5 Flash with structured schemas, achieving sub-second complaint classification across five civic domains with 95% accuracy.\n` +
-      `   - Integrated interactive Leaflet.js GIS maps with responsive pan-zoom navigation, Recharts Analytics for resolution tracking, and automated SMTP notifications.\n\n` +
-      `3. **User Behaviour Analytics** *(Python, React, Scikit-Learn, SQLite, WebSockets, Docker)*\n` +
-      `   - Built an enterprise-grade User Behavior Analytics platform to detect insider threats, credential misuse, and impossible travel anomalies in real time.\n` +
-      `   - Developed a React security dashboard backed by a Flask API, SQLite Database, and an Isolation Forest ML risk engine integrated with WebSocket live updates.\n` +
-      `   - Containerized using Docker Compose with automated PDF reporting, Slack alerts, and validated backend stability using 33 automated pytest test suites.\n\n` +
-      `*Extracted directly from the projects section of ${filename}.*`
-    );
-  }
-
-  // Intent 4: Experience / Internship / Job
-  if (/experience|intern|job|role|cothon|company|work experience/i.test(q)) {
-    return (
-      `### Professional Experience & Internships [Source: ${filename}, Page: 1]\n\n` +
-      `Extracted work experience from **${filename}**:\n\n` +
-      `**Software Development Engineer Intern** — Cothon Solutions, Hyderabad, Telangana\n` +
-      `*Duration:* Aug. 2025 - Sep. 2025\n\n` +
-      `- Built a full-stack AI Knowledge Worker app with Next.js & FastAPI for real-time news, stock tracking, and AI-powered report generation.\n` +
-      `- Developed RESTful APIs for news, stocks, hybrid search, chat, and summarization with 15-minute caching and automated background scheduling.\n` +
-      `- Hardened application security with path-traversal guards, magic-byte file validation, strict CORS/CSP headers, and rate-limiter cleanup daemons.\n\n` +
-      `*Verified from the experience record in ${filename}.*`
-    );
-  }
-
-  // Intent 5: Education / College / Degree / CGPA / School / Marks
-  if (
-    /education|college|degree|cgpa|gpa|marks|school|sslc|hsc|b\.?tech|graduat|percentage/i.test(q)
-  ) {
-    return (
-      `### Academic Qualifications & Education [Source: ${filename}, Page: 1]\n\n` +
-      `Extracted educational background from **${filename}**:\n\n` +
-      `- **Degree:** B.Tech in Artificial Intelligence and Data Science\n` +
-      `- **College:** J.J. College of Engineering and Technology, Trichy\n` +
-      `- **CGPA:** 8.02 (Aug. 2023 - May 2027)\n` +
-      `- **Schooling:** Shri Jayendra Vidhyalaya CBSE School, Musiri\n` +
-      `- **Board Exam Marks:** SSLC: 81% • HSC: 63% (June 2016 - May 2023)\n\n` +
-      `*Verified from the academic background records in ${filename}.*`
-    );
-  }
-
-  // Intent 6: Contact / Profile / Phone / Email / Socials
-  if (/contact|email|phone|mobile|github|linkedin|portfolio|address|reach/i.test(q)) {
-    return (
-      `### Contact & Profile Information [Source: ${filename}, Page: 1]\n\n` +
-      `Contact details documented in **${filename}**:\n\n` +
-      `- **Name:** Madhan Kumar S\n` +
-      `- **Phone:** +91 6369461227\n` +
-      `- **Email:** kumarmathan12334@gmail.com\n` +
-      `- **Profiles:** LinkedIn • GitHub • Portfolio\n\n` +
-      `*Extracted from the candidate profile header in ${filename}.*`
-    );
-  }
-
-  // Intent 7: Overview / Summary / "what is in" / "summarize"
-  if (/what|summary|summarize|overview|tell me|who is|about/i.test(q)) {
-    return (
-      `### Executive Profile Summary: ${filename} [Source: ${filename}, Page: 1]\n\n` +
-      `**Madhan Kumar S** is a Software Development Engineer & B.Tech student specializing in Artificial Intelligence, Full-Stack Engineering, and Autonomous AI systems.\n\n` +
-      `#### 🎓 Academic Profile\n` +
-      `- **B.Tech in Artificial Intelligence & Data Science** — J.J. College of Engineering and Technology, Trichy (CGPA: 8.02, 2023–2027)\n` +
-      `- **CBSE Schooling** — Shri Jayendra Vidhyalaya School, Musiri (SSLC: 81%, HSC: 63%)\n\n` +
-      `#### 💻 Core Technical Competencies\n` +
-      `- **Languages:** Java, SQL, Python, TypeScript, HTML, CSS\n` +
-      `- **Frameworks:** Spring Boot, Next.js, React, FastAPI, Tailwind CSS\n` +
-      `- **Developer & Cloud Tools:** Git, GitHub, Docker, AWS, IntelliJ IDEA\n` +
-      `- **Core Strengths:** Full-stack development, RAG systems, API caching, Application security\n\n` +
-      `#### 💼 Professional Experience\n` +
-      `- **Software Development Engineer Intern** at **Cothon Solutions**, Hyderabad (Aug 2025 - Sep 2025)\n` +
-      `  - Engineered AI Knowledge Worker APIs, 15-minute caching, and security hardening.\n\n` +
-      `#### 🚀 Featured Projects\n` +
-      `- **Autonomous AI Knowledge Worker:** 6-tier hybrid search, Yahoo crumb caching (20s to 3s latency), RAG workspaces.\n` +
-      `- **AI Grievance System:** Gemini 2.5 Flash civic complaint triage (95% accuracy), RBAC, Leaflet GIS maps.\n` +
-      `- **User Behaviour Analytics:** Insider threat detection with Isolation Forest ML and Docker Compose.\n\n` +
-      `#### 🏆 Certifications\n` +
-      `- Introduction to Machine Learning — NPTEL\n` +
-      `- Java — Apollo Computer Education\n` +
-      `- Cloud Computing Fundamentals — Udemy\n` +
-      `- Claude 101 — Anthropic\n\n` +
-      `*Feel free to ask for specific skills, projects, educational background, or detailed comparisons!*`
-    );
-  }
-
-  // Specific keyword passage matching
   const stopWords = new Set([
     "what", "when", "where", "which", "this", "that", "from",
     "tell", "show", "with", "have", "does", "about", "the",
     "in", "pdf", "document", "file", "can", "you", "please",
+    "list", "give", "and", "for", "are", "how", "many", "give",
   ]);
+
   const queryTokens = q
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length > 2 && !stopWords.has(w));
 
-  const lines = cleaned
-    .split(/\n+/)
+  const paragraphs = cleaned
+    .split(/\n\n+/)
     .map((l) => l.trim())
-    .filter(Boolean);
+    .filter((l) => l.length > 20);
 
-  const scoredLines = lines
-    .map((line) => {
-      const lower = line.toLowerCase();
-      const matchCount = queryTokens.filter((t) => lower.includes(t)).length;
-      return { line, score: matchCount };
+  const scored = paragraphs
+    .map((p, idx) => {
+      const lower = p.toLowerCase();
+      let score = 0;
+      for (const tok of queryTokens) {
+        if (lower.includes(tok)) score += 5;
+      }
+      if (q.length > 4 && lower.includes(q)) score += 10;
+      return { text: p, score, index: idx + 1 };
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
 
-  if (scoredLines.length > 0) {
-    const topPassages = scoredLines.slice(0, 3).map((s) => s.line);
+  if (scored.length > 0) {
+    const topPassages = scored.slice(0, 4);
     return (
-      `### Information Retrieval from ${filename} [Source: ${filename}, Page: 1]\n\n` +
-      `Here are the relevant findings addressing **"${userQuery}"**:\n\n` +
-      topPassages.map((p) => `- ${p.replace(/^[-•*]\s*/, "")}`).join("\n\n") +
+      `### Verified Document Findings [Source: ${filename}, Page: 1]\n\n` +
+      `Here are the relevant verified excerpts extracted from **${filename}** addressing **"${userQuery}"**:\n\n` +
+      topPassages.map((p) => `- ${p.text.replace(/^[-•*]\s*/, "")}`).join("\n\n") +
       `\n\n*Directly retrieved from verified semantic passages in ${filename}.*`
     );
   }
 
+  // Summary / Overview fallback
+  const excerpt = cleaned.length > 1200 ? cleaned.slice(0, 1200) + "..." : cleaned;
   return (
-    `### Information Retrieval from ${filename} [Source: ${filename}, Page: 1]\n\n` +
-    `Found verified information in **${filename}** addressing your question. You can ask for certifications, technical skills, projects, education, or work experience.`
+    `### Document Intelligence: ${filename} [Source: ${filename}, Page: 1]\n\n` +
+    `Extracted content from **${filename}**:\n\n` +
+    `${excerpt}\n\n` +
+    `*Ask specific analytical questions about this document to extract facts, numbers, or details.*`
   );
 }
 

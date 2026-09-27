@@ -298,25 +298,25 @@ CRITICAL SECURITY PROTOCOL:
         String rawQuery = req.getMessage() != null ? req.getMessage() : "";
         String msg = rawQuery.toUpperCase();
 
-        // 1. Check if query is asking about an uploaded document belonging to the user
-        Optional<Upload> uploadOpt = documentService.findMatchingUpload(
-                req.getFilename() != null && !req.getFilename().isBlank() ? req.getFilename() : rawQuery,
-                req.getUsername()
-        );
+        // 1. Check if query is asking about uploaded documents in workspace
+        String targetFilename = req.getFilename() != null && !req.getFilename().isBlank() ? req.getFilename() : null;
+        String ragContext = documentService.getAugmentedRagContext(rawQuery, targetFilename, req.getUsername());
 
-        if (uploadOpt.isPresent() || (req.getFilename() != null && !req.getFilename().isBlank())) {
-            Upload u = uploadOpt.orElse(null);
-            String fname = u != null ? u.getFilename() : req.getFilename();
-            String docText = documentService.extractDocumentTextForUser(fname, req.getUsername());
+        if (ragContext != null && !ragContext.isBlank()) {
+            Optional<Upload> uploadOpt = documentService.findMatchingUpload(
+                    targetFilename != null ? targetFilename : rawQuery,
+                    req.getUsername()
+            );
+            String fname = uploadOpt.map(Upload::getFilename).orElse(targetFilename != null ? targetFilename : "Workspace Documents");
 
             if (emitter != null) {
                 try {
                     List<ResearchStep> steps = List.of(
-                            new ResearchStep("1", "Locate " + fname + " in user workspace", "pending"),
-                            new ResearchStep("2", "Extract text chunks and parse sections", "pending"),
-                            new ResearchStep("3", "Synthesize document intelligence", "pending")
+                            new ResearchStep("1", "Identify relevant passages in " + fname, "pending"),
+                            new ResearchStep("2", "Run Hybrid BM25 & Semantic Vector ranking", "pending"),
+                            new ResearchStep("3", "Synthesize document intelligence with page citations", "pending")
                     );
-                    ResearchPlan plan = new ResearchPlan("Document Analysis Protocol", steps);
+                    ResearchPlan plan = new ResearchPlan("Semantic RAG Retrieval Protocol", steps);
                     sendEvent(emitter, "research_plan", objectMapper.writeValueAsString(plan));
                     for (ResearchStep step : steps) {
                         sendEvent(emitter, "research_step", objectMapper.writeValueAsString(Map.of(
@@ -329,50 +329,13 @@ CRITICAL SECURITY PROTOCOL:
             }
 
             StringBuilder sb = new StringBuilder();
-            sb.append("📄 **Document Analysis: ").append(fname).append("**\n\n");
-
-            if (docText != null && !docText.isBlank() && !docText.startsWith("Error") && !docText.startsWith("File '") && !docText.startsWith("Access denied")) {
-                sb.append("I have parsed and extracted the content from your uploaded file **").append(fname).append("**:\n\n");
-
-                String lowerName = fname.toLowerCase();
-                boolean isResume = lowerName.contains("resume") || lowerName.contains("cv") ||
-                        docText.toLowerCase().contains("experience") || docText.toLowerCase().contains("education") ||
-                        docText.toLowerCase().contains("skills");
-                boolean isExcel = lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls") || lowerName.endsWith(".csv");
-
-                if (isResume) {
-                    sb.append("### 👤 Resume / Professional Overview\n");
-                } else if (isExcel) {
-                    sb.append("### 📊 Spreadsheet & Data Overview\n");
-                } else {
-                    sb.append("### 📑 Key Content & Excerpts\n");
-                }
-
-                String cleanText = docText.trim();
-                if (cleanText.length() > 4000) {
-                    sb.append(cleanText.substring(0, 4000)).append("\n\n*(Full document data indexed. Showing initial sections. Ask specific analytical questions for deep calculations or filtering!)*\n\n");
-                } else {
-                    sb.append(cleanText).append("\n\n");
-                }
-
-                sb.append("💡 **What you can ask next**:\n");
-                if (isExcel) {
-                    sb.append("- *\"What are the column headers and key values in this spreadsheet?\"*\n");
-                    sb.append("- *\"Calculate totals, averages, or notable trends from the data.\"*\n");
-                    sb.append("- *\"Filter or find entries matching specific criteria.\"*\n");
-                } else if (isResume) {
-                    sb.append("- *\"Summarize the key technical skills and tools.\"*\n");
-                    sb.append("- *\"What work experience and projects are listed?\"*\n");
-                    sb.append("- *\"What recommendations or improvements do you suggest for this document?\"*\n");
-                } else {
-                    sb.append("- *\"Summarize the core takeaways from this file.\"*\n");
-                    sb.append("- *\"What are the key points discussed in this document?\"*\n");
-                }
-            } else if (docText != null && docText.startsWith("Access denied")) {
-                sb.append("🔒 **Access Denied**: ").append(docText);
-            } else {
-                sb.append("⚠️ Could not read text content from `").append(fname).append("`. The file might still be uploading or unreadable on disk.");
-            }
+            sb.append("📄 **Document Intelligence: ").append(fname).append("**\n\n");
+            sb.append("Here are the verified passages retrieved from your workspace knowledge base:\n\n");
+            sb.append(ragContext).append("\n\n");
+            sb.append("💡 **Suggested Analytical Prompts**:\n");
+            sb.append("- *\"Summarize key technical qualifications and credentials.\"*\n");
+            sb.append("- *\"Extract all dates, metrics, and project accomplishments.\"*\n");
+            sb.append("- *\"Compare findings across multiple uploaded documents.\"*\n");
 
             String result = sb.toString();
             if (emitter != null) {
@@ -485,19 +448,17 @@ What would you like to explore or analyze today?
     private String buildSystemInstruction(ChatRequest req) {
         StringBuilder sb = new StringBuilder(SYSTEM_INSTRUCTION);
 
-        Optional<Upload> matchedUpload = documentService.findMatchingUpload(
-                req.getFilename() != null && !req.getFilename().isBlank() ? req.getFilename() : req.getMessage(),
-                req.getUsername()
-        );
+        String targetFilename = req.getFilename() != null && !req.getFilename().isBlank() ? req.getFilename() : null;
+        String augmentedContext = documentService.getAugmentedRagContext(req.getMessage(), targetFilename, req.getUsername());
 
-        if (matchedUpload.isPresent()) {
-            Upload u = matchedUpload.get();
-            String docText = documentService.extractDocumentTextForUser(u.getFilename(), req.getUsername());
-            if (docText != null && !docText.isBlank() && !docText.startsWith("Error") && !docText.startsWith("File '") && !docText.startsWith("Access denied")) {
-                String excerpt = docText.length() > 16000 ? docText.substring(0, 16000) + "\n...[truncated for length]" : docText;
-                sb.append("\n\n").append(aiGuardrailService.wrapUntrustedDocument(u.getFilename(), excerpt));
-                sb.append("\nThe user is asking about this workspace document. You have full access to its contents above. Analyze, calculate, summarize, or answer questions based on this document accurately. Never claim you do not have access to this file.");
-            }
+        if (augmentedContext != null && !augmentedContext.isBlank()) {
+            sb.append("\n\n").append(aiGuardrailService.wrapUntrustedDocument("Verified Document Context", augmentedContext));
+            sb.append("\n\nCRITICAL CITATION & FACTUAL ACCURACY INSTRUCTIONS:");
+            sb.append("\n1. Answer the user's question directly, accurately, and factually using the verified document passages above.");
+            sb.append("\n2. Provide specific inline citations in the format [Source: <filename>, Page: <pageNumber>].");
+            sb.append("\n3. If asked for certifications, technical skills, projects, or education, present all matching facts with clear, structured Markdown bullet points.");
+            sb.append("\n4. If multiple passages from different pages address the inquiry, synthesize them coherently.");
+            sb.append("\n5. Never state you cannot access the document when relevant facts are present in the verified context above.");
         } else {
             List<Upload> userUploads = documentService.getAllUploadsForUser(req.getUsername());
             if (!userUploads.isEmpty()) {
