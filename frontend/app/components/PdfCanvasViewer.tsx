@@ -9,8 +9,11 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+import { getLocalFileBlob, storeLocalFileBlob } from "../lib/idb";
+
 interface PdfCanvasViewerProps {
-  url: string;
+  url?: string;
+  blobUrl?: string | null;
   filename: string;
   highlightPhrase?: string;
   targetPage?: number | null;
@@ -18,7 +21,8 @@ interface PdfCanvasViewerProps {
 }
 
 export default function PdfCanvasViewer({
-  url,
+  url = "",
+  blobUrl = null,
   filename,
   highlightPhrase = "",
   targetPage = null,
@@ -32,10 +36,17 @@ export default function PdfCanvasViewer({
   const [pdfDoc, setPdfDoc] = useState<any>(null);
   const [pageRendering, setPageRendering] = useState<boolean>(false);
   const [fitWidth, setFitWidth] = useState<boolean>(true);
+  const [activeBlobUrl, setActiveBlobUrl] = useState<string | null>(blobUrl || null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const renderTaskRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (blobUrl) {
+      setActiveBlobUrl(blobUrl);
+    }
+  }, [blobUrl]);
 
   // Dynamically load PDF.js script if not present
   const loadPdfJs = useCallback((): Promise<any> => {
@@ -93,13 +104,68 @@ export default function PdfCanvasViewer({
 
     try {
       const pdfjsLib = await loadPdfJs();
-      const response = await fetch(url, { credentials: "include" });
-      if (!response.ok) {
+      let arrayBuffer: ArrayBuffer | null = null;
+
+      // 1. Try local IndexedDB first (instant, works offline & across serverless restarts)
+      try {
+        const cachedBlob = await getLocalFileBlob(filename);
+        if (cachedBlob && cachedBlob.size > 0) {
+          arrayBuffer = await cachedBlob.arrayBuffer();
+          if (!activeBlobUrl) {
+            const bUrl = URL.createObjectURL(cachedBlob);
+            setActiveBlobUrl(bUrl);
+          }
+        }
+      } catch (idbErr) {
+        console.warn("IndexedDB blob lookup note:", idbErr);
+      }
+
+      // 2. If not found in IndexedDB, try blobUrl or blob-based URL
+      if (!arrayBuffer) {
+        const directBlobUrl = blobUrl || (url && url.startsWith("blob:") ? url : null);
+        if (directBlobUrl) {
+          try {
+            const blobRes = await fetch(directBlobUrl);
+            if (blobRes.ok) {
+              arrayBuffer = await blobRes.arrayBuffer();
+              const b = new Blob([arrayBuffer], { type: "application/pdf" });
+              storeLocalFileBlob(filename, b);
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 3. If still not found, fetch from server URL
+      if (!arrayBuffer && url && !url.startsWith("blob:")) {
+        const response = await fetch(url, { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(
+            `Document server responded with status ${response.status}`,
+          );
+        }
+        arrayBuffer = await response.arrayBuffer();
+        if (arrayBuffer && arrayBuffer.byteLength > 0) {
+          const fetchedBlob = new Blob([arrayBuffer], { type: "application/pdf" });
+          storeLocalFileBlob(filename, fetchedBlob);
+          const bUrl = URL.createObjectURL(fetchedBlob);
+          setActiveBlobUrl(bUrl);
+        }
+      }
+
+      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
         throw new Error(
-          `Document server responded with status ${response.status}`,
+          "Could not retrieve PDF data. Click 'View Parsed Document Text' below to see the extracted content.",
         );
       }
-      const arrayBuffer = await response.arrayBuffer();
+
+      // Verify PDF header %PDF
+      const header = new Uint8Array(arrayBuffer.slice(0, 5));
+      const headerStr = String.fromCharCode(...header);
+      if (!headerStr.startsWith("%PDF")) {
+        throw new Error(
+          "Document source returned non-PDF data. Click 'View Parsed Document Text' below to see the content.",
+        );
+      }
 
       const loadingTask = pdfjsLib.getDocument({
         data: arrayBuffer,
@@ -119,7 +185,7 @@ export default function PdfCanvasViewer({
     } finally {
       setLoading(false);
     }
-  }, [url, loadPdfJs, targetPage]);
+  }, [url, blobUrl, filename, loadPdfJs, targetPage, activeBlobUrl]);
 
   useEffect(() => {
     initPdf();
@@ -299,7 +365,7 @@ export default function PdfCanvasViewer({
                 </button>
               )}
               <a
-                href={url}
+                href={activeBlobUrl || blobUrl || url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white bg-white/10 hover:bg-white/15 rounded-lg transition-colors flex items-center gap-1.5"

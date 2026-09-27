@@ -187,7 +187,21 @@ export default function DocumentWorkspace({
       }
     });
 
-    // 2. Fetch fresh copy from server and update local cache
+    // 2. Pre-fetch extracted text content so text tab and fallback are immediately ready
+    fetch(
+      `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`,
+      { credentials: "include" },
+    )
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.content) {
+          setTextContent(data.content);
+          setEditedContent(data.content);
+        }
+      })
+      .catch(() => {});
+
+    // 3. Fetch copy from server and update local cache
     fetch(fileUrl, { credentials: "include" })
       .then((r) => {
         if (!r.ok) throw new Error(`Failed to load PDF (${r.status})`);
@@ -210,19 +224,6 @@ export default function DocumentWorkspace({
           }
           return existing;
         });
-        // Also attempt to load extracted text if available
-        fetch(
-          `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`,
-          { credentials: "include" },
-        )
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (data?.content) {
-              setTextContent(data.content);
-              setEditedContent(data.content);
-            }
-          })
-          .catch(() => {});
       })
       .finally(() => setPdfLoading(false));
   }, [fileUrl, isPDF, file.filename]);
@@ -1319,7 +1320,8 @@ export default function DocumentWorkspace({
             {isPDF ? (
               pdfDocTab === "canvas" ? (
                 <PdfCanvasViewer
-                  url={fileUrl}
+                  url={pdfBlobUrl || fileUrl}
+                  blobUrl={pdfBlobUrl}
                   filename={file.filename}
                   highlightPhrase={localHighlightPhrase}
                   targetPage={localTargetPage}
