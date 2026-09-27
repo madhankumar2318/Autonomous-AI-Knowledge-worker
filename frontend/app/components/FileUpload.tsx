@@ -1195,13 +1195,6 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                           <div className="fw-file-info">
                             <div className="fw-file-name flex items-center flex-wrap gap-1.5">
                               <span>{u.filename}</span>
-                              {(u.filename === recentlyUploadedFilename ||
-                                u.filename.toLowerCase() ===
-                                  (recentlyUploadedFilename || "").toLowerCase()) && (
-                                <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 rounded-full tracking-wider animate-pulse">
-                                  JUST UPLOADED
-                                </span>
-                              )}
                             </div>
                             <div className="fw-file-meta">
                               <span className="fw-file-ext-badge">
