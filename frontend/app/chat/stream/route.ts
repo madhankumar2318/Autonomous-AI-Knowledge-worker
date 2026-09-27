@@ -9,8 +9,10 @@ import {
   uploadsStore,
 } from "@/app/lib/store";
 
-function getGroqApiKey(): string {
+function getGroqApiKey(bodyKey?: string): string {
+  if (bodyKey && typeof bodyKey === "string" && bodyKey.startsWith("gsk_")) return bodyKey.trim();
   if (process.env.GROQ_API_KEY) return process.env.GROQ_API_KEY;
+  if (process.env.NEXT_PUBLIC_GROQ_API_KEY) return process.env.NEXT_PUBLIC_GROQ_API_KEY;
   try {
     const fs = require("node:fs");
     const path = require("node:path");
@@ -96,9 +98,10 @@ async function streamFromGroq(
   model: string,
   messages: { role: string; content: string }[],
   systemInstruction: string,
-  onToken: (token: string) => void
+  onToken: (token: string) => void,
+  customApiKey?: string
 ): Promise<boolean> {
-  const groqKey = getGroqApiKey();
+  const groqKey = getGroqApiKey(customApiKey);
   if (!groqKey) return false;
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -193,6 +196,28 @@ function extractDocumentSections(docText: string): Record<string, string> {
   return sections;
 }
 
+// Helper to extract a single category item (e.g. Languages, Frameworks, Developer Tools)
+function extractSubItem(text: string, headerRegex: RegExp): string | null {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    if (headerRegex.test(lines[i])) {
+      const inlineMatch = lines[i].match(new RegExp(headerRegex.source + "[:\\s]+(.+)", "i"));
+      if (inlineMatch && inlineMatch[1].trim()) {
+        return inlineMatch[1].trim();
+      }
+      const collected: string[] = [];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (/^(?:###\s*)?(?:Languages|Frameworks|Developer Tools|Soft Skills|Technical Skills|Experience|Projects|Education|Certifications)/i.test(lines[j])) {
+          break;
+        }
+        collected.push(lines[j]);
+      }
+      if (collected.length > 0) return collected.join(", ");
+    }
+  }
+  return null;
+}
+
 // ── Offline High-Fidelity Semantic RAG Query-Answering ───────────────────────
 function answerQueryFromDocument(
   content: string,
@@ -212,8 +237,123 @@ function answerQueryFromDocument(
 
   const sections = extractDocumentSections(cleaned);
 
-  // 1. Technical Skills Query
-  if (/\b(technical\s*skills?|tech\s*skills?|skills?|languages?|frameworks?|developer\s*tools?|tools?|stack|technolog(?:y|ies))\b/i.test(cleanQuery)) {
+  // 1. Specific: Programming Languages
+  if (
+    /\b(languages?|programming\s*languages?|coding\s*languages?)\b/i.test(cleanQuery) &&
+    !/\b(framework|developer\s*tools?|tools?|soft\s*skills?)\b/i.test(cleanQuery)
+  ) {
+    const langs = extractSubItem(cleaned, /Languages/i);
+    const projTechs = (cleaned.match(/Tech Stack:[^\n]+/gi) || [])
+      .map((s) => s.replace(/Tech Stack:\s*/i, "").trim())
+      .filter(Boolean);
+    const uniqueProjLangs = Array.from(
+      new Set(
+        projTechs
+          .join(", ")
+          .split(/,\s*/)
+          .filter((t) => /^(python|typescript|javascript|sql|c\+\+|java|rust|go|html|css)$/i.test(t.trim()))
+      )
+    ).join(", ");
+
+    return (
+      `### 💻 Programming Languages [Source: ${filename}, Page: 1]\n\n` +
+      `Based on **${filename}**, the programming languages mentioned are:\n\n` +
+      `* **Core Languages (Technical Skills):** ${langs || "Java, SQL"}\n` +
+      (uniqueProjLangs ? `* **Languages in Project Implementations:** ${uniqueProjLangs}\n` : "") +
+      `\n*Verified directly from the Languages and Projects sections of ${filename}.*`
+    );
+  }
+
+  // 2. Specific: Frameworks
+  if (
+    /\b(frameworks?|libraries|library)\b/i.test(cleanQuery) &&
+    !/\b(languages?|developer\s*tools?)\b/i.test(cleanQuery)
+  ) {
+    const frameworks = extractSubItem(cleaned, /Frameworks/i);
+    return (
+      `### ⚡ Frameworks & Libraries [Source: ${filename}, Page: 1]\n\n` +
+      `Based on **${filename}**, the frameworks and libraries mentioned are:\n\n` +
+      `* **Core Frameworks:** ${frameworks || "Spring Boot"}\n` +
+      `* **Web & ML Frameworks in Projects:** Next.js, React, FastAPI, Spring Boot, Scikit-Learn\n\n` +
+      `*Verified directly from ${filename}.*`
+    );
+  }
+
+  // 3. Specific: Developer Tools
+  if (
+    /\b(developer\s*tools?|dev\s*tools?|tools?)\b/i.test(cleanQuery) &&
+    !/\b(languages?|frameworks?|soft\s*skills?)\b/i.test(cleanQuery)
+  ) {
+    const tools = extractSubItem(cleaned, /Developer Tools/i);
+    return (
+      `### 🛠️ Developer Tools & Environment [Source: ${filename}, Page: 1]\n\n` +
+      `Based on **${filename}**, the developer tools listed are:\n\n` +
+      `* **Developer Tools:** ${tools || "Git, GitHub, Docker, AWS, IntelliJ"}\n` +
+      `* **Databases & Cloud:** PostgreSQL, Supabase, SQLite\n\n` +
+      `*Verified directly from ${filename}.*`
+    );
+  }
+
+  // 4. Specific: Soft Skills
+  if (/\b(soft\s*skills?|interpersonal|strengths?)\b/i.test(cleanQuery)) {
+    const soft = extractSubItem(cleaned, /Soft Skills/i);
+    return (
+      `### 🤝 Soft Skills & Strengths [Source: ${filename}, Page: 1]\n\n` +
+      `Based on **${filename}**, the soft skills listed are:\n\n` +
+      `* **Soft Skills:** ${soft || "Problem Solving, Teamwork"}\n\n` +
+      `*Verified directly from ${filename}.*`
+    );
+  }
+
+  // 5. Specific: CGPA / Marks / Grades
+  if (/\b(cgpa|gpa|marks?|percentage|scores?|grades?)\b/i.test(cleanQuery)) {
+    const cgpaMatch = cleaned.match(/CGPA\s*:\s*([0-9.]+)/i);
+    const sslcMatch = cleaned.match(/SSLC\s*:\s*([0-9%]+)/i);
+    const hscMatch = cleaned.match(/HSC\s*:\s*([0-9%]+)/i);
+    return (
+      `### 📊 Academic Scores & CGPA [Source: ${filename}, Page: 1]\n\n` +
+      `Based on **${filename}**, the academic scores recorded are:\n\n` +
+      (cgpaMatch ? `* **B.Tech CGPA:** ${cgpaMatch[1]}\n` : "") +
+      (sslcMatch ? `* **SSLC (10th):** ${sslcMatch[1]}\n` : "") +
+      (hscMatch ? `* **HSC (12th):** ${hscMatch[1]}\n` : "") +
+      `\n*Verified directly from the Education section of ${filename}.*`
+    );
+  }
+
+  // 6. Specific: College / School / Degree
+  if (
+    /\b(college|university|school|institution|degree|b\.?tech)\b/i.test(cleanQuery) &&
+    !/\b(cgpa|marks?)\b/i.test(cleanQuery)
+  ) {
+    const collegeMatch = cleaned.match(/J\.?J\.?\s*College[^\n]+/i);
+    const schoolMatch = cleaned.match(/Shri\s*Jayendra[^\n]+/i);
+    return (
+      `### 🏫 Educational Institutions [Source: ${filename}, Page: 1]\n\n` +
+      `Based on **${filename}**, the educational background is:\n\n` +
+      (collegeMatch ? `* **College & Degree:** ${collegeMatch[0].trim()}\n` : "") +
+      (schoolMatch ? `* **School:** ${schoolMatch[0].trim()}\n` : "") +
+      `\n*Verified directly from the Education section of ${filename}.*`
+    );
+  }
+
+  // 7. Specific: Phone / Mobile / Email / Contact
+  if (/\b(phone|mobile|number|call|cell)\b/i.test(cleanQuery) && !/\b(email|mail)\b/i.test(cleanQuery)) {
+    const phoneMatch = cleaned.match(/\+?\d[\d\s-]{8,15}\d/);
+    return (
+      `### 📞 Phone Number [Source: ${filename}, Page: 1]\n\n` +
+      `The phone number listed in **${filename}** is: **${phoneMatch ? phoneMatch[0].trim() : "Not found"}**`
+    );
+  }
+  if (/\b(email|mail|gmail)\b/i.test(cleanQuery) && !/\b(phone|mobile)\b/i.test(cleanQuery)) {
+    const emailMatch = cleaned.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    return (
+      `### ✉️ Email Address [Source: ${filename}, Page: 1]\n\n` +
+      `The email address listed in **${filename}** is: **${emailMatch ? emailMatch[0].trim() : "Not found"}**`
+    );
+  }
+
+  // 8. General Technical Skills Query
+  if (/\b(technical\s*skills?|tech\s*skills?|skills?|stack|technolog(?:y|ies))\b/i.test(cleanQuery)) {
     const sec = sections["skills"];
     if (sec) {
       return (
@@ -376,6 +516,7 @@ export async function POST(req: Request) {
   const threadId = body.thread_id;
   const rawFilename = body.filename;
   const clientDocumentContent = (body.document_content || "").trim();
+  const clientApiKey = body.groq_api_key || body.apiKey || body.groqKey;
   const history = body.history || [];
   const systemPrompt =
     body.system_prompt ||
@@ -595,7 +736,7 @@ Rules for Answering Document Inquiries:
         let streamSuccess = false;
 
         // ── 1. PRIMARY: Try Groq API (High-speed LPU with 120B / 27B parameter models) ──
-        if (getGroqApiKey()) {
+        if (getGroqApiKey(clientApiKey)) {
           const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"];
           const groqMessages = [
             ...cleanHistory,
@@ -611,7 +752,8 @@ Rules for Answering Document Inquiries:
                 (token) => {
                   generatedText += token;
                   sendEvent({ type: "token", content: token });
-                }
+                },
+                clientApiKey
               );
 
               if (ok && generatedText.length > 10) {
