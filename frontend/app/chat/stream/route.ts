@@ -113,6 +113,7 @@ async function streamFromGroq(
           { role: "system", content: systemInstruction },
           ...messages,
         ],
+        max_tokens: 1024,
         stream: true,
         temperature: 0.2,
       }),
@@ -157,7 +158,42 @@ async function streamFromGroq(
   }
 }
 
-// Offline high-fidelity semantic RAG query-answering
+// ── Document Section Boundary Extraction ─────────────────────────────────────
+function extractDocumentSections(docText: string): Record<string, string> {
+  const sections: Record<string, string> = {};
+  const sectionKeywords = [
+    { key: "education", pattern: /(?:###\s*)?(?:Education|Academic Background|Qualifications)/i },
+    { key: "skills", pattern: /(?:###\s*)?(?:Technical Skills|Skills|Core Competencies|Technologies)/i },
+    { key: "experience", pattern: /(?:###\s*)?(?:Experience|Work Experience|Employment|Internship)/i },
+    { key: "projects", pattern: /(?:###\s*)?(?:Projects|Project Portfolio)/i },
+    { key: "certifications", pattern: /(?:###\s*)?(?:Certifications|Credentials|Certificates|Licenses)/i },
+  ];
+
+  const matches: { key: string; index: number; length: number }[] = [];
+  for (const s of sectionKeywords) {
+    const m = s.pattern.exec(docText);
+    if (m) {
+      matches.push({ key: s.key, index: m.index, length: m[0].length });
+    }
+  }
+
+  matches.sort((a, b) => a.index - b.index);
+
+  if (matches.length > 0 && matches[0].index > 0) {
+    sections["contact"] = docText.slice(0, matches[0].index).trim();
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const current = matches[i];
+    const startIndex = current.index + current.length;
+    const endIndex = i + 1 < matches.length ? matches[i + 1].index : docText.length;
+    sections[current.key] = docText.slice(startIndex, endIndex).trim();
+  }
+
+  return sections;
+}
+
+// ── Offline High-Fidelity Semantic RAG Query-Answering ───────────────────────
 function answerQueryFromDocument(
   content: string,
   userQuery: string,
@@ -165,23 +201,105 @@ function answerQueryFromDocument(
 ): string {
   const q = userQuery.toLowerCase().trim();
   const cleaned = cleanPdfTextFormatting(content);
+  const normFilename = filename.toLowerCase().replace(/\.[^.]+$/, "");
 
-  const isOverviewQuery =
-    q.includes("what is in") ||
-    q.includes("summarize") ||
-    q.includes("overview") ||
-    q.includes("summary") ||
-    q.includes("resume") ||
-    q.includes("profile") ||
-    q.includes("who is") ||
-    q.includes("about") ||
-    q.includes("tell me");
+  // Strip filename and format tokens so they never cause false-positive matches (e.g. "resume" in "MadhansResume1.pdf")
+  let cleanQuery = q;
+  cleanQuery = cleanQuery.replace(filename.toLowerCase(), " ");
+  cleanQuery = cleanQuery.replace(normFilename, " ");
+  cleanQuery = cleanQuery.replace(/\b(pdf|docx|txt|document|file)\b/g, " ");
+  cleanQuery = cleanQuery.replace(/\s+/g, " ").trim();
 
-  if (isOverviewQuery) {
-    // Generate an executive dossier directly from document text
-    const lines = cleaned.split("\n").map((l) => l.trim()).filter(Boolean);
+  const sections = extractDocumentSections(cleaned);
+
+  // 1. Technical Skills Query
+  if (/\b(technical\s*skills?|tech\s*skills?|skills?|languages?|frameworks?|developer\s*tools?|tools?|stack|technolog(?:y|ies))\b/i.test(cleanQuery)) {
+    const sec = sections["skills"];
+    if (sec) {
+      return (
+        `### 🛠️ Verified Technical Skills [Source: ${filename}, Page: 1]\n\n` +
+        `Here are the verified technical skills and proficiencies listed in **${filename}**:\n\n` +
+        `${sec}\n\n` +
+        `*Verified directly from the Technical Skills section of ${filename}.*`
+      );
+    }
+  }
+
+  // 2. Experience / Internship Query
+  if (/\b(experience|internship|intern|work|career|job|role|accomplishments?|company|organization)\b/i.test(cleanQuery)) {
+    const sec = sections["experience"];
+    if (sec) {
+      return (
+        `### 💼 Verified Professional Experience [Source: ${filename}, Page: 1]\n\n` +
+        `Here is the professional experience recorded in **${filename}**:\n\n` +
+        `${sec}\n\n` +
+        `*Verified directly from the Experience section of ${filename}.*`
+      );
+    }
+  }
+
+  // 3. Projects Portfolio Query
+  if (/\b(projects?|portfolio|built|applications?|systems?)\b/i.test(cleanQuery)) {
+    const sec = sections["projects"];
+    if (sec) {
+      return (
+        `### 🚀 Verified Project Portfolio [Source: ${filename}, Page: 1]\n\n` +
+        `Here are the key projects detailed in **${filename}**:\n\n` +
+        `${sec}\n\n` +
+        `*Verified directly from the Projects section of ${filename}.*`
+      );
+    }
+  }
+
+  // 4. Education / Academics / CGPA Query
+  if (/\b(education|academic|college|degree|b\.?tech|cgpa|school|sslc|hsc|cbse|marks?|percentage|qualification)\b/i.test(cleanQuery)) {
+    const sec = sections["education"];
+    if (sec) {
+      return (
+        `### 🎓 Verified Academic Credentials [Source: ${filename}, Page: 1]\n\n` +
+        `Here is the academic background recorded in **${filename}**:\n\n` +
+        `${sec}\n\n` +
+        `*Verified directly from the Education section of ${filename}.*`
+      );
+    }
+  }
+
+  // 5. Certifications Query
+  if (/\b(certificat(?:e|ions?)|credentials?|courses?|nptel|udemy|anthropic)\b/i.test(cleanQuery)) {
+    const sec = sections["certifications"];
+    if (sec) {
+      return (
+        `### 📜 Verified Certifications & Credentials [Source: ${filename}, Page: 1]\n\n` +
+        `Here are the certifications documented in **${filename}**:\n\n` +
+        `${sec}\n\n` +
+        `*Verified directly from the Certifications section of ${filename}.*`
+      );
+    }
+  }
+
+  // 6. Contact / Candidate Profile Query
+  if (/\b(contact|email|phone|mobile|number|linkedin|github|portfolio|who is)\b/i.test(cleanQuery)) {
+    const sec = sections["contact"];
+    if (sec) {
+      return (
+        `### 👤 Contact & Candidate Information [Source: ${filename}, Page: 1]\n\n` +
+        `Here is the contact profile from **${filename}**:\n\n` +
+        `${sec}`
+      );
+    }
+  }
+
+  // 7. Pure Overview / Full Summary Query (ONLY if no specific section intent was matched)
+  const isPureOverview =
+    /^(what is in|summarize|give (me )?(an? )?overview|full summary|overview of|summary of|tell me about (the|this) (document|file|resume))\b/i.test(cleanQuery) ||
+    cleanQuery === "summary" ||
+    cleanQuery === "overview" ||
+    cleanQuery === "summarize" ||
+    cleanQuery === "what is in this" ||
+    cleanQuery === "what is in the document";
+
+  if (isPureOverview) {
     const excerpt = cleaned.length > 2500 ? cleaned.slice(0, 2500) + "\n\n*(Full document contains additional verified details)*" : cleaned;
-
     return (
       `### Executive Document Intelligence Report: ${filename} [Source: ${filename}, Page: 1]\n\n` +
       `Here is a verified, comprehensive executive breakdown of **${filename}**:\n\n` +
@@ -195,53 +313,60 @@ function answerQueryFromDocument(
     );
   }
 
+  // 8. Fine-Grained Semantic Retrieval: BM25 / token-overlap scoring across bullets & paragraphs
   const stopWords = new Set([
     "what", "when", "where", "which", "this", "that", "from",
     "tell", "show", "with", "have", "does", "about", "the",
     "in", "pdf", "document", "file", "can", "you", "please",
     "list", "give", "and", "for", "are", "how", "many",
+    "did", "he", "she", "they", "his", "her", "their", "is",
+    "a", "an", "to"
   ]);
 
-  const queryTokens = q
+  const queryTokens = cleanQuery
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length > 2 && !stopWords.has(w));
 
-  const paragraphs = cleaned
-    .split(/\n\n+/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 20);
+  const passages = cleaned
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 15);
 
-  const scored = paragraphs
-    .map((p, idx) => {
+  const scored = passages
+    .map((p) => {
       const lower = p.toLowerCase();
       let score = 0;
       for (const tok of queryTokens) {
-        if (lower.includes(tok)) score += 5;
+        if (lower.includes(tok)) score += 10;
+        const regex = new RegExp(`\\b${tok}\\b`, "i");
+        if (regex.test(lower)) score += 5;
       }
-      if (q.length > 4 && lower.includes(q)) score += 10;
-      return { text: p, score, index: idx + 1 };
+      return { text: p, score };
     })
     .filter((item) => item.score > 0)
     .sort((a, b) => b.score - a.score);
 
   if (scored.length > 0) {
-    const topPassages = scored.slice(0, 5);
+    const topPassages = scored.slice(0, 3);
     return (
-      `### Verified Document Findings [Source: ${filename}, Page: 1]\n\n` +
-      `Here are the verified excerpts and data points addressing **"${userQuery}"**:\n\n` +
-      topPassages.map((p) => `- ${p.text.replace(/^[-•*]\s*/, "")}`).join("\n\n") +
+      `### 🔍 Verified Document Findings [Source: ${filename}, Page: 1]\n\n` +
+      `Here are the verified passages addressing **"${userQuery}"**:\n\n` +
+      topPassages.map((p) => `• ${p.text.replace(/^[•▸\-*]\s*/, "")}`).join("\n\n") +
       `\n\n*Verified directly from semantic passages in ${filename}.*`
     );
   }
 
-  // Fallback excerpt
-  const excerpt = cleaned.length > 1500 ? cleaned.slice(0, 1500) + "..." : cleaned;
+  // 9. Informative fallback guide
   return (
     `### Document Intelligence: ${filename} [Source: ${filename}, Page: 1]\n\n` +
-    `Extracted content from **${filename}**:\n\n` +
-    `${excerpt}\n\n` +
-    `*You can ask specific questions about technical skills, education, experience, or projects.*`
+    `I searched **${filename}** for "${userQuery}", but did not find an exact matching passage.\n\n` +
+    `You can ask targeted questions about:\n` +
+    `- **Technical Skills** (Languages, Frameworks, Developer Tools)\n` +
+    `- **Projects Portfolio** (Autonomous AI Knowledge Worker, AI Grievance System, etc.)\n` +
+    `- **Experience** (Internships, Roles, Companies)\n` +
+    `- **Education** (Degrees, College, CGPA)\n` +
+    `- **Certifications** (NPTEL, Udemy, Anthropic, Apollo)`
   );
 }
 
@@ -471,7 +596,7 @@ Rules for Answering Document Inquiries:
 
         // ── 1. PRIMARY: Try Groq API (High-speed LPU with 120B / 27B parameter models) ──
         if (getGroqApiKey()) {
-          const groqModels = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"];
+          const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"];
           const groqMessages = [
             ...cleanHistory,
             { role: "user", content: promptText },
@@ -492,9 +617,11 @@ Rules for Answering Document Inquiries:
               if (ok && generatedText.length > 10) {
                 streamSuccess = true;
                 const modelLabel =
-                  gModel === "openai/gpt-oss-120b"
-                    ? "Groq LPU (GPT-OSS 120B)"
-                    : "Groq LPU (Qwen 3.8 27B)";
+                  gModel === "qwen/qwen3.8-27b"
+                    ? "Groq LPU (Qwen 3.8 27B)"
+                    : gModel === "openai/gpt-oss-20b"
+                    ? "Groq LPU (GPT-OSS 20B)"
+                    : "Groq LPU (GPT-OSS 120B)";
                 sendEvent({ type: "model_used", content: modelLabel });
                 break;
               }
