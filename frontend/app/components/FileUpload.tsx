@@ -14,7 +14,7 @@ import {
   Zap,
   Brain,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 import DocumentWorkspace from "./DocumentWorkspace";
@@ -152,6 +152,16 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [deletingFilename, setDeletingFilename] = useState<string | null>(
     null,
   );
+  const [uploadingFilename, setUploadingFilename] = useState<string | null>(
+    null,
+  );
+
+  // While a file is uploading on the left, do not display it on the right side
+  const visibleUploads = useMemo(() => {
+    if (!uploading || !uploadingFilename) return uploads;
+    const target = uploadingFilename.toLowerCase();
+    return uploads.filter((u) => u.filename.toLowerCase() !== target);
+  }, [uploads, uploading, uploadingFilename]);
 
   const fetchUploads = async () => {
     try {
@@ -321,41 +331,18 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     const fileToUpload = overrideFile || file;
     if (!fileToUpload) return;
 
-    // Reset filter to ensure the new document is visible immediately
+    // Reset filter to ensure the new document is visible immediately after completion
     setSelectedTypeFilter(null);
     setRecentlyUploadedFilename(fileToUpload.name);
     setUploading(true);
+    setUploadingFilename(fileToUpload.name);
     setUploadProgress(10);
 
     // Remove from tombstone set if re-uploading
     removeTombstone(fileToUpload.name);
 
-    // Instant optimistic insertion into UI
-    const newRecord: UploadedFile = {
-      id: Date.now(),
-      filename: fileToUpload.name,
-      size: fileToUpload.size,
-      rag_indexed: true,
-      chunks: Math.max(1, Math.round(fileToUpload.size / 1500)),
-      uploaded_at: new Date().toISOString(),
-    };
-
-    // Store file blob in IndexedDB immediately so it's ready for preview
+    // Store file blob in IndexedDB immediately so it's ready for preview once complete
     storeLocalFileBlob(fileToUpload.name, fileToUpload);
-
-    setUploads((prev) => {
-      const filtered = prev.filter(
-        (u) => u.filename.toLowerCase() !== fileToUpload.name.toLowerCase()
-      );
-      const updated = [newRecord, ...filtered];
-      try {
-        localStorage.setItem(
-          "ak_uploads_list_cache",
-          JSON.stringify(updated),
-        );
-      } catch {}
-      return updated;
-    });
 
     // Simulate progress
     const progressInterval = setInterval(() => {
@@ -376,22 +363,29 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       setUploadProgress(100);
 
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
 
         // Persist file blob to IndexedDB
         storeLocalFileBlob(fileToUpload.name, fileToUpload);
 
+        const newRecord: UploadedFile = {
+          id: data.id || data.upload?.id || Date.now(),
+          filename: fileToUpload.name,
+          size: fileToUpload.size,
+          rag_indexed: true,
+          chunks:
+            data.chunks ||
+            data.upload?.chunks ||
+            Math.max(1, Math.round(fileToUpload.size / 1500)),
+          uploaded_at: new Date().toISOString(),
+        };
+
+        // ONLY after upload & indexing completes successfully, show in right-side workspace!
         setUploads((prev) => {
-          const updated = prev.map((u) => {
-            if (u.filename.toLowerCase() === fileToUpload.name.toLowerCase()) {
-              return {
-                ...u,
-                chunks: data.chunks || u.chunks,
-                rag_indexed: true,
-              };
-            }
-            return u;
-          });
+          const filtered = prev.filter(
+            (u) => u.filename.toLowerCase() !== fileToUpload.name.toLowerCase()
+          );
+          const updated = [newRecord, ...filtered];
           try {
             localStorage.setItem(
               "ak_uploads_list_cache",
@@ -404,6 +398,8 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         setTimeout(() => {
           setFile(null);
           setUploadProgress(0);
+          setUploading(false);
+          setUploadingFilename(null);
           showToast(
             "success",
             `"${fileToUpload.name}" uploaded & RAG indexed successfully!`,
@@ -418,24 +414,27 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
             }),
           );
           fetchUploads();
-        }, 400);
+        }, 500);
       } else {
+        clearInterval(progressInterval);
+        setUploadProgress(0);
+        setUploading(false);
+        setUploadingFilename(null);
         const errorData = await res.json().catch(() => ({}));
         const errMsg =
           errorData.message ||
           errorData.error ||
           "Upload failed. Please try again.";
         showToast(res.status === 429 ? "warning" : "error", errMsg);
-        setUploadProgress(0);
-        fetchUploads();
       }
     } catch (_err) {
       clearInterval(progressInterval);
-      showToast("error", "Upload error — check if the backend is running.");
       setUploadProgress(0);
-      fetchUploads();
-    } finally {
       setUploading(false);
+      setUploadingFilename(null);
+      showToast("error", "Upload error — check if the backend is running.");
+    } finally {
+      // safe cleanup handled in success/error branches
     }
   };
 
@@ -811,25 +810,25 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
             {/* Supported types & Filter Badges */}
             {(() => {
               const counts = {
-                all: uploads.length,
-                csv: uploads.filter((u) =>
+                all: visibleUploads.length,
+                csv: visibleUploads.filter((u) =>
                   u.filename.toLowerCase().endsWith(".csv"),
                 ).length,
-                json: uploads.filter((u) =>
+                json: visibleUploads.filter((u) =>
                   u.filename.toLowerCase().endsWith(".json"),
                 ).length,
-                pdf: uploads.filter((u) =>
+                pdf: visibleUploads.filter((u) =>
                   u.filename.toLowerCase().endsWith(".pdf"),
                 ).length,
-                txt: uploads.filter((u) => {
+                txt: visibleUploads.filter((u) => {
                   const l = u.filename.toLowerCase();
                   return l.endsWith(".txt") || l.endsWith(".md");
                 }).length,
-                docx: uploads.filter((u) => {
+                docx: visibleUploads.filter((u) => {
                   const l = u.filename.toLowerCase();
                   return l.endsWith(".docx") || l.endsWith(".doc");
                 }).length,
-                xlsx: uploads.filter((u) => {
+                xlsx: visibleUploads.filter((u) => {
                   const l = u.filename.toLowerCase();
                   return l.endsWith(".xlsx") || l.endsWith(".xls");
                 }).length,
@@ -1096,7 +1095,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           <div className="fw-files-panel">
             {(() => {
               const filteredUploads = selectedTypeFilter
-                ? uploads.filter((u) => {
+                ? visibleUploads.filter((u) => {
                     const lower = u.filename.toLowerCase();
                     if (selectedTypeFilter === "csv")
                       return lower.endsWith(".csv");
@@ -1112,7 +1111,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                       return lower.endsWith(".xlsx") || lower.endsWith(".xls");
                     return true;
                   })
-                : uploads;
+                : visibleUploads;
 
               return (
                 <>
@@ -1135,7 +1134,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                     <span className="fw-file-count">
                       {filteredUploads.length} file
                       {filteredUploads.length !== 1 ? "s" : ""}
-                      {selectedTypeFilter && ` (of ${uploads.length})`}
+                      {selectedTypeFilter && ` (of ${visibleUploads.length})`}
                     </span>
                   </div>
 
@@ -1321,7 +1320,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
             })()}
 
             {/* AI Hint */}
-            {uploads.length > 0 && (
+            {visibleUploads.length > 0 && (
               <div className="fw-ai-hint">
                 <div className="fw-ai-hint-icon">
                   <Zap className="w-3.5 h-3.5" style={{ color: "#22d3ee" }} />
