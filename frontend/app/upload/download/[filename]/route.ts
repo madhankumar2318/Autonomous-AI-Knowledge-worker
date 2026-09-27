@@ -1,4 +1,6 @@
-import { getUploadBuffer, uploadsStore } from "@/app/lib/store";
+export const dynamic = "force-dynamic";
+
+import { getUploadBuffer, getUploadRecord, uploadsStore } from "@/app/lib/store";
 
 export async function GET(
   _req: Request,
@@ -7,7 +9,7 @@ export async function GET(
   const { filename: rawFilename } = await params;
   const filename = decodeURIComponent(rawFilename);
 
-  const doc = uploadsStore.get(filename) || uploadsStore.get(rawFilename);
+  const doc = getUploadRecord(filename) || uploadsStore.get(filename) || uploadsStore.get(rawFilename);
   const buffer = getUploadBuffer(filename) || getUploadBuffer(rawFilename);
 
   if (!buffer && !doc) {

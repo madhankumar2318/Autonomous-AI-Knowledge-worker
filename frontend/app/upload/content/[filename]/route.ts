@@ -1,7 +1,10 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import {
   extractPdfText,
   getUploadBuffer,
+  getUploadRecord,
   uploadsStore,
 } from "@/app/lib/store";
 
@@ -12,7 +15,7 @@ export async function GET(
   const { filename: rawFilename } = await params;
   const filename = decodeURIComponent(rawFilename);
 
-  let doc = uploadsStore.get(filename);
+  let doc = getUploadRecord(filename) || uploadsStore.get(filename);
   if (!doc) {
     const buffer = getUploadBuffer(filename);
     if (buffer) {
@@ -40,9 +43,16 @@ export async function GET(
     return NextResponse.json({ message: "File not found" }, { status: 404 });
   }
 
-  return NextResponse.json({
-    content: doc.content || "",
-    filename: doc.filename,
-    size: doc.size,
-  });
+  return NextResponse.json(
+    {
+      content: doc.content || "",
+      filename: doc.filename,
+      size: doc.size,
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
 }

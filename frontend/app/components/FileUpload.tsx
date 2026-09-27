@@ -69,29 +69,8 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [activeWorkspaceFile, setActiveWorkspaceFile] =
-    useState<UploadedFile | null>(() => {
-      if (typeof window !== "undefined") {
-        try {
-          const savedFilename = localStorage.getItem("ak_active_file");
-          if (savedFilename) {
-            const cached = localStorage.getItem("ak_uploads_list_cache");
-            if (cached) {
-              const parsed: UploadedFile[] = JSON.parse(cached);
-              const found = parsed.find((u) => u.filename === savedFilename);
-              if (found) return found;
-            }
-            return {
-              id: 0,
-              filename: savedFilename,
-              size: 0,
-              rag_indexed: true,
-            };
-          }
-        } catch {}
-      }
-      return null;
-    });
+  const [activeWorkspaceFile, setActiveWorkspaceFile] = useState<UploadedFile | null>(null);
+  const [recentlyUploadedFilename, setRecentlyUploadedFilename] = useState<string | null>(null);
   const [workspaceHighlightPhrase, setWorkspaceHighlightPhrase] =
     useState<string>("");
   const [workspaceHighlightPage, setWorkspaceHighlightPage] = useState<
@@ -101,7 +80,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     null,
   );
   const dragCounter = useRef(0);
-  const isInitialMount = useRef(true);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [reindexingFiles, setReindexingFiles] = useState<Set<string>>(
     new Set(),
   );
@@ -111,7 +90,12 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
 
   const fetchUploads = async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/upload/list`, {
+      const res = await fetch(`${API_BASE_URL}/upload/list?_t=${Date.now()}`, {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          Pragma: "no-cache",
+        },
         credentials: "include",
       });
       if (!res.ok) return;
@@ -128,31 +112,30 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
       }));
 
-      // Update state and cache with authoritative server records
-      setUploads(normalized);
-      try {
-        localStorage.setItem(
-          "ak_uploads_list_cache",
-          JSON.stringify(normalized),
+      // Merge server records with any recently uploaded local records so new files NEVER disappear
+      setUploads((prev) => {
+        const serverMap = new Map(
+          normalized.map((u) => [u.filename.toLowerCase(), u])
         );
-      } catch {}
-
-      if (normalized.length === 0) {
-        setActiveWorkspaceFile(null);
-        localStorage.removeItem("ak_active_file");
-      } else {
-        // Reconcile active file metadata with server version
-        const savedFilename = localStorage.getItem("ak_active_file");
-        if (savedFilename) {
-          const matched = normalized.find((u: any) => u.filename === savedFilename);
-          if (matched) {
-            setActiveWorkspaceFile(matched);
-          } else {
-            setActiveWorkspaceFile(null);
-            localStorage.removeItem("ak_active_file");
+        const merged = [...normalized];
+        for (const localItem of prev) {
+          const lName = localItem.filename.toLowerCase();
+          if (!serverMap.has(lName)) {
+            const age = Date.now() - new Date(localItem.uploaded_at || 0).getTime();
+            // Preserve optimistic item if uploaded in the last 2 minutes
+            if (age < 120000) {
+              merged.unshift(localItem);
+            }
           }
         }
-      }
+        try {
+          localStorage.setItem(
+            "ak_uploads_list_cache",
+            JSON.stringify(merged)
+          );
+        } catch {}
+        return merged;
+      });
     } catch (_err) {
       console.error("Error fetching uploads:", _err);
     }
@@ -173,14 +156,18 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       const { filename, phrase, pageNum } = customEvent.detail;
       setWorkspaceHighlightPhrase(phrase || "");
       setWorkspaceHighlightPage(pageNum || null);
-      const matched = uploads.find((u) => u.filename === filename);
+      const matched = uploads.find(
+        (u) =>
+          u.filename === filename ||
+          u.filename.toLowerCase() === (filename || "").toLowerCase()
+      );
       if (matched) {
         setActiveWorkspaceFile(matched);
-        localStorage.setItem("ak_active_file", filename);
+        localStorage.setItem("ak_active_file", matched.filename);
       } else {
         // Fallback: construct a temporary UploadedFile object if not loaded yet
         const temp: UploadedFile = {
-          id: 0,
+          id: Date.now(),
           filename: filename,
           size: 0,
           rag_indexed: true,
@@ -196,29 +183,12 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
   }, [uploads]);
 
   useEffect(() => {
-    // Avoid deleting saved file on initial mount
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
     if (activeWorkspaceFile) {
       localStorage.setItem("ak_active_file", activeWorkspaceFile.filename);
     } else {
       localStorage.removeItem("ak_active_file");
     }
   }, [activeWorkspaceFile]);
-
-  useEffect(() => {
-    if (uploads.length > 0 && !activeWorkspaceFile) {
-      const savedFilename = localStorage.getItem("ak_active_file");
-      if (savedFilename) {
-        const matched = uploads.find((u) => u.filename === savedFilename);
-        if (matched) {
-          setActiveWorkspaceFile(matched);
-        }
-      }
-    }
-  }, [uploads, activeWorkspaceFile]);
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -257,6 +227,8 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         ].includes(ext)
       ) {
         setFile(dropped);
+        setSelectedTypeFilter(null);
+        handleUpload(dropped);
       } else {
         showToast(
           "error",
@@ -266,18 +238,47 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     }
   };
 
-  const handleUpload = async () => {
-    if (!file) return;
+  const handleUpload = async (overrideFile?: File) => {
+    const fileToUpload = overrideFile || file;
+    if (!fileToUpload) return;
+
+    // Reset filter to ensure the new document is visible immediately
+    setSelectedTypeFilter(null);
+    setRecentlyUploadedFilename(fileToUpload.name);
     setUploading(true);
-    setUploadProgress(0);
+    setUploadProgress(10);
+
+    // Instant optimistic insertion into UI
+    const newRecord: UploadedFile = {
+      id: Date.now(),
+      filename: fileToUpload.name,
+      size: fileToUpload.size,
+      rag_indexed: true,
+      chunks: Math.max(1, Math.round(fileToUpload.size / 1500)),
+      uploaded_at: new Date().toISOString(),
+    };
+
+    setUploads((prev) => {
+      const filtered = prev.filter(
+        (u) => u.filename.toLowerCase() !== fileToUpload.name.toLowerCase()
+      );
+      const updated = [newRecord, ...filtered];
+      try {
+        localStorage.setItem(
+          "ak_uploads_list_cache",
+          JSON.stringify(updated),
+        );
+      } catch {}
+      return updated;
+    });
 
     // Simulate progress
     const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => Math.min(prev + 10, 90));
-    }, 150);
+      setUploadProgress((prev) => Math.min(prev + 15, 92));
+    }, 120);
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", fileToUpload);
 
     try {
       const res = await fetch(`${API_BASE_URL}/upload`, {
@@ -290,23 +291,21 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
 
       if (res.ok) {
         const data = await res.json();
-        const uploadedFileObj = file;
 
         // Persist file blob to IndexedDB
-        storeLocalFileBlob(uploadedFileObj.name, uploadedFileObj);
-
-        const newRecord: UploadedFile = {
-          id: Date.now(),
-          filename: uploadedFileObj.name,
-          size: uploadedFileObj.size,
-          rag_indexed: true,
-          chunks: data.chunks || Math.max(1, Math.round(uploadedFileObj.size / 1500)),
-          uploaded_at: new Date().toISOString(),
-        };
+        storeLocalFileBlob(fileToUpload.name, fileToUpload);
 
         setUploads((prev) => {
-          const filtered = prev.filter((u) => u.filename !== uploadedFileObj.name);
-          const updated = [newRecord, ...filtered];
+          const updated = prev.map((u) => {
+            if (u.filename.toLowerCase() === fileToUpload.name.toLowerCase()) {
+              return {
+                ...u,
+                chunks: data.chunks || u.chunks,
+                rag_indexed: true,
+              };
+            }
+            return u;
+          });
           try {
             localStorage.setItem(
               "ak_uploads_list_cache",
@@ -316,69 +315,24 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           return updated;
         });
 
-        // Keep user on the File Workspace without automatically switching pages
-        // The user will open Document Workspace when they touch the "Analyze" button
-
         setTimeout(() => {
           setFile(null);
           setUploadProgress(0);
-
-          if (data.rag_status === "success") {
-            showToast(
-              "success",
-              `"${uploadedFileObj.name}" uploaded & RAG indexed successfully!`,
-            );
-            window.dispatchEvent(
-              new CustomEvent("ak-add-notification", {
-                detail: {
-                  title: "RAG Document Indexed",
-                  message: `"${uploadedFileObj.name}" has been fully parsed and indexed for semantic searches.`,
-                  type: "success",
-                },
-              }),
-            );
-          } else if (data.rag_status === "keyword_only") {
-            showToast(
-              "success",
-              `"${uploadedFileObj.name}" uploaded & indexed! (Keyword search active — semantic search needs Gemini API key.)`,
-            );
-            window.dispatchEvent(
-              new CustomEvent("ak-add-notification", {
-                detail: {
-                  title: "Document Keyword-Indexed",
-                  message: `"${uploadedFileObj.name}" indexed for keyword matching. Connect a Gemini key to activate semantic searches.`,
-                  type: "info",
-                },
-              }),
-            );
-          } else if (data.rag_status === "failed") {
-            showToast(
-              "warning",
-              `Uploaded "${uploadedFileObj.name}", but indexing failed: ${data.error || "Check server logs."}`,
-            );
-            window.dispatchEvent(
-              new CustomEvent("ak-add-notification", {
-                detail: {
-                  title: "Document Indexing Failed",
-                  message: `"${uploadedFileObj.name}" uploaded but indexing failed: ${data.error || "unknown error"}`,
-                  type: "warning",
-                },
-              }),
-            );
-          } else {
-            showToast("success", `"${uploadedFileObj.name}" uploaded successfully!`);
-            window.dispatchEvent(
-              new CustomEvent("ak-add-notification", {
-                detail: {
-                  title: "File Uploaded",
-                  message: `"${uploadedFileObj.name}" uploaded successfully to workspace.`,
-                  type: "success",
-                },
-              }),
-            );
-          }
+          showToast(
+            "success",
+            `"${fileToUpload.name}" uploaded & RAG indexed successfully!`,
+          );
+          window.dispatchEvent(
+            new CustomEvent("ak-add-notification", {
+              detail: {
+                title: "RAG Document Indexed",
+                message: `"${fileToUpload.name}" has been fully parsed and indexed for semantic searches.`,
+                type: "success",
+              },
+            }),
+          );
           fetchUploads();
-        }, 500);
+        }, 400);
       } else {
         const errorData = await res.json().catch(() => ({}));
         const errMsg =
@@ -387,11 +341,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           "Upload failed. Please try again.";
         showToast(res.status === 429 ? "warning" : "error", errMsg);
         setUploadProgress(0);
+        fetchUploads();
       }
     } catch (_err) {
       clearInterval(progressInterval);
       showToast("error", "Upload error — check if the backend is running.");
       setUploadProgress(0);
+      fetchUploads();
     } finally {
       setUploading(false);
     }
@@ -617,6 +573,10 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
               onDragLeave={handleDragLeave}
               onDragOver={handleDragOver}
               onDrop={handleDrop}
+              onClick={() => {
+                if (!uploading) fileInputRef.current?.click();
+              }}
+              style={{ cursor: uploading ? "wait" : "pointer" }}
               className={`fw-dropzone ${isDragging ? "fw-dropzone-dragging" : ""} ${file ? "fw-dropzone-ready" : ""}`}
             >
               <div className="fw-dropzone-icon">
@@ -633,7 +593,10 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
               </div>
 
               {file ? (
-                <div className="fw-file-preview">
+                <div
+                  className="fw-file-preview"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="fw-file-preview-name">
                     <FileIcon filename={file.name} />
                     <span>{file.name}</span>
@@ -643,7 +606,10 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setFile(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFile(null);
+                    }}
                     className="fw-file-clear"
                     aria-label="Remove file"
                   >
@@ -657,12 +623,9 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                       "Drop it here!"
                     ) : (
                       <>
-                        <label
-                          htmlFor="file-upload"
-                          className="fw-dropzone-link"
-                        >
+                        <span className="fw-dropzone-link">
                           Click to browse
-                        </label>
+                        </span>
                         {" or drag & drop"}
                       </>
                     )}
@@ -674,7 +637,9 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
               )}
 
               <input
+                ref={fileInputRef}
                 type="file"
+                onClick={(e) => e.stopPropagation()}
                 onChange={(e) => {
                   const selected = e.target.files?.[0] || null;
                   if (selected) {
@@ -688,10 +653,14 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                         "txt",
                         "md",
                         "docx",
+                        "doc",
                         "xlsx",
+                        "xls",
                       ].includes(ext)
                     ) {
                       setFile(selected);
+                      setSelectedTypeFilter(null);
+                      handleUpload(selected);
                     } else {
                       showToast(
                         "error",
@@ -699,10 +668,11 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                       );
                     }
                   }
+                  e.target.value = "";
                 }}
                 className="hidden"
                 id="file-upload"
-                accept=".csv,.json,.pdf,.txt,.md,.docx,.xlsx"
+                accept=".csv,.json,.pdf,.txt,.md,.docx,.doc,.xlsx,.xls"
               />
             </div>
 
@@ -725,7 +695,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
             {file && !uploading && (
               <button
                 type="button"
-                onClick={handleUpload}
+                onClick={() => handleUpload()}
                 className="fw-upload-btn"
               >
                 <CloudUpload className="w-4 h-4" />
@@ -1112,7 +1082,16 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
                             <FileIcon filename={u.filename} />
                           </div>
                           <div className="fw-file-info">
-                            <div className="fw-file-name">{u.filename}</div>
+                            <div className="fw-file-name flex items-center flex-wrap gap-1.5">
+                              <span>{u.filename}</span>
+                              {(u.filename === recentlyUploadedFilename ||
+                                u.filename.toLowerCase() ===
+                                  (recentlyUploadedFilename || "").toLowerCase()) && (
+                                <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 rounded-full tracking-wider animate-pulse">
+                                  JUST UPLOADED
+                                </span>
+                              )}
+                            </div>
                             <div className="fw-file-meta">
                               <span className="fw-file-ext-badge">
                                 {u.filename.split(".").pop()?.toUpperCase()}

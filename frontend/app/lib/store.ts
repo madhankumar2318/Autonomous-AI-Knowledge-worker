@@ -58,24 +58,28 @@ export interface UploadRecord {
 
 export function getStorageDirs(): string[] {
   const dirs = [
+    "/app/applet/uploads_storage",
     path.resolve(process.cwd(), "uploads_storage"),
-    path.resolve(process.cwd(), "../uploads_storage"),
-    path.resolve("/app/applet/uploads_storage"),
-    path.resolve("/app/applet/frontend/uploads_storage"),
+    path.resolve(process.cwd(), "frontend/uploads_storage"),
+    "/app/applet/frontend/uploads_storage",
   ];
-  return Array.from(new Set(dirs));
+  const unique = Array.from(new Set(dirs));
+  for (const d of unique) {
+    try {
+      if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+    } catch {}
+  }
+  return unique.filter((d) => fs.existsSync(d));
 }
 
 export function getPrimaryStorageDir(): string {
   const dirs = getStorageDirs();
-  for (const d of dirs) {
-    if (fs.existsSync(d)) return d;
-  }
-  const defaultDir = dirs[0];
+  if (dirs.length > 0) return dirs[0];
+  const fallback = "/app/applet/uploads_storage";
   try {
-    fs.mkdirSync(defaultDir, { recursive: true });
+    fs.mkdirSync(fallback, { recursive: true });
   } catch {}
-  return defaultDir;
+  return fallback;
 }
 
 const nodeRequire = typeof createRequire === "function" ? createRequire(import.meta.url) : null;
@@ -578,7 +582,7 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
   const uploads = globalStore.__AKW_UPLOADS__;
   const dirs = getStorageDirs();
 
-  // Reconcile in-memory store against disk: if a file in uploadsStore no longer exists on disk in ANY storage dir, REMOVE IT
+  // Reconcile in-memory store against disk: ensure all in-memory items are synced to disk
   for (const [key, val] of Array.from(uploads.entries())) {
     let existsOnDisk = false;
     for (const dir of dirs) {
@@ -593,10 +597,32 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
         }
       }
     }
+
+    // If not physically on disk but buffer exists in memory, persist it to disk
     if (!existsOnDisk) {
+      const buf =
+        globalStore.__AKW_BUFFERS__?.get(key) ||
+        globalStore.__AKW_BUFFERS__?.get(val.filename) ||
+        globalStore.__AKW_BUFFERS__?.get(decodeURIComponent(val.filename));
+      if (buf) {
+        for (const dir of dirs) {
+          try {
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(path.join(dir, val.filename), buf);
+            existsOnDisk = true;
+          } catch {}
+        }
+      }
+    }
+
+    // Only remove orphaned stub records that have no buffer, no content, and no physical file
+    if (
+      !existsOnDisk &&
+      !globalStore.__AKW_BUFFERS__?.has(key) &&
+      !globalStore.__AKW_BUFFERS__?.has(val.filename) &&
+      (!val.content || val.content.length < 5)
+    ) {
       uploads.delete(key);
-      globalStore.__AKW_BUFFERS__?.delete(key);
-      globalStore.__AKW_BUFFERS__?.delete(val.filename);
     }
   }
 
@@ -639,16 +665,42 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
       if (fs.existsSync(dir)) {
         const files = fs.readdirSync(dir);
         for (const file of files) {
-          if (file.endsWith(".json") || file.toLowerCase() === "q3_financial_brief.md") continue;
+          if (
+            file === "uploads_index.json" ||
+            file.startsWith(".") ||
+            file.toLowerCase() === "q3_financial_brief.md"
+          ) {
+            continue;
+          }
           const filePath = path.join(dir, file);
           const stat = fs.statSync(filePath);
           if (stat.isFile()) {
-            const isPdf = file.toLowerCase().endsWith(".pdf");
+            const lower = file.toLowerCase();
+            const isPdf = lower.endsWith(".pdf");
+            const isJson = lower.endsWith(".json");
+            const isCsv = lower.endsWith(".csv");
+            const isDocx = lower.endsWith(".docx") || lower.endsWith(".doc");
+            const isXlsx = lower.endsWith(".xlsx") || lower.endsWith(".xls");
+            let contentType = "text/plain";
+            if (isPdf) contentType = "application/pdf";
+            else if (isJson) contentType = "application/json";
+            else if (isCsv) contentType = "text/csv";
+            else if (isDocx)
+              contentType =
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            else if (isXlsx)
+              contentType =
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
             let buffer: Buffer | null = null;
             try {
               buffer = fs.readFileSync(filePath);
               if (!globalStore.__AKW_BUFFERS__!.has(file)) {
                 globalStore.__AKW_BUFFERS__!.set(file, buffer);
+              }
+              const decoded = decodeURIComponent(file);
+              if (!globalStore.__AKW_BUFFERS__!.has(decoded)) {
+                globalStore.__AKW_BUFFERS__!.set(decoded, buffer);
               }
             } catch {}
 
@@ -671,7 +723,7 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
                 username: "admin",
                 filename: file,
                 originalName: file,
-                contentType: isPdf ? "application/pdf" : "text/plain",
+                contentType,
                 size: stat.size,
                 uploadedAt: stat.mtime.toISOString(),
                 status: "indexed",

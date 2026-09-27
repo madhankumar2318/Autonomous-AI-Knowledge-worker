@@ -1,8 +1,12 @@
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
 import {
   cleanPdfTextFormatting,
   deleteUploadFile,
   extractPdfText,
+  extractPdfTextSync,
   saveUploadFile,
   verifyToken,
   type UploadRecord,
@@ -30,7 +34,20 @@ export async function POST(req: Request) {
 
     let textContent = "";
     if (isPdf) {
-      textContent = await extractPdfText(buffer);
+      try {
+        textContent = await Promise.race([
+          extractPdfText(buffer),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error("PDF text extraction timeout")), 4000)
+          ),
+        ]);
+      } catch (_pdfErr) {
+        try {
+          textContent = extractPdfTextSync(buffer);
+        } catch {
+          textContent = `PDF Document: ${filename}`;
+        }
+      }
     } else {
       try {
         textContent = buffer.toString("utf-8");
@@ -38,7 +55,7 @@ export async function POST(req: Request) {
         textContent = "Binary document content.";
       }
     }
-    textContent = cleanPdfTextFormatting(textContent);
+    textContent = cleanPdfTextFormatting(textContent || `Document: ${filename}`);
 
     const chunks = Math.max(
       1,
@@ -60,15 +77,33 @@ export async function POST(req: Request) {
 
     saveUploadFile(uploadRecord, buffer);
 
-    return NextResponse.json({
-      message: "File uploaded successfully",
-      filename,
-      size: file.size,
-      rag_indexed: true,
-      rag_status: "success",
-      chunks,
-    });
+    return NextResponse.json(
+      {
+        message: "File uploaded successfully",
+        filename,
+        size: file.size,
+        rag_indexed: true,
+        rag_status: "success",
+        chunks,
+        upload: {
+          id: uploadRecord.id,
+          filename: uploadRecord.filename,
+          original_name: uploadRecord.originalName,
+          size: uploadRecord.size,
+          content_type: uploadRecord.contentType,
+          uploaded_at: uploadRecord.uploadedAt,
+          rag_indexed: true,
+          chunks,
+        },
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+      }
+    );
   } catch (err: any) {
+    console.error("Upload error in route.ts:", err);
     return NextResponse.json(
       { message: err?.message || "Upload failed" },
       { status: 500 }
