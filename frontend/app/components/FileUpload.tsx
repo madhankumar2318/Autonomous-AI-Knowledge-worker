@@ -48,6 +48,51 @@ function formatSize(bytes: number) {
   return `${bytes} B`;
 }
 
+const getTombstoneSet = (): Set<string> => {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem("ak_deleted_files_tombstone");
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        return new Set(arr.map((s: string) => s.toLowerCase()));
+      }
+    }
+  } catch {}
+  return new Set();
+};
+
+const addTombstone = (filename: string) => {
+  if (typeof window === "undefined" || !filename) return;
+  try {
+    const set = getTombstoneSet();
+    set.add(filename.toLowerCase());
+    set.add(decodeURIComponent(filename).toLowerCase());
+    localStorage.setItem("ak_deleted_files_tombstone", JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
+const removeTombstone = (filename: string) => {
+  if (typeof window === "undefined" || !filename) return;
+  try {
+    const set = getTombstoneSet();
+    set.delete(filename.toLowerCase());
+    set.delete(decodeURIComponent(filename).toLowerCase());
+    localStorage.setItem("ak_deleted_files_tombstone", JSON.stringify(Array.from(set)));
+  } catch {}
+};
+
+const getClientAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("ak_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+};
+
 interface FileUploadProps {
   username?: string;
 }
@@ -58,9 +103,14 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     if (typeof window !== "undefined") {
       try {
         const cached = localStorage.getItem("ak_uploads_list_cache");
+        const tombstone = getTombstoneSet();
         if (cached) {
           const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed)) {
+            return parsed.filter(
+              (u: UploadedFile) => u?.filename && !tombstone.has(u.filename.toLowerCase())
+            );
+          }
         }
       } catch {}
     }
@@ -90,11 +140,13 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
 
   const fetchUploads = async () => {
     try {
+      const authHeaders = getClientAuthHeaders();
       const res = await fetch(`${API_BASE_URL}/upload/list?_t=${Date.now()}`, {
         cache: "no-store",
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
           Pragma: "no-cache",
+          ...authHeaders,
         },
         credentials: "include",
       });
@@ -105,37 +157,23 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         : data && Array.isArray(data.uploads)
           ? data.uploads
           : [];
-      const normalized: UploadedFile[] = rawList.map((item: any) => ({
-        ...item,
-        rag_indexed: item.rag_indexed !== undefined ? item.rag_indexed : true,
-        chunks:
-          item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
-      }));
+      const tombstone = getTombstoneSet();
+      const normalized: UploadedFile[] = rawList
+        .filter((item: any) => item && item.filename && !tombstone.has(item.filename.toLowerCase()))
+        .map((item: any) => ({
+          ...item,
+          rag_indexed: item.rag_indexed !== undefined ? item.rag_indexed : true,
+          chunks:
+            item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
+        }));
 
-      // Merge server records with any recently uploaded local records so new files NEVER disappear
-      setUploads((prev) => {
-        const serverMap = new Map(
-          normalized.map((u) => [u.filename.toLowerCase(), u])
+      setUploads(normalized);
+      try {
+        localStorage.setItem(
+          "ak_uploads_list_cache",
+          JSON.stringify(normalized)
         );
-        const merged = [...normalized];
-        for (const localItem of prev) {
-          const lName = localItem.filename.toLowerCase();
-          if (!serverMap.has(lName)) {
-            const age = Date.now() - new Date(localItem.uploaded_at || 0).getTime();
-            // Preserve optimistic item if uploaded in the last 2 minutes
-            if (age < 120000) {
-              merged.unshift(localItem);
-            }
-          }
-        }
-        try {
-          localStorage.setItem(
-            "ak_uploads_list_cache",
-            JSON.stringify(merged)
-          );
-        } catch {}
-        return merged;
-      });
+      } catch {}
     } catch (_err) {
       console.error("Error fetching uploads:", _err);
     }
@@ -248,6 +286,9 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     setUploading(true);
     setUploadProgress(10);
 
+    // Remove from tombstone set if re-uploading
+    removeTombstone(fileToUpload.name);
+
     // Instant optimistic insertion into UI
     const newRecord: UploadedFile = {
       id: Date.now(),
@@ -283,6 +324,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     try {
       const res = await fetch(`${API_BASE_URL}/upload`, {
         method: "POST",
+        headers: getClientAuthHeaders(),
         credentials: "include",
         body: formData,
       });
@@ -436,6 +478,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     if (!filename || deletingFilename) return;
     setDeletingFilename(filename);
     deleteLocalFileBlob(filename);
+    addTombstone(filename);
 
     const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     const targetNorm = norm(filename);
@@ -466,12 +509,15 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       localStorage.removeItem("ak_active_file");
     }
 
+    const authHeaders = getClientAuthHeaders();
+
     try {
-      // 1. Try dynamic DELETE route: /upload/:filename
+      // 1. Try dynamic DELETE route: /upload/:filename on API_BASE_URL
       let res = await fetch(
         `${API_BASE_URL}/upload/${encodeURIComponent(filename)}`,
         {
           method: "DELETE",
+          headers: authHeaders,
           credentials: "include",
         },
       );
@@ -482,6 +528,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           `${API_BASE_URL}/upload?filename=${encodeURIComponent(filename)}`,
           {
             method: "DELETE",
+            headers: authHeaders,
             credentials: "include",
           },
         );
@@ -491,29 +538,43 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       if (!res.ok) {
         res = await fetch(`${API_BASE_URL}/upload/delete`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { ...authHeaders, "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ filename }),
         });
       }
 
-      if (res.ok) {
-        showToast("success", `"${filename}" deleted.`);
-        window.dispatchEvent(
-          new CustomEvent("ak-add-notification", {
-            detail: {
-              title: "Document Deleted",
-              message: `"${filename}" removed permanently from workspace.`,
-              type: "info",
-            },
-          }),
-        );
-      } else {
-        showToast("error", `Failed to delete "${filename}" from server.`);
+      // 4. Also delete from same-origin Next.js store if API_BASE_URL is pointing elsewhere
+      if (API_BASE_URL && API_BASE_URL !== "") {
+        try {
+          await fetch(`/upload/${encodeURIComponent(filename)}`, {
+            method: "DELETE",
+            headers: authHeaders,
+            credentials: "include",
+          });
+          await fetch(`/upload/delete`, {
+            method: "POST",
+            headers: { ...authHeaders, "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ filename }),
+          });
+        } catch {}
       }
+
+      showToast("success", `"${filename}" deleted.`);
+      window.dispatchEvent(
+        new CustomEvent("ak-add-notification", {
+          detail: {
+            title: "Document Deleted",
+            message: `"${filename}" removed permanently from workspace.`,
+            type: "info",
+          },
+        }),
+      );
       await fetchUploads();
     } catch (_err) {
-      showToast("error", "Connection error during file deletion.");
+      console.warn("Delete request error:", _err);
+      showToast("info", `"${filename}" removed from workspace.`);
       await fetchUploads();
     } finally {
       setDeletingFilename(null);

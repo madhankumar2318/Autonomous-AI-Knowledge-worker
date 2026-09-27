@@ -24,3 +24,10 @@ export async function DELETE(
     );
   }
 }
+
+export async function POST(
+  req: Request,
+  props: { params: Promise<{ filename: string }> }
+) {
+  return DELETE(req, props);
+}

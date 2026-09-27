@@ -57,29 +57,42 @@ export interface UploadRecord {
 // ── Persistent Disk Storage Helpers ──────────────────────────────────────────
 
 export function getStorageDirs(): string[] {
+  const cwd = process.cwd();
+  const root = cwd.endsWith("frontend") ? path.resolve(cwd, "..") : cwd;
   const dirs = [
     "/app/applet/uploads_storage",
-    path.resolve(process.cwd(), "uploads_storage"),
-    path.resolve(process.cwd(), "frontend/uploads_storage"),
     "/app/applet/frontend/uploads_storage",
+    path.resolve(root, "uploads_storage"),
+    path.resolve(root, "frontend/uploads_storage"),
+    path.resolve(root, "backend-spring/uploads"),
+    path.resolve(cwd, "uploads_storage"),
   ];
   const unique = Array.from(new Set(dirs));
-  for (const d of unique) {
+  return unique.filter((d) => {
     try {
-      if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
-    } catch {}
-  }
-  return unique.filter((d) => fs.existsSync(d));
+      return fs.existsSync(d);
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function getPrimaryStorageDir(): string {
-  const dirs = getStorageDirs();
-  if (dirs.length > 0) return dirs[0];
-  const fallback = "/app/applet/uploads_storage";
+  const cwd = process.cwd();
+  const root = cwd.endsWith("frontend") ? path.resolve(cwd, "..") : cwd;
+  const preferred = path.resolve(root, "frontend/uploads_storage");
   try {
-    fs.mkdirSync(fallback, { recursive: true });
-  } catch {}
-  return fallback;
+    if (!fs.existsSync(preferred)) fs.mkdirSync(preferred, { recursive: true });
+    return preferred;
+  } catch {
+    const fallback = path.resolve(cwd, "uploads_storage");
+    try {
+      if (!fs.existsSync(fallback)) fs.mkdirSync(fallback, { recursive: true });
+      return fallback;
+    } catch {
+      return "/app/applet/uploads_storage";
+    }
+  }
 }
 
 const nodeRequire = typeof createRequire === "function" ? createRequire(import.meta.url) : null;
@@ -768,9 +781,12 @@ export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
     }
   }
 
-  // Save to disk across all storage directories
+  // Save to disk across primary and all available storage directories
+  const primaryDir = getPrimaryStorageDir();
+  const dirs = Array.from(new Set([primaryDir, ...getStorageDirs()]));
+
   if (buffer) {
-    for (const dir of getStorageDirs()) {
+    for (const dir of dirs) {
       try {
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         const filePath = path.join(dir, record.filename);
@@ -781,7 +797,7 @@ export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
 
   // Update persistent registry in all storage directories
   const arr = Array.from(uploadsStore.values());
-  for (const dir of getStorageDirs()) {
+  for (const dir of dirs) {
     try {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const registryPath = path.join(dir, "uploads_index.json");
@@ -905,7 +921,7 @@ export function deleteUploadFile(filename: string) {
 
   for (const [key, val] of Array.from(uploadsStore.entries())) {
     const kLower = key.toLowerCase();
-    const fLower = val.filename.toLowerCase();
+    const fLower = (val.filename || "").toLowerCase();
     const origLower = (val.originalName || "").toLowerCase();
     if (
       key === filename ||
@@ -914,10 +930,17 @@ export function deleteUploadFile(filename: string) {
       fLower === lower ||
       origLower === lower ||
       norm(key) === normTarget ||
-      norm(val.filename) === normTarget ||
+      norm(val.filename || "") === normTarget ||
       norm(val.originalName || "") === normTarget
     ) {
       uploadsStore.delete(key);
+      buffersStore.delete(key);
+    }
+  }
+
+  for (const [key] of Array.from(buffersStore.entries())) {
+    const kLower = key.toLowerCase();
+    if (key === filename || key === decoded || kLower === lower || norm(key) === normTarget) {
       buffersStore.delete(key);
     }
   }
@@ -955,14 +978,19 @@ export function deleteUploadFile(filename: string) {
   }
 
   // 3. Update persistent registry in all storage directories
-  const currentRecords = Array.from(uploadsStore.values());
+  const currentRecords = Array.from(uploadsStore.values()).filter(
+    (r) =>
+      r.filename !== filename &&
+      r.filename.toLowerCase() !== lower &&
+      norm(r.filename) !== normTarget
+  );
+
   for (const dir of getStorageDirs()) {
     try {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
+      if (fs.existsSync(dir)) {
+        const registryPath = path.join(dir, "uploads_index.json");
+        fs.writeFileSync(registryPath, JSON.stringify(currentRecords, null, 2), "utf-8");
       }
-      const registryPath = path.join(dir, "uploads_index.json");
-      fs.writeFileSync(registryPath, JSON.stringify(currentRecords, null, 2), "utf-8");
     } catch (_e) {}
   }
 }

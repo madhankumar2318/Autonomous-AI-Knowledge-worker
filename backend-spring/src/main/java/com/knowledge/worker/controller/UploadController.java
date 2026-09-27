@@ -208,6 +208,19 @@ public class UploadController {
         return performDelete(filename, authentication);
     }
 
+    @Transactional
+    @PostMapping("/delete")
+    public ResponseEntity<Map<String, Object>> deleteFilePost(
+            @RequestBody(required = false) Map<String, String> body,
+            @RequestParam(value = "filename", required = false) String filenameParam,
+            Authentication authentication) {
+        String filename = filenameParam;
+        if ((filename == null || filename.isBlank()) && body != null) {
+            filename = body.get("filename");
+        }
+        return performDelete(filename, authentication);
+    }
+
     private ResponseEntity<Map<String, Object>> performDelete(String rawFilename, Authentication authentication) {
         if (rawFilename == null || rawFilename.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Filename is required"));
@@ -270,15 +283,33 @@ public class UploadController {
             Files.deleteIfExists(safeRaw);
         } catch (Exception ignored) {}
 
+        // Also clean from known external uploads_storage folders if present
+        List<Path> candidateDirs = List.of(
+                Paths.get("uploads_storage").toAbsolutePath().normalize(),
+                Paths.get("frontend/uploads_storage").toAbsolutePath().normalize(),
+                Paths.get("../uploads_storage").toAbsolutePath().normalize(),
+                Paths.get("../frontend/uploads_storage").toAbsolutePath().normalize()
+        );
+        for (Path cand : candidateDirs) {
+            try {
+                if (Files.exists(cand)) {
+                    Files.deleteIfExists(cand.resolve(decodedFilename));
+                    Files.deleteIfExists(cand.resolve(rawFilename));
+                }
+            } catch (Exception ignored) {}
+        }
+
         // 3. Delete from database and chunk repository
         if (uploadOpt.isPresent()) {
             chunkRepository.deleteByUploadId(uploadOpt.get().getId());
             uploadRepository.delete(uploadOpt.get());
+            uploadRepository.flush();
         } else {
             uploadRepository.deleteByFilename(decodedFilename);
             if (!decodedFilename.equals(rawFilename)) {
                 uploadRepository.deleteByFilename(rawFilename);
             }
+            uploadRepository.flush();
         }
 
         auditService.recordEvent("FILE_DELETE", username, null, decodedFilename, "SUCCESS", "File deleted from workspace");
