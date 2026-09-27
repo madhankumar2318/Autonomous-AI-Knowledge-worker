@@ -25,7 +25,7 @@ import ChatAssistant from "./ChatAssistant";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 import PdfCanvasViewer from "./PdfCanvasViewer";
-import { storeLocalFileBlob, getLocalFileBlob } from "../lib/idb";
+import { storeLocalFileBlob, getLocalFileBlob, storeLocalFileText, getLocalFileText } from "../lib/idb";
 
 interface UploadedFile {
   id: string | number;
@@ -187,7 +187,14 @@ export default function DocumentWorkspace({
       }
     });
 
-    // 2. Pre-fetch extracted text content so text tab and fallback are immediately ready
+    // 2. Hydrate from IndexedDB text cache and pre-fetch fresh copy from server
+    getLocalFileText(file.filename).then((cachedText) => {
+      if (cachedText && cachedText.length > 10) {
+        setTextContent(cachedText);
+        setEditedContent(cachedText);
+      }
+    });
+
     fetch(
       `${API_BASE_URL}/upload/content/${encodeURIComponent(file.filename)}`,
       { credentials: "include" },
@@ -197,6 +204,7 @@ export default function DocumentWorkspace({
         if (data?.content) {
           setTextContent(data.content);
           setEditedContent(data.content);
+          storeLocalFileText(file.filename, data.content);
         }
       })
       .catch(() => {});

@@ -18,7 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { showToast } from "./Toast";
 import { API_BASE_URL } from "../config";
 import DocumentWorkspace from "./DocumentWorkspace";
-import { storeLocalFileBlob, deleteLocalFileBlob } from "../lib/idb";
+import { storeLocalFileBlob, deleteLocalFileBlob, storeLocalFileText } from "../lib/idb";
 
 interface UploadedFile {
   id: number;
@@ -27,6 +27,7 @@ interface UploadedFile {
   uploaded_at?: string;
   rag_indexed?: boolean;
   chunks?: number;
+  content?: string;
 }
 
 function FileIcon({ filename }: { filename: string }) {
@@ -368,6 +369,11 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         // Persist file blob to IndexedDB
         storeLocalFileBlob(fileToUpload.name, fileToUpload);
 
+        const extractedText = data.upload?.content || data.content || "";
+        if (extractedText) {
+          storeLocalFileText(fileToUpload.name, extractedText);
+        }
+
         const newRecord: UploadedFile = {
           id: data.id || data.upload?.id || Date.now(),
           filename: fileToUpload.name,
@@ -378,6 +384,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
             data.upload?.chunks ||
             Math.max(1, Math.round(fileToUpload.size / 1500)),
           uploaded_at: new Date().toISOString(),
+          content: extractedText,
         };
 
         // ONLY after upload & indexing completes successfully, show in right-side workspace!

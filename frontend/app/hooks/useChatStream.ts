@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { showToast } from "../components/Toast";
 import { API_BASE_URL } from "../config";
 import { PRESETS } from "../components/ChatAssistant";
+import { getLocalFileText, getLocalFileBlob, storeLocalFileText } from "../lib/idb";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -403,6 +404,55 @@ export function useChatStream({
           ? localStorage.getItem("ak_active_file")
           : null);
 
+      let documentContentToSend: string | null = null;
+      if (docToSend) {
+        try {
+          // 1. Check IndexedDB text store
+          documentContentToSend = await getLocalFileText(docToSend);
+
+          // 2. Check localStorage uploads cache
+          if (!documentContentToSend && typeof window !== "undefined") {
+            const rawCache = localStorage.getItem("ak_uploads_list_cache");
+            if (rawCache) {
+              const list = JSON.parse(rawCache);
+              const found = list.find(
+                (u: any) =>
+                  u.filename === docToSend ||
+                  u.filename?.toLowerCase() === docToSend.toLowerCase()
+              );
+              if (found?.content && found.content.length > 20) {
+                documentContentToSend = found.content;
+                storeLocalFileText(docToSend, found.content);
+              }
+            }
+          }
+
+          // 3. If still empty, extract on-the-fly from IndexedDB binary Blob via PDF.js
+          if (!documentContentToSend && typeof window !== "undefined") {
+            const blob = await getLocalFileBlob(docToSend);
+            const pdfjsLib = (window as any).pdfjsLib;
+            if (blob && pdfjsLib) {
+              const arrayBuf = await blob.arrayBuffer();
+              const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+              const pages: string[] = [];
+              for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
+                const page = await pdf.getPage(i);
+                const tc = await page.getTextContent();
+                const pageText = tc.items.map((it: any) => it.str).join(" ");
+                pages.push(`[Page ${i}]\n${pageText}`);
+              }
+              const extracted = pages.join("\n\n").trim();
+              if (extracted.length > 20) {
+                documentContentToSend = extracted;
+                storeLocalFileText(docToSend, extracted);
+              }
+            }
+          }
+        } catch (docErr) {
+          console.warn("Client document text resolution note:", docErr);
+        }
+      }
+
       const res = await fetch(`${API_BASE_URL}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -417,6 +467,7 @@ export function useChatStream({
           temperature,
           system_prompt: PRESETS[activePreset].prompt || undefined,
           ...(docToSend ? { filename: docToSend } : {}),
+          ...(documentContentToSend ? { document_content: documentContentToSend } : {}),
         }),
       });
 

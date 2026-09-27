@@ -94,6 +94,7 @@ export async function POST(req: Request) {
           uploaded_at: uploadRecord.uploadedAt,
           rag_indexed: true,
           chunks,
+          content: textContent,
         },
       },
       {

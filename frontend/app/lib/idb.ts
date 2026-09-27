@@ -146,5 +146,72 @@ export async function deleteLocalFileBlob(filename: string): Promise<void> {
     }
     const norm = normalizeKey(decoded);
     store.delete(`__norm__${norm}`);
+    store.delete(`__text__${filename}`);
+    store.delete(`__text__${decoded}`);
+    store.delete(`__text_norm__${norm}`);
   } catch {}
 }
+
+export async function storeLocalFileText(filename: string, text: string): Promise<void> {
+  if (!filename || !text) return;
+  try {
+    const db = await openDB();
+    if (!db) return;
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.put(text, `__text__${filename}`);
+    const decoded = decodeURIComponent(filename);
+    if (decoded !== filename) {
+      store.put(text, `__text__${decoded}`);
+    }
+    const norm = normalizeKey(decoded);
+    if (norm) {
+      store.put(text, `__text_norm__${norm}`);
+    }
+  } catch (e) {
+    console.warn("Failed to store text in IndexedDB:", e);
+  }
+}
+
+export async function getLocalFileText(filename: string): Promise<string | null> {
+  if (!filename) return null;
+  try {
+    const db = await openDB();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+
+      const req1 = store.get(`__text__${filename}`);
+      req1.onsuccess = () => {
+        if (typeof req1.result === "string" && req1.result.trim()) {
+          resolve(req1.result);
+          return;
+        }
+        const decoded = decodeURIComponent(filename);
+        const req2 = store.get(`__text__${decoded}`);
+        req2.onsuccess = () => {
+          if (typeof req2.result === "string" && req2.result.trim()) {
+            resolve(req2.result);
+            return;
+          }
+          const norm = normalizeKey(decoded);
+          const req3 = store.get(`__text_norm__${norm}`);
+          req3.onsuccess = () => {
+            if (typeof req3.result === "string" && req3.result.trim()) {
+              resolve(req3.result);
+            } else {
+              resolve(null);
+            }
+          };
+          req3.onerror = () => resolve(null);
+        };
+        req2.onerror = () => resolve(null);
+      };
+      req1.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
