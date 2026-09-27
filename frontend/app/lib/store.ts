@@ -312,7 +312,7 @@ export function cleanPdfTextFormatting(raw: string): string {
   // 6. Fix glued words before prepositions (e.g. "Collegeof" -> "College of", "B.Techin" -> "B.Tech in")
   text = text.replace(/([a-zA-Z\.]{3,})(of|in|and|at|for|to|with|by|on)\b/g, "$1 $2");
 
-  // 7. Insert clean section breaks
+  // 7. Insert clean section breaks without stacking multiple ###
   const majorSections = [
     "Education",
     "Technical Skills",
@@ -325,11 +325,15 @@ export function cleanPdfTextFormatting(raw: string): string {
     "Certifications",
   ];
   for (const sec of majorSections) {
-    const r = new RegExp(`(?:\\s|^)(${sec})(?:\\s*:|\\s+)`, "gi");
+    const r = new RegExp(`(?<!###\\s*)(?:^|\\s+)(${sec})(?:\\s*:|\\s+)`, "gi");
     text = text.replace(r, "\n\n### $1\n");
   }
 
-  // 8. Structure Certifications into bullet points if grouped
+  // 8. Format project headers and separate inline run-on bullet points
+  text = text.replace(/([.!?])\s*(Autonomous AI Knowledge Worker|AI Grievance System|User Behaviour Analytics)\b/gi, "$1\n\n**$2**\n");
+  text = text.replace(/([^\n])\s*[•▸]\s*/g, "$1\n• ");
+
+  // 9. Structure Certifications into bullet points if grouped
   text = text.replace(/(### Certifications\n)([\s\S]*)/i, (m, h, body) => {
     let b = body.trim();
     b = b.replace(/Introduction to Machine Learning\s*-\s*NPTEL/i, "\n• Introduction to Machine Learning - NPTEL");
@@ -339,7 +343,11 @@ export function cleanPdfTextFormatting(raw: string): string {
     return h + b;
   });
 
-  // 9. Normalize spaces
+  // 10. Clean up duplicate or bare ### headers
+  text = text.replace(/(?:###\s*){2,}/g, "\n\n### ");
+  text = text.replace(/^\s*###\s*$/gm, "");
+
+  // 11. Normalize spaces
   text = text.replace(/[ \t]{2,}/g, " ");
   text = text.replace(/\n{3,}/g, "\n\n");
 

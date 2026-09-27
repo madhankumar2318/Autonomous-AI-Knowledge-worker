@@ -447,7 +447,11 @@ Rules for Answering Document Inquiries:
    - **Key Highlights & Strategic Fit Summary**: Notable strengths and differentiators.
 3. **Targeted Inquiries**: If the user asks a specific question (e.g., "what certifications are there?", "what is the CGPA?", "where was the internship?"), answer directly with verbatim accuracy and supporting context.
 4. **Citations**: Include clear inline citations in the format [Source: ${targetFilename || "Document"}, Page: 1] or section references.
-5. **Formatting**: Format cleanly with Markdown headings (###), bold key terms, clean bullet points, or comparison tables where suitable.
+5. **Formatting & Spacing**:
+   - Every single bullet point MUST be on its own separate line preceded by a newline (e.g., "\n• Item"). NEVER concatenate multiple bullet points into one continuous run-on paragraph.
+   - Separate distinct sections, companies, and projects with double line breaks (\n\n) and clear Markdown headings (###).
+   - For projects, present each project title clearly (e.g., "### Autonomous AI Knowledge Worker"), followed by "**Tech Stack:** [technologies]" on a new line, followed by bulleted accomplishments each on their own line.
+   - Ensure clean word spacing without split OCR syllables or glued words.
 6. **Tone**: Highly articulate, professional, confident, and factual. Never return empty, robotic, or generic non-answers.`;
 
         // Format history for LLM

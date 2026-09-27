@@ -206,12 +206,49 @@ export function formatMessage(
   if (!text) return [];
 
   // Safety-net: strip any residual <research_plan>, bare pipe plan lines, and <artifact> XML tags
-  const sanitized = text
+  let sanitized = text
     .replace(/<research_plan[^>]*>[^<\n]*(?:<\/research_plan>)?/g, "")
     .replace(/^.*\|\|.*\|\|.*$/gm, "")
     .replace(/<artifact[^>]*>/g, "")
     .replace(/<\/artifact>/g, "")
     .trimStart();
+
+  // 1. Fix PDF OCR ligatures & split words (e.g. "Pyth on", "Educati on", "Sessi on")
+  sanitized = sanitized
+    .replace(/\b([a-zA-Z]+[tsdc])i\s+on\b/gi, "$1on")
+    .replace(/\b([a-zA-Z]+[tsdc])i\s+ons\b/gi, "$1ions")
+    .replace(/\bPyth\s+on\b/gi, "Python")
+    .replace(/\bSessi\s+on\b/gi, "Session")
+    .replace(/\bgenerati\s+on\b/gi, "generation")
+    .replace(/\bauthenticati\s+on\b/gi, "authentication")
+    .replace(/\bclassificati\s+on\b/gi, "classification")
+    .replace(/\bresoluti\s+on\b/gi, "resolution")
+    .replace(/\bIsolati\s+on\b/gi, "Isolation")
+    .replace(/\bEducati\s+on\b/gi, "Education")
+    .replace(/\bIntroducti\s+on\b/gi, "Introduction")
+    .replace(/\bApplicati\s+on\b/gi, "Application")
+    .replace(/\bSoluti\s*on\b/gi, "Solution")
+    .replace(/\bSoluti\s*ons\b/gi, "Solutions")
+    .replace(/\bCoth\s*on\b/gi, "Colborn");
+
+  // 2. Fix glued words before verbs & project headers
+  sanitized = sanitized
+    .replace(/\b(Built|Architected|Developed|Engineered|Containerized)a\b/gi, "$1 a")
+    .replace(/\bBuilta\b/gi, "Built a")
+    .replace(/\bArchitecteda\b/gi, "Architected a")
+    .replace(/\bDevelopeda\b/gi, "Developed a")
+    .replace(/([.!?])\s*(Autonomous AI Knowledge Worker|AI Grievance System|User Behaviour Analytics)\b/gi, "$1\n\n### $2\n")
+    .replace(/\b(Autonomous AI Knowledge Worker|AI Grievance System|User Behaviour Analytics)\s*(TypeScript|Python|React)\b/gi, "\n\n### $1\n**Tech Stack:** $2\n");
+
+  // 3. Clean stacked or bare ### headers (e.g. "###\n### Header" -> "### Header")
+  sanitized = sanitized
+    .replace(/(?:###\s*){2,}/g, "\n\n### ")
+    .replace(/^\s*###\s*$/gm, "");
+
+  // 4. Break inline run-on bullet points onto separate lines for perfect alignment
+  sanitized = sanitized
+    .replace(/([^\n])\s*[•▸]\s+/g, "$1\n\n• ")
+    .replace(/\n{3,}/g, "\n\n");
 
   // Secondary pass: escape any raw angle-bracket sequences that survived the
   // strip above, but ONLY outside fenced code blocks (``` ... ```).
