@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
 
@@ -59,13 +60,19 @@ export interface UploadRecord {
 export function getStorageDirs(): string[] {
   const cwd = process.cwd();
   const root = cwd.endsWith("frontend") ? path.resolve(cwd, "..") : cwd;
+  const tmpDir = path.resolve(os.tmpdir(), "akw_uploads");
+  try {
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
+  } catch {}
+
   const dirs = [
-    "/app/applet/uploads_storage",
-    "/app/applet/frontend/uploads_storage",
+    tmpDir,
     path.resolve(root, "uploads_storage"),
     path.resolve(root, "frontend/uploads_storage"),
-    path.resolve(root, "backend-spring/uploads"),
     path.resolve(cwd, "uploads_storage"),
+    path.resolve(root, "backend-spring/uploads"),
+    "/app/applet/uploads_storage",
+    "/app/applet/frontend/uploads_storage",
   ];
   const unique = Array.from(new Set(dirs));
   return unique.filter((d) => {
@@ -80,19 +87,26 @@ export function getStorageDirs(): string[] {
 export function getPrimaryStorageDir(): string {
   const cwd = process.cwd();
   const root = cwd.endsWith("frontend") ? path.resolve(cwd, "..") : cwd;
-  const preferred = path.resolve(root, "frontend/uploads_storage");
-  try {
-    if (!fs.existsSync(preferred)) fs.mkdirSync(preferred, { recursive: true });
-    return preferred;
-  } catch {
-    const fallback = path.resolve(cwd, "uploads_storage");
+  const candidates = [
+    path.resolve(root, "frontend/uploads_storage"),
+    path.resolve(cwd, "uploads_storage"),
+    path.resolve(os.tmpdir(), "akw_uploads"),
+    "/app/applet/uploads_storage",
+  ];
+  for (const cand of candidates) {
     try {
-      if (!fs.existsSync(fallback)) fs.mkdirSync(fallback, { recursive: true });
-      return fallback;
-    } catch {
-      return "/app/applet/uploads_storage";
-    }
+      if (!fs.existsSync(cand)) fs.mkdirSync(cand, { recursive: true });
+      const testFile = path.join(cand, `.akw_test_${Date.now()}`);
+      fs.writeFileSync(testFile, "1");
+      fs.unlinkSync(testFile);
+      return cand;
+    } catch {}
   }
+  const fallback = path.resolve(os.tmpdir(), "akw_uploads");
+  try {
+    if (!fs.existsSync(fallback)) fs.mkdirSync(fallback, { recursive: true });
+  } catch {}
+  return fallback;
 }
 
 const nodeRequire = typeof createRequire === "function" ? createRequire(import.meta.url) : null;

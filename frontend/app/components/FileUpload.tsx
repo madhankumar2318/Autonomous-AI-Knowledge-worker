@@ -62,12 +62,23 @@ const getTombstoneSet = (): Set<string> => {
   return new Set();
 };
 
+const isTombstoned = (filename: string, tombstone: Set<string>): boolean => {
+  if (!filename) return false;
+  const lower = filename.toLowerCase();
+  const decoded = decodeURIComponent(filename).toLowerCase();
+  const norm = lower.replace(/[^a-z0-9]/g, "");
+  return tombstone.has(lower) || tombstone.has(decoded) || tombstone.has(norm);
+};
+
 const addTombstone = (filename: string) => {
   if (typeof window === "undefined" || !filename) return;
   try {
     const set = getTombstoneSet();
-    set.add(filename.toLowerCase());
-    set.add(decodeURIComponent(filename).toLowerCase());
+    const clean = filename.toLowerCase();
+    const decoded = decodeURIComponent(filename).toLowerCase();
+    set.add(clean);
+    set.add(decoded);
+    set.add(clean.replace(/[^a-z0-9]/g, ""));
     localStorage.setItem("ak_deleted_files_tombstone", JSON.stringify(Array.from(set)));
   } catch {}
 };
@@ -76,8 +87,12 @@ const removeTombstone = (filename: string) => {
   if (typeof window === "undefined" || !filename) return;
   try {
     const set = getTombstoneSet();
-    set.delete(filename.toLowerCase());
-    set.delete(decodeURIComponent(filename).toLowerCase());
+    const clean = filename.toLowerCase();
+    const decoded = decodeURIComponent(filename).toLowerCase();
+    const norm = clean.replace(/[^a-z0-9]/g, "");
+    set.delete(clean);
+    set.delete(decoded);
+    set.delete(norm);
     localStorage.setItem("ak_deleted_files_tombstone", JSON.stringify(Array.from(set)));
   } catch {}
 };
@@ -108,7 +123,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed)) {
             return parsed.filter(
-              (u: UploadedFile) => u?.filename && !tombstone.has(u.filename.toLowerCase())
+              (u: UploadedFile) => u?.filename && !isTombstoned(u.filename, tombstone)
             );
           }
         }
@@ -150,8 +165,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
         },
         credentials: "include",
       });
-      if (!res.ok) return;
-      const data = await res.json();
+      const data = res.ok ? await res.json().catch(() => ({})) : {};
       const rawList = Array.isArray(data)
         ? data
         : data && Array.isArray(data.uploads)
@@ -159,7 +173,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           : [];
       const tombstone = getTombstoneSet();
       const normalized: UploadedFile[] = rawList
-        .filter((item: any) => item && item.filename && !tombstone.has(item.filename.toLowerCase()))
+        .filter((item: any) => item && item.filename && !isTombstoned(item.filename, tombstone))
         .map((item: any) => ({
           ...item,
           rag_indexed: item.rag_indexed !== undefined ? item.rag_indexed : true,
@@ -167,13 +181,40 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
             item.chunks || Math.max(1, Math.round((item.size || 1000) / 1500)),
         }));
 
-      setUploads(normalized);
-      try {
-        localStorage.setItem(
-          "ak_uploads_list_cache",
-          JSON.stringify(normalized)
-        );
-      } catch {}
+      setUploads((prev) => {
+        const merged: UploadedFile[] = [...normalized];
+
+        // Also merge local cache so optimistic or serverless uploads never disappear
+        let cachedItems: UploadedFile[] = [];
+        try {
+          const rawCache = localStorage.getItem("ak_uploads_list_cache");
+          if (rawCache) {
+            const parsed = JSON.parse(rawCache);
+            if (Array.isArray(parsed)) cachedItems = parsed;
+          }
+        } catch {}
+
+        const seenNames = new Set(merged.map((u) => u.filename.toLowerCase()));
+        const allLocals = [...prev, ...cachedItems];
+
+        for (const localItem of allLocals) {
+          if (!localItem || !localItem.filename) continue;
+          const lName = localItem.filename.toLowerCase();
+          if (isTombstoned(lName, tombstone) || seenNames.has(lName)) {
+            continue;
+          }
+          seenNames.add(lName);
+          merged.push(localItem);
+        }
+
+        try {
+          localStorage.setItem(
+            "ak_uploads_list_cache",
+            JSON.stringify(merged)
+          );
+        } catch {}
+        return merged;
+      });
     } catch (_err) {
       console.error("Error fetching uploads:", _err);
     }
@@ -298,6 +339,9 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       chunks: Math.max(1, Math.round(fileToUpload.size / 1500)),
       uploaded_at: new Date().toISOString(),
     };
+
+    // Store file blob in IndexedDB immediately so it's ready for preview
+    storeLocalFileBlob(fileToUpload.name, fileToUpload);
 
     setUploads((prev) => {
       const filtered = prev.filter(
