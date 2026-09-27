@@ -549,54 +549,8 @@ export default function ChatAssistant({
                       )}
                     </div>
                     <div
-                      className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"} chat-bubble-copyable`}
+                      className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-ai"}`}
                     >
-                      {/* Per-message Copy Button */}
-                      {msg.content && !isLastAi && (
-                        <button
-                          type="button"
-                          className="chat-msg-copy-btn"
-                          title="Copy message"
-                          onClick={() => {
-                            navigator.clipboard.writeText(msg.content);
-                            const el = document.getElementById(
-                              `msg-copy-${idx}`,
-                            );
-                            if (el) {
-                              el.textContent = "✓ Copied";
-                              el.style.color = "#10b981";
-                              setTimeout(() => {
-                                if (el) {
-                                  el.textContent = "Copy";
-                                  el.style.color = "";
-                                }
-                              }, 1500);
-                            }
-                          }}
-                        >
-                          <span id={`msg-copy-${idx}`}>Copy</span>
-                        </button>
-                      )}
-                      {/* Open in Canvas Button — for qualifying AI messages */}
-                      {msg.role === "ai" &&
-                        msg.content &&
-                        !isLastAi &&
-                        messageQualifiesForCanvas(msg.content) && (
-                          <button
-                            type="button"
-                            className="chat-msg-canvas-btn"
-                            title="Open in Canvas"
-                            onClick={() => {
-                              const artifact =
-                                parseArtifactFromContent(msg.content) ||
-                                buildArtifactFromMessage(msg.content, idx);
-                              setActiveArtifact(artifact);
-                              setIsCanvasMinimized(false);
-                            }}
-                          >
-                            📄 Canvas
-                          </button>
-                        )}
                       <div className="chat-bubble-content">
                         {/* Research Plan Stepper — shown for autonomous deep research responses */}
                         {msg.role === "ai" && msg.researchPlan && (
