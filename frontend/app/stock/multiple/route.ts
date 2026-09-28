@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { STOCKS_DATA } from "@/app/lib/stocks-data";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const symbolsParam = url.searchParams.get("symbols");
