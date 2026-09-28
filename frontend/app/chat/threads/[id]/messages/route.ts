@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { threadsStore } from "@/app/lib/store";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

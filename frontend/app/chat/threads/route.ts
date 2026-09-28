@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 import { threadsStore } from "@/app/lib/store";
 
-export async function GET() {
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export async function GET(req: Request) {
   if (threadsStore.has("thread-welcome")) {
     threadsStore.delete("thread-welcome");
   }
+
+  const { searchParams } = new URL(req.url);
+  const requestedUser = searchParams.get("username");
 
   const threads = Array.from(threadsStore.values())
     .filter(
       (t) =>
         t &&
         t.id !== "thread-welcome" &&
-        t.title !== "Market & Knowledge Intelligence",
+        t.title !== "Market & Knowledge Intelligence" &&
+        (!requestedUser || !t.username || t.username === requestedUser),
     )
     .map((t) => ({
       id: t.id,
@@ -27,7 +34,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
-  const id = "thread-" + Date.now();
+  const id = body.id || "thread-" + Date.now();
   const thread = {
     id,
     username: body.username || "admin",
@@ -49,3 +56,4 @@ export async function POST(req: Request) {
     message_count: 0,
   });
 }
+

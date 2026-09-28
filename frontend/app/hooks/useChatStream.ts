@@ -52,85 +52,77 @@ interface UseChatStreamProps {
   temperature: number;
 }
 
-// ── Guest localStorage helpers ─────────────────────────────────────────────────
+// ── Universal Chat & Thread Local Persistence ───────────────────────────────
 //
-// All guest data lives in localStorage under namespaced keys.
-// Nothing is ever written to the backend database for guest sessions.
-// Threads are capped at MAX_GUEST_THREADS and pruned oldest-first.
+// Persistent, instantaneous client-side thread & message caching for all users
+// (guest, admin, custom users) with zero-data-loss synchronization.
+// Threads are capped at MAX_THREADS (50) and pruned oldest-first.
 
-const MAX_GUEST_THREADS = 10;
+const MAX_THREADS = 50;
+const THREADS_PREFIX = "ak_threads_";
+const MSGS_PREFIX = "ak_msgs_";
 const GUEST_THREADS_KEY = "ak_guest_threads";
 const GUEST_MSGS_PREFIX = "ak_guest_msgs_";
-
-function loadGuestThreads(): ChatThread[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(GUEST_THREADS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (t) =>
-        t &&
-        t.id !== "thread-welcome" &&
-        t.title !== "Market & Knowledge Intelligence",
-    );
-  } catch {
-    return [];
-  }
-}
-
-function saveGuestThreads(threads: ChatThread[]): void {
-  if (typeof window === "undefined") return;
-  // Prune to cap: keep the most-recently-updated MAX_GUEST_THREADS threads
-  const pruned = [...threads]
-    .sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1))
-    .slice(0, MAX_GUEST_THREADS);
-  // Clean up orphaned message stores for pruned threads
-  const keptIds = new Set(pruned.map((t) => t.id));
-  threads.forEach((t) => {
-    if (!keptIds.has(t.id)) localStorage.removeItem(GUEST_MSGS_PREFIX + t.id);
-  });
-  localStorage.setItem(GUEST_THREADS_KEY, JSON.stringify(pruned));
-}
-
-function loadGuestMessages(threadId: string): ChatMessage[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(GUEST_MSGS_PREFIX + threadId);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveGuestMessages(threadId: string, messages: ChatMessage[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(GUEST_MSGS_PREFIX + threadId, JSON.stringify(messages));
-}
-
-function generateGuestId(): string {
-  return "guest_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-}
-
-// ── Document Workspace Chat Persistence Helpers ──────────────────────────────
 const DOC_MSGS_PREFIX = "ak_doc_msgs_";
 
 export function getSafeDocumentKey(filename: string): string {
   return filename.toLowerCase().replace(/[^a-z0-9._-]/g, "_");
 }
 
-export function loadDocumentMessages(username: string, filename: string): ChatMessage[] {
-  if (typeof window === "undefined" || !filename) return [];
+function getUserThreadsKey(username: string): string {
+  const safe = (username || "guest").toLowerCase().trim();
+  return `${THREADS_PREFIX}${safe}`;
+}
+
+export function loadThreadMessages(threadId: string): ChatMessage[] {
+  if (typeof window === "undefined" || !threadId) return [];
   try {
-    const safeUser = username || "user";
-    const key = `${DOC_MSGS_PREFIX}${safeUser}_${getSafeDocumentKey(filename)}`;
-    const raw = localStorage.getItem(key);
+    let raw = localStorage.getItem(MSGS_PREFIX + threadId);
+    if (!raw) {
+      raw = localStorage.getItem(GUEST_MSGS_PREFIX + threadId);
+    }
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+export const loadGuestMessages = loadThreadMessages;
+
+export function saveThreadMessages(threadId: string, messages: ChatMessage[]): void {
+  if (typeof window === "undefined" || !threadId) return;
+  try {
+    const payload = JSON.stringify(messages);
+    localStorage.setItem(MSGS_PREFIX + threadId, payload);
+    localStorage.setItem(GUEST_MSGS_PREFIX + threadId, payload);
+  } catch {}
+}
+export const saveGuestMessages = saveThreadMessages;
+
+export function removeThreadMessages(threadId: string): void {
+  if (typeof window === "undefined" || !threadId) return;
+  try {
+    localStorage.removeItem(MSGS_PREFIX + threadId);
+    localStorage.removeItem(GUEST_MSGS_PREFIX + threadId);
+  } catch {}
+}
+
+export function loadDocumentMessages(username: string, filename: string): ChatMessage[] {
+  if (typeof window === "undefined" || !filename) return [];
+  try {
+    const safeUser = (username || "guest").toLowerCase().trim();
+    const docKey = getSafeDocumentKey(filename);
+    const key = `${DOC_MSGS_PREFIX}${safeUser}_${docKey}`;
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    const docThreadId = `doc-thread-${safeUser}-${docKey}`;
+    const fromThread = loadThreadMessages(docThreadId);
+    if (fromThread && fromThread.length > 0) return fromThread;
+    return [];
   } catch {
     return [];
   }
@@ -143,20 +135,144 @@ export function saveDocumentMessages(
 ): void {
   if (typeof window === "undefined" || !filename) return;
   try {
-    const safeUser = username || "user";
-    const key = `${DOC_MSGS_PREFIX}${safeUser}_${getSafeDocumentKey(filename)}`;
-    localStorage.setItem(key, JSON.stringify(messages));
+    const safeUser = (username || "guest").toLowerCase().trim();
+    const docKey = getSafeDocumentKey(filename);
+    const key = `${DOC_MSGS_PREFIX}${safeUser}_${docKey}`;
+    const payload = JSON.stringify(messages);
+    localStorage.setItem(key, payload);
+
+    const docThreadId = `doc-thread-${safeUser}-${docKey}`;
+    saveThreadMessages(docThreadId, messages);
   } catch {}
 }
 
 export function clearDocumentMessages(username: string, filename: string): void {
   if (typeof window === "undefined" || !filename) return;
   try {
-    const safeUser = username || "user";
-    const key = `${DOC_MSGS_PREFIX}${safeUser}_${getSafeDocumentKey(filename)}`;
+    const safeUser = (username || "guest").toLowerCase().trim();
+    const docKey = getSafeDocumentKey(filename);
+    const key = `${DOC_MSGS_PREFIX}${safeUser}_${docKey}`;
     localStorage.removeItem(key);
+
+    const docThreadId = `doc-thread-${safeUser}-${docKey}`;
+    removeThreadMessages(docThreadId);
   } catch {}
 }
+
+function scanDocumentThreads(username: string): ChatThread[] {
+  if (typeof window === "undefined") return [];
+  const safeUser = (username || "guest").toLowerCase().trim();
+  const prefix = `${DOC_MSGS_PREFIX}${safeUser}_`;
+  const found: ChatThread[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          try {
+            const msgs = JSON.parse(raw);
+            if (Array.isArray(msgs) && msgs.length > 0) {
+              const docKey = k.slice(prefix.length);
+              const threadId = `doc-thread-${safeUser}-${docKey}`;
+              let title = `📄 ${docKey}`;
+              const firstAi = msgs.find((m: any) => m.role === "ai" && m.content);
+              if (firstAi) {
+                const match = firstAi.content.match(/([a-zA-Z0-9_\-.]+\.pdf)/i);
+                if (match) title = `📄 ${match[1]}`;
+              }
+              const now = new Date().toISOString();
+              found.push({
+                id: threadId,
+                username: username || "guest",
+                title,
+                model: "gemini-flash",
+                created_at: now,
+                updated_at: now,
+              });
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch {}
+  return found;
+}
+
+export function loadUserThreads(username: string): ChatThread[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const key = getUserThreadsKey(username);
+    let threads: ChatThread[] = [];
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          threads = parsed.filter(
+            (t) =>
+              t &&
+              t.id !== "thread-welcome" &&
+              t.title !== "Market & Knowledge Intelligence",
+          );
+        }
+      } catch {}
+    }
+
+    // Fallback: check legacy guest store
+    if (threads.length === 0) {
+      const guestRaw = localStorage.getItem(GUEST_THREADS_KEY);
+      if (guestRaw) {
+        try {
+          const parsedGuest = JSON.parse(guestRaw);
+          if (Array.isArray(parsedGuest) && parsedGuest.length > 0) {
+            threads = parsedGuest.filter(
+              (t) =>
+                t &&
+                t.id !== "thread-welcome" &&
+                t.title !== "Market & Knowledge Intelligence",
+            );
+          }
+        } catch {}
+      }
+    }
+
+    // Merge in any scanned document threads if missing
+    const docThreads = scanDocumentThreads(username);
+    for (const dt of docThreads) {
+      if (!threads.some((t) => t.id === dt.id)) {
+        threads.unshift(dt);
+      }
+    }
+
+    return threads;
+  } catch {
+    return [];
+  }
+}
+export const loadGuestThreads = () => loadUserThreads("guest");
+
+export function saveUserThreads(username: string, threads: ChatThread[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    const key = getUserThreadsKey(username);
+    const pruned = [...threads]
+      .sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1))
+      .slice(0, MAX_THREADS);
+    localStorage.setItem(key, JSON.stringify(pruned));
+
+    if (!username || username === "guest") {
+      localStorage.setItem(GUEST_THREADS_KEY, JSON.stringify(pruned));
+    }
+  } catch {}
+}
+export const saveGuestThreads = (threads: ChatThread[]) => saveUserThreads("guest", threads);
+
+function generateId(): string {
+  return "thread_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+export const generateGuestId = generateId;
+
 
 
 export function useChatStream({
@@ -193,60 +309,78 @@ export function useChatStream({
 
   // ── Thread loading ────────────────────────────────────────────────────────────
 
+  // ── Thread loading ────────────────────────────────────────────────────────────
+
   const fetchThreads = useCallback(async () => {
-    if (isGuest) {
-      // Guest: read entirely from localStorage — zero network calls
-      const guestList = loadGuestThreads();
-      saveGuestThreads(guestList);
-      setThreads(guestList);
-      return;
-    }
-    // Authenticated: fetch from backend API
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/chat/threads?username=${encodeURIComponent(username)}`,
-        { credentials: "include" }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const validThreads = Array.isArray(data)
-          ? data.filter(
+    // 1. Immediately load local threads so sidebar is never blank
+    const localList = loadUserThreads(username);
+    setThreads(localList);
+
+    // 2. If authenticated, fetch from backend API and MERGE (never wipe out local threads)
+    if (!isGuest) {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/chat/threads?username=${encodeURIComponent(username)}`,
+          { credentials: "include" }
+        );
+        if (res.ok) {
+          const remoteList = await res.json();
+          if (Array.isArray(remoteList) && remoteList.length > 0) {
+            const validRemote = remoteList.filter(
               (t: any) =>
                 t &&
                 t.id !== "thread-welcome" &&
                 t.title !== "Market & Knowledge Intelligence",
-            )
-          : [];
-        setThreads(validThreads);
-      }
-    } catch { /* silent */ }
+            );
+            // Combine remote with local, local taking priority
+            const map = new Map<string, ChatThread>();
+            validRemote.forEach((t: ChatThread) => map.set(t.id, t));
+            localList.forEach((t: ChatThread) => map.set(t.id, t));
+            const merged = Array.from(map.values()).sort(
+              (a, b) => (b.updated_at > a.updated_at ? 1 : -1)
+            );
+            saveUserThreads(username, merged);
+            setThreads(merged);
+          }
+        }
+      } catch { /* silent */ }
+    }
   }, [username, isGuest]);
 
   useEffect(() => {
     fetchThreads();
+
     if (activeDocumentFilename) {
+      const safeUser = (username || "guest").toLowerCase().trim();
+      const safeDocKey = getSafeDocumentKey(activeDocumentFilename);
+      const docThreadId = `doc-thread-${safeUser}-${safeDocKey}`;
       const savedDocMsgs = loadDocumentMessages(username, activeDocumentFilename);
+
       if (savedDocMsgs && savedDocMsgs.length > 0) {
         setMessages(savedDocMsgs);
-        setActiveThreadId(`doc-thread-${username}-${getSafeDocumentKey(activeDocumentFilename)}`);
+        setActiveThreadId(docThreadId);
+
+        // Ensure this document thread is in the threads list
+        const existing = loadUserThreads(username);
+        if (!existing.some((t) => t.id === docThreadId)) {
+          const docThread: ChatThread = {
+            id: docThreadId,
+            username: username || "guest",
+            title: `📄 ${activeDocumentFilename}`,
+            model: selectedModel,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const updated = [docThread, ...existing];
+          saveUserThreads(username, updated);
+          setThreads(updated);
+        }
         return;
       }
     }
-    setMessages([welcomeMessage()]);
-  }, [fetchThreads, activeDocumentFilename, username, welcomeMessage]);
 
-  // Restore messages when activeDocumentFilename changes
-  useEffect(() => {
-    if (activeDocumentFilename) {
-      const savedDocMsgs = loadDocumentMessages(username, activeDocumentFilename);
-      if (savedDocMsgs && savedDocMsgs.length > 0) {
-        setMessages(savedDocMsgs);
-        setActiveThreadId(`doc-thread-${username}-${getSafeDocumentKey(activeDocumentFilename)}`);
-      } else {
-        setMessages([welcomeMessage()]);
-      }
-    }
-  }, [activeDocumentFilename, username, welcomeMessage]);
+    setMessages([welcomeMessage()]);
+  }, [fetchThreads, activeDocumentFilename, username, welcomeMessage, selectedModel]);
 
   // Command palette events
   useEffect(() => {
@@ -275,82 +409,38 @@ export function useChatStream({
       : "New Chat";
     const now = new Date().toISOString();
 
-    if (activeDocumentFilename) {
-      const docThreadId = `doc-thread-${username}-${getSafeDocumentKey(activeDocumentFilename)}`;
-      const thread: ChatThread = {
-        id: docThreadId,
-        username,
-        title,
-        model: selectedModel,
-        created_at: now,
-        updated_at: now,
-      };
-      const guestThreads = loadGuestThreads();
-      const updated = [thread, ...guestThreads.filter((t) => t.id !== docThreadId)];
-      saveGuestThreads(updated);
-      setThreads(updated.slice(0, MAX_GUEST_THREADS));
-      setActiveThreadId(docThreadId);
+    const safeUser = (username || "guest").toLowerCase().trim();
+    const threadId = activeDocumentFilename
+      ? `doc-thread-${safeUser}-${getSafeDocumentKey(activeDocumentFilename)}`
+      : generateId();
 
-      try {
-        await fetch(`${API_BASE_URL}/chat/threads`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ id: docThreadId, username, title, model: selectedModel }),
-        });
-      } catch {}
-
-      return docThreadId;
-    }
-
-    if (isGuest) {
-      // Guest: create thread in localStorage only — no backend call
-      const threadId = generateGuestId();
-      const thread: ChatThread = {
-        id: threadId,
-        username: "guest",
-        title,
-        model: selectedModel,
-        created_at: now,
-        updated_at: now,
-      };
-      const updated = [thread, ...loadGuestThreads()];
-      saveGuestThreads(updated);
-      setThreads(updated.slice(0, MAX_GUEST_THREADS));
-      setActiveThreadId(threadId);
-      return threadId;
-    }
-
-    // Authenticated: create via backend API
-    try {
-      const res = await fetch(`${API_BASE_URL}/chat/threads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ username, title, model: selectedModel }),
-      });
-      if (res.ok) {
-        const thread = await res.json();
-        setThreads((prev) => [thread, ...prev]);
-        setActiveThreadId(thread.id);
-        return thread.id as string;
-      }
-    } catch { /* silent */ }
-
-    // Fallback if backend is offline
-    const threadId = generateGuestId();
     const thread: ChatThread = {
       id: threadId,
-      username,
+      username: username || "guest",
       title,
       model: selectedModel,
       created_at: now,
       updated_at: now,
     };
-    const updated = [thread, ...loadGuestThreads()];
-    saveGuestThreads(updated);
-    setThreads(updated.slice(0, MAX_GUEST_THREADS));
+
+    const currentThreads = loadUserThreads(username);
+    const updated = [thread, ...currentThreads.filter((t) => t.id !== threadId)];
+    saveUserThreads(username, updated);
+    setThreads(updated);
     setActiveThreadId(threadId);
+
+    // Sync with backend API in background if authenticated
+    if (!isGuest) {
+      try {
+        await fetch(`${API_BASE_URL}/chat/threads`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ id: threadId, username, title, model: selectedModel }),
+        });
+      } catch {}
+    }
+
     return threadId;
   };
 
@@ -358,100 +448,103 @@ export function useChatStream({
     if (threadId === activeThreadId) return;
     setActiveThreadId(threadId);
 
-    // If it's a document thread
+    // 1. If it's a document thread
     if (threadId.startsWith("doc-thread-")) {
-      const msgs = loadGuestMessages(threadId);
+      const msgs = loadThreadMessages(threadId);
       if (msgs.length > 0) {
         setMessages(msgs);
         return;
       }
+      if (activeDocumentFilename) {
+        const docMsgs = loadDocumentMessages(username, activeDocumentFilename);
+        if (docMsgs.length > 0) {
+          setMessages(docMsgs);
+          return;
+        }
+      }
     }
 
-    if (isGuest) {
-      // Guest: load messages from localStorage
-      const msgs = loadGuestMessages(threadId);
-      setMessages(msgs.length > 0 ? msgs : [welcomeMessage()]);
+    // 2. Load from local thread messages
+    const localMsgs = loadThreadMessages(threadId);
+    if (localMsgs.length > 0) {
+      setMessages(localMsgs);
       return;
     }
 
-    // Authenticated: load messages from backend API with localStorage fallback
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/chat/threads/${threadId}/messages`,
-        { credentials: "include" }
-      );
-      if (res.ok) {
-        const msgs = await res.json();
-        if (msgs.length === 0) {
-          const localFallback = loadGuestMessages(threadId);
-          setMessages(localFallback.length > 0 ? localFallback : [welcomeMessage()]);
-        } else {
-          setMessages(msgs.map((m: any) => ({
-            role: m.role as "user" | "ai",
-            content: m.content,
-            thinkingLogs: m.thinking_logs || undefined,
-            toolLogs: m.tool_logs || undefined,
-            model: m.model || undefined,
-          })));
+    // 3. Fallback to backend API if authenticated
+    if (!isGuest) {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/chat/threads/${threadId}/messages`,
+          { credentials: "include" }
+        );
+        if (res.ok) {
+          const msgs = await res.json();
+          if (Array.isArray(msgs) && msgs.length > 0) {
+            const formatted: ChatMessage[] = msgs.map((m: any) => ({
+              role: (m.role === "assistant" ? "ai" : m.role) as "user" | "ai",
+              content: m.content,
+              thinkingLogs: m.thinking_logs || undefined,
+              toolLogs: m.tool_logs || undefined,
+              model: m.model || undefined,
+            }));
+            saveThreadMessages(threadId, formatted);
+            setMessages(formatted);
+            return;
+          }
         }
-      } else {
-        const localFallback = loadGuestMessages(threadId);
-        setMessages(localFallback.length > 0 ? localFallback : [welcomeMessage()]);
-      }
-    } catch {
-      const localFallback = loadGuestMessages(threadId);
-      setMessages(localFallback.length > 0 ? localFallback : [welcomeMessage()]);
+      } catch {}
     }
+
+    setMessages([welcomeMessage()]);
   };
 
   const renameThread = async (threadId: string, title: string) => {
-    if (isGuest) {
-      // Guest: rename in localStorage
-      const updated = loadGuestThreads().map((t) =>
-        t.id === threadId ? { ...t, title, updated_at: new Date().toISOString() } : t
-      );
-      saveGuestThreads(updated);
-      setThreads(updated);
-      return;
+    if (!title.trim()) return;
+    const cleanTitle = title.trim();
+
+    const updated = loadUserThreads(username).map((t) =>
+      t.id === threadId ? { ...t, title: cleanTitle, updated_at: new Date().toISOString() } : t
+    );
+    saveUserThreads(username, updated);
+    setThreads(updated);
+
+    if (!isGuest) {
+      try {
+        await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ title: cleanTitle }),
+        });
+      } catch {}
     }
-    // Authenticated: rename via backend API
-    try {
-      await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title }),
-      });
-      setThreads((prev) => prev.map((t) => t.id === threadId ? { ...t, title } : t));
-    } catch { /* silent */ }
   };
 
   const deleteThread = async (threadId: string) => {
-    if (isGuest || threadId.startsWith("doc-thread-")) {
-      // Guest or doc-thread: remove from localStorage
-      localStorage.removeItem(GUEST_MSGS_PREFIX + threadId);
-      const updated = loadGuestThreads().filter((t) => t.id !== threadId);
-      saveGuestThreads(updated);
-      setThreads(updated.slice(0, MAX_GUEST_THREADS));
-      if (activeThreadId === threadId) {
-        setActiveThreadId(null);
-        setMessages([welcomeMessage()]);
-      }
-      return;
+    removeThreadMessages(threadId);
+    if (threadId.startsWith("doc-thread-") && activeDocumentFilename) {
+      clearDocumentMessages(username, activeDocumentFilename);
     }
-    // Authenticated: delete via backend API
-    try {
-      await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      setThreads((prev) => prev.filter((t) => t.id !== threadId));
-      if (activeThreadId === threadId) {
-        setActiveThreadId(null);
-        setMessages([welcomeMessage()]);
-      }
-    } catch { /* silent */ }
+    const updated = loadUserThreads(username).filter((t) => t.id !== threadId);
+    saveUserThreads(username, updated);
+    setThreads(updated);
+
+    if (activeThreadId === threadId) {
+      setActiveThreadId(null);
+      setMessages([welcomeMessage()]);
+    }
+
+    if (!isGuest) {
+      try {
+        await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+      } catch {}
+    }
   };
+
 
   const startNewChat = () => {
     if (activeDocumentFilename) {
@@ -845,26 +938,58 @@ export function useChatStream({
 
       const finalMessages = latestMessagesRef.current;
 
-      // ── Always persist document workspace messages ──
+      // ── 1. Always persist document workspace messages ──
       if (activeDocumentFilename && finalMessages && finalMessages.length > 0) {
         saveDocumentMessages(username, activeDocumentFilename, finalMessages);
       }
 
-      // ── Always persist messages to thread cache ──
+      // ── 2. Always persist messages to thread cache ──
       if (threadId && finalMessages && finalMessages.length > 0) {
-        saveGuestMessages(threadId, finalMessages);
+        saveThreadMessages(threadId, finalMessages);
       }
 
+      // ── 3. Update thread's updated_at timestamp & auto-title in user threads ──
       if (threadId) {
-        // Bump the thread's updated_at to the top of the list
-        const guestThreads = loadGuestThreads();
-        const updatedThreads = guestThreads.map((t) =>
-          t.id === threadId ? { ...t, updated_at: new Date().toISOString() } : t
+        const curThreads = loadUserThreads(username);
+        let found = false;
+        const updatedThreads = curThreads.map((t) => {
+          if (t.id === threadId) {
+            found = true;
+            let updatedTitle = t.title;
+            if ((!updatedTitle || updatedTitle === "New Chat") && !activeDocumentFilename && userMessage) {
+              updatedTitle = userMessage.slice(0, 50) + (userMessage.length > 50 ? "…" : "");
+            }
+            return {
+              ...t,
+              title: updatedTitle,
+              updated_at: new Date().toISOString(),
+            };
+          }
+          return t;
+        });
+
+        if (!found) {
+          const newThread: ChatThread = {
+            id: threadId,
+            username: username || "guest",
+            title: activeDocumentFilename
+              ? `📄 ${activeDocumentFilename}`
+              : userMessage.slice(0, 50) + (userMessage.length > 50 ? "…" : ""),
+            model: selectedModel,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          updatedThreads.unshift(newThread);
+        }
+
+        const sorted = updatedThreads.sort(
+          (a, b) => (b.updated_at > a.updated_at ? 1 : -1)
         );
-        saveGuestThreads(updatedThreads);
-        setThreads(updatedThreads.slice(0, MAX_GUEST_THREADS));
+        saveUserThreads(username, sorted);
+        setThreads(sorted);
       }
 
+      // ── 4. Safely refresh threads from backend if authenticated ──
       if (!isGuest) {
         fetchThreads();
       }
