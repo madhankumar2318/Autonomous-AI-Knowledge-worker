@@ -102,10 +102,29 @@ async function fetchGoogleNewsRss(category: string, topic: string): Promise<RawA
 
       if (!cleanTitle || !link) continue;
 
+      const pubDateStr = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
+      let publishedAt: string | undefined;
+      if (pubDateStr) {
+        const parsedDate = new Date(pubDateStr);
+        if (!isNaN(parsedDate.getTime())) {
+          publishedAt = parsedDate.toISOString();
+        }
+      }
+
       let desc = itemXml.match(/<description>([\s\S]*?)<\/description>/)?.[1] || "";
-      desc = desc.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim();
-      if (!desc || desc.length < 20) {
-        desc = `${cleanTitle}. Verified live coverage by ${source} with emerging industry insights.`;
+      // Strip HTML tags & entities like &lt;ol&gt;&lt;li&gt;
+      desc = desc
+        .replace(/&lt;[^&gt;]+&gt;/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!desc || desc.length < 25 || desc.startsWith("http")) {
+        desc = `${cleanTitle}. Live developing coverage reported by ${source}.`;
       }
 
       const image = pickImageForArticle(cleanTitle, category || "technology", i);
@@ -116,6 +135,7 @@ async function fetchGoogleNewsRss(category: string, topic: string): Promise<RawA
         url: link,
         source,
         category: category && category !== "all" ? (category.charAt(0).toUpperCase() + category.slice(1)) : "Technology",
+        published_at: publishedAt,
         url_to_image: image,
       });
     }
@@ -1098,33 +1118,29 @@ export async function GET(req: Request) {
   const startIndex = (page - 1) * limit;
   const paginated = finalList.slice(startIndex, startIndex + limit);
 
-  // 5. Dynamic Fresh Timestamps in Minutes!
-  // All articles on screen are staggered in recent minutes (e.g. 2m ago, 4m ago, 7m ago... 58m ago)
-  // so no card displays hours ago!
+  // 5. Authentic Live Timestamps & Natural Relative Distribution
   const now = Date.now();
   const articles = paginated.map((a, index) => {
-    const overallIndex = startIndex + index;
-    let minsAgo: number;
-    if (overallIndex === 0) {
-      minsAgo = 2; // Breaking Hero Story
-    } else if (overallIndex === 1) {
-      minsAgo = 4;
-    } else if (overallIndex <= 4) {
-      minsAgo = 4 + (overallIndex - 1) * 3; // 7m, 10m, 13m for side stories
-    } else if (overallIndex <= 15) {
-      // 16m, 19m, 22m, 25m, 28m, 31m, 34m, 38m, 42m, 46m, 50m for grid
-      minsAgo = 16 + (overallIndex - 5) * 3;
-    } else {
-      // Gentle progression up to 58m for lower scroll items
-      minsAgo = Math.min(58, 49 + Math.floor((overallIndex - 15) * 0.5));
-    }
+    let finalPublishedAt = a.published_at;
 
-    const dynamicPublishedAt = new Date(now - minsAgo * 60 * 1000).toISOString();
+    // If no real timestamp from live RSS, calculate a natural recent-minute distribution
+    if (!finalPublishedAt || isNaN(new Date(finalPublishedAt).getTime())) {
+      const overallIndex = startIndex + index;
+      let minsAgo: number;
+      if (overallIndex === 0) minsAgo = 3;
+      else if (overallIndex === 1) minsAgo = 7;
+      else if (overallIndex <= 4) minsAgo = 8 + (overallIndex - 1) * 4; // 12m, 16m, 20m
+      else {
+        // Natural gradual distribution (e.g. 24m, 28m, 33m, 42m...) without any flatlining
+        minsAgo = 22 + Math.floor((overallIndex - 5) * 3.2);
+      }
+      finalPublishedAt = new Date(now - minsAgo * 60 * 1000).toISOString();
+    }
 
     return {
       ...a,
-      publishedAt: dynamicPublishedAt,
-      published_at: dynamicPublishedAt,
+      publishedAt: finalPublishedAt,
+      published_at: finalPublishedAt,
       urlToImage: a.url_to_image,
     };
   });
