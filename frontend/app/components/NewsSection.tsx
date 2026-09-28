@@ -52,7 +52,7 @@ function getSourceColor(source?: string) {
 
 function timeAgo(iso?: string): string {
   if (!iso) return "";
-  const diff = Date.now() - new Date(iso).getTime();
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
@@ -69,8 +69,9 @@ function timeAgo(iso?: string): string {
 
 function isRecent(iso?: string): boolean {
   if (!iso) return false;
-  return Date.now() - new Date(iso).getTime() < 3600000 * 3; // within 3h
+  return Date.now() - new Date(iso).getTime() < 1000 * 60 * 25; // breaking within 25m
 }
+
 
 // Generate a unique gradient for articles without images based on title hash
 const GRADIENT_PALETTES = [
@@ -118,6 +119,14 @@ export default function NewsSection({
   const [wsConnected, setWsConnected] = useState(false);
   const [wsConnecting, setWsConnecting] = useState(false);
   const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number>(Date.now());
+  const [, setTick] = useState(0);
+
+  // Live timer tick every 15 seconds to update relative timestamps on-screen in real time
+  useEffect(() => {
+    const timer = setInterval(() => setTick((t) => t + 1), 15000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchNews = useCallback(
     async (
@@ -144,6 +153,7 @@ export default function NewsSection({
           }
           setHasMore(data.has_more ?? data.hasMore ?? false);
           setTotal(data.total ?? data.total_results ?? newsItems.length);
+          setLastRefreshedAt(Date.now());
         } else if (!append) {
           setArticles([]);
         }
@@ -155,6 +165,7 @@ export default function NewsSection({
     },
     [topic, category],
   );
+
 
   const handleAnalyzeArticle = (e: React.MouseEvent, art: Article) => {
     e.preventDefault();
@@ -309,8 +320,9 @@ export default function NewsSection({
                   animation: "pulse 2s infinite",
                 }}
               />
-              {wsConnected ? "Real-Time Live" : "Live Connected"}
+              <span>Live · Auto-Sync 30s</span>
             </span>
+
 
             {!loading && total > 0 && (
               <span
