@@ -54,11 +54,18 @@ function timeAgo(iso?: string): string {
   if (!iso) return "Just now";
   const diff = Math.max(0, Date.now() - new Date(iso).getTime());
   const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
-  // Ultra-live guarantee: never display hours or stale days in the live news feed
-  const liveMins = ((mins) % 52) + 4;
-  return `${liveMins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function cleanDescription(desc?: string, title?: string, source?: string): string {

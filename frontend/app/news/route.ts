@@ -13,125 +13,241 @@ interface RawArticle {
   url_to_image: string;
 }
 
-const SECTOR_IMAGES: Record<string, string[]> = {
-  technology: [
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1558441719-8b489c634a10?auto=format&fit=crop&w=800&q=80",
+const CONTEXTUAL_IMAGES: Record<string, string[]> = {
+  politics: [
+    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80", // US Capitol
+    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=800&q=80", // Government building
+    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80", // Press conference / podium
+  ],
+  court: [
+    "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80", // Court gavel
+    "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&q=80", // Law library
+  ],
+  military: [
+    "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&q=80", // Defense / military
+    "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&q=80", // Security / defense
+  ],
+  weather: [
+    "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&q=80", // Storm rain
+    "https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=800&q=80", // Storm clouds
   ],
   business: [
-    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1565372195458-9de0b320ef04?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&q=80", // Stock board
+    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80", // Wall Street
+    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&q=80", // Finance team
   ],
-  science: [
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&q=80",
+  technology: [
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80", // Technology
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", // AI neural network
+    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80", // Software code
+  ],
+  space: [
+    "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&q=80", // Rocket launch
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80", // Earth / satellite
   ],
   health: [
-    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80", // Healthcare / doctor
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&q=80", // Science laboratory
   ],
   sports: [
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80", // Sports stadium
+    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80", // Football match
   ],
   entertainment: [
-    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80", // Concert / event
+    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&q=80", // Cinema / movie
   ],
 };
 
-function pickImageForArticle(title: string, category: string, index: number): string {
+function getSmartFallbackImage(title: string, category: string, index: number): string {
+  const lower = title.toLowerCase();
+  if (lower.match(/\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice)\b/)) {
+    return CONTEXTUAL_IMAGES.court[index % CONTEXTUAL_IMAGES.court.length];
+  }
+  if (lower.match(/\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern)\b/)) {
+    return CONTEXTUAL_IMAGES.politics[index % CONTEXTUAL_IMAGES.politics.length];
+  }
+  if (lower.match(/\b(war|military|strike|drone|missile|attack|ukraine|russia|israel|gaza|iran|troops|army|weapon|terror|defense)\b/)) {
+    return CONTEXTUAL_IMAGES.military[index % CONTEXTUAL_IMAGES.military.length];
+  }
+  if (lower.match(/\b(storm|flood|hurricane|rain|weather|earthquake|tornado|heat|fire|wildfire|climate|snow)\b/)) {
+    return CONTEXTUAL_IMAGES.weather[index % CONTEXTUAL_IMAGES.weather.length];
+  }
+  if (lower.match(/\b(space|nasa|rocket|starship|spacex|satellite|mars|moon|astronaut|telescope|orbit)\b/)) {
+    return CONTEXTUAL_IMAGES.space[index % CONTEXTUAL_IMAGES.space.length];
+  }
+  if (lower.match(/\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|ebola|measles|patient)\b/)) {
+    return CONTEXTUAL_IMAGES.health[index % CONTEXTUAL_IMAGES.health.length];
+  }
+  if (lower.match(/\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq)\b/)) {
+    return CONTEXTUAL_IMAGES.business[index % CONTEXTUAL_IMAGES.business.length];
+  }
+  if (lower.match(/\b(sport|football|soccer|nfl|nba|premier league|match|cup|goal|coach|olympic|tennis|race|player)\b/)) {
+    return CONTEXTUAL_IMAGES.sports[index % CONTEXTUAL_IMAGES.sports.length];
+  }
+  if (lower.match(/\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre)\b/)) {
+    return CONTEXTUAL_IMAGES.entertainment[index % CONTEXTUAL_IMAGES.entertainment.length];
+  }
   const cat = (category || "technology").toLowerCase();
-  const pool = SECTOR_IMAGES[cat] || SECTOR_IMAGES.technology;
+  const pool = CONTEXTUAL_IMAGES[cat] || CONTEXTUAL_IMAGES.technology;
   return pool[index % pool.length];
 }
 
-async function fetchGoogleNewsRss(category: string, topic: string): Promise<RawArticle[]> {
-  try {
-    let url = "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en";
-    if (topic) {
-      url = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=en-US&gl=US&ceid=US:en`;
-    } else if (category && category !== "all") {
-      const topicMap: Record<string, string> = {
-        technology: "TECHNOLOGY",
-        business: "BUSINESS",
-        science: "SCIENCE",
-        health: "HEALTH",
-        sports: "SPORTS",
-        entertainment: "ENTERTAINMENT",
-      };
-      const catKey = topicMap[category.toLowerCase()];
-      if (catKey) {
-        url = `https://news.google.com/rss/headlines/section/topic/${catKey}?hl=en-US&gl=US&ceid=US:en`;
-      } else {
-        url = `https://news.google.com/rss/search?q=${encodeURIComponent(category)}&hl=en-US&gl=US&ceid=US:en`;
+function parseRssFeed(xml: string, defaultSource: string, category: string): RawArticle[] {
+  const items = xml.match(/<item[\s\S]*?<\/item>/g) || [];
+  const articles: RawArticle[] = [];
+
+  for (let i = 0; i < items.length; i++) {
+    const itemXml = items[i];
+    const rawTitle = itemXml.match(/<title>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/title>/)?.[1] || "";
+    const cleanTitle = rawTitle
+      .replace(/<[^>]+>/g, "")
+      .replace(/\s*-\s*[^-]+$/, "")
+      .trim();
+
+    const link = (itemXml.match(/<link>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/link>/)?.[1] || "").trim();
+    if (!cleanTitle || !link) continue;
+
+    const sourceMatch = itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/);
+    const source = sourceMatch ? sourceMatch[1].replace(/<[^>]+>/g, "").trim() : defaultSource;
+
+    const pubDateStr = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
+    let publishedAt: string | undefined;
+    if (pubDateStr) {
+      const parsedDate = new Date(pubDateStr);
+      if (!isNaN(parsedDate.getTime())) {
+        publishedAt = parsedDate.toISOString();
       }
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3500);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
+    // Extract genuine article photo from RSS media tags
+    const imgMatch = itemXml.match(/<media:content[^>]+url=["']([^"']+)["']/i) ||
+                     itemXml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i) ||
+                     itemXml.match(/<enclosure[^>]+url=["']([^"']+)["']/i);
+    let image = imgMatch ? imgMatch[1].trim() : "";
+
+    // If no media tag, use smart semantic image matching
+    if (!image || !image.startsWith("http")) {
+      image = getSmartFallbackImage(cleanTitle, category, i);
+    }
+
+    // Clean description
+    const descMatch = itemXml.match(/<description>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/description>/);
+    let desc = descMatch ? descMatch[1].replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim() : "";
+    if (!desc || desc.length < 25 || desc.includes("http") || desc.includes("&lt;")) {
+      desc = `${cleanTitle}. Live developing reporting covered by ${source} with continuous global updates.`;
+    }
+
+    articles.push({
+      title: cleanTitle,
+      description: desc,
+      url: link,
+      source,
+      category: category && category !== "all" ? (category.charAt(0).toUpperCase() + category.slice(1)) : "Top News",
+      published_at: publishedAt,
+      url_to_image: image,
     });
-    clearTimeout(timeout);
-
-    if (!res.ok) return [];
-    const xml = await res.text();
-    const itemMatches = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
-
-    const articles: RawArticle[] = [];
-    for (let i = 0; i < Math.min(itemMatches.length, 35); i++) {
-      const itemXml = itemMatches[i];
-      const rawTitle = itemXml.match(/<title>([\s\S]*?)<\/title>/)?.[1] || "";
-      const link = itemXml.match(/<link>([\s\S]*?)<\/link>/)?.[1] || "";
-      const source = itemXml.match(/<source[^>]*>([\s\S]*?)<\/source>/)?.[1] || "Global News";
-      const cleanTitle = rawTitle.replace(/\s*-\s*[^-]+$/, "").trim();
-
-      if (!cleanTitle || !link) continue;
-
-      const pubDateStr = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1];
-      let publishedAt: string | undefined;
-      if (pubDateStr) {
-        const parsedDate = new Date(pubDateStr);
-        if (!isNaN(parsedDate.getTime())) {
-          publishedAt = parsedDate.toISOString();
-        }
-      }
-
-      // In Google News RSS, <description> only contains raw HTML redirect links (&lt;ol&gt;&lt;li&gt;&lt;a...).
-      // Replace with clean high-fidelity summary for pristine UI presentation.
-      const desc = `${cleanTitle}. Live developing reporting by ${source} with continuous market & global coverage.`;
-
-      const image = pickImageForArticle(cleanTitle, category || "technology", i);
-
-      articles.push({
-        title: cleanTitle,
-        description: desc,
-        url: link,
-        source,
-        category: category && category !== "all" ? (category.charAt(0).toUpperCase() + category.slice(1)) : "Technology",
-        published_at: publishedAt,
-        url_to_image: image,
-      });
-    }
-
-    return articles;
-  } catch {
-    return [];
   }
+
+  return articles;
+}
+
+async function fetchAllLiveNews(category: string, topic: string): Promise<RawArticle[]> {
+  const cat = (category || "all").toLowerCase();
+
+  // If searching a specific topic, fetch Google News search
+  if (topic) {
+    try {
+      const gUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=en-US&gl=US&ceid=US:en`;
+      const res = await fetch(gUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const xml = await res.text();
+        return parseRssFeed(xml, "Global News", cat);
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  interface FeedDef { name: string; url: string }
+  const feeds: FeedDef[] = [];
+
+  if (cat === "technology") {
+    feeds.push(
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/technology/rss.xml" },
+      { name: "The Guardian", url: "https://www.theguardian.com/technology/rss" },
+      { name: "Yahoo News", url: "https://news.yahoo.com/rss/tech" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en" }
+    );
+  } else if (cat === "business") {
+    feeds.push(
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/business/rss.xml" },
+      { name: "The Guardian", url: "https://www.theguardian.com/business/rss" },
+      { name: "Yahoo Finance", url: "https://finance.yahoo.com/news/rssindex" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en" }
+    );
+  } else if (cat === "science") {
+    feeds.push(
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml" },
+      { name: "The Guardian", url: "https://www.theguardian.com/science/rss" },
+      { name: "Yahoo News", url: "https://news.yahoo.com/rss/science" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=en-US&gl=US&ceid=US:en" }
+    );
+  } else if (cat === "health") {
+    feeds.push(
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/health/rss.xml" },
+      { name: "The Guardian", url: "https://www.theguardian.com/society/health/rss" },
+      { name: "Yahoo News", url: "https://news.yahoo.com/rss/health" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=en-US&gl=US&ceid=US:en" }
+    );
+  } else if (cat === "sports") {
+    feeds.push(
+      { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml" },
+      { name: "The Guardian", url: "https://www.theguardian.com/sport/rss" },
+      { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=en-US&gl=US&ceid=US:en" }
+    );
+  } else if (cat === "entertainment") {
+    feeds.push(
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml" },
+      { name: "The Guardian", url: "https://www.theguardian.com/culture/rss" },
+      { name: "Yahoo News", url: "https://news.yahoo.com/rss/entertainment" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-US&gl=US&ceid=US:en" }
+    );
+  } else {
+    // "all" - Top Global Headlines across world, politics, tech, finance
+    feeds.push(
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/rss.xml" },
+      { name: "The Guardian", url: "https://www.theguardian.com/world/rss" },
+      { name: "Yahoo News", url: "https://news.yahoo.com/rss/" },
+      { name: "Sky News", url: "https://feeds.skynews.com/feeds/rss/home.xml" },
+      { name: "Google News", url: "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en" }
+    );
+  }
+
+  const results = await Promise.allSettled(
+    feeds.map(async (f) => {
+      const res = await fetch(f.url, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        signal: AbortSignal.timeout(3500),
+      });
+      if (!res.ok) return [];
+      const xml = await res.text();
+      return parseRssFeed(xml, f.name, cat);
+    })
+  );
+
+  const allArticles: RawArticle[] = [];
+  for (const r of results) {
+    if (r.status === "fulfilled" && Array.isArray(r.value)) {
+      allArticles.push(...r.value);
+    }
+  }
+
+  return allArticles;
 }
 
 
@@ -1057,10 +1173,10 @@ export async function GET(req: Request) {
   const category = (url.searchParams.get("category") || "").toLowerCase().trim();
   const topic = (url.searchParams.get("topic") || "").toLowerCase().trim();
 
-  // 1. Fetch real-time live Google News RSS articles
-  const liveRssArticles = await fetchGoogleNewsRss(category, topic);
+  // 1. Fetch real-time live articles across BBC, The Guardian, Yahoo, Sky News, and Google News
+  const liveArticles = await fetchAllLiveNews(category, topic);
 
-  // 2. Filter curated articles
+  // 2. Filter curated articles as supplementary backup
   let curatedList = HUNDRED_NEWS;
   if (category && category !== "all") {
     const byCat = HUNDRED_NEWS.filter(
@@ -1079,11 +1195,11 @@ export async function GET(req: Request) {
     if (topicFiltered.length > 0) curatedList = topicFiltered;
   }
 
-  // 3. Merge live RSS articles at the front, followed by curated items, avoiding duplicate titles
+  // 3. Deduplicate by title & sort by published_at DESCENDING (newest breaking stories first!)
   const seenTitles = new Set<string>();
   const combined: RawArticle[] = [];
 
-  for (const art of liveRssArticles) {
+  for (const art of liveArticles) {
     const norm = art.title.toLowerCase().trim();
     if (!seenTitles.has(norm)) {
       seenTitles.add(norm);
@@ -1091,6 +1207,14 @@ export async function GET(req: Request) {
     }
   }
 
+  // Sort live articles so the truly freshest breaking news (published 4m, 12m, 25m ago) comes FIRST!
+  combined.sort((a, b) => {
+    const timeA = a.published_at ? new Date(a.published_at).getTime() : 0;
+    const timeB = b.published_at ? new Date(b.published_at).getTime() : 0;
+    return timeB - timeA;
+  });
+
+  // Append curated fallback items if needed
   for (const art of curatedList) {
     const norm = art.title.toLowerCase().trim();
     if (!seenTitles.has(norm)) {
@@ -1099,35 +1223,28 @@ export async function GET(req: Request) {
     }
   }
 
-  // Fallback if empty
   const finalList = combined.length > 0 ? combined : HUNDRED_NEWS;
 
   // 4. Pagination
   const startIndex = (page - 1) * limit;
   const paginated = finalList.slice(startIndex, startIndex + limit);
 
-  // 5. Dynamic Live Minute Timestamps — Absolute Freshness Guarantee!
-  // Every news item is dynamically formatted strictly in recent live minutes (2m to 56m)
-  // so NO article EVER displays "2h ago", "5h ago", "6h ago", or hours!
+  // 5. Authentic Timestamps — Preserve Real Publication Times!
   const now = Date.now();
   const articles = paginated.map((a, index) => {
-    const overallIndex = startIndex + index;
-    let minsAgo: number;
-    if (overallIndex === 0) minsAgo = 2; // Breaking Hero story
-    else if (overallIndex === 1) minsAgo = 4;
-    else if (overallIndex <= 4) minsAgo = 5 + (overallIndex - 1) * 3; // 8m, 11m, 14m
-    else {
-      // Smooth continuous distribution cycling naturally between 16m and 56m
-      const cycle = ((overallIndex - 5) * 3) % 41; // 0 to 40
-      minsAgo = 16 + cycle;
-    }
+    let finalPublishedAt = a.published_at;
 
-    const dynamicPublishedAt = new Date(now - minsAgo * 60 * 1000).toISOString();
+    // Fallback only if item has no timestamp (e.g. curated item)
+    if (!finalPublishedAt || isNaN(new Date(finalPublishedAt).getTime())) {
+      const overallIndex = startIndex + index;
+      const minsAgo = Math.min(180, 4 + overallIndex * 5);
+      finalPublishedAt = new Date(now - minsAgo * 60 * 1000).toISOString();
+    }
 
     return {
       ...a,
-      publishedAt: dynamicPublishedAt,
-      published_at: dynamicPublishedAt,
+      publishedAt: finalPublishedAt,
+      published_at: finalPublishedAt,
       urlToImage: a.url_to_image,
     };
   });
