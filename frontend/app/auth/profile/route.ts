@@ -3,7 +3,10 @@ import { verifyToken, usersStore } from "@/app/lib/store";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("Authorization");
-  const username = verifyToken(authHeader) || "admin";
+  const username = verifyToken(authHeader);
+  if (!username) {
+    return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+  }
   const user = usersStore.get(username) || {
     id: "admin-1",
     username: "admin",
@@ -27,7 +30,10 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   try {
     const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader) || "admin";
+    const username = verifyToken(authHeader);
+    if (!username) {
+      return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+    }
     const body = await req.json().catch(() => ({}));
 
     let user = usersStore.get(username);

@@ -7,6 +7,9 @@ import {
   deleteUploadFile,
   extractPdfText,
   extractPdfTextSync,
+  isAllowedUploadExtension,
+  MAX_UPLOAD_FILE_SIZE,
+  sanitizeUploadFilename,
   saveUploadFile,
   verifyToken,
   type UploadRecord,
@@ -15,7 +18,10 @@ import {
 export async function POST(req: Request) {
   try {
     const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader) || "admin";
+    const username = verifyToken(authHeader);
+    if (!username) {
+      return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+    }
 
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -24,7 +30,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "No file provided" }, { status: 400 });
     }
 
-    const filename = file.name || `file_${Date.now()}`;
+    if (file.size > MAX_UPLOAD_FILE_SIZE) {
+      return NextResponse.json(
+        { message: "File exceeds 25MB maximum limit." },
+        { status: 400 }
+      );
+    }
+
+    const rawFilename = file.name || `file_${Date.now()}`;
+    if (!isAllowedUploadExtension(rawFilename)) {
+      return NextResponse.json(
+        { message: "Invalid file type. Allowed: .pdf, .csv, .docx, .xlsx, .txt, .json, .md" },
+        { status: 400 }
+      );
+    }
+
+    const filename = sanitizeUploadFilename(rawFilename);
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -114,6 +135,12 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const authHeader = req.headers.get("Authorization");
+    const username = verifyToken(authHeader);
+    if (!username) {
+      return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+    }
+
     const url = new URL(req.url);
     let filename = url.searchParams.get("filename") || "";
     if (!filename) {

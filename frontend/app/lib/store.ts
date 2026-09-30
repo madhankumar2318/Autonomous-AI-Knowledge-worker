@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -791,7 +792,38 @@ export const threadsStore = globalStore.__AKW_THREADS__!;
 export const uploadsStore = globalStore.__AKW_UPLOADS__!;
 export const buffersStore = globalStore.__AKW_BUFFERS__!;
 
+export const MAX_UPLOAD_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
+export const ALLOWED_UPLOAD_EXTENSIONS = new Set([
+  ".pdf",
+  ".csv",
+  ".docx",
+  ".xlsx",
+  ".txt",
+  ".json",
+  ".md",
+]);
+
+export function isAllowedUploadExtension(filename: string): boolean {
+  if (!filename) return false;
+  const ext = path.extname(filename).toLowerCase();
+  return ALLOWED_UPLOAD_EXTENSIONS.has(ext);
+}
+
+export function sanitizeUploadFilename(rawName: string): string {
+  // Prevent path traversal by extracting only basename and stripping unsafe chars
+  const base = path.basename(rawName).trim();
+  const sanitized = base
+    .replace(/[/\\?%*:|"<>]/g, "_")
+    .replace(/\.{2,}/g, ".");
+  return sanitized || `upload_${Date.now()}`;
+}
+
 export function saveUploadFile(record: UploadRecord, buffer?: Buffer) {
+  record.filename = sanitizeUploadFilename(record.filename);
+  if (record.originalName) {
+    record.originalName = sanitizeUploadFilename(record.originalName);
+  }
   uploadsStore.set(record.filename, record);
 
   // Cache in-memory buffer
@@ -930,7 +962,9 @@ export function getUploadRecord(filename: string): UploadRecord | null {
 
 export function deleteUploadFile(filename: string) {
   if (!filename) return;
-  const decoded = decodeURIComponent(filename).trim();
+  const safeFilename = path.basename(filename).trim();
+  if (!safeFilename) return;
+  const decoded = decodeURIComponent(safeFilename).trim();
   const lower = decoded.toLowerCase();
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const normTarget = norm(decoded);
@@ -1017,28 +1051,74 @@ export function deleteUploadFile(filename: string) {
   }
 }
 
+const JWT_SECRET = process.env.JWT_SECRET || "akw_secure_jwt_secret_key_2026_x89f_auto";
+
 export function generateToken(username: string): string {
+  const header = { alg: "HS256", typ: "JWT" };
   const payload = {
     sub: username,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 86400 * 7,
   };
-  return `jwt_${Buffer.from(JSON.stringify(payload)).toString("base64url")}`;
+  const encHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
+  const encPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", JWT_SECRET)
+    .update(`${encHeader}.${encPayload}`)
+    .digest("base64url");
+  return `${encHeader}.${encPayload}.${signature}`;
 }
 
 export function verifyToken(token: string | null): string | null {
   if (!token) return null;
-  const cleanToken = token.replace(/^Bearer\s+/i, "");
+  const cleanToken = token.replace(/^Bearer\s+/i, "").trim();
+  if (!cleanToken) return null;
+
+  // 1. Standard HS256 JWT: header.payload.signature
+  const parts = cleanToken.split(".");
+  if (parts.length === 3) {
+    const [headerB64, payloadB64, signatureB64] = parts;
+    try {
+      const expectedSig = crypto
+        .createHmac("sha256", JWT_SECRET)
+        .update(`${headerB64}.${payloadB64}`)
+        .digest("base64url");
+
+      const sigBuf = Buffer.from(signatureB64, "base64url");
+      const expBuf = Buffer.from(expectedSig, "base64url");
+
+      if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) {
+        const payloadStr = Buffer.from(payloadB64, "base64url").toString("utf-8");
+        const payload = JSON.parse(payloadStr);
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < nowSec) {
+          return null; // Expired
+        }
+        if (payload.sub && typeof payload.sub === "string") {
+          return payload.sub;
+        }
+      }
+    } catch {
+      // Continue to check legacy token format
+    }
+  }
+
+  // 2. Legacy token fallback (jwt_<base64url>) with expiration verification
   if (cleanToken.startsWith("jwt_")) {
     try {
       const payloadStr = Buffer.from(cleanToken.slice(4), "base64url").toString("utf-8");
       const payload = JSON.parse(payloadStr);
-      if (payload.sub) return payload.sub;
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < nowSec) {
+        return null;
+      }
+      if (payload.sub && typeof payload.sub === "string") {
+        return payload.sub;
+      }
     } catch {
       return null;
     }
   }
-  // Allow demo tokens or admin fallback
-  if (cleanToken.length > 5) return "admin";
+
   return null;
 }

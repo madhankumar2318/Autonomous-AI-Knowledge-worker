@@ -3,7 +3,10 @@ import { verifyToken, settingsStore } from "@/app/lib/store";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("Authorization");
-  const username = verifyToken(authHeader) || "admin";
+  const username = verifyToken(authHeader);
+  if (!username) {
+    return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+  }
   const setting = settingsStore.get(username) || {
     userId: "admin-1",
     defaultModel: "gemini-3.8-flash",
@@ -19,7 +22,10 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   try {
     const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader) || "admin";
+    const username = verifyToken(authHeader);
+    if (!username) {
+      return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+    }
     const body = await req.json().catch(() => ({}));
 
     const current = settingsStore.get(username) || {

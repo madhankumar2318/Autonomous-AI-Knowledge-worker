@@ -4,7 +4,10 @@ import { verifyToken, usersStore } from "@/app/lib/store";
 export async function PUT(req: Request) {
   try {
     const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader) || "admin";
+    const username = verifyToken(authHeader);
+    if (!username) {
+      return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+    }
     const body = await req.json().catch(() => ({}));
 
     const newPassword = body.newPassword || body.password;

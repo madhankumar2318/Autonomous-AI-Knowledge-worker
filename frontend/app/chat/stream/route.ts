@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import {
   cleanPdfTextFormatting,
   extractPdfText,
@@ -8,6 +9,7 @@ import {
   threadsStore,
   uploadsStore,
 } from "@/app/lib/store";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 function getGroqApiKey(bodyKey?: string): string {
   if (bodyKey && typeof bodyKey === "string" && bodyKey.startsWith("gsk_")) return bodyKey.trim();
@@ -511,6 +513,21 @@ function answerQueryFromDocument(
 }
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  // Rate limit: 40 requests per minute per IP for chat streaming
+  const rateLimit = checkRateLimit(`chat_stream:${ip}`, 40, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { message: `Too many chat requests. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds),
+        },
+      }
+    );
+  }
+
   const body = await req.json().catch(() => ({}));
   const userMessage = body.message || "";
   const threadId = body.thread_id;
