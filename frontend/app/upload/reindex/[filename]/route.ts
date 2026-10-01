@@ -2,17 +2,25 @@ import { NextResponse } from "next/server";
 import {
   cleanPdfTextFormatting,
   extractPdfText,
+  getAuthToken,
   getUploadBuffer,
+  sanitizeUploadFilename,
   saveUploadFile,
   uploadsStore,
+  verifyToken,
 } from "@/app/lib/store";
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
+  const username = verifyToken(getAuthToken(req));
+  if (!username) {
+    return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+  }
+
   const { filename: rawFilename } = await params;
-  const filename = decodeURIComponent(rawFilename);
+  const filename = sanitizeUploadFilename(decodeURIComponent(rawFilename));
 
   let doc = uploadsStore.get(filename);
   const buffer = getUploadBuffer(filename);

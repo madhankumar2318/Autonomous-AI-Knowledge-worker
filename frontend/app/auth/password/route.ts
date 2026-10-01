@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
-import { verifyToken, usersStore } from "@/app/lib/store";
+import { verifyToken, usersStore, hashPassword } from "@/app/lib/store";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function PUT(req: Request) {
   try {
+    const ip = getClientIp(req);
+    // Rate limit: 5 password changes per 10 minutes per IP
+    const rateLimit = checkRateLimit(`password_change:${ip}`, 5, 10 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { message: `Too many password change attempts. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        }
+      );
+    }
+
     const authHeader = req.headers.get("Authorization");
     const username = verifyToken(authHeader);
     if (!username) {
@@ -17,7 +31,7 @@ export async function PUT(req: Request) {
 
     const user = usersStore.get(username);
     if (user) {
-      user.passwordHash = newPassword;
+      user.passwordHash = hashPassword(newPassword);
       usersStore.set(username, user);
     }
 

@@ -3,11 +3,21 @@ export const revalidate = 0;
 
 import { NextResponse } from "next/server";
 import {
+  getAuthToken,
   syncUploadsFromDisk,
   uploadsStore,
+  verifyToken,
 } from "@/app/lib/store";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const username = verifyToken(getAuthToken(req));
+  if (!username) {
+    return NextResponse.json(
+      { message: "Unauthorized. Please log in to view documents." },
+      { status: 401 }
+    );
+  }
+
   // Sync all persistent records and disk files
   syncUploadsFromDisk();
 

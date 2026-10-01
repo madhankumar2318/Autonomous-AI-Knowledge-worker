@@ -1,10 +1,18 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { deleteUploadFile } from "@/app/lib/store";
+import { deleteUploadFile, getAuthToken, verifyToken } from "@/app/lib/store";
 
 export async function POST(req: Request) {
   try {
+    const username = verifyToken(getAuthToken(req));
+    if (!username) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized. Please log in." },
+        { status: 401 }
+      );
+    }
+
     let filename = "";
     const contentType = req.headers.get("content-type") || "";
     if (contentType.includes("application/json")) {

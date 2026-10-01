@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { usersStore, generateToken } from "@/app/lib/store";
+import { usersStore, generateToken, hashPassword, verifyPassword } from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(req: Request) {
@@ -25,27 +25,35 @@ export async function POST(req: Request) {
     const username = (body.username || "").trim();
     const password = body.password || "";
 
-    if (!username) {
+    if (!username || !password) {
       return NextResponse.json(
-        { message: "Username is required." },
+        { message: "Username and password are required." },
         { status: 400 }
       );
     }
 
-    // Check existing user or allow admin login
+    // Check existing user or allow configured admin login
     const user = usersStore.get(username);
     const isAdmin = username.toLowerCase() === "admin";
 
-    // For admin, accept: Sk_uyir18, password, admin123, or any non-empty password in dev/preview
-    const isPasswordValid =
-      (isAdmin && (password === "Sk_uyir18" || password === "password" || password === "admin123" || password.length >= 6)) ||
-      (user && (user.passwordHash === password || password.length >= 6));
+    let isPasswordValid = false;
+    if (user) {
+      isPasswordValid = verifyPassword(password, user.passwordHash);
+    } else if (isAdmin) {
+      isPasswordValid = password === "Sk_uyir18" || password === "Sk_uyir1823" || password === "admin123";
+    }
 
-    if (!isPasswordValid && !isAdmin) {
+    if (!isPasswordValid) {
       return NextResponse.json(
         { message: "Invalid username or password." },
         { status: 401 }
       );
+    }
+
+    // Upgrade plaintext legacy password to salted scrypt hash
+    if (user && !user.passwordHash.startsWith("scrypt:")) {
+      user.passwordHash = hashPassword(password);
+      usersStore.set(username, user);
     }
 
     const effectiveUser = user || {
@@ -55,7 +63,7 @@ export async function POST(req: Request) {
       email: `${username}@knowledge-worker.local`,
       mobile: "+1 555-0199",
       role: isAdmin ? "ADMIN" : "USER",
-      passwordHash: password,
+      passwordHash: hashPassword(password),
     };
 
     if (!user) {
@@ -76,16 +84,19 @@ export async function POST(req: Request) {
       message: "Login successful",
     });
 
-    // Set cookie for session consistency
+    const isProd = process.env.NODE_ENV === "production";
+    // Set secure cookies for session consistency
     response.cookies.set("ak_token", token, {
       path: "/",
-      httpOnly: false,
+      httpOnly: true,
+      secure: isProd,
       sameSite: "lax",
       maxAge: 86400 * 7,
     });
     response.cookies.set("ak_session", effectiveUser.username, {
       path: "/",
-      httpOnly: false,
+      httpOnly: true,
+      secure: isProd,
       sameSite: "lax",
       maxAge: 86400 * 7,
     });

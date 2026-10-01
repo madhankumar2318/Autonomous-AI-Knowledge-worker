@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { verifyToken, settingsStore } from "@/app/lib/store";
+import { getAuthToken, verifyToken, settingsStore } from "@/app/lib/store";
 
 export async function GET(req: Request) {
-  const authHeader = req.headers.get("Authorization");
-  const username = verifyToken(authHeader);
+  const username = verifyToken(getAuthToken(req));
   if (!username) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
   }
@@ -21,8 +20,7 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader);
+    const username = verifyToken(getAuthToken(req));
     if (!username) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
     }

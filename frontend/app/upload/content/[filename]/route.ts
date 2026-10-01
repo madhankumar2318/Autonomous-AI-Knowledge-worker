@@ -3,15 +3,22 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import {
   extractPdfText,
+  getAuthToken,
   getUploadBuffer,
   getUploadRecord,
   uploadsStore,
+  verifyToken,
 } from "@/app/lib/store";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
+  const username = verifyToken(getAuthToken(req));
+  if (!username) {
+    return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+  }
+
   const { filename: rawFilename } = await params;
   const filename = decodeURIComponent(rawFilename);
 

@@ -1,13 +1,21 @@
 export const dynamic = "force-dynamic";
 
-import { getUploadBuffer, getUploadRecord, uploadsStore } from "@/app/lib/store";
+import { getAuthToken, getUploadBuffer, getUploadRecord, sanitizeUploadFilename, uploadsStore, verifyToken } from "@/app/lib/store";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
+  const username = verifyToken(getAuthToken(req));
+  if (!username) {
+    return new Response(JSON.stringify({ message: "Unauthorized. Please log in." }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const { filename: rawFilename } = await params;
-  const filename = decodeURIComponent(rawFilename);
+  const filename = sanitizeUploadFilename(decodeURIComponent(rawFilename));
 
   let doc = getUploadRecord(filename) || uploadsStore.get(filename) || uploadsStore.get(rawFilename);
   let buffer = getUploadBuffer(filename) || getUploadBuffer(rawFilename);
@@ -48,8 +56,7 @@ export async function GET(
       "Content-Disposition": `inline; filename="${encodeURIComponent(filename)}"`,
       "Content-Length": responseData.length.toString(),
       "Accept-Ranges": "bytes",
-      "Access-Control-Allow-Origin": "*",
-      "Cache-Control": "public, max-age=3600",
+      "Cache-Control": "private, no-cache, no-store, must-revalidate",
     },
   });
 }

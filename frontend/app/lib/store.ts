@@ -1122,3 +1122,51 @@ export function verifyToken(token: string | null): string | null {
 
   return null;
 }
+
+export function getAuthToken(req: Request): string | null {
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader) return authHeader;
+  const cookieHeader = req.headers.get("cookie");
+  if (cookieHeader) {
+    const match = cookieHeader.match(/ak_token=([^;]+)/);
+    if (match) return match[1].trim();
+  }
+  return null;
+}
+
+export function hashPassword(password: string): string {
+  const salt = crypto.randomBytes(16).toString("hex");
+  const derivedKey = crypto.scryptSync(password, salt, 64);
+  return `scrypt:${salt}:${derivedKey.toString("hex")}`;
+}
+
+export function verifyPassword(password: string, storedHash?: string): boolean {
+  if (!password || !storedHash) return false;
+
+  // 1. Salted scrypt hash verification
+  if (storedHash.startsWith("scrypt:")) {
+    const parts = storedHash.split(":");
+    if (parts.length === 3) {
+      const [, salt, expectedHex] = parts;
+      try {
+        const derivedKey = crypto.scryptSync(password, salt, 64);
+        const expectedBuf = Buffer.from(expectedHex, "hex");
+        if (derivedKey.length === expectedBuf.length && crypto.timingSafeEqual(derivedKey, expectedBuf)) {
+          return true;
+        }
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  // 2. Legacy plaintext migration fallback (timing-safe check)
+  const pwdBuf = Buffer.from(password);
+  const hashBuf = Buffer.from(storedHash);
+  if (pwdBuf.length === hashBuf.length && crypto.timingSafeEqual(pwdBuf, hashBuf)) {
+    return true;
+  }
+
+  return false;
+}

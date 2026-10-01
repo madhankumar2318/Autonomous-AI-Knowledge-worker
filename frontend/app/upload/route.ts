@@ -7,6 +7,7 @@ import {
   deleteUploadFile,
   extractPdfText,
   extractPdfTextSync,
+  getAuthToken,
   isAllowedUploadExtension,
   MAX_UPLOAD_FILE_SIZE,
   sanitizeUploadFilename,
@@ -14,11 +15,24 @@ import {
   verifyToken,
   type UploadRecord,
 } from "@/app/lib/store";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader);
+    const ip = getClientIp(req);
+    // Rate limit: 20 file uploads per 5 minutes per IP
+    const rateLimit = checkRateLimit(`upload:${ip}`, 20, 5 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { message: `Upload rate limit exceeded. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        }
+      );
+    }
+
+    const username = verifyToken(getAuthToken(req));
     if (!username) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
     }
@@ -135,8 +149,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader);
+    const username = verifyToken(getAuthToken(req));
     if (!username) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
     }

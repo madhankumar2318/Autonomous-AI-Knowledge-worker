@@ -74,6 +74,17 @@ function getUserThreadsKey(username: string): string {
   return `${THREADS_PREFIX}${safe}`;
 }
 
+const getChatAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("ak_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+};
+
 export function loadThreadMessages(threadId: string): ChatMessage[] {
   if (typeof window === "undefined" || !threadId) return [];
   try {
@@ -321,7 +332,10 @@ export function useChatStream({
       try {
         const res = await fetch(
           `${API_BASE_URL}/chat/threads?username=${encodeURIComponent(username)}`,
-          { credentials: "include" }
+          {
+            headers: getChatAuthHeaders(),
+            credentials: "include",
+          }
         );
         if (res.ok) {
           const remoteList = await res.json();
@@ -434,7 +448,10 @@ export function useChatStream({
       try {
         await fetch(`${API_BASE_URL}/chat/threads`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...getChatAuthHeaders(),
+          },
           credentials: "include",
           body: JSON.stringify({ id: threadId, username, title, model: selectedModel }),
         });
@@ -476,7 +493,10 @@ export function useChatStream({
       try {
         const res = await fetch(
           `${API_BASE_URL}/chat/threads/${threadId}/messages`,
-          { credentials: "include" }
+          {
+            headers: getChatAuthHeaders(),
+            credentials: "include",
+          }
         );
         if (res.ok) {
           const msgs = await res.json();
@@ -513,7 +533,10 @@ export function useChatStream({
       try {
         await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...getChatAuthHeaders(),
+          },
           credentials: "include",
           body: JSON.stringify({ title: cleanTitle }),
         });
@@ -539,6 +562,7 @@ export function useChatStream({
       try {
         await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
           method: "DELETE",
+          headers: getChatAuthHeaders(),
           credentials: "include",
         });
       } catch {}

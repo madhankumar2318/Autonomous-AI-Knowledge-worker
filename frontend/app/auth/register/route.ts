@@ -1,8 +1,22 @@
 import { NextResponse } from "next/server";
-import { usersStore, generateToken } from "@/app/lib/store";
+import { usersStore, generateToken, hashPassword } from "@/app/lib/store";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    // Rate limit: 6 registration attempts per 15 minutes per IP
+    const rateLimit = checkRateLimit(`register:${ip}`, 6, 15 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { message: `Too many registration attempts. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        }
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const username = (body.username || "").trim();
     const password = body.password || "";
@@ -13,6 +27,13 @@ export async function POST(req: Request) {
     if (!username || username.length < 3) {
       return NextResponse.json(
         { message: "Username must be at least 3 characters." },
+        { status: 400 }
+      );
+    }
+
+    if (!password || password.length < 6) {
+      return NextResponse.json(
+        { message: "Password must be at least 6 characters long." },
         { status: 400 }
       );
     }
@@ -31,7 +52,7 @@ export async function POST(req: Request) {
       email,
       mobile,
       role: "USER",
-      passwordHash: password,
+      passwordHash: hashPassword(password),
     };
 
     usersStore.set(username, newUser);
@@ -49,15 +70,18 @@ export async function POST(req: Request) {
       message: "Registration successful",
     });
 
+    const isProd = process.env.NODE_ENV === "production";
     response.cookies.set("ak_token", token, {
       path: "/",
-      httpOnly: false,
+      httpOnly: true,
+      secure: isProd,
       sameSite: "lax",
       maxAge: 86400 * 7,
     });
     response.cookies.set("ak_session", username, {
       path: "/",
-      httpOnly: false,
+      httpOnly: true,
+      secure: isProd,
       sameSite: "lax",
       maxAge: 86400 * 7,
     });
