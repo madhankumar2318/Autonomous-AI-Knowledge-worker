@@ -529,14 +529,15 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const userMessage = body.message || "";
+  const userMessage = (body.message || "").slice(0, 10000); // Cap input to 10,000 chars (OWASP LLM04)
   const threadId = body.thread_id;
   const rawFilename = body.filename;
   const clientDocumentContent = (body.document_content || "").trim();
   const clientApiKey = body.groq_api_key || body.apiKey || body.groqKey;
-  const history = body.history || [];
+  // Cap history to last 25 turns to prevent token exhaustion (OWASP LLM04)
+  const history = (body.history || []).slice(-25);
+  // Immutable server-side system prompt — client body.system_prompt is intentionally ignored (OWASP LLM01)
   const systemPrompt =
-    body.system_prompt ||
     "You are an autonomous AI Knowledge Worker assistant specializing in document intelligence, resume analysis, financial research, and market analytics. When answering questions about a document, provide precise, cited, accurate answers with citations in the format [Source: <filename>, Page: 1].";
 
   // Sync uploads from disk to ensure in-memory store is hydrated

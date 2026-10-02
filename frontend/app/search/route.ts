@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { uploadsStore } from "@/app/lib/store";
+import { uploadsStore, getAuthToken, verifyToken } from "@/app/lib/store";
 import { STOCKS_DATA } from "@/app/lib/stocks-data";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 interface SearchResultItem {
   title: string;
@@ -163,10 +164,32 @@ function generateContextualVideos(q: string): SearchResultItem[] {
 }
 
 export async function GET(req: Request) {
+  // Rate limit: 60 requests per minute per IP
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`search:${ip}`, 60, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { message: `Too many search requests. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
+  // Resolve authenticated user (if any) for tenant isolation
+  const token = getAuthToken(req);
+  const authenticatedUser = verifyToken(token);
+
   const url = new URL(req.url);
   const query = (url.searchParams.get("query") || "").trim();
   const lowerQ = query.toLowerCase();
   const page = parseInt(url.searchParams.get("page") || "1", 10);
+
+  // Query length cap — reject oversized inputs
+  if (query.length > 120) {
+    return NextResponse.json(
+      { message: "Query too long. Maximum 120 characters allowed." },
+      { status: 400 }
+    );
+  }
 
   if (!query) {
     return NextResponse.json({
@@ -207,22 +230,28 @@ export async function GET(req: Request) {
     }
   }
 
-  // 2. MATCH UPLOADED DOCUMENTS
-  for (const [, doc] of uploadsStore) {
-    if (
-      doc.filename.toLowerCase().includes(lowerQ) ||
-      (doc.content && doc.content.toLowerCase().includes(lowerQ))
-    ) {
-      allResults.push({
-        title: `Document: ${doc.originalName}`,
-        link: `/upload/content/${doc.filename}`,
-        snippet: doc.content
-          ? doc.content.slice(0, 240) + "..."
-          : "Uploaded enterprise document in file workspace.",
-        source: "Workspace Documents",
-        fresh: false,
-        is_video: false,
-      });
+  // 2. MATCH UPLOADED DOCUMENTS — only for authenticated users, tenant-isolated
+  if (authenticatedUser) {
+    for (const [, doc] of uploadsStore) {
+      // Tenant isolation: only show documents owned by the requesting user (admin sees all)
+      if (authenticatedUser !== "admin" && doc.username && doc.username !== authenticatedUser) {
+        continue;
+      }
+      if (
+        doc.filename.toLowerCase().includes(lowerQ) ||
+        (doc.content && doc.content.toLowerCase().includes(lowerQ))
+      ) {
+        allResults.push({
+          title: `Document: ${doc.originalName}`,
+          link: `/upload/content/${doc.filename}`,
+          snippet: doc.content
+            ? doc.content.slice(0, 240) + "..."
+            : "Uploaded enterprise document in file workspace.",
+          source: "Workspace Documents",
+          fresh: false,
+          is_video: false,
+        });
+      }
     }
   }
 

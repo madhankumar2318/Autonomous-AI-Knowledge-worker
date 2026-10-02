@@ -1053,6 +1053,16 @@ export function deleteUploadFile(filename: string) {
 
 const JWT_SECRET = process.env.JWT_SECRET || "akw_secure_jwt_secret_key_2026_x89f_auto";
 
+// Production guard: fail loudly if JWT_SECRET is not explicitly configured
+if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
+  console.error(
+    "🚨 SECURITY WARNING: JWT_SECRET environment variable is not set in production. " +
+    "The application is using an insecure default key. " +
+    "Set JWT_SECRET in your production environment immediately."
+  );
+}
+
+
 export function generateToken(username: string): string {
   const header = { alg: "HS256", typ: "JWT" };
   const payload = {

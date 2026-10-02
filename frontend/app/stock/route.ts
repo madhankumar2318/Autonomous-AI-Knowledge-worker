@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
 import { STOCKS_DATA } from "@/app/lib/stocks-data";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
+
+const SYMBOL_REGEX = /^[A-Z0-9.\-]{1,10}$/;
 
 export async function GET(req: Request) {
+  // Rate limit: 60 requests per minute per IP
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`stock:${ip}`, 60, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { message: `Too many stock requests. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
   const url = new URL(req.url);
   const symbol = (url.searchParams.get("symbol") || "AAPL").toUpperCase();
+
+  // Validate symbol format
+  if (!SYMBOL_REGEX.test(symbol)) {
+    return NextResponse.json({ message: "Invalid stock symbol format." }, { status: 400 });
+  }
+
   const stock = STOCKS_DATA.find((s) => s.symbol === symbol) || {
     symbol,
     name: `${symbol} Inc.`,

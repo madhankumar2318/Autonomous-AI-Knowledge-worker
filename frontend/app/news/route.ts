@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -1167,6 +1168,16 @@ const HUNDRED_NEWS: RawArticle[] = [
 ];
 
 export async function GET(req: Request) {
+  // Rate limit: 60 requests per minute per IP to protect upstream RSS providers
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`news:${ip}`, 60, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { message: `Too many news requests. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get("page") || "1", 10);
   const limit = parseInt(url.searchParams.get("limit") || "100", 10);

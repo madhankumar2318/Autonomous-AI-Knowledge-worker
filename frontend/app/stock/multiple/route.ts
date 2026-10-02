@@ -1,16 +1,33 @@
 import { NextResponse } from "next/server";
 import { STOCKS_DATA } from "@/app/lib/stocks-data";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
+
+const SYMBOL_REGEX = /^[A-Z0-9.\-]{1,10}$/;
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(req: Request) {
+  // Rate limit: 60 requests per minute per IP
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`stock_multiple:${ip}`, 60, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { message: `Too many stock requests. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
   const url = new URL(req.url);
   const symbolsParam = url.searchParams.get("symbols");
   let list = STOCKS_DATA;
 
   if (symbolsParam) {
-    const syms = symbolsParam.split(",").map((s) => s.trim().toUpperCase());
+    // Validate each symbol — reject malformed ones
+    const syms = symbolsParam
+      .split(",")
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => SYMBOL_REGEX.test(s));
     list = STOCKS_DATA.filter((s) => syms.includes(s.symbol));
     if (list.length === 0) list = STOCKS_DATA;
   }
