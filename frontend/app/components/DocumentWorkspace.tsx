@@ -255,6 +255,10 @@ export default function DocumentWorkspace({
       formData.append("file", selectedFile);
       const res = await fetch(`${API_BASE_URL}/upload`, {
         method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          "X-AKW-CSRF": "1",
+        },
         body: formData,
         credentials: "include",
       });
@@ -459,7 +463,11 @@ export default function DocumentWorkspace({
         `${API_BASE_URL}/upload/edit/${encodeURIComponent(file.filename)}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+            "X-AKW-CSRF": "1",
+          },
           body: JSON.stringify({ content: editedContent }),
           credentials: "include",
         },

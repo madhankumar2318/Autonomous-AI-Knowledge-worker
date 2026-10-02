@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
-import { verifyToken, usersStore, hashPassword } from "@/app/lib/store";
+import { verifyToken, usersStore, hashPassword, getAuthToken } from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
+import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
+import { logAuditEvent } from "@/app/lib/audit-logger";
 
 export async function PUT(req: Request) {
   try {
+    const csrfCheck = verifyCsrf(req);
+    if (!csrfCheck.ok) {
+      return csrfErrorResponse(csrfCheck.reason);
+    }
+
     const ip = getClientIp(req);
     // Rate limit: 5 password changes per 10 minutes per IP
     const rateLimit = checkRateLimit(`password_change:${ip}`, 5, 10 * 60 * 1000);
@@ -17,8 +24,8 @@ export async function PUT(req: Request) {
       );
     }
 
-    const authHeader = req.headers.get("Authorization");
-    const username = verifyToken(authHeader);
+    const token = getAuthToken(req);
+    const username = verifyToken(token);
     if (!username) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
     }
@@ -34,6 +41,14 @@ export async function PUT(req: Request) {
       user.passwordHash = hashPassword(newPassword);
       usersStore.set(username, user);
     }
+
+    logAuditEvent({
+      type: "PASSWORD_CHANGED",
+      severity: "INFO",
+      username,
+      ip,
+      details: { message: "User password updated successfully" },
+    });
 
     return NextResponse.json({ message: "Password updated successfully." });
   } catch (err: any) {

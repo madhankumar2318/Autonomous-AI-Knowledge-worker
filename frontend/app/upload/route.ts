@@ -12,14 +12,24 @@ import {
   MAX_UPLOAD_FILE_SIZE,
   sanitizeUploadFilename,
   saveUploadFile,
+  validateFileContent,
   verifyToken,
   type UploadRecord,
 } from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
+import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
+import { logAuditEvent } from "@/app/lib/audit-logger";
 
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
+
+    // CSRF verification on mutating request
+    const csrfCheck = verifyCsrf(req);
+    if (!csrfCheck.ok) {
+      return csrfErrorResponse(csrfCheck.reason);
+    }
+
     // Rate limit: 20 file uploads per 5 minutes per IP
     const rateLimit = checkRateLimit(`upload:${ip}`, 20, 5 * 60 * 1000);
     if (!rateLimit.allowed) {
@@ -61,7 +71,28 @@ export async function POST(req: Request) {
 
     const filename = sanitizeUploadFilename(rawFilename);
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    let buffer = Buffer.from(arrayBuffer);
+
+    // Deep content inspection: verify magic bytes, polyglot defense & CSV formula injection
+    const fileValidation = validateFileContent(buffer, filename);
+    if (!fileValidation.valid) {
+      logAuditEvent({
+        type: "MALICIOUS_FILE_BLOCKED",
+        severity: "CRITICAL",
+        username,
+        ip,
+        details: { filename, reason: fileValidation.error },
+      });
+      return NextResponse.json(
+        { message: fileValidation.error || "File content validation failed." },
+        { status: 400 }
+      );
+    }
+
+    // If CSV sanitization produced safe modified buffer, use it
+    if (fileValidation.sanitizedBuffer) {
+      buffer = Buffer.from(fileValidation.sanitizedBuffer);
+    }
 
     const isPdf =
       filename.toLowerCase().endsWith(".pdf") ||
@@ -112,6 +143,19 @@ export async function POST(req: Request) {
 
     saveUploadFile(uploadRecord, buffer);
 
+    logAuditEvent({
+      type: "FILE_UPLOADED",
+      severity: "INFO",
+      username,
+      ip,
+      details: {
+        filename,
+        size: file.size,
+        contentType: uploadRecord.contentType,
+        chunks,
+      },
+    });
+
     return NextResponse.json(
       {
         message: "File uploaded successfully",
@@ -149,6 +193,11 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+    const csrfCheck = verifyCsrf(req);
+    if (!csrfCheck.ok) {
+      return csrfErrorResponse(csrfCheck.reason);
+    }
+
     const username = verifyToken(getAuthToken(req));
     if (!username) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
@@ -161,7 +210,17 @@ export async function DELETE(req: Request) {
       filename = body.filename || "";
     }
     if (filename) {
-      deleteUploadFile(decodeURIComponent(filename));
+      const decodedFilename = decodeURIComponent(filename);
+      deleteUploadFile(decodedFilename);
+
+      logAuditEvent({
+        type: "FILE_DELETED",
+        severity: "INFO",
+        username,
+        ip: getClientIp(req),
+        details: { filename: decodedFilename },
+      });
+
       return NextResponse.json({
         success: true,
         message: `File ${filename} deleted successfully.`,

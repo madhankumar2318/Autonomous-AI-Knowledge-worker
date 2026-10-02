@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
+import { logAuditEvent } from "./audit-logger";
 
 // In-memory data store & helper functions for Next.js full-stack routes
 
@@ -563,6 +564,12 @@ function unescapePdfText(str: string): string {
     .replace(/\\\\/g, "\\");
 }
 
+export interface AccountAttemptRecord {
+  failedCount: number;
+  lockedUntil: number;
+  lastFailed: number;
+}
+
 // Global persistent in-memory storage (preserved across HMR / module reloads)
 const globalStore = globalThis as unknown as {
   __AKW_USERS__?: Map<string, UserRecord>;
@@ -570,7 +577,12 @@ const globalStore = globalThis as unknown as {
   __AKW_THREADS__?: Map<string, ChatThreadRecord>;
   __AKW_UPLOADS__?: Map<string, UploadRecord>;
   __AKW_BUFFERS__?: Map<string, Buffer>;
+  __AKW_ACCOUNT_ATTEMPTS__?: Map<string, AccountAttemptRecord>;
 };
+
+if (!globalStore.__AKW_ACCOUNT_ATTEMPTS__) {
+  globalStore.__AKW_ACCOUNT_ATTEMPTS__ = new Map<string, AccountAttemptRecord>();
+}
 
 if (!globalStore.__AKW_USERS__) {
   const users = new Map<string, UserRecord>();
@@ -791,6 +803,234 @@ export const settingsStore = globalStore.__AKW_SETTINGS__!;
 export const threadsStore = globalStore.__AKW_THREADS__!;
 export const uploadsStore = globalStore.__AKW_UPLOADS__!;
 export const buffersStore = globalStore.__AKW_BUFFERS__!;
+export const accountAttemptsStore = globalStore.__AKW_ACCOUNT_ATTEMPTS__!;
+
+// ── Account Lockout & Brute-Force Backoff ─────────────────────────────────────
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes window
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lock
+
+export function isAccountLocked(username: string): { locked: boolean; remainingSeconds: number } {
+  const normUser = username.trim().toLowerCase();
+  const attempt = accountAttemptsStore.get(normUser);
+  if (!attempt) return { locked: false, remainingSeconds: 0 };
+
+  const now = Date.now();
+  if (attempt.lockedUntil > now) {
+    const remainingSeconds = Math.ceil((attempt.lockedUntil - now) / 1000);
+    return { locked: true, remainingSeconds };
+  }
+
+  // Lock expired
+  if (attempt.lockedUntil > 0) {
+    attempt.failedCount = 0;
+    attempt.lockedUntil = 0;
+    accountAttemptsStore.set(normUser, attempt);
+  }
+
+  return { locked: false, remainingSeconds: 0 };
+}
+
+export function recordFailedLogin(
+  username: string,
+  ip: string
+): { locked: boolean; remainingSeconds: number; attempts: number } {
+  const normUser = username.trim().toLowerCase();
+  const now = Date.now();
+  let attempt = accountAttemptsStore.get(normUser);
+
+  if (!attempt) {
+    attempt = { failedCount: 0, lockedUntil: 0, lastFailed: 0 };
+  }
+
+  // Reset failure count if past the sliding window
+  if (now - attempt.lastFailed > LOCKOUT_WINDOW_MS && attempt.lockedUntil <= now) {
+    attempt.failedCount = 0;
+  }
+
+  attempt.failedCount += 1;
+  attempt.lastFailed = now;
+
+  let locked = false;
+  let remainingSeconds = 0;
+
+  if (attempt.failedCount >= MAX_FAILED_ATTEMPTS) {
+    attempt.lockedUntil = now + LOCKOUT_DURATION_MS;
+    locked = true;
+    remainingSeconds = Math.ceil(LOCKOUT_DURATION_MS / 1000);
+
+    logAuditEvent({
+      type: "ACCOUNT_LOCKED",
+      severity: "CRITICAL",
+      username: normUser,
+      ip,
+      details: {
+        failedAttempts: attempt.failedCount,
+        lockedForSeconds: remainingSeconds,
+      },
+    });
+  } else {
+    logAuditEvent({
+      type: "AUTH_LOGIN_FAILED",
+      severity: "WARN",
+      username: normUser,
+      ip,
+      details: {
+        failedAttempts: attempt.failedCount,
+        remainingAttemptsBeforeLock: MAX_FAILED_ATTEMPTS - attempt.failedCount,
+      },
+    });
+  }
+
+  accountAttemptsStore.set(normUser, attempt);
+  return { locked, remainingSeconds, attempts: attempt.failedCount };
+}
+
+export function recordSuccessfulLogin(username: string, ip: string): void {
+  const normUser = username.trim().toLowerCase();
+  accountAttemptsStore.delete(normUser);
+  logAuditEvent({
+    type: "AUTH_LOGIN_SUCCESS",
+    severity: "INFO",
+    username: normUser,
+    ip,
+    details: { message: "Authenticated successfully" },
+  });
+}
+
+// ── File Content Sanitization & Magic-Byte Inspection ─────────────────────────
+
+/**
+ * Sanitizes a single CSV / table cell value to prevent CSV Formula Injection (DDE Injection).
+ * Spreadsheet applications (Excel, Calc) execute formulas starting with =, +, -, @, \t, \r.
+ */
+export function sanitizeCsvCell(value: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  const dangerousPrefixes = ["=", "+", "-", "@", "\t", "\r"];
+  if (dangerousPrefixes.some((p) => trimmed.startsWith(p))) {
+    // Escape by prepending a single quote
+    return `'${value}`;
+  }
+  return value;
+}
+
+/**
+ * Sanitizes full CSV text to protect against formula injection and control characters.
+ */
+export function sanitizeCsvText(rawCsv: string): string {
+  if (!rawCsv) return "";
+  const lines = rawCsv.split(/\r?\n/);
+  const sanitizedLines = lines.map((line) => {
+    // If line starts with a formula trigger, neutralize it
+    const trimmed = line.trim();
+    if (/^[=+\-@\t\r]/.test(trimmed)) {
+      return `'${line}`;
+    }
+    // Also sanitize comma-separated cells if line contains commas
+    return line
+      .split(",")
+      .map((cell) => sanitizeCsvCell(cell))
+      .join(",");
+  });
+  return sanitizedLines.join("\n");
+}
+
+export interface FileValidationResult {
+  valid: boolean;
+  error?: string;
+  sanitizedBuffer?: Buffer;
+  sanitizedText?: string;
+}
+
+/**
+ * Validates file magic bytes and inspects content to prevent polyglot attacks and malicious uploads.
+ */
+export function validateFileContent(buffer: Buffer, filename: string): FileValidationResult {
+  if (!buffer || buffer.length === 0) {
+    return { valid: false, error: "Uploaded file is empty." };
+  }
+
+  const ext = path.extname(filename).toLowerCase();
+
+  // 1. PDF Validation: Must start with %PDF
+  if (ext === ".pdf") {
+    const header = buffer.subarray(0, 5).toString("latin1");
+    if (!header.startsWith("%PDF")) {
+      return {
+        valid: false,
+        error: "Invalid PDF file structure. File signature does not match PDF format.",
+      };
+    }
+    return { valid: true };
+  }
+
+  // 2. DOCX & XLSX Validation: Must start with ZIP header PK (0x50, 0x4B)
+  if (ext === ".docx" || ext === ".xlsx") {
+    if (buffer.length < 4 || buffer[0] !== 0x50 || buffer[1] !== 0x4b) {
+      return {
+        valid: false,
+        error: `Invalid Office document signature. Expected ZIP container format for ${ext}.`,
+      };
+    }
+    return { valid: true };
+  }
+
+  // 3. JSON Validation: Must parse as JSON
+  if (ext === ".json") {
+    try {
+      const text = buffer.toString("utf-8");
+      JSON.parse(text);
+      return { valid: true };
+    } catch {
+      return { valid: false, error: "Invalid JSON format. Malformed JSON payload." };
+    }
+  }
+
+  // 4. Text & Markdown Validation: Ensure no binary null-bytes and no malicious script injection
+  if (ext === ".txt" || ext === ".md") {
+    // Check for null bytes indicating disguised binary executable
+    for (let i = 0; i < Math.min(buffer.length, 1024); i++) {
+      if (buffer[i] === 0x00) {
+        return {
+          valid: false,
+          error: "Binary file disguised as text document detected. Upload rejected.",
+        };
+      }
+    }
+    const text = buffer.toString("utf-8");
+    // Disallow executable polyglot tags in text uploads
+    if (/<script\b|<iframe\b|javascript:|vbscript:/i.test(text)) {
+      return {
+        valid: false,
+        error: "Potential script injection detected in document content.",
+      };
+    }
+    return { valid: true };
+  }
+
+  // 5. CSV Validation & Formula Injection Sanitization
+  if (ext === ".csv") {
+    // Check for null bytes
+    for (let i = 0; i < Math.min(buffer.length, 1024); i++) {
+      if (buffer[i] === 0x00) {
+        return {
+          valid: false,
+          error: "Binary file disguised as CSV detected. Upload rejected.",
+        };
+      }
+    }
+    const text = buffer.toString("utf-8");
+    const sanitized = sanitizeCsvText(text);
+    return {
+      valid: true,
+      sanitizedBuffer: Buffer.from(sanitized, "utf-8"),
+      sanitizedText: sanitized,
+    };
+  }
+
+  return { valid: true };
+}
 
 export const MAX_UPLOAD_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 

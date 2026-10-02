@@ -75,7 +75,10 @@ function getUserThreadsKey(username: string): string {
 }
 
 const getChatAuthHeaders = (): Record<string, string> => {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    "X-Requested-With": "XMLHttpRequest",
+    "X-AKW-CSRF": "1",
+  };
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("ak_token");
     if (token) {

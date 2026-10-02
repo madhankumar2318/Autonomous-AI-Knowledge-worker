@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
-import { usersStore, generateToken, hashPassword, verifyPassword } from "@/app/lib/store";
+import {
+  usersStore,
+  generateToken,
+  hashPassword,
+  verifyPassword,
+  isAccountLocked,
+  recordFailedLogin,
+  recordSuccessfulLogin,
+} from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(req: Request) {
@@ -10,7 +18,7 @@ export async function POST(req: Request) {
     if (!rateLimit.allowed) {
       return NextResponse.json(
         {
-          message: `Too many login attempts. Please try again in ${rateLimit.retryAfterSeconds} seconds.`,
+          message: `Too many login attempts from this IP. Please try again in ${rateLimit.retryAfterSeconds} seconds.`,
         },
         {
           status: 429,
@@ -32,6 +40,23 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check account lockout status (Brute-Force defense by username)
+    const lockStatus = isAccountLocked(username);
+    if (lockStatus.locked) {
+      return NextResponse.json(
+        {
+          message: `Account is temporarily locked due to multiple failed login attempts. Please try again in ${Math.ceil(lockStatus.remainingSeconds / 60)} minutes (${lockStatus.remainingSeconds}s).`,
+          error: "ACCOUNT_LOCKED",
+        },
+        {
+          status: 423, // Locked
+          headers: {
+            "Retry-After": String(lockStatus.remainingSeconds),
+          },
+        }
+      );
+    }
+
     // Check existing user or allow configured admin login
     const user = usersStore.get(username);
     const isAdmin = username.toLowerCase() === "admin";
@@ -44,11 +69,32 @@ export async function POST(req: Request) {
     }
 
     if (!isPasswordValid) {
+      const failureRecord = recordFailedLogin(username, ip);
+      if (failureRecord.locked) {
+        return NextResponse.json(
+          {
+            message: `Account has been locked for 15 minutes due to 5 consecutive failed attempts.`,
+            error: "ACCOUNT_LOCKED",
+          },
+          {
+            status: 423,
+            headers: {
+              "Retry-After": String(failureRecord.remainingSeconds),
+            },
+          }
+        );
+      }
+      const attemptsLeft = 5 - failureRecord.attempts;
       return NextResponse.json(
-        { message: "Invalid username or password." },
+        {
+          message: `Invalid username or password. ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} remaining before temporary account lockout.`,
+        },
         { status: 401 }
       );
     }
+
+    // Successful login: reset attempts and record audit event
+    recordSuccessfulLogin(username, ip);
 
     // Upgrade plaintext legacy password to salted scrypt hash
     if (user && !user.passwordHash.startsWith("scrypt:")) {

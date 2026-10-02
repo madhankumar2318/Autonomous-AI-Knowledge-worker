@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthToken, threadsStore, verifyToken } from "@/app/lib/store";
+import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -39,6 +40,11 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const csrfCheck = verifyCsrf(req);
+  if (!csrfCheck.ok) {
+    return csrfErrorResponse(csrfCheck.reason);
+  }
+
   const username = verifyToken(getAuthToken(req));
   if (!username) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });

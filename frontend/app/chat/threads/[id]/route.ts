@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { getAuthToken, threadsStore, verifyToken } from "@/app/lib/store";
+import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
+import { logAuditEvent } from "@/app/lib/audit-logger";
+import { getClientIp } from "@/app/lib/rate-limiter";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const csrfCheck = verifyCsrf(req);
+  if (!csrfCheck.ok) {
+    return csrfErrorResponse(csrfCheck.reason);
+  }
+
   const username = verifyToken(getAuthToken(req));
   if (!username) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
@@ -39,6 +47,11 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const csrfCheck = verifyCsrf(req);
+  if (!csrfCheck.ok) {
+    return csrfErrorResponse(csrfCheck.reason);
+  }
+
   const username = verifyToken(getAuthToken(req));
   if (!username) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
@@ -51,5 +64,14 @@ export async function DELETE(
   }
 
   threadsStore.delete(id);
+
+  logAuditEvent({
+    type: "THREAD_DELETED",
+    severity: "INFO",
+    username,
+    ip: getClientIp(req),
+    details: { threadId: id },
+  });
+
   return NextResponse.json({ message: "Thread deleted successfully" });
 }

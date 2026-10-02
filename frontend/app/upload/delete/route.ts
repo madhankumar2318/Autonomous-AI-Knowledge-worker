@@ -2,9 +2,17 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { deleteUploadFile, getAuthToken, verifyToken } from "@/app/lib/store";
+import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
+import { logAuditEvent } from "@/app/lib/audit-logger";
+import { getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(req: Request) {
   try {
+    const csrfCheck = verifyCsrf(req);
+    if (!csrfCheck.ok) {
+      return csrfErrorResponse(csrfCheck.reason);
+    }
+
     const username = verifyToken(getAuthToken(req));
     if (!username) {
       return NextResponse.json(
@@ -35,7 +43,16 @@ export async function POST(req: Request) {
       );
     }
 
-    deleteUploadFile(decodeURIComponent(filename));
+    const decodedFilename = decodeURIComponent(filename);
+    deleteUploadFile(decodedFilename);
+
+    logAuditEvent({
+      type: "FILE_DELETED",
+      severity: "INFO",
+      username,
+      ip: getClientIp(req),
+      details: { filename: decodedFilename },
+    });
 
     return NextResponse.json({
       success: true,
