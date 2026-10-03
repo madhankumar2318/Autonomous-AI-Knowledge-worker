@@ -22,6 +22,11 @@ public class CorsConfig {
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
+                .flatMap(s -> {
+                    String clean = s.replaceAll("/+$", "");
+                    return java.util.stream.Stream.of(clean, clean + "/");
+                })
+                .distinct()
                 .toList();
 
         configuration.setAllowedOrigins(origins);

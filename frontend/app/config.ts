@@ -6,6 +6,5 @@ const rawUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   "";
 
-export const API_BASE_URL =
-  rawUrl && !rawUrl.includes("onrender.com") ? rawUrl.replace(/\/+$/, "") : "";
+export const API_BASE_URL = rawUrl ? rawUrl.trim().replace(/\/+$/, "") : "";
 
