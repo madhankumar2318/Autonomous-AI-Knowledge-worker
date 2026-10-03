@@ -44,6 +44,9 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest req) {
         String username = req.getUsername() != null ? req.getUsername().trim() : "";
+        if (username.length() < 3 || username.length() > 50) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username must be between 3 and 50 characters");
+        }
         if ("admin".equalsIgnoreCase(username) || "administrator".equalsIgnoreCase(username) || "root".equalsIgnoreCase(username)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username is reserved");
         }
@@ -53,11 +56,11 @@ public class AuthService {
         }
 
         User user = User.builder()
-                .username(req.getUsername())
+                .username(username)
                 .password(passwordEncoder.encode(req.getPassword()))
-                .name(req.getName())
-                .email(req.getEmail())
-                .mobile(req.getMobile())
+                .name(xssSanitizer.sanitizePlainText(req.getName(), 100))
+                .email(xssSanitizer.sanitizePlainText(req.getEmail(), 150))
+                .mobile(xssSanitizer.sanitizePlainText(req.getMobile(), 30))
                 .failedLoginAttempts(0)
                 .accountLocked(false)
                 .lockoutExpiry(null)
@@ -445,5 +448,8 @@ public class AuthService {
         user.setAccountLocked(false);
         user.setLockoutExpiry(null);
         userRepository.save(user);
+
+        // Invalidate all previously issued refresh tokens for this user across all sessions
+        refreshTokenRepository.deleteByUsername(username);
     }
 }
