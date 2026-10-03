@@ -110,6 +110,7 @@ export async function POST(req: Request) {
       mobile: "+1 555-0199",
       role: isAdmin ? "ADMIN" : "USER",
       passwordHash: hashPassword(password),
+      tokenVersion: 1,
     };
 
     if (!user) {

@@ -1,7 +1,8 @@
 server:
   port: ${PORT:8080}
   error:
-    include-message: always
+    include-message: ${SERVER_ERROR_INCLUDE_MESSAGE:never}
+    include-stacktrace: never
 
 spring:
   application:

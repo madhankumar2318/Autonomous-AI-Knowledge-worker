@@ -53,6 +53,7 @@ export async function POST(req: Request) {
       mobile,
       role: "USER",
       passwordHash: hashPassword(password),
+      tokenVersion: 1,
     };
 
     usersStore.set(username, newUser);

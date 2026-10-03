@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { verifyToken, usersStore, hashPassword, getAuthToken } from "@/app/lib/store";
+import {
+  verifyToken,
+  usersStore,
+  hashPassword,
+  getAuthToken,
+  invalidateUserTokens,
+  generateToken,
+} from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 import { logAuditEvent } from "@/app/lib/audit-logger";
@@ -42,15 +49,34 @@ export async function PUT(req: Request) {
       usersStore.set(username, user);
     }
 
+    // Invalidate all previously issued tokens for this account across all devices
+    invalidateUserTokens(username);
+    const freshToken = generateToken(username);
+
     logAuditEvent({
       type: "PASSWORD_CHANGED",
       severity: "INFO",
       username,
       ip,
-      details: { message: "User password updated successfully" },
+      details: { message: "User password updated successfully and previous session tokens invalidated" },
     });
 
-    return NextResponse.json({ message: "Password updated successfully." });
+    const isProd = process.env.NODE_ENV === "production";
+    const response = NextResponse.json({
+      message: "Password updated successfully. Other sessions invalidated.",
+      access_token: freshToken,
+      token: freshToken,
+    });
+
+    response.cookies.set("ak_token", freshToken, {
+      path: "/",
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 86400 * 7,
+    });
+
+    return response;
   } catch (err: any) {
     return NextResponse.json({ message: err?.message || "Failed to update password." }, { status: 500 });
   }

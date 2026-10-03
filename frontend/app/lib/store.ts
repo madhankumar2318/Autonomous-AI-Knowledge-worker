@@ -16,6 +16,7 @@ export interface UserRecord {
   email: string;
   mobile: string;
   role: string;
+  tokenVersion?: number;
 }
 
 export interface UserSettingRecord {
@@ -594,6 +595,7 @@ if (!globalStore.__AKW_USERS__) {
     email: "admin@knowledge-worker.local",
     mobile: "+1 555-0199",
     role: "ADMIN",
+    tokenVersion: 1,
   });
   globalStore.__AKW_USERS__ = users;
 }
@@ -785,7 +787,61 @@ export function syncUploadsFromDisk(): Map<string, UploadRecord> {
     } catch (_e) {}
   }
 
+  // Run automatic storage cleanup on startup to purge abandoned temporary files
+  try {
+    cleanupOldTemporaryUploads();
+  } catch (_e) {}
+
   return uploads;
+}
+
+/**
+ * Automatically cleans up abandoned temporary uploads, test probe files,
+ * and unindexed files older than 30 days to prevent disk exhaustion.
+ */
+export function cleanupOldTemporaryUploads(): { deletedCount: number; freedBytes: number } {
+  const dirs = getStorageDirs();
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  let deletedCount = 0;
+  let freedBytes = 0;
+
+  for (const dir of dirs) {
+    try {
+      if (!fs.existsSync(dir)) continue;
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        // 1. Clean up stray test probe files immediately
+        if (file.startsWith(".akw_test_")) {
+          try {
+            const p = path.join(dir, file);
+            fs.unlinkSync(p);
+            deletedCount++;
+          } catch {}
+          continue;
+        }
+
+        // 2. Protect index files and active uploaded documents in store
+        if (file === "uploads_index.json" || file.endsWith(".json")) continue;
+        if (uploadsStore && (uploadsStore.has(file) || uploadsStore.has(decodeURIComponent(file)))) {
+          continue;
+        }
+
+        // 3. Purge orphaned or temporary uploads older than 30 days
+        try {
+          const filePath = path.join(dir, file);
+          const stat = fs.statSync(filePath);
+          if (now - stat.mtimeMs > thirtyDaysMs) {
+            fs.unlinkSync(filePath);
+            deletedCount++;
+            freedBytes += stat.size;
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  return { deletedCount, freedBytes };
 }
 
 if (!globalStore.__AKW_UPLOADS__) {
@@ -1304,9 +1360,14 @@ if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
 
 
 export function generateToken(username: string): string {
+  const normUser = username.trim().toLowerCase();
+  const user = usersStore.get(normUser) || usersStore.get(username);
+  const tokenVersion = user?.tokenVersion ?? 1;
+
   const header = { alg: "HS256", typ: "JWT" };
   const payload = {
     sub: username,
+    ver: tokenVersion,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 86400 * 7,
   };
@@ -1317,6 +1378,16 @@ export function generateToken(username: string): string {
     .update(`${encHeader}.${encPayload}`)
     .digest("base64url");
   return `${encHeader}.${encPayload}.${signature}`;
+}
+
+export function invalidateUserTokens(username: string): void {
+  const normUser = username.trim().toLowerCase();
+  const user = usersStore.get(normUser) || usersStore.get(username);
+  if (user) {
+    user.tokenVersion = (user.tokenVersion || 1) + 1;
+    usersStore.set(user.username, user);
+    usersStore.set(normUser, user);
+  }
 }
 
 export function verifyToken(token: string | null): string | null {
@@ -1345,6 +1416,13 @@ export function verifyToken(token: string | null): string | null {
           return null; // Expired
         }
         if (payload.sub && typeof payload.sub === "string") {
+          // Token rotation / revocation check: verify version if present
+          const user = usersStore.get(payload.sub.toLowerCase()) || usersStore.get(payload.sub);
+          if (user && user.tokenVersion !== undefined && payload.ver !== undefined) {
+            if (payload.ver !== user.tokenVersion) {
+              return null; // Token revoked
+            }
+          }
           return payload.sub;
         }
       }

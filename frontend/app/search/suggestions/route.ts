@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function GET(req: Request) {
+  // Rate limit: 120 suggestion requests per minute per IP
+  const ip = getClientIp(req);
+  const rateLimit = checkRateLimit(`search_suggestions:${ip}`, 120, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { message: `Too many suggestions requests. Please wait ${rateLimit.retryAfterSeconds} seconds.` },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } }
+    );
+  }
+
   const url = new URL(req.url);
-  const q = (url.searchParams.get("q") || "").toLowerCase().trim();
+  // Cap query length to 100 chars to prevent DoS via oversized payload
+  const rawQ = url.searchParams.get("q") || "";
+  const q = rawQ.slice(0, 100).toLowerCase().trim();
 
   const allSuggestions = [
     "NVDA earnings forecast & AI roadmap",
