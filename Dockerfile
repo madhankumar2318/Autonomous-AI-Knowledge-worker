@@ -12,10 +12,20 @@ RUN mvn clean package -DskipTests
 
 # ── Stage 2: Minimal Production JRE Runtime ──
 FROM eclipse-temurin:17-jre-alpine
+
+# Security: Create non-root system group and user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
 WORKDIR /app
 
-# Copy the built jar
-COPY --from=build /app/target/*.jar app.jar
+# Ensure uploads and app directories exist with correct permissions
+RUN mkdir -p /app/uploads && chown -R appuser:appgroup /app
+
+# Copy the built jar with appuser ownership
+COPY --from=build --chown=appuser:appgroup /app/target/*.jar app.jar
+
+# Switch to non-root user
+USER appuser
 
 # Dynamic port for Render
 ENV PORT=8080

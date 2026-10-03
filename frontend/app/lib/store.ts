@@ -603,12 +603,13 @@ export function syncUsersFromDisk(): Map<string, UserRecord> {
   }
   const users = globalStore.__AKW_USERS__;
 
-  // 1. Ensure default admin is always seeded
+  // 1. Ensure default admin is always seeded with salted scrypt hash
   if (!users.has("admin")) {
+    const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD || "Sk_uyir18";
     users.set("admin", {
       id: "admin-1",
       username: "admin",
-      passwordHash: "Sk_uyir18", // Accepts Sk_uyir18, password, admin123
+      passwordHash: hashPassword(initialAdminPassword),
       name: "Administrator",
       email: "admin@knowledge-worker.local",
       mobile: "+1 555-0199",

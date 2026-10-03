@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { deleteUploadFile, getAuthToken, verifyToken } from "@/app/lib/store";
+import { deleteUploadFile, getAuthToken, uploadsStore, verifyToken } from "@/app/lib/store";
 import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 import { logAuditEvent } from "@/app/lib/audit-logger";
 import { getClientIp } from "@/app/lib/rate-limiter";
@@ -44,6 +44,14 @@ export async function POST(req: Request) {
     }
 
     const decodedFilename = decodeURIComponent(filename);
+    const doc = uploadsStore.get(decodedFilename);
+    if (doc && doc.username && doc.username !== username && username !== "admin") {
+      return NextResponse.json(
+        { success: false, message: "Forbidden. You do not have permission to delete this file." },
+        { status: 403 }
+      );
+    }
+
     deleteUploadFile(decodedFilename);
 
     logAuditEvent({

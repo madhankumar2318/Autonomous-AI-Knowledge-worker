@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import {
   cleanPdfTextFormatting,
   extractPdfText,
+  getAuthToken,
   getUploadBuffer,
   getUploadRecord,
   saveUploadFile,
   syncUploadsFromDisk,
   threadsStore,
   uploadsStore,
+  verifyToken,
 } from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
@@ -528,6 +530,7 @@ export async function POST(req: Request) {
     );
   }
 
+  const username = verifyToken(getAuthToken(req));
   const body = await req.json().catch(() => ({}));
   const userMessage = (body.message || "").slice(0, 10000); // Cap input to 10,000 chars (OWASP LLM04)
   const threadId = body.thread_id;
@@ -543,10 +546,13 @@ export async function POST(req: Request) {
   // Sync uploads from disk to ensure in-memory store is hydrated
   syncUploadsFromDisk();
 
-  // Store user message if thread exists
+  // Store user message if thread exists and verify thread ownership (Tenant Isolation)
   if (threadId) {
     const thread = threadsStore.get(threadId);
     if (thread) {
+      if (thread.username && thread.username !== username && username !== "admin") {
+        return NextResponse.json({ message: "Forbidden. Access denied to this thread." }, { status: 403 });
+      }
       thread.messages.push({
         id: "msg-" + Date.now(),
         role: "user",
@@ -566,11 +572,22 @@ export async function POST(req: Request) {
 
   if (targetFilename) {
     const existing = getUploadRecord(targetFilename);
-    if (existing) targetFilename = existing.filename;
+    if (existing) {
+      // Tenant check: file must be accessible to requesting user
+      if (existing.username && existing.username !== username && username !== "admin") {
+        targetFilename = null; // Deny cross-tenant document access
+      } else {
+        targetFilename = existing.filename;
+      }
+    }
   }
 
-  if (!targetFilename && uploadsStore.size > 0) {
-    const uploadList = Array.from(uploadsStore.values());
+  // Candidate uploads strictly filtered to current user (admin sees all)
+  const uploadList = Array.from(uploadsStore.values()).filter(
+    (u) => !u.username || (username && (u.username === username || username === "admin"))
+  );
+
+  if (!targetFilename && uploadList.length > 0) {
     const lowerMsg = userMessage.toLowerCase();
     const normMsg = norm(userMessage);
 
@@ -864,7 +881,7 @@ Rules for Answering Document Inquiries:
         // Save assistant message to thread
         if (threadId && generatedText) {
           const thread = threadsStore.get(threadId);
-          if (thread) {
+          if (thread && (!thread.username || thread.username === username || username === "admin")) {
             thread.messages.push({
               id: "msg-" + Date.now(),
               role: "assistant",

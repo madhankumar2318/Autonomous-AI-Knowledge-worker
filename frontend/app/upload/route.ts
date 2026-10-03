@@ -12,6 +12,7 @@ import {
   MAX_UPLOAD_FILE_SIZE,
   sanitizeUploadFilename,
   saveUploadFile,
+  uploadsStore,
   validateFileContent,
   verifyToken,
   type UploadRecord,
@@ -70,6 +71,23 @@ export async function POST(req: Request) {
     }
 
     const filename = sanitizeUploadFilename(rawFilename);
+
+    // Prevent cross-tenant file overwrite
+    const existingDoc = uploadsStore.get(filename);
+    if (existingDoc && existingDoc.username && existingDoc.username !== username && username !== "admin") {
+      logAuditEvent({
+        type: "UNAUTHORIZED_ACCESS",
+        severity: "WARN",
+        username,
+        ip,
+        details: { action: "blocked_file_overwrite", filename },
+      });
+      return NextResponse.json(
+        { message: `A document named '${filename}' already exists and is owned by another user.` },
+        { status: 409 }
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     let buffer = Buffer.from(arrayBuffer);
 
@@ -211,6 +229,14 @@ export async function DELETE(req: Request) {
     }
     if (filename) {
       const decodedFilename = decodeURIComponent(filename);
+      const doc = uploadsStore.get(decodedFilename);
+      if (doc && doc.username && doc.username !== username && username !== "admin") {
+        return NextResponse.json(
+          { message: "Forbidden. You do not have permission to delete this file." },
+          { status: 403 }
+        );
+      }
+
       deleteUploadFile(decodedFilename);
 
       logAuditEvent({

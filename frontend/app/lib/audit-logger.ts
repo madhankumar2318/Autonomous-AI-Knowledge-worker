@@ -3,6 +3,7 @@
 export type AuditEventType =
   | "AUTH_LOGIN_SUCCESS"
   | "AUTH_LOGIN_FAILED"
+  | "AUTH_LOGOUT"
   | "ACCOUNT_LOCKED"
   | "PASSWORD_CHANGED"
   | "FILE_UPLOADED"
@@ -10,7 +11,8 @@ export type AuditEventType =
   | "THREAD_DELETED"
   | "RATE_LIMIT_TRIGGERED"
   | "CSRF_BLOCKED"
-  | "MALICIOUS_FILE_BLOCKED";
+  | "MALICIOUS_FILE_BLOCKED"
+  | "UNAUTHORIZED_ACCESS";
 
 export interface AuditEvent {
   id: string;

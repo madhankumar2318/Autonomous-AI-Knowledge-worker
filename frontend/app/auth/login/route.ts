@@ -57,15 +57,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check existing user or allow configured admin login
-    const user = usersStore.get(username);
+    // Look up user from registry (admin is seeded with hashed password)
+    const user = usersStore.get(username) || usersStore.get(username.toLowerCase());
     const isAdmin = username.toLowerCase() === "admin";
 
     let isPasswordValid = false;
     if (user) {
       isPasswordValid = verifyPassword(password, user.passwordHash);
-    } else if (isAdmin) {
-      isPasswordValid = password === "Sk_uyir18" || password === "Sk_uyir1823" || password === "admin123";
     }
 
     if (!isPasswordValid) {

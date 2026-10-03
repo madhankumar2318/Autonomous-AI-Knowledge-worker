@@ -1,6 +1,7 @@
 package com.knowledge.worker.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -20,6 +21,9 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
     private final CorsConfigurationSource corsConfigurationSource;
+
+    @Value("${spring.h2.console.enabled:false}")
+    private boolean h2ConsoleEnabled;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -65,7 +69,8 @@ public class SecurityConfig {
                         .permissionsPolicy(permissions -> permissions
                                 .policy("camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"))
                 )
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> {
+                    auth
                         // CORS pre-flight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
@@ -76,10 +81,18 @@ public class SecurityConfig {
                         .requestMatchers("/auth/login", "/auth/register", "/auth/refresh", "/auth/verify").permitAll()
 
                         // Public Market feeds & News
-                        .requestMatchers("/news/**", "/stock/**", "/search/**").permitAll()
+                        .requestMatchers("/news/**", "/stock/**", "/search/**").permitAll();
 
-                        // Dev tools & API docs
-                        .requestMatchers("/h2-console/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                    // Dev database console: strictly blocked unless spring.h2.console.enabled is explicitly true
+                    if (h2ConsoleEnabled) {
+                        auth.requestMatchers("/h2-console/**").permitAll();
+                    } else {
+                        auth.requestMatchers("/h2-console/**").denyAll();
+                    }
+
+                    auth
+                        // API documentation
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
 
                         // Protected Workspace & User Resources
                         .requestMatchers("/auth/profile", "/auth/password", "/auth/logout", "/auth/unlock/**").authenticated()
@@ -89,8 +102,8 @@ public class SecurityConfig {
                         .requestMatchers("/audit/**").authenticated()
 
                         // All other endpoints require authentication by default
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated();
+                })
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

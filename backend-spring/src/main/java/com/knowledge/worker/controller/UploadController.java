@@ -349,8 +349,12 @@ public class UploadController {
                     else if (lower.endsWith(".xls")) contentType = "application/vnd.ms-excel";
                     else contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
                 }
+                boolean isPdf = sanitizedName.toLowerCase().endsWith(".pdf");
+                String disposition = isPdf ? "inline; filename=\"" + resource.getFilename() + "\""
+                                           : "attachment; filename=\"" + resource.getFilename() + "\"";
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + resource.getFilename() + "\"")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, disposition)
+                        .header("X-Content-Type-Options", "nosniff")
                         .contentType(MediaType.parseMediaType(contentType))
                         .body(resource);
             }
@@ -458,11 +462,12 @@ public class UploadController {
         String sanitizedName = targetPath.getFileName().toString();
 
         Upload upload = uploadRepository.findByFilename(sanitizedName).orElse(null);
-        if (upload != null) {
-            User user = getCurrentUser(authentication);
-            if (!isAuthorizedForFile(upload, user, authentication)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to edit this file");
-            }
+        if (upload == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found: " + sanitizedName);
+        }
+        User user = getCurrentUser(authentication);
+        if (!isAuthorizedForFile(upload, user, authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to edit this file");
         }
 
         String newContent = body.getOrDefault("content", "");

@@ -3,6 +3,7 @@ import {
   getAuthToken,
   sanitizeCsvText,
   sanitizeUploadFilename,
+  saveUploadFile,
   uploadsStore,
   verifyToken,
 } from "@/app/lib/store";
@@ -46,6 +47,7 @@ export async function POST(
     doc.content = contentToSave;
     doc.size = Buffer.byteLength(contentToSave, "utf-8");
     uploadsStore.set(filename, doc);
+    saveUploadFile(doc, Buffer.from(contentToSave, "utf-8"));
 
     logAuditEvent({
       type: "FILE_UPLOADED",

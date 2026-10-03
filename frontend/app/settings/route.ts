@@ -41,13 +41,26 @@ export async function PUT(req: Request) {
       chunkOverlap: 100,
     };
 
+    const rawTemp = body.temperature !== undefined ? Number(body.temperature) : current.temperature;
+    const temperature = Number.isFinite(rawTemp) ? Math.max(0.0, Math.min(1.0, rawTemp)) : 0.2;
+
+    const rawChunkSize = body.chunkSize !== undefined ? Number(body.chunkSize) : current.chunkSize;
+    const chunkSize = Number.isFinite(rawChunkSize) ? Math.max(100, Math.min(4000, Math.round(rawChunkSize))) : 800;
+
+    const maxOverlap = Math.floor(chunkSize / 2);
+    const rawOverlap = body.chunkOverlap !== undefined ? Number(body.chunkOverlap) : current.chunkOverlap;
+    const chunkOverlap = Number.isFinite(rawOverlap) ? Math.max(0, Math.min(maxOverlap, Math.round(rawOverlap))) : 100;
+
+    const systemPrompt = body.systemPrompt !== undefined ? String(body.systemPrompt).slice(0, 2000) : current.systemPrompt;
+    const defaultModel = body.defaultModel ? String(body.defaultModel).slice(0, 100) : current.defaultModel;
+
     const updated = {
       ...current,
-      ...(body.defaultModel ? { defaultModel: body.defaultModel } : {}),
-      ...(body.temperature !== undefined ? { temperature: Number(body.temperature) } : {}),
-      ...(body.systemPrompt !== undefined ? { systemPrompt: body.systemPrompt } : {}),
-      ...(body.chunkSize !== undefined ? { chunkSize: Number(body.chunkSize) } : {}),
-      ...(body.chunkOverlap !== undefined ? { chunkOverlap: Number(body.chunkOverlap) } : {}),
+      defaultModel,
+      temperature,
+      systemPrompt,
+      chunkSize,
+      chunkOverlap,
     };
 
     settingsStore.set(username, updated);
