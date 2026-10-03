@@ -21,7 +21,12 @@ export async function GET(req: Request) {
   // Sync all persistent records and disk files
   syncUploadsFromDisk();
 
-  const list = Array.from(uploadsStore.values()).map((f, idx) => ({
+  // Tenant isolation: non-admin users only see their own files; admin sees all
+  const filteredUploads = Array.from(uploadsStore.values()).filter(
+    (f) => username === "admin" || !f.username || f.username === username
+  );
+
+  const list = filteredUploads.map((f, idx) => ({
     id: idx + 1,
     filename: f.filename,
     original_name: f.originalName,

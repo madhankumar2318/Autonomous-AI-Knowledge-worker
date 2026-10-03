@@ -50,6 +50,11 @@ export async function GET(
     return NextResponse.json({ message: "File not found" }, { status: 404 });
   }
 
+  // IDOR / Tenant isolation check: Non-admin users can only view their own document content
+  if (doc.username && doc.username !== username && username !== "admin") {
+    return NextResponse.json({ message: "Forbidden. Access denied." }, { status: 403 });
+  }
+
   return NextResponse.json(
     {
       content: doc.content || "",

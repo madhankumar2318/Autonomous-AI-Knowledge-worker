@@ -6,6 +6,7 @@ import {
   getAuthToken,
   invalidateUserTokens,
   generateToken,
+  saveUsersToDisk,
 } from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
@@ -47,6 +48,7 @@ export async function PUT(req: Request) {
     if (user) {
       user.passwordHash = hashPassword(newPassword);
       usersStore.set(username, user);
+      saveUsersToDisk();
     }
 
     // Invalidate all previously issued tokens for this account across all devices

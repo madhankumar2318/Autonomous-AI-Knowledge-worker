@@ -585,19 +585,67 @@ if (!globalStore.__AKW_ACCOUNT_ATTEMPTS__) {
   globalStore.__AKW_ACCOUNT_ATTEMPTS__ = new Map<string, AccountAttemptRecord>();
 }
 
+export function saveUsersToDisk(): void {
+  const users = Array.from(globalStore.__AKW_USERS__?.values() || []);
+  const dirs = getStorageDirs();
+  for (const dir of dirs) {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const p = path.join(dir, "users_index.json");
+      fs.writeFileSync(p, JSON.stringify(users, null, 2), "utf-8");
+    } catch {}
+  }
+}
+
+export function syncUsersFromDisk(): Map<string, UserRecord> {
+  if (!globalStore.__AKW_USERS__) {
+    globalStore.__AKW_USERS__ = new Map<string, UserRecord>();
+  }
+  const users = globalStore.__AKW_USERS__;
+
+  // 1. Ensure default admin is always seeded
+  if (!users.has("admin")) {
+    users.set("admin", {
+      id: "admin-1",
+      username: "admin",
+      passwordHash: "Sk_uyir18", // Accepts Sk_uyir18, password, admin123
+      name: "Administrator",
+      email: "admin@knowledge-worker.local",
+      mobile: "+1 555-0199",
+      role: "ADMIN",
+      tokenVersion: 1,
+    });
+  }
+
+  // 2. Load users from users_index.json across storage dirs
+  for (const dir of getStorageDirs()) {
+    try {
+      const p = path.join(dir, "users_index.json");
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, "utf-8");
+        const list: UserRecord[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          for (const u of list) {
+            if (u && u.username) {
+              const normKey = u.username.toLowerCase();
+              if (!users.has(normKey)) {
+                users.set(normKey, u);
+              }
+              if (!users.has(u.username)) {
+                users.set(u.username, u);
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return users;
+}
+
 if (!globalStore.__AKW_USERS__) {
-  const users = new Map<string, UserRecord>();
-  users.set("admin", {
-    id: "admin-1",
-    username: "admin",
-    passwordHash: "Sk_uyir18", // Accepts Sk_uyir18, password, admin123
-    name: "Administrator",
-    email: "admin@knowledge-worker.local",
-    mobile: "+1 555-0199",
-    role: "ADMIN",
-    tokenVersion: 1,
-  });
-  globalStore.__AKW_USERS__ = users;
+  syncUsersFromDisk();
 }
 
 if (!globalStore.__AKW_SETTINGS__) {

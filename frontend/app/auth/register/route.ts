@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { usersStore, generateToken, hashPassword } from "@/app/lib/store";
+import { usersStore, generateToken, hashPassword, saveUsersToDisk } from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(req: Request) {
@@ -57,6 +57,7 @@ export async function POST(req: Request) {
     };
 
     usersStore.set(username, newUser);
+    saveUsersToDisk();
     const token = generateToken(username);
 
     const response = NextResponse.json({

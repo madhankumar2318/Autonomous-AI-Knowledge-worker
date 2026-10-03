@@ -9,11 +9,19 @@ import {
   uploadsStore,
   verifyToken,
 } from "@/app/lib/store";
+import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
+import { logAuditEvent } from "@/app/lib/audit-logger";
+import { getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ filename: string }> }
 ) {
+  const csrfCheck = verifyCsrf(req);
+  if (!csrfCheck.ok) {
+    return csrfErrorResponse(csrfCheck.reason);
+  }
+
   const username = verifyToken(getAuthToken(req));
   if (!username) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
@@ -23,6 +31,15 @@ export async function POST(
   const filename = sanitizeUploadFilename(decodeURIComponent(rawFilename));
 
   let doc = uploadsStore.get(filename);
+
+  // IDOR / Tenant isolation check: Non-admin users can only re-index their own files
+  if (doc && doc.username && doc.username !== username && username !== "admin") {
+    return NextResponse.json(
+      { message: "Forbidden. Access denied to requested document." },
+      { status: 403 }
+    );
+  }
+
   const buffer = getUploadBuffer(filename);
 
   if (buffer) {

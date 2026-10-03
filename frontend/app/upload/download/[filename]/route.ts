@@ -1,6 +1,15 @@
 export const dynamic = "force-dynamic";
 
-import { getAuthToken, getUploadBuffer, getUploadRecord, sanitizeUploadFilename, uploadsStore, verifyToken } from "@/app/lib/store";
+import {
+  getAuthToken,
+  getUploadBuffer,
+  getUploadRecord,
+  sanitizeUploadFilename,
+  uploadsStore,
+  verifyToken,
+} from "@/app/lib/store";
+import { logAuditEvent } from "@/app/lib/audit-logger";
+import { getClientIp } from "@/app/lib/rate-limiter";
 
 export async function GET(
   req: Request,
@@ -32,11 +41,19 @@ export async function GET(
     }
   }
 
-  const isPdf = filename.toLowerCase().endsWith(".pdf");
-
   if (!buffer && !doc) {
     return new Response("File not found", { status: 404 });
   }
+
+  // IDOR / Tenant Isolation check: Non-admin users can only download their own files
+  if (doc && doc.username && doc.username !== username && username !== "admin") {
+    return new Response(JSON.stringify({ message: "Forbidden. Access denied to requested document." }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const isPdf = filename.toLowerCase().endsWith(".pdf");
 
   if (isPdf && !buffer) {
     return new Response("PDF binary not available on server. Use client cache or view extracted text.", {
@@ -49,14 +66,20 @@ export async function GET(
 
   const responseData = buffer || Buffer.from(doc?.content || "", "utf-8");
 
+  // Stored XSS defense: Only PDFs are allowed inline rendering. All other files force attachment download.
+  const disposition = isPdf
+    ? `inline; filename="${encodeURIComponent(filename)}"`
+    : `attachment; filename="${encodeURIComponent(filename)}"`;
+
   return new Response(new Uint8Array(responseData), {
     status: 200,
     headers: {
       "Content-Type": contentType,
-      "Content-Disposition": `inline; filename="${encodeURIComponent(filename)}"`,
+      "Content-Disposition": disposition,
       "Content-Length": responseData.length.toString(),
       "Accept-Ranges": "bytes",
       "Cache-Control": "private, no-cache, no-store, must-revalidate",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

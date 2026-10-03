@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getAuthToken, verifyToken, usersStore } from "@/app/lib/store";
+import { getAuthToken, verifyToken, usersStore, saveUsersToDisk } from "@/app/lib/store";
+import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 
 export async function GET(req: Request) {
   const username = verifyToken(getAuthToken(req));
@@ -28,6 +29,11 @@ export async function GET(req: Request) {
 
 export async function PUT(req: Request) {
   try {
+    const csrfCheck = verifyCsrf(req);
+    if (!csrfCheck.ok) {
+      return csrfErrorResponse(csrfCheck.reason);
+    }
+
     const username = verifyToken(getAuthToken(req));
     if (!username) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
@@ -52,6 +58,7 @@ export async function PUT(req: Request) {
     if (body.mobile !== undefined) user.mobile = body.mobile;
 
     usersStore.set(username, user);
+    saveUsersToDisk();
 
     return NextResponse.json({
       id: user.id,
