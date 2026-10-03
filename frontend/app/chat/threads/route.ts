@@ -26,7 +26,7 @@ export async function GET(req: Request) {
         t &&
         t.id !== "thread-welcome" &&
         t.title !== "Market & Knowledge Intelligence" &&
-        (!t.username || t.username === targetUser),
+        (t.username ? t.username === targetUser : username === "admin"),
     )
     .map((t) => ({
       id: t.id,

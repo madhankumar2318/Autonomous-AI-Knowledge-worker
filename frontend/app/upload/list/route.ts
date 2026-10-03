@@ -23,7 +23,7 @@ export async function GET(req: Request) {
 
   // Tenant isolation: non-admin users only see their own files; admin sees all
   const filteredUploads = Array.from(uploadsStore.values()).filter(
-    (f) => username === "admin" || !f.username || f.username === username
+    (f) => username === "admin" || (f.username && f.username === username)
   );
 
   const list = filteredUploads.map((f, idx) => ({

@@ -71,6 +71,18 @@ public class UploadController {
         return user != null && upload.getUserId().equals(user.getId());
     }
 
+    private boolean isAuthorizedForFileModification(Upload upload, User user, Authentication authentication) {
+        if (upload == null) return true;
+        if (authentication != null && "admin".equalsIgnoreCase(authentication.getName())) {
+            return true;
+        }
+        // System or unowned files (userId == null) can strictly only be modified, overwritten, or deleted by admin
+        if (upload.getUserId() == null) {
+            return false;
+        }
+        return user != null && upload.getUserId().equals(user.getId());
+    }
+
     private Path resolveSafePath(String filename) {
         if (filename == null || filename.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Filename is required");
@@ -151,7 +163,7 @@ public class UploadController {
         Upload upload = uploadRepository.findByFilename(originalFilename)
                 .orElse(Upload.builder().filename(originalFilename).build());
 
-        if (upload.getId() != null && !isAuthorizedForFile(upload, user, authentication)) {
+        if (upload.getId() != null && !isAuthorizedForFileModification(upload, user, authentication)) {
             auditService.recordEvent("UNAUTHORIZED_ACCESS", username, null, originalFilename, "BLOCKED", "Attempt to overwrite another user's file");
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot overwrite another user's file");
         }
@@ -248,7 +260,7 @@ public class UploadController {
         User user = getCurrentUser(authentication);
         String username = authentication != null ? authentication.getName() : "anonymous";
         if (uploadOpt.isPresent()) {
-            if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+            if (!isAuthorizedForFileModification(uploadOpt.get(), user, authentication)) {
                 auditService.recordEvent("UNAUTHORIZED_ACCESS", username, null, decodedFilename, "BLOCKED", "Unauthorized delete attempt");
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
                         "error", "You do not have permission to delete this file"
@@ -467,7 +479,7 @@ public class UploadController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found: " + sanitizedName);
         }
         User user = getCurrentUser(authentication);
-        if (!isAuthorizedForFile(upload, user, authentication)) {
+        if (!isAuthorizedForFileModification(upload, user, authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to edit this file");
         }
 

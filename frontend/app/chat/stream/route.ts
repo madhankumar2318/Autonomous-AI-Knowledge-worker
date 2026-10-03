@@ -573,7 +573,7 @@ export async function POST(req: Request) {
     const existing = getUploadRecord(targetFilename);
     if (existing) {
       // Tenant check: file must be accessible to requesting user
-      if (existing.username && existing.username !== username && username !== "admin") {
+      if (username !== "admin" && (!existing.username || existing.username !== username)) {
         targetFilename = null; // Deny cross-tenant document access
       } else {
         targetFilename = existing.filename;
@@ -583,7 +583,7 @@ export async function POST(req: Request) {
 
   // Candidate uploads strictly filtered to current user (admin sees all)
   const uploadList = Array.from(uploadsStore.values()).filter(
-    (u) => !u.username || (username && (u.username === username || username === "admin"))
+    (u) => username === "admin" || (username && u.username === username)
   );
 
   if (!targetFilename && uploadList.length > 0) {
