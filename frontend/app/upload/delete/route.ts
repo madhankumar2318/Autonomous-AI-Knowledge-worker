@@ -45,7 +45,13 @@ export async function POST(req: Request) {
 
     const decodedFilename = decodeURIComponent(filename);
     const doc = uploadsStore.get(decodedFilename);
-    if (doc && doc.username && doc.username !== username && username !== "admin") {
+    if (!doc) {
+      return NextResponse.json(
+        { success: false, message: "File not found" },
+        { status: 404 }
+      );
+    }
+    if (username !== "admin" && (!doc.username || doc.username !== username)) {
       return NextResponse.json(
         { success: false, message: "Forbidden. You do not have permission to delete this file." },
         { status: 403 }

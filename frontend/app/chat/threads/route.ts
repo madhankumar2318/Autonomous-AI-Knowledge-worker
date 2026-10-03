@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "node:crypto";
 import { getAuthToken, threadsStore, verifyToken } from "@/app/lib/store";
 import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 
@@ -51,12 +52,22 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const id = body.id || "thread-" + Date.now();
+  let id: string;
+  if (body.id && typeof body.id === "string") {
+    const requestedId = body.id.trim();
+    if (threadsStore.has(requestedId)) {
+      return NextResponse.json({ message: "Thread ID already exists" }, { status: 409 });
+    }
+    id = requestedId;
+  } else {
+    id = "thread-" + crypto.randomUUID();
+  }
+
   const thread = {
     id,
     username: username,
-    title: body.title || "New Investigation",
-    model: body.model || "gemini-3.8-flash",
+    title: body.title ? String(body.title).slice(0, 100) : "New Investigation",
+    model: body.model ? String(body.model).slice(0, 50) : "gemini-3.8-flash",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     messages: [],

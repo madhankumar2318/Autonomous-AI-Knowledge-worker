@@ -1476,23 +1476,6 @@ export function verifyToken(token: string | null): string | null {
         }
       }
     } catch {
-      // Continue to check legacy token format
-    }
-  }
-
-  // 2. Legacy token fallback (jwt_<base64url>) with expiration verification
-  if (cleanToken.startsWith("jwt_")) {
-    try {
-      const payloadStr = Buffer.from(cleanToken.slice(4), "base64url").toString("utf-8");
-      const payload = JSON.parse(payloadStr);
-      const nowSec = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < nowSec) {
-        return null;
-      }
-      if (payload.sub && typeof payload.sub === "string") {
-        return payload.sub;
-      }
-    } catch {
       return null;
     }
   }

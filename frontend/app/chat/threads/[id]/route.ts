@@ -25,12 +25,12 @@ export async function PATCH(
     return NextResponse.json({ message: "Thread not found" }, { status: 404 });
   }
 
-  if (thread.username && thread.username !== username && username !== "admin") {
+  if (username !== "admin" && (!thread.username || thread.username !== username)) {
     return NextResponse.json({ message: "Forbidden. Access denied." }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));
-  if (body.title) thread.title = body.title;
+  if (body.title) thread.title = String(body.title).slice(0, 100);
   thread.updatedAt = new Date().toISOString();
   threadsStore.set(id, thread);
 
@@ -59,7 +59,11 @@ export async function DELETE(
 
   const { id } = await params;
   const thread = threadsStore.get(id);
-  if (thread && thread.username && thread.username !== username && username !== "admin") {
+  if (!thread) {
+    return NextResponse.json({ message: "Thread not found" }, { status: 404 });
+  }
+
+  if (username !== "admin" && (!thread.username || thread.username !== username)) {
     return NextResponse.json({ message: "Forbidden. Access denied." }, { status: 403 });
   }
 

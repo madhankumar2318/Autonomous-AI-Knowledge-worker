@@ -41,12 +41,15 @@ export async function GET(
     }
   }
 
-  if (!buffer && !doc) {
-    return new Response("File not found", { status: 404 });
+  if (!doc) {
+    return new Response(JSON.stringify({ message: "File not found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   // IDOR / Tenant Isolation check: Non-admin users can only download their own files
-  if (doc && doc.username && doc.username !== username && username !== "admin") {
+  if (username !== "admin" && (!doc.username || doc.username !== username)) {
     return new Response(JSON.stringify({ message: "Forbidden. Access denied to requested document." }), {
       status: 403,
       headers: { "Content-Type": "application/json" },

@@ -16,7 +16,6 @@ import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 function getGroqApiKey(bodyKey?: string): string {
   if (bodyKey && typeof bodyKey === "string" && bodyKey.startsWith("gsk_")) return bodyKey.trim();
   if (process.env.GROQ_API_KEY) return process.env.GROQ_API_KEY;
-  if (process.env.NEXT_PUBLIC_GROQ_API_KEY) return process.env.NEXT_PUBLIC_GROQ_API_KEY;
   try {
     const fs = require("node:fs");
     const path = require("node:path");

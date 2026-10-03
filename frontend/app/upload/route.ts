@@ -230,7 +230,13 @@ export async function DELETE(req: Request) {
     if (filename) {
       const decodedFilename = decodeURIComponent(filename);
       const doc = uploadsStore.get(decodedFilename);
-      if (doc && doc.username && doc.username !== username && username !== "admin") {
+      if (!doc) {
+        return NextResponse.json(
+          { message: "File not found" },
+          { status: 404 }
+        );
+      }
+      if (username !== "admin" && (!doc.username || doc.username !== username)) {
         return NextResponse.json(
           { message: "Forbidden. You do not have permission to delete this file." },
           { status: 403 }

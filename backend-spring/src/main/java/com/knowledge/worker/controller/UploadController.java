@@ -146,7 +146,6 @@ public class UploadController {
         }
 
         Path targetPath = resolveSafePath(originalFilename);
-        Files.copy(file.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
         User user = getCurrentUser(authentication);
         Upload upload = uploadRepository.findByFilename(originalFilename)
@@ -156,6 +155,8 @@ public class UploadController {
             auditService.recordEvent("UNAUTHORIZED_ACCESS", username, null, originalFilename, "BLOCKED", "Attempt to overwrite another user's file");
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot overwrite another user's file");
         }
+
+        Files.copy(file.getInputStream(), targetPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 
         upload.setFilepath(targetPath.toAbsolutePath().toString());
         upload.setSize(file.getSize());
@@ -330,11 +331,12 @@ public class UploadController {
             if (resource.exists() || resource.isReadable()) {
                 String sanitizedName = file.getFileName().toString();
                 Optional<Upload> uploadOpt = uploadRepository.findByFilename(sanitizedName);
-                if (uploadOpt.isPresent()) {
-                    User user = getCurrentUser(authentication);
-                    if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
-                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
-                    }
+                if (uploadOpt.isEmpty()) {
+                    throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found or unindexed");
+                }
+                User user = getCurrentUser(authentication);
+                if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+                    throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
                 }
 
                 String contentType = Files.probeContentType(file);
@@ -377,11 +379,12 @@ public class UploadController {
 
         String sanitizedName = Paths.get(decoded).getFileName().toString();
         Optional<Upload> uploadOpt = uploadRepository.findByFilename(sanitizedName);
-        if (uploadOpt.isPresent()) {
-            User user = getCurrentUser(authentication);
-            if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
-            }
+        if (uploadOpt.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found: " + sanitizedName);
+        }
+        User user = getCurrentUser(authentication);
+        if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
         }
 
         String text = documentService.extractDocumentText(decoded);
@@ -414,14 +417,13 @@ public class UploadController {
             @PathVariable String filename,
             Authentication authentication) {
         String sanitizedName = Paths.get(filename).getFileName().toString();
-        Upload upload = uploadRepository.findByFilename(sanitizedName).orElse(null);
-        if (upload != null) {
-            User user = getCurrentUser(authentication);
-            if (!isAuthorizedForFile(upload, user, authentication)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
-            }
+        Upload upload = uploadRepository.findByFilename(sanitizedName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found: " + sanitizedName));
+        User user = getCurrentUser(authentication);
+        if (!isAuthorizedForFile(upload, user, authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
         }
-        long size = upload != null && upload.getSize() != null ? upload.getSize() : 10000L;
+        long size = upload.getSize() != null ? upload.getSize() : 10000L;
         int chunks = Math.max(1, (int)(size / 1500));
         return ResponseEntity.ok(Map.of(
                 "message", "Re-indexing complete for '" + sanitizedName + "'",
@@ -442,12 +444,11 @@ public class UploadController {
         } catch (Exception ignored) {}
 
         String sanitizedName = Paths.get(decoded).getFileName().toString();
-        Optional<Upload> uploadOpt = uploadRepository.findByFilename(sanitizedName);
-        if (uploadOpt.isPresent()) {
-            User user = getCurrentUser(authentication);
-            if (!isAuthorizedForFile(uploadOpt.get(), user, authentication)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
-            }
+        Upload upload = uploadRepository.findByFilename(sanitizedName)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "File not found: " + sanitizedName));
+        User user = getCurrentUser(authentication);
+        if (!isAuthorizedForFile(upload, user, authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied to this file");
         }
         Map<String, Object> data = documentService.parseSpreadsheetData(decoded, sheetName);
         return ResponseEntity.ok(data);

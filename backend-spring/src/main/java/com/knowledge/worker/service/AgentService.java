@@ -82,8 +82,8 @@ CRITICAL SECURITY PROTOCOL:
         String sanitizedReply = aiGuardrailService.sanitizeOutput(fullResponse.toString());
 
         if (req.getThreadId() != null) {
-            chatThreadService.saveMessage(req.getThreadId(), "user", req.getMessage());
-            chatThreadService.saveMessage(req.getThreadId(), "ai", sanitizedReply);
+            chatThreadService.saveMessage(req.getThreadId(), "user", req.getMessage(), req.getUsername());
+            chatThreadService.saveMessage(req.getThreadId(), "ai", sanitizedReply, req.getUsername());
         }
 
         return ChatResponse.builder()
@@ -112,8 +112,8 @@ CRITICAL SECURITY PROTOCOL:
 
             if (req.getThreadId() != null) {
                 String sanitizedReply = aiGuardrailService.sanitizeOutput(fullReply);
-                chatThreadService.saveMessage(req.getThreadId(), "user", req.getMessage());
-                chatThreadService.saveMessage(req.getThreadId(), "ai", sanitizedReply);
+                chatThreadService.saveMessage(req.getThreadId(), "user", req.getMessage(), req.getUsername());
+                chatThreadService.saveMessage(req.getThreadId(), "ai", sanitizedReply, req.getUsername());
             }
 
             sendEvent(emitter, "done", "[DONE]");

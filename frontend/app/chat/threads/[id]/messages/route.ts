@@ -21,7 +21,7 @@ export async function GET(
   }
 
   // IDOR protection: only allow thread owner or admin
-  if (thread.username && thread.username !== username && username !== "admin") {
+  if (username !== "admin" && (!thread.username || thread.username !== username)) {
     return NextResponse.json({ message: "Forbidden. Access denied." }, { status: 403 });
   }
 

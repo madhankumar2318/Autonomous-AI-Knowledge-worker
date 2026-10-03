@@ -234,7 +234,7 @@ export async function GET(req: Request) {
   if (authenticatedUser) {
     for (const [, doc] of uploadsStore) {
       // Tenant isolation: only show documents owned by the requesting user (admin sees all)
-      if (authenticatedUser !== "admin" && doc.username && doc.username !== authenticatedUser) {
+      if (authenticatedUser !== "admin" && (!doc.username || doc.username !== authenticatedUser)) {
         continue;
       }
       if (

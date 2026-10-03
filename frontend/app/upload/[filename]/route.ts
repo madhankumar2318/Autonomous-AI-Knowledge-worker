@@ -32,7 +32,13 @@ export async function DELETE(
 
     // IDOR / Tenant isolation check: Non-admin users can only delete their own files
     const doc = uploadsStore.get(filename);
-    if (doc && doc.username && doc.username !== username && username !== "admin") {
+    if (!doc) {
+      return NextResponse.json(
+        { success: false, message: "File not found" },
+        { status: 404 }
+      );
+    }
+    if (username !== "admin" && (!doc.username || doc.username !== username)) {
       return NextResponse.json(
         { success: false, message: "Forbidden. Access denied to requested document." },
         { status: 403 }

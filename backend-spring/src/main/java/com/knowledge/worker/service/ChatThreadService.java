@@ -56,8 +56,8 @@ public class ChatThreadService {
         if (thread == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found");
         }
-        if (username == null || username.isBlank() || "anonymousUser".equals(username)) {
-            return;
+        if (username == null || username.isBlank() || "anonymousUser".equalsIgnoreCase(username) || "guest".equalsIgnoreCase(username)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication required to access chat thread");
         }
         if ("admin".equalsIgnoreCase(username)) {
             return;
@@ -99,9 +99,18 @@ public class ChatThreadService {
     }
 
     @Transactional
-    public void saveMessage(String threadId, String role, String content) {
+    public void saveMessage(String threadId, String role, String content, String username) {
         if (threadId == null || threadId.isBlank() || content == null || content.isBlank()) {
             return;
+        }
+
+        ChatThread thread = threadRepository.findById(threadId).orElse(null);
+        if (thread == null) {
+            return;
+        }
+
+        if (username != null && !username.isBlank() && !"anonymousUser".equalsIgnoreCase(username)) {
+            verifyThreadOwnership(thread, username);
         }
 
         // Sanitize before persisting — applies rich-content rules for message bodies
@@ -115,15 +124,18 @@ public class ChatThreadService {
                 .build();
         messageRepository.save(msg);
 
-        threadRepository.findById(threadId).ifPresent(thread -> {
-            thread.setUpdatedAt(Instant.now());
-            // Auto title if thread is still "New Chat" and this is a user message
-            if ("user".equalsIgnoreCase(role) && "New Chat".equals(thread.getTitle())) {
-                String rawAutoTitle = safeContent.length() > 50 ? safeContent.substring(0, 50).trim() + "..." : safeContent.trim();
-                thread.setTitle(xssSanitizer.sanitizePlainText(rawAutoTitle, 100));
-            }
-            threadRepository.save(thread);
-        });
+        thread.setUpdatedAt(Instant.now());
+        // Auto title if thread is still "New Chat" and this is a user message
+        if ("user".equalsIgnoreCase(role) && "New Chat".equals(thread.getTitle())) {
+            String rawAutoTitle = safeContent.length() > 50 ? safeContent.substring(0, 50).trim() + "..." : safeContent.trim();
+            thread.setTitle(xssSanitizer.sanitizePlainText(rawAutoTitle, 100));
+        }
+        threadRepository.save(thread);
+    }
+
+    @Transactional
+    public void saveMessage(String threadId, String role, String content) {
+        saveMessage(threadId, role, content, null);
     }
 
     private ThreadResponse toThreadResponse(ChatThread thread) {
