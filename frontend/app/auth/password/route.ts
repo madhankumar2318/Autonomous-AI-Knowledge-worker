@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   verifyToken,
+  verifyPassword,
   usersStore,
   hashPassword,
   getAuthToken,
@@ -37,19 +38,68 @@ export async function PUT(req: Request) {
     if (!username) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
     }
-    const body = await req.json().catch(() => ({}));
 
-    const newPassword = body.newPassword || body.password;
+    let currentPassword = "";
+    let newPassword = "";
+    const contentType = req.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const body = await req.json().catch(() => ({}));
+      currentPassword = body.currentPassword || body.current_password || body.oldPassword || body.old_password || "";
+      newPassword = body.newPassword || body.new_password || body.password || "";
+    } else {
+      const formData = await req.formData().catch(() => null);
+      if (formData) {
+        currentPassword = String(
+          formData.get("currentPassword") ||
+          formData.get("current_password") ||
+          formData.get("oldPassword") ||
+          formData.get("old_password") ||
+          ""
+        );
+        newPassword = String(
+          formData.get("newPassword") ||
+          formData.get("new_password") ||
+          formData.get("password") ||
+          ""
+        );
+      }
+    }
+
+    const user = usersStore.get(username) || usersStore.get(username.toLowerCase());
+    if (!user) {
+      return NextResponse.json({ message: "User not found." }, { status: 404 });
+    }
+
+    if (!currentPassword) {
+      return NextResponse.json(
+        { message: "Current password is required to change password." },
+        { status: 400 }
+      );
+    }
+
+    if (!verifyPassword(currentPassword, user.passwordHash)) {
+      logAuditEvent({
+        type: "AUTH_LOGIN_FAILED",
+        severity: "WARN",
+        username,
+        ip,
+        details: { action: "failed_password_change_wrong_current_password" },
+      });
+      return NextResponse.json(
+        { message: "Current password is incorrect." },
+        { status: 401 }
+      );
+    }
+
     if (!newPassword || newPassword.length < 6) {
-      return NextResponse.json({ message: "Password must be at least 6 characters." }, { status: 400 });
+      return NextResponse.json({ message: "New password must be at least 6 characters." }, { status: 400 });
     }
 
-    const user = usersStore.get(username);
-    if (user) {
-      user.passwordHash = hashPassword(newPassword);
-      usersStore.set(username, user);
-      saveUsersToDisk();
-    }
+    user.passwordHash = hashPassword(newPassword);
+    usersStore.set(username, user);
+    usersStore.set(username.toLowerCase(), user);
+    saveUsersToDisk();
 
     // Invalidate all previously issued tokens for this account across all devices
     invalidateUserTokens(username);

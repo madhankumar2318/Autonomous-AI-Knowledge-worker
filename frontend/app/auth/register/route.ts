@@ -38,9 +38,10 @@ export async function POST(req: Request) {
       );
     }
 
-    if (usersStore.has(username) && username !== "admin") {
+    const normUsername = username.toLowerCase();
+    if (usersStore.has(username) || usersStore.has(normUsername) || normUsername === "admin") {
       return NextResponse.json(
-        { message: "Username is already taken." },
+        { message: "Username is reserved or already taken." },
         { status: 409 }
       );
     }

@@ -53,11 +53,26 @@ export async function PUT(req: Request) {
       };
     }
 
-    if (body.name !== undefined) user.name = body.name;
-    if (body.email !== undefined) user.email = body.email;
-    if (body.mobile !== undefined) user.mobile = body.mobile;
+    if (body.name !== undefined) {
+      user.name = String(body.name).replace(/[\r\n\t]/g, " ").trim().slice(0, 80);
+    }
+    if (body.email !== undefined) {
+      const email = String(body.email).trim().slice(0, 120);
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return NextResponse.json({ message: "Invalid email format." }, { status: 400 });
+      }
+      user.email = email;
+    }
+    if (body.mobile !== undefined) {
+      const mobile = String(body.mobile).replace(/[\r\n\t]/g, "").trim().slice(0, 25);
+      if (mobile && !/^[0-9+\-()\s]{0,25}$/.test(mobile)) {
+        return NextResponse.json({ message: "Invalid mobile phone number format." }, { status: 400 });
+      }
+      user.mobile = mobile;
+    }
 
     usersStore.set(username, user);
+    usersStore.set(username.toLowerCase(), user);
     saveUsersToDisk();
 
     return NextResponse.json({

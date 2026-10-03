@@ -1181,8 +1181,8 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const page = parseInt(url.searchParams.get("page") || "1", 10);
   const limit = parseInt(url.searchParams.get("limit") || "100", 10);
-  const category = (url.searchParams.get("category") || "").toLowerCase().trim();
-  const topic = (url.searchParams.get("topic") || "").toLowerCase().trim();
+  const category = (url.searchParams.get("category") || "").toLowerCase().trim().slice(0, 100);
+  const topic = (url.searchParams.get("topic") || "").toLowerCase().trim().slice(0, 100);
 
   // 1. Fetch real-time live articles across BBC, The Guardian, Yahoo, Sky News, and Google News
   const liveArticles = await fetchAllLiveNews(category, topic);
