@@ -34,13 +34,13 @@ Enterprise **Java Full Stack** backend built with **Spring Boot 3.3.4** and **Ja
 
 ### 1. Build and Run via Maven
 ```bash
-cd backend-spring
+cd backend
 mvn clean spring-boot:run
 ```
 
 ### 2. Run with Custom API Keys
 ```bash
-java -DGROQ_API_KEY="your_groq_key" -DGEMINI_API_KEY="your_gemini_key" -jar target/backend-spring-1.0.0.jar
+java -DGROQ_API_KEY="your_groq_key" -DGEMINI_API_KEY="your_gemini_key" -jar target/backend-1.0.0.jar
 ```
 
 The server will launch on port `8080`:

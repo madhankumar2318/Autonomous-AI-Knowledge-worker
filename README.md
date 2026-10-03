@@ -8,7 +8,7 @@ Built with a **Spring Boot 3 (Java 17 LTS)** backend and a **Next.js 15 (React 1
 
 ## 🏗️ Architecture & Tech Stack
 
-### ☕ Backend (`backend-spring/`)
+### ☕ Backend (`backend/`)
 - **Runtime**: Java 17 LTS
 - **Framework**: Spring Boot 3.3.4 (Spring MVC, Spring WebSocket)
 - **Security & Auth**: Spring Security 6, JJWT (`0.12.6`), stateless Bearer token authentication, BCrypt password encryption, refresh token rotation
@@ -29,7 +29,7 @@ Built with a **Spring Boot 3 (Java 17 LTS)** backend and a **Next.js 15 (React 1
 ## 📁 Project Structure
 
 ```
-├── backend-spring/           # Spring Boot 3 Java Backend
+├── backend/           # Spring Boot 3 Java Backend
 │   ├── pom.xml               # Maven configuration (Java 17 LTS)
 │   ├── src/main/java/com/knowledge/worker/
 │   │   ├── config/           # SecurityConfig, CorsConfig, JwtAuthFilter, WebSocketConfig
@@ -57,7 +57,7 @@ Built with a **Spring Boot 3 (Java 17 LTS)** backend and a **Next.js 15 (React 1
 Ensure you have **Java 17 LTS** and **Maven 3.9+** installed.
 
 ```bash
-cd backend-spring
+cd backend
 mvn clean spring-boot:run
 ```
 
@@ -81,7 +81,7 @@ The application will be available at **`http://localhost:3000`** and connects au
 
 ## 🔑 Environment Configuration
 
-In `backend-spring/.env` (or pass via system properties / environment variables):
+In `backend/.env` (or pass via system properties / environment variables):
 ```env
 GROQ_API_KEY=your_groq_api_key
 GEMINI_API_KEY=your_gemini_api_key
@@ -94,14 +94,14 @@ DATABASE_URL=postgresql://user:password@host:5432/dbname
 
 - **Backend Unit Tests**:
   ```bash
-  cd backend-spring
+  cd backend
   mvn test
   ```
 - **Package Executable JAR**:
   ```bash
-  cd backend-spring
+  cd backend
   mvn clean package -DskipTests
-  java -jar target/backend-spring-1.0.0.jar
+  java -jar target/backend-1.0.0.jar
   ```
 - **Frontend Build Verification**:
   ```bash

@@ -3,11 +3,11 @@ FROM maven:3.9.6-eclipse-temurin-17-alpine AS build
 WORKDIR /app
 
 # Cache Maven dependencies
-COPY backend-spring/pom.xml .
+COPY backend/pom.xml .
 RUN mvn dependency:go-offline -B
 
 # Copy source and package jar
-COPY backend-spring/src ./src
+COPY backend/src ./src
 RUN mvn clean package -DskipTests
 
 # ── Stage 2: Minimal Production JRE Runtime ──

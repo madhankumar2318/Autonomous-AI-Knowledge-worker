@@ -11,7 +11,7 @@
 *.swp
 
 # Spring Boot & Java
-backend-spring/target/
+backend/target/
 **/target/
 *.class
 data/

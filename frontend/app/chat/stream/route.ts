@@ -24,7 +24,7 @@ function getGroqApiKey(bodyKey?: string): string {
       path.resolve(process.cwd(), "../.env"),
       path.resolve(process.cwd(), "frontend/.env.local"),
       path.resolve(process.cwd(), ".env.local"),
-      path.resolve(process.cwd(), "../backend-spring/.env"),
+      path.resolve(process.cwd(), "../backend/.env"),
     ];
     for (const p of candidates) {
       if (fs.existsSync(p)) {

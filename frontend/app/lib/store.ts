@@ -73,7 +73,7 @@ export function getStorageDirs(): string[] {
     path.resolve(root, "uploads_storage"),
     path.resolve(root, "frontend/uploads_storage"),
     path.resolve(cwd, "uploads_storage"),
-    path.resolve(root, "backend-spring/uploads"),
+    path.resolve(root, "backend/uploads"),
     "/app/applet/uploads_storage",
     "/app/applet/frontend/uploads_storage",
   ];
