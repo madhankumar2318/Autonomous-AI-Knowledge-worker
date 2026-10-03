@@ -6,6 +6,7 @@ import com.knowledge.worker.repository.UserRepository;
 import com.knowledge.worker.repository.UserSettingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -21,15 +22,20 @@ public class DataInitializer implements CommandLineRunner {
     private final UserSettingRepository userSettingRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.admin.initial-password:${ADMIN_INITIAL_PASSWORD:Sk_uyir18}}")
+    private String initialAdminPassword;
+
     @Override
     public void run(String... args) {
         try {
             Optional<User> adminOpt = userRepository.findByUsername("admin");
             if (adminOpt.isEmpty()) {
-                log.info("Seeding default admin user (admin / Sk_uyir18)...");
+                String adminPass = (initialAdminPassword != null && !initialAdminPassword.isBlank())
+                        ? initialAdminPassword : "Sk_uyir18";
+                log.info("Seeding default admin user with initial configured credentials...");
                 User admin = User.builder()
                         .username("admin")
-                        .password(passwordEncoder.encode("Sk_uyir18"))
+                        .password(passwordEncoder.encode(adminPass))
                         .name("Administrator")
                         .email("admin@knowledge-worker.local")
                         .mobile("+1 555-0199")
@@ -49,12 +55,16 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("Default admin user created successfully.");
             } else {
                 User admin = adminOpt.get();
-                admin.setPassword(passwordEncoder.encode("Sk_uyir18"));
-                admin.setAccountLocked(false);
-                admin.setFailedLoginAttempts(0);
-                admin.setLockoutExpiry(null);
-                userRepository.save(admin);
-                log.info("Admin user verified: account unlocked and credentials synchronized.");
+                // Security: Preserve user's custom password! Do NOT overwrite existing password on restart.
+                if (admin.isAccountLocked()) {
+                    admin.setAccountLocked(false);
+                    admin.setFailedLoginAttempts(0);
+                    admin.setLockoutExpiry(null);
+                    userRepository.save(admin);
+                    log.info("Admin account lockout cleared on server startup.");
+                } else {
+                    log.info("Admin user verified: account active and credentials preserved.");
+                }
             }
         } catch (Exception e) {
             log.error("DataInitializer initialization error: {}", e.getMessage(), e);

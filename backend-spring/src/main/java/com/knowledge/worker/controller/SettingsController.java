@@ -52,20 +52,34 @@ public class SettingsController {
                 UserSetting setting = userSettingRepository.findByUserId(user.getId())
                         .orElse(UserSetting.builder().userId(user.getId()).build());
 
-                if (payload.containsKey("default_model")) {
+                if (payload.containsKey("default_model") && payload.get("default_model") != null) {
                     setting.setDefaultModel(String.valueOf(payload.get("default_model")));
                 }
-                if (payload.containsKey("temperature")) {
-                    setting.setTemperature(Float.parseFloat(String.valueOf(payload.get("temperature"))));
+                if (payload.containsKey("temperature") && payload.get("temperature") != null) {
+                    try {
+                        float temp = Float.parseFloat(String.valueOf(payload.get("temperature")));
+                        setting.setTemperature(Math.max(0.0f, Math.min(1.0f, temp)));
+                    } catch (NumberFormatException ignored) {}
                 }
-                if (payload.containsKey("system_prompt")) {
-                    setting.setSystemPrompt(String.valueOf(payload.get("system_prompt")));
+                if (payload.containsKey("system_prompt") && payload.get("system_prompt") != null) {
+                    String prompt = String.valueOf(payload.get("system_prompt"));
+                    if (prompt.length() > 2000) {
+                        prompt = prompt.substring(0, 2000);
+                    }
+                    setting.setSystemPrompt(prompt);
                 }
-                if (payload.containsKey("chunk_size")) {
-                    setting.setChunkSize(Integer.parseInt(String.valueOf(payload.get("chunk_size"))));
+                if (payload.containsKey("chunk_size") && payload.get("chunk_size") != null) {
+                    try {
+                        int chunkSize = Integer.parseInt(String.valueOf(payload.get("chunk_size")));
+                        setting.setChunkSize(Math.max(100, Math.min(4000, chunkSize)));
+                    } catch (NumberFormatException ignored) {}
                 }
-                if (payload.containsKey("chunk_overlap")) {
-                    setting.setChunkOverlap(Integer.parseInt(String.valueOf(payload.get("chunk_overlap"))));
+                if (payload.containsKey("chunk_overlap") && payload.get("chunk_overlap") != null) {
+                    try {
+                        int chunkOverlap = Integer.parseInt(String.valueOf(payload.get("chunk_overlap")));
+                        int maxOverlap = setting.getChunkSize() != null ? Math.max(0, setting.getChunkSize() / 2) : 500;
+                        setting.setChunkOverlap(Math.max(0, Math.min(maxOverlap, chunkOverlap)));
+                    } catch (NumberFormatException ignored) {}
                 }
                 userSettingRepository.save(setting);
             }

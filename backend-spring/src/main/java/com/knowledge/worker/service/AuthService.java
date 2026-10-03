@@ -43,7 +43,12 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
-        if (userRepository.existsByUsername(req.getUsername())) {
+        String username = req.getUsername() != null ? req.getUsername().trim() : "";
+        if ("admin".equalsIgnoreCase(username) || "administrator".equalsIgnoreCase(username) || "root".equalsIgnoreCase(username)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username is reserved");
+        }
+
+        if (userRepository.existsByUsername(username)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username already exists");
         }
 
