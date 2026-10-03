@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
     // Prevent cross-tenant file overwrite
     const existingDoc = uploadsStore.get(filename);
-    if (existingDoc && existingDoc.username && existingDoc.username !== username && username !== "admin") {
+    if (existingDoc && username !== "admin" && (!existingDoc.username || existingDoc.username !== username)) {
       logAuditEvent({
         type: "UNAUTHORIZED_ACCESS",
         severity: "WARN",

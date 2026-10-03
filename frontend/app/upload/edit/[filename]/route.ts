@@ -35,7 +35,7 @@ export async function POST(
   }
 
   // Tenant isolation: only the owner or admin can edit
-  if (doc.username && doc.username !== username && username !== "admin") {
+  if (username !== "admin" && (!doc.username || doc.username !== username)) {
     return NextResponse.json({ message: "Forbidden. Access denied." }, { status: 403 });
   }
 

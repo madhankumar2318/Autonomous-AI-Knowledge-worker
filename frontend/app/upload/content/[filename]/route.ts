@@ -51,7 +51,7 @@ export async function GET(
   }
 
   // IDOR / Tenant isolation check: Non-admin users can only view their own document content
-  if (doc.username && doc.username !== username && username !== "admin") {
+  if (username !== "admin" && (!doc.username || doc.username !== username)) {
     return NextResponse.json({ message: "Forbidden. Access denied." }, { status: 403 });
   }
 

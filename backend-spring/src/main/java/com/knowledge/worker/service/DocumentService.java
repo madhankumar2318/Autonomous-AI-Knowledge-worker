@@ -117,12 +117,12 @@ public class DocumentService {
      */
     public boolean isAuthorized(String filename, String username) {
         if (filename == null || filename.isBlank()) return false;
-        if (username != null && "admin".equalsIgnoreCase(username)) return true;
+        if (username == null || username.isBlank() || "guest".equalsIgnoreCase(username) || "anonymousUser".equalsIgnoreCase(username)) return false;
+        if ("admin".equalsIgnoreCase(username)) return true;
         Optional<Upload> uploadOpt = uploadRepository.findByFilename(filename);
         if (uploadOpt.isEmpty()) return false;
         Upload upload = uploadOpt.get();
-        if (upload.getUserId() == null) return true; // Public workspace document
-        if (username == null || username.isBlank() || "guest".equalsIgnoreCase(username)) return false;
+        if (upload.getUserId() == null) return true; // Public workspace document for authenticated users
         return userRepository.findByUsername(username)
                 .map(u -> u.getId().equals(upload.getUserId()))
                 .orElse(false);

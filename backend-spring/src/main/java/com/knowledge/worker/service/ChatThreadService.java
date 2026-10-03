@@ -62,7 +62,7 @@ public class ChatThreadService {
         if ("admin".equalsIgnoreCase(username)) {
             return;
         }
-        if (thread.getUsername() != null && !thread.getUsername().equalsIgnoreCase(username)) {
+        if (thread.getUsername() == null || !thread.getUsername().equalsIgnoreCase(username)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You do not have access to this thread");
         }
     }

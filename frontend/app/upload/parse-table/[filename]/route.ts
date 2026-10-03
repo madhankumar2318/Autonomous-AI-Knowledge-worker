@@ -15,7 +15,7 @@ export async function GET(
 
   // If document exists, verify tenant access
   const doc = uploadsStore.get(filename);
-  if (doc && doc.username && doc.username !== username && username !== "admin") {
+  if (doc && username !== "admin" && (!doc.username || doc.username !== username)) {
     return NextResponse.json({ message: "Forbidden. Access denied." }, { status: 403 });
   }
 

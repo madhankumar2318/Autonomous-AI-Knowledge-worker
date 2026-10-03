@@ -33,7 +33,7 @@ export async function POST(
   let doc = uploadsStore.get(filename);
 
   // IDOR / Tenant isolation check: Non-admin users can only re-index their own files
-  if (doc && doc.username && doc.username !== username && username !== "admin") {
+  if (username !== "admin" && (!doc || !doc.username || doc.username !== username)) {
     return NextResponse.json(
       { message: "Forbidden. Access denied to requested document." },
       { status: 403 }
