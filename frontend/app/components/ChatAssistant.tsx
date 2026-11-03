@@ -510,7 +510,7 @@ export default function ChatAssistant({
                             type="button"
                             title="Delete"
                             className="chat-thread-delete"
-                            onClick={() => deleteThread(thread.id)}
+                            onClick={(e) => { e.stopPropagation(); deleteThread(thread.id); }}
                           >
                             <Trash2 size={11} />
                           </button>
@@ -1672,7 +1672,7 @@ export default function ChatAssistant({
                               type="button"
                               title="Delete"
                               className="cfab-home-item-del"
-                              onClick={() => deleteThread(thread.id)}
+                              onClick={(e) => { e.stopPropagation(); deleteThread(thread.id); }}
                             >
                               <Trash2 size={9} />
                             </button>

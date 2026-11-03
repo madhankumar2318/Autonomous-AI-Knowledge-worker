@@ -533,6 +533,15 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
     deleteLocalFileBlob(filename);
     addTombstone(filename);
 
+    // Notify chat assistant to clean up any associated doc thread
+    try {
+      window.dispatchEvent(
+        new CustomEvent("ak-document-deleted", {
+          detail: { filename },
+        })
+      );
+    } catch {}
+
     const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     const targetNorm = norm(filename);
 

@@ -64,6 +64,60 @@ const MSGS_PREFIX = "ak_msgs_";
 const GUEST_THREADS_KEY = "ak_guest_threads";
 const GUEST_MSGS_PREFIX = "ak_guest_msgs_";
 const DOC_MSGS_PREFIX = "ak_doc_msgs_";
+const DELETED_THREADS_KEY = "ak_deleted_threads";
+
+export function getDeletedThreadIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_THREADS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch {}
+  return new Set();
+}
+
+export function addDeletedThreadId(threadId: string): void {
+  if (typeof window === "undefined" || !threadId) return;
+  try {
+    const set = getDeletedThreadIds();
+    set.add(threadId);
+    const arr = Array.from(set).slice(-200);
+    localStorage.setItem(DELETED_THREADS_KEY, JSON.stringify(arr));
+  } catch {}
+}
+
+export function removeDocumentMessagesForThread(threadId: string, username?: string): void {
+  if (typeof window === "undefined" || !threadId) return;
+  try {
+    const safeUser = (username || "guest").toLowerCase().trim();
+    removeThreadMessages(threadId);
+
+    // Extract docKey from threadId (e.g. "doc-thread-madhan-report.docx" -> "report.docx")
+    const docKey = threadId.replace(/^doc-thread-[^-]+-/, "");
+
+    localStorage.removeItem(`${DOC_MSGS_PREFIX}${safeUser}_${docKey}`);
+    localStorage.removeItem(`${DOC_MSGS_PREFIX}guest_${docKey}`);
+    localStorage.removeItem(`${DOC_MSGS_PREFIX}${docKey}`);
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(DOC_MSGS_PREFIX)) {
+        const keyDocPart = k.replace(DOC_MSGS_PREFIX, "").replace(/^[^_]+_/, "");
+        if (
+          keyDocPart === docKey ||
+          k.includes(docKey) ||
+          (docKey && docKey.includes(keyDocPart))
+        ) {
+          localStorage.removeItem(k);
+        }
+      }
+    }
+  } catch {}
+}
 
 export function getSafeDocumentKey(filename: string): string {
   return filename.toLowerCase().replace(/[^a-z0-9._-]/g, "_");
@@ -178,21 +232,41 @@ function scanDocumentThreads(username: string): ChatThread[] {
   const safeUser = (username || "guest").toLowerCase().trim();
   const prefix = `${DOC_MSGS_PREFIX}${safeUser}_`;
   const found: ChatThread[] = [];
+  const deletedSet = getDeletedThreadIds();
+
+  let deletedFiles = new Set<string>();
   try {
-    for (let i = 0; i < localStorage.length; i++) {
+    const rawTomb = localStorage.getItem("ak_deleted_files_tombstone");
+    if (rawTomb) {
+      const parsed = JSON.parse(rawTomb);
+      if (Array.isArray(parsed)) {
+        deletedFiles = new Set(parsed.map((s: string) => s.toLowerCase()));
+      }
+    }
+  } catch {}
+
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
       if (k && k.startsWith(prefix)) {
+        const docKey = k.slice(prefix.length);
+        const threadId = `doc-thread-${safeUser}-${docKey}`;
+
+        // If thread was explicitly deleted or corresponding file was deleted from workspace
+        if (deletedSet.has(threadId) || deletedFiles.has(docKey.toLowerCase())) {
+          localStorage.removeItem(k);
+          continue;
+        }
+
         const raw = localStorage.getItem(k);
         if (raw) {
           try {
             const msgs = JSON.parse(raw);
             if (Array.isArray(msgs) && msgs.length > 0) {
-              const docKey = k.slice(prefix.length);
-              const threadId = `doc-thread-${safeUser}-${docKey}`;
               let title = `📄 ${docKey}`;
               const firstAi = msgs.find((m: any) => m.role === "ai" && m.content);
               if (firstAi) {
-                const match = firstAi.content.match(/([a-zA-Z0-9_\-.]+\.pdf)/i);
+                const match = firstAi.content.match(/([a-zA-Z0-9_\-.]+\.(?:pdf|docx?|xlsx?|csv|json|txt|md))/i);
                 if (match) title = `📄 ${match[1]}`;
               }
               const now = new Date().toISOString();
@@ -217,24 +291,30 @@ export function loadUserThreads(username: string): ChatThread[] {
   if (typeof window === "undefined") return [];
   try {
     const key = getUserThreadsKey(username);
+    const deletedSet = getDeletedThreadIds();
     let threads: ChatThread[] = [];
     const raw = localStorage.getItem(key);
+    let hasLoadedExplicitUserStore = false;
+
     if (raw) {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
+          hasLoadedExplicitUserStore = true;
           threads = parsed.filter(
             (t) =>
               t &&
               t.id !== "thread-welcome" &&
-              t.title !== "Market & Knowledge Intelligence",
+              t.title !== "Market & Knowledge Intelligence" &&
+              !deletedSet.has(t.id),
           );
         }
       } catch {}
     }
 
-    // Fallback: check legacy guest store
-    if (threads.length === 0) {
+    // Fallback: ONLY check legacy guest store if the user has NEVER saved threads (raw === null)
+    // If raw was "[]", the user explicitly deleted everything, so DO NOT resurrect from guest!
+    if (!hasLoadedExplicitUserStore && threads.length === 0 && username && username !== "guest") {
       const guestRaw = localStorage.getItem(GUEST_THREADS_KEY);
       if (guestRaw) {
         try {
@@ -244,22 +324,23 @@ export function loadUserThreads(username: string): ChatThread[] {
               (t) =>
                 t &&
                 t.id !== "thread-welcome" &&
-                t.title !== "Market & Knowledge Intelligence",
+                t.title !== "Market & Knowledge Intelligence" &&
+                !deletedSet.has(t.id),
             );
           }
         } catch {}
       }
     }
 
-    // Merge in any scanned document threads if missing
+    // Merge in any scanned document threads if missing and not deleted
     const docThreads = scanDocumentThreads(username);
     for (const dt of docThreads) {
-      if (!threads.some((t) => t.id === dt.id)) {
+      if (!deletedSet.has(dt.id) && !threads.some((t) => t.id === dt.id)) {
         threads.unshift(dt);
       }
     }
 
-    return threads;
+    return threads.filter((t) => !deletedSet.has(t.id));
   } catch {
     return [];
   }
@@ -328,7 +409,8 @@ export function useChatStream({
   const fetchThreads = useCallback(async () => {
     // 1. Immediately load local threads so sidebar is never blank
     const localList = loadUserThreads(username);
-    setThreads(localList);
+    const deletedSet = getDeletedThreadIds();
+    setThreads(localList.filter((t) => !deletedSet.has(t.id)));
 
     // 2. If authenticated, fetch from backend API and MERGE (never wipe out local threads)
     if (!isGuest) {
@@ -342,20 +424,30 @@ export function useChatStream({
         );
         if (res.ok) {
           const remoteList = await res.json();
-          if (Array.isArray(remoteList) && remoteList.length > 0) {
+          if (Array.isArray(remoteList)) {
             const validRemote = remoteList.filter(
               (t: any) =>
                 t &&
                 t.id !== "thread-welcome" &&
-                t.title !== "Market & Knowledge Intelligence",
+                t.title !== "Market & Knowledge Intelligence" &&
+                !deletedSet.has(t.id),
             );
-            // Combine remote with local, local taking priority
+            // Combine remote with local, excluding deleted threads
             const map = new Map<string, ChatThread>();
             validRemote.forEach((t: ChatThread) => map.set(t.id, t));
-            localList.forEach((t: ChatThread) => map.set(t.id, t));
-            const merged = Array.from(map.values()).sort(
-              (a, b) => (b.updated_at > a.updated_at ? 1 : -1)
-            );
+            localList.forEach((t: ChatThread) => {
+              if (!deletedSet.has(t.id)) {
+                // If it's a doc-thread or local draft, preserve it
+                if (t.id.startsWith("doc-thread-") || t.id.startsWith("thread_")) {
+                  map.set(t.id, t);
+                } else if (validRemote.some((r: ChatThread) => r.id === t.id)) {
+                  map.set(t.id, t);
+                }
+              }
+            });
+            const merged = Array.from(map.values())
+              .filter((t) => !deletedSet.has(t.id))
+              .sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1));
             saveUserThreads(username, merged);
             setThreads(merged);
           }
@@ -398,6 +490,25 @@ export function useChatStream({
 
     setMessages([welcomeMessage()]);
   }, [fetchThreads, activeDocumentFilename, username, welcomeMessage, selectedModel]);
+
+  // Listen for document deletion from File Workspace to clean up corresponding doc-threads
+  useEffect(() => {
+    const handleDocDeleted = (e: any) => {
+      const filename = e.detail?.filename;
+      if (!filename) return;
+      const safeDocKey = getSafeDocumentKey(filename);
+      const safeUser = (username || "guest").toLowerCase().trim();
+      const threadId = `doc-thread-${safeUser}-${safeDocKey}`;
+      const guestThreadId = `doc-thread-guest-${safeDocKey}`;
+      deleteThread(threadId);
+      deleteThread(guestThreadId);
+    };
+
+    window.addEventListener("ak-document-deleted", handleDocDeleted as EventListener);
+    return () => {
+      window.removeEventListener("ak-document-deleted", handleDocDeleted as EventListener);
+    };
+  }, [username]);
 
   // Command palette events
   useEffect(() => {
@@ -548,22 +659,57 @@ export function useChatStream({
   };
 
   const deleteThread = async (threadId: string) => {
+    if (!threadId) return;
+
+    // 1. Record in tombstone set so it can NEVER be resurrected by remote fetch, guest fallback, or doc scanning
+    addDeletedThreadId(threadId);
+
+    // 2. Remove all stored messages (thread messages, guest messages, and document messages)
     removeThreadMessages(threadId);
+    removeDocumentMessagesForThread(threadId, username);
+
     if (threadId.startsWith("doc-thread-") && activeDocumentFilename) {
       clearDocumentMessages(username, activeDocumentFilename);
+      clearDocumentMessages("guest", activeDocumentFilename);
     }
-    const updated = loadUserThreads(username).filter((t) => t.id !== threadId);
+
+    // 3. Remove from user threads and guest threads
+    const deletedSet = getDeletedThreadIds();
+    const updated = loadUserThreads(username).filter((t) => t.id !== threadId && !deletedSet.has(t.id));
     saveUserThreads(username, updated);
     setThreads(updated);
 
+    // Also remove from guest stores so fallback can't re-introduce it
+    try {
+      const guestRaw = localStorage.getItem(GUEST_THREADS_KEY);
+      if (guestRaw) {
+        const parsedGuest = JSON.parse(guestRaw);
+        if (Array.isArray(parsedGuest)) {
+          const filteredGuest = parsedGuest.filter((t: any) => t && t.id !== threadId && !deletedSet.has(t.id));
+          localStorage.setItem(GUEST_THREADS_KEY, JSON.stringify(filteredGuest));
+        }
+      }
+      const guestUserKey = getUserThreadsKey("guest");
+      const guestUserRaw = localStorage.getItem(guestUserKey);
+      if (guestUserRaw) {
+        const parsed = JSON.parse(guestUserRaw);
+        if (Array.isArray(parsed)) {
+          const filtered = parsed.filter((t: any) => t && t.id !== threadId && !deletedSet.has(t.id));
+          localStorage.setItem(guestUserKey, JSON.stringify(filtered));
+        }
+      }
+    } catch {}
+
+    // 4. Reset active thread if deleted
     if (activeThreadId === threadId) {
       setActiveThreadId(null);
       setMessages([welcomeMessage()]);
     }
 
+    // 5. Notify backend API if authenticated
     if (!isGuest) {
       try {
-        await fetch(`${API_BASE_URL}/chat/threads/${threadId}`, {
+        await fetch(`${API_BASE_URL}/chat/threads/${encodeURIComponent(threadId)}`, {
           method: "DELETE",
           headers: getChatAuthHeaders(),
           credentials: "include",
@@ -571,7 +717,6 @@ export function useChatStream({
       } catch {}
     }
   };
-
 
   const startNewChat = () => {
     if (activeDocumentFilename) {

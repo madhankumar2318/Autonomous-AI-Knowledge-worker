@@ -90,8 +90,12 @@ public class ChatThreadService {
 
     @Transactional
     public void deleteThread(String threadId, String username) {
-        ChatThread thread = threadRepository.findById(threadId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Thread not found"));
+        ChatThread thread = threadRepository.findById(threadId).orElse(null);
+        if (thread == null) {
+            // Already deleted or local-only thread — idempotent success
+            messageRepository.deleteByThreadId(threadId);
+            return;
+        }
         verifyThreadOwnership(thread, username);
 
         messageRepository.deleteByThreadId(threadId);
