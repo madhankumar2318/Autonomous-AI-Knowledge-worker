@@ -149,16 +149,42 @@ public class AuthController {
     }
 
     @PutMapping("/profile")
-    public ResponseEntity<UserDto> updateProfile(Authentication authentication,
-                                                @RequestBody ProfileUpdateRequest req) {
+    public ResponseEntity<UserDto> updateProfile(
+            Authentication authentication,
+            @RequestBody(required = false) ProfileUpdateRequest bodyReq,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String mobile
+    ) {
         String username = authentication != null ? authentication.getName() : "guest";
+        ProfileUpdateRequest req = bodyReq;
+        if (req == null) {
+            req = new ProfileUpdateRequest(name, email, mobile);
+        } else {
+            if (req.getName() == null && name != null) req.setName(name);
+            if (req.getEmail() == null && email != null) req.setEmail(email);
+            if (req.getMobile() == null && mobile != null) req.setMobile(mobile);
+        }
         return ResponseEntity.ok(authService.updateProfile(username, req));
     }
 
     @PutMapping("/password")
-    public ResponseEntity<Map<String, String>> changePassword(Authentication authentication,
-                                                              @RequestBody PasswordChangeRequest req) {
+    public ResponseEntity<Map<String, String>> changePassword(
+            Authentication authentication,
+            @RequestBody(required = false) PasswordChangeRequest bodyReq,
+            @RequestParam(required = false, name = "current_password") String currentPasswordParam,
+            @RequestParam(required = false, name = "old_password") String oldPasswordParam,
+            @RequestParam(required = false, name = "new_password") String newPasswordParam
+    ) {
         String username = authentication != null ? authentication.getName() : "guest";
+        PasswordChangeRequest req = bodyReq;
+        if (req == null) {
+            String currPass = currentPasswordParam != null ? currentPasswordParam : oldPasswordParam;
+            req = new PasswordChangeRequest(currPass, newPasswordParam);
+        } else if (req.getCurrentPassword() == null) {
+            String currPass = currentPasswordParam != null ? currentPasswordParam : oldPasswordParam;
+            req.setCurrentPassword(currPass);
+        }
         authService.changePassword(username, req);
         auditService.recordEvent("AUTH_PASSWORD_CHANGE", username, "authenticated", "/auth/password", "SUCCESS", "User changed password");
         return ResponseEntity.ok(Map.of("message", "Password updated successfully"));

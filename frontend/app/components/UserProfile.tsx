@@ -314,10 +314,25 @@ export default function UserProfile({
     fetchProfile();
   }, [username]);
 
+    const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      "X-Requested-With": "XMLHttpRequest",
+      "X-AKW-CSRF": "1",
+    };
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("ak_token");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
+    return headers;
+  };
+
   async function fetchProfile() {
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+        headers: getAuthHeaders(),
         credentials: "include",
       });
       if (!res.ok) throw new Error();
@@ -337,18 +352,36 @@ export default function UserProfile({
   async function handleSave() {
     setSaving(true);
     try {
-      const fd = new FormData();
-      fd.append("name", editName);
-      fd.append("email", editEmail);
-      fd.append("mobile", editMobile);
       const res = await fetch(`${API_BASE_URL}/auth/profile`, {
         method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         credentials: "include",
-        body: fd,
+        body: JSON.stringify({
+          name: editName.trim(),
+          email: editEmail.trim(),
+          mobile: editMobile.trim(),
+        }),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        let errMsg = "Save failed. Please try again.";
+        try {
+          const errData = await res.json();
+          if (errData?.message) errMsg = errData.message;
+        } catch {}
+        showToast(errMsg, "err");
+        return;
+      }
+      const data = await res.json().catch(() => null);
       setProfile((p) =>
-        p ? { ...p, name: editName, email: editEmail, mobile: editMobile } : p,
+        p ? {
+          ...p,
+          name: data?.name ?? editName,
+          email: data?.email ?? editEmail,
+          mobile: data?.mobile ?? editMobile,
+        } : p,
       );
       setEditing(false);
       showToast("Profile updated successfully!", "ok");
@@ -372,29 +405,31 @@ export default function UserProfile({
     if (newPw !== confirmPw) return setPwError("New passwords do not match.");
     setPwSaving(true);
     try {
-      const fd = new FormData();
-      fd.append("old_password", oldPw);
-      fd.append("new_password", newPw);
       const res = await fetch(`${API_BASE_URL}/auth/password`, {
         method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
         credentials: "include",
-        body: fd,
+        body: JSON.stringify({
+          current_password: oldPw,
+          new_password: newPw,
+          old_password: oldPw,
+          currentPassword: oldPw,
+          newPassword: newPw,
+        }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setPwError(data.detail || "Failed to change password.");
+        setPwError(data.message || data.detail || "Failed to change password.");
         return;
       }
-      // ── Security: Backend invalidated ALL sessions on password change ──
-      // The server has deleted every active refresh token and cleared the
-      // session cookies. We must log the user out immediately so they
-      // re-authenticate with the new credentials.
       setOldPw("");
       setNewPw("");
       setConfirmPw("");
       setShowPwForm(false);
       showToast("Password changed! 🔒 Signing you out for security…", "ok");
-      // Brief delay so the user can read the toast, then force logout
       setTimeout(() => {
         onLogout();
       }, 2200);

@@ -287,6 +287,29 @@ function scanDocumentThreads(username: string): ChatThread[] {
   return found;
 }
 
+export function deduplicateThreads(threads: ChatThread[]): ChatThread[] {
+  const deduped: ChatThread[] = [];
+  const seenIds = new Set<string>();
+
+  for (const t of threads) {
+    if (!t || !t.id || seenIds.has(t.id)) continue;
+
+    // Check if another thread with the same title was created within 30 seconds
+    const isDuplicateTitleAndNearTime = deduped.some((d: ChatThread) => {
+      if (d.title !== t.title) return false;
+      const timeD = new Date(d.created_at || d.updated_at).getTime();
+      const timeT = new Date(t.created_at || t.updated_at).getTime();
+      return Math.abs(timeD - timeT) < 30000;
+    });
+
+    if (!isDuplicateTitleAndNearTime) {
+      seenIds.add(t.id);
+      deduped.push(t);
+    }
+  }
+  return deduped;
+}
+
 export function loadUserThreads(username: string): ChatThread[] {
   if (typeof window === "undefined") return [];
   try {
@@ -340,7 +363,7 @@ export function loadUserThreads(username: string): ChatThread[] {
       }
     }
 
-    return threads.filter((t) => !deletedSet.has(t.id));
+    return deduplicateThreads(threads.filter((t) => !deletedSet.has(t.id)));
   } catch {
     return [];
   }
@@ -351,7 +374,7 @@ export function saveUserThreads(username: string, threads: ChatThread[]): void {
   if (typeof window === "undefined") return;
   try {
     const key = getUserThreadsKey(username);
-    const pruned = [...threads]
+    const pruned = [...deduplicateThreads(threads)]
       .sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1))
       .slice(0, MAX_THREADS);
     localStorage.setItem(key, JSON.stringify(pruned));
@@ -445,9 +468,9 @@ export function useChatStream({
                 }
               }
             });
-            const merged = Array.from(map.values())
-              .filter((t) => !deletedSet.has(t.id))
-              .sort((a, b) => (b.updated_at > a.updated_at ? 1 : -1));
+            const merged = deduplicateThreads(
+              Array.from(map.values()).filter((t) => !deletedSet.has(t.id))
+            ).sort((a: ChatThread, b: ChatThread) => (b.updated_at > a.updated_at ? 1 : -1));
             saveUserThreads(username, merged);
             setThreads(merged);
           }

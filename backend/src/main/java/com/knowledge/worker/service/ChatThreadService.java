@@ -34,7 +34,15 @@ public class ChatThreadService {
 
     @Transactional
     public ThreadResponse createThread(ThreadCreateRequest req) {
-        String id = UUID.randomUUID().toString();
+        String id = req.getId() != null && !req.getId().isBlank()
+                ? req.getId().trim()
+                : UUID.randomUUID().toString();
+
+        java.util.Optional<ChatThread> existing = threadRepository.findById(id);
+        if (existing.isPresent()) {
+            return toThreadResponse(existing.get());
+        }
+
         String username = req.getUsername() != null && !req.getUsername().isBlank() ? req.getUsername() : "guest";
         String rawTitle = req.getTitle() != null && !req.getTitle().isBlank() ? req.getTitle() : "New Chat";
         String title = xssSanitizer.sanitizePlainText(rawTitle, 100);
@@ -110,7 +118,18 @@ public class ChatThreadService {
 
         ChatThread thread = threadRepository.findById(threadId).orElse(null);
         if (thread == null) {
-            return;
+            String safeUser = username != null && !username.isBlank() && !"anonymousUser".equalsIgnoreCase(username)
+                    ? username : "guest";
+            String rawTitle = content.length() > 50 ? content.substring(0, 50).trim() + "..." : content.trim();
+            thread = ChatThread.builder()
+                    .id(threadId)
+                    .username(safeUser)
+                    .title(xssSanitizer.sanitizePlainText(rawTitle, 100))
+                    .model("gemini-flash")
+                    .createdAt(Instant.now())
+                    .updatedAt(Instant.now())
+                    .build();
+            thread = threadRepository.save(thread);
         }
 
         if (username != null && !username.isBlank() && !"anonymousUser".equalsIgnoreCase(username)) {

@@ -11,6 +11,7 @@ public class ThreadDtos {
     @AllArgsConstructor
     @Builder
     public static class ThreadCreateRequest {
+        private String id;
         private String username;
         private String title;
         private String model;
