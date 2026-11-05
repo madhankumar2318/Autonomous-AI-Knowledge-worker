@@ -423,6 +423,7 @@ public class AuthService {
         if (req.getName() != null) user.setName(xssSanitizer.sanitizePlainText(req.getName(), 100));
         if (req.getEmail() != null) user.setEmail(xssSanitizer.sanitizePlainText(req.getEmail(), 150));
         if (req.getMobile() != null) user.setMobile(xssSanitizer.sanitizePlainText(req.getMobile(), 30));
+        if (req.getAvatar() != null) user.setAvatar(req.getAvatar().isBlank() ? null : req.getAvatar().trim());
 
         userRepository.save(user);
 

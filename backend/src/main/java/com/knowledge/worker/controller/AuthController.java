@@ -45,7 +45,8 @@ public class AuthController {
             @RequestParam(required = false) String password,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String email,
-            @RequestParam(required = false) String mobile
+            @RequestParam(required = false) String mobile,
+            @RequestParam(required = false) String avatar
     ) {
         RegisterRequest req = bodyReq;
         if (req == null || req.getUsername() == null) {
@@ -154,16 +155,18 @@ public class AuthController {
             @RequestBody(required = false) ProfileUpdateRequest bodyReq,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String email,
-            @RequestParam(required = false) String mobile
+            @RequestParam(required = false) String mobile,
+            @RequestParam(required = false) String avatar
     ) {
         String username = authentication != null ? authentication.getName() : "guest";
         ProfileUpdateRequest req = bodyReq;
         if (req == null) {
-            req = new ProfileUpdateRequest(name, email, mobile);
+            req = new ProfileUpdateRequest(name, email, mobile, avatar);
         } else {
             if (req.getName() == null && name != null) req.setName(name);
             if (req.getEmail() == null && email != null) req.setEmail(email);
             if (req.getMobile() == null && mobile != null) req.setMobile(mobile);
+            if (req.getAvatar() == null && avatar != null) req.setAvatar(avatar);
         }
         return ResponseEntity.ok(authService.updateProfile(username, req));
     }

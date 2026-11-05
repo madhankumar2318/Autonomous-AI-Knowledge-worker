@@ -122,6 +122,21 @@ export default function Home_Page() {
   const [showProfile, setShowProfile] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isCmdKOpen, setIsCmdKOpen] = useState(false);
+  const [userAvatar, setUserAvatar] = useState<string>("");
+
+  useEffect(() => {
+    if (loggedInUser && typeof window !== "undefined") {
+      const saved = localStorage.getItem(`ak_avatar_${loggedInUser}`);
+      if (saved) setUserAvatar(saved);
+    } else {
+      setUserAvatar("");
+    }
+    const handleAvatarUpdated = (e: any) => {
+      setUserAvatar(e.detail?.avatar || "");
+    };
+    window.addEventListener("ak-avatar-updated", handleAvatarUpdated);
+    return () => window.removeEventListener("ak-avatar-updated", handleAvatarUpdated);
+  }, [loggedInUser]);
 
   // Live activity notifications state
   const [notifications, setNotifications] = useState<NotificationItem[]>([

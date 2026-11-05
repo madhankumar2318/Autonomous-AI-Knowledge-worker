@@ -33,6 +33,9 @@ public class User {
     @Column(columnDefinition = "TEXT")
     private String mobile;
 
+    @Column(name = "avatar", columnDefinition = "TEXT")
+    private String avatar;
+
     @Builder.Default
     @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "integer default 0")
     private int failedLoginAttempts = 0;

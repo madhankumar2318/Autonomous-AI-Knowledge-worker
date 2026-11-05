@@ -30,6 +30,7 @@ public class AuthDtos {
 
         @Size(max = 30, message = "Mobile must not exceed 30 characters")
         private String mobile;
+        private String avatar;
     }
 
     @Getter
@@ -94,6 +95,7 @@ public class AuthDtos {
         private String name;
         private String email;
         private String mobile;
+        private String avatar;
     }
 
     @Getter
@@ -111,6 +113,8 @@ public class AuthDtos {
 
         @Size(max = 30, message = "Mobile must not exceed 30 characters")
         private String mobile;
+
+        private String avatar;
     }
 
     @Getter

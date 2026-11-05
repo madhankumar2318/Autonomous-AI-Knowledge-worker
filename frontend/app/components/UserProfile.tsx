@@ -19,8 +19,11 @@ import {
   Moon,
   Monitor,
   Palette,
+  Camera,
+  Upload,
+  Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
 
 interface UserProfileProps {
@@ -34,6 +37,7 @@ interface ProfileData {
   name: string;
   email: string;
   mobile: string;
+  avatar?: string;
 }
 
 export default function UserProfile({
@@ -52,6 +56,115 @@ export default function UserProfile({
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editMobile, setEditMobile] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showToast("Please upload an image file (PNG, JPG, WebP).", "err");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Image size must be under 5MB.", "err");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Create an offscreen canvas to center-crop & resize to 256x256 square
+        const canvas = document.createElement("canvas");
+        const size = 256;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          setUploadingAvatar(false);
+          return;
+        }
+
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2;
+        const sy = (img.height - minDim) / 2;
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+
+        const dataUrl = canvas.toDataURL("image/webp", 0.85);
+
+        // Optimistic UI update
+        setProfile((prev) => (prev ? { ...prev, avatar: dataUrl } : prev));
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`ak_avatar_${username}`, dataUrl);
+          window.dispatchEvent(
+            new CustomEvent("ak-avatar-updated", { detail: { avatar: dataUrl } })
+          );
+        }
+
+        // Save to backend
+        fetch(`${API_BASE_URL}/auth/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          credentials: "include",
+          body: JSON.stringify({ avatar: dataUrl }),
+        })
+          .then((res) => {
+            if (!res.ok) throw new Error();
+            showToast("Profile photo updated! 📸", "ok");
+          })
+          .catch(() => {
+            showToast("Photo saved locally. Server sync pending.", "ok");
+          })
+          .finally(() => {
+            setUploadingAvatar(false);
+          });
+      };
+      img.onerror = () => {
+        setUploadingAvatar(false);
+        showToast("Failed to process image.", "err");
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+      setUploadingAvatar(false);
+      showToast("Failed to read image file.", "err");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleRemoveAvatar = () => {
+    setProfile((prev) => (prev ? { ...prev, avatar: "" } : prev));
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(`ak_avatar_${username}`);
+      window.dispatchEvent(
+        new CustomEvent("ak-avatar-updated", { detail: { avatar: "" } })
+      );
+    }
+    fetch(`${API_BASE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      credentials: "include",
+      body: JSON.stringify({ avatar: "" }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        showToast("Profile photo removed.", "ok");
+      })
+      .catch(() => {
+        showToast("Photo removed locally.", "ok");
+      });
+  };
 
   const [activeTab, setActiveTab] = useState<"profile" | "appearance">(
     "profile",
@@ -62,9 +175,7 @@ export default function UserProfile({
   const [currentAccent, setCurrentAccent] = useState("cyan");
   const [customHex, setCustomHex] = useState("#22d3ee");
   const [currentFont, setCurrentFont] = useState("inter");
-  const [avatarEmoji, setAvatarEmoji] = useState("");
   const [rippleId, setRippleId] = useState<string | null>(null);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const ACCENT_COLORS = [
     { id: "cyan", color: "#22d3ee", label: "Cyan" },
@@ -113,37 +224,16 @@ export default function UserProfile({
     },
   ];
 
-  const AVATAR_EMOJIS = [
-    "🤖",
-    "🚀",
-    "🧠",
-    "⚡",
-    "🎯",
-    "🦊",
-    "🌌",
-    "🔥",
-    "💎",
-    "🐉",
-    "🎭",
-    "🦋",
-    "🌙",
-    "⭐",
-    "🎪",
-    "🏆",
-  ];
-
   useEffect(() => {
     const savedTheme = localStorage.getItem("ak_theme") || "dark";
     const savedAccent = localStorage.getItem("ak_accent") || "cyan";
     const savedCustomHex =
       localStorage.getItem("ak_accent_custom_hex") || "#22d3ee";
     const savedFont = localStorage.getItem("ak_font") || "plus-jakarta";
-    const savedEmoji = localStorage.getItem("ak_avatar_emoji") || "";
     setCurrentTheme(savedTheme);
     setCurrentAccent(savedAccent);
     setCustomHex(savedCustomHex);
     setCurrentFont(savedFont);
-    setAvatarEmoji(savedEmoji);
     const activeColor =
       savedAccent === "custom"
         ? savedCustomHex
@@ -212,13 +302,6 @@ export default function UserProfile({
     applyFont(fontId);
     const fontObj = FONT_OPTIONS.find((f) => f.id === fontId);
     showToast(`Font changed to ${fontObj?.label}! 🔤`, "ok");
-  };
-
-  const handleAvatarEmoji = (emoji: string) => {
-    setAvatarEmoji(emoji);
-    localStorage.setItem("ak_avatar_emoji", emoji);
-    setShowEmojiPicker(false);
-    showToast(`Avatar updated! ${emoji}`, "ok");
   };
 
   // AI settings state
@@ -341,6 +424,19 @@ export default function UserProfile({
       setEditName(data.name || "");
       setEditEmail(data.email || "");
       setEditMobile(data.mobile || "");
+      if (data.avatar) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`ak_avatar_${username}`, data.avatar);
+          window.dispatchEvent(
+            new CustomEvent("ak-avatar-updated", { detail: { avatar: data.avatar } })
+          );
+        }
+      } else if (typeof window !== "undefined") {
+        const localAvatar = localStorage.getItem(`ak_avatar_${username}`);
+        if (localAvatar) {
+          setProfile((prev) => (prev ? { ...prev, avatar: localAvatar } : prev));
+        }
+      }
     } catch {
       // Still show UI, just no server data
       setProfile({ id: 0, username, name: "", email: "", mobile: "" });
@@ -707,25 +803,27 @@ export default function UserProfile({
                 }}
               />
 
-              {/* Avatar with animated ring + emoji picker */}
+              {/* Avatar container */}
               <div
                 style={{
                   position: "relative",
+                  marginBottom: "16px",
                   display: "inline-block",
-                  marginBottom: "20px",
                 }}
               >
+                {/* Glow ring */}
                 <div
                   style={{
                     position: "absolute",
                     inset: "-4px",
                     borderRadius: "28px",
-                    background: `linear-gradient(135deg, var(--accent-primary, #22d3ee), #0d9488, var(--accent-primary, #22d3ee))`,
-                    backgroundSize: "200% 200%",
-                    animation: "gradientShift 3s ease infinite",
-                    padding: "2px",
+                    background:
+                      "linear-gradient(135deg, var(--accent-primary, #22d3ee) 0%, #3b82f6 100%)",
+                    opacity: 0.5,
+                    filter: "blur(10px)",
                   }}
                 />
+
                 <div
                   style={{
                     position: "relative",
@@ -733,31 +831,79 @@ export default function UserProfile({
                     width: "88px",
                     height: "88px",
                     borderRadius: "24px",
-                    background: avatarEmoji
+                    background: profile?.avatar
                       ? "var(--bg-secondary)"
                       : "linear-gradient(145deg, #1d4ed8 0%, #0d9488 100%)",
-                    border: avatarEmoji
-                      ? "2px solid var(--border-medium)"
-                      : "none",
+                    border: "2px solid var(--border-medium)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: avatarEmoji ? "44px" : "34px",
+                    fontSize: "34px",
                     fontWeight: 900,
                     color: "white",
                     letterSpacing: "-1px",
+                    overflow: "hidden",
                     boxShadow:
-                      "0 16px 40px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.3)",
+                      "0 16px 40px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.2)",
                   }}
                 >
-                  {initials}
+                  {profile?.avatar ? (
+                    <img
+                      src={profile.avatar}
+                      alt={profile.name || username}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  ) : (
+                    initials
+                  )}
                 </div>
+
+                {/* Floating camera action badge on avatar corner */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  title={profile?.avatar ? "Change photo" : "Upload photo"}
+                  disabled={uploadingAvatar}
+                  style={{
+                    position: "absolute",
+                    bottom: "-4px",
+                    right: "-4px",
+                    width: "30px",
+                    height: "30px",
+                    borderRadius: "50%",
+                    background: "var(--accent-primary, #22d3ee)",
+                    color: "#0a0e17",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "2px solid var(--bg-card, #131722)",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.5)",
+                    cursor: uploadingAvatar ? "not-allowed" : "pointer",
+                    transition: "all 0.15s ease",
+                    zIndex: 3,
+                  }}
+                >
+                  <Camera size={14} />
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handleImageUpload}
+                  style={{ display: "none" }}
+                />
               </div>
 
               {/* Name */}
               <h2
                 style={{
-                  margin: "0 0 6px",
+                  margin: "0 0 4px",
                   color: "var(--text-primary)",
                   fontSize: "24px",
                   fontWeight: 800,
@@ -768,103 +914,88 @@ export default function UserProfile({
               </h2>
               <p
                 style={{
-                  margin: "0 0 12px",
+                  margin: "0 0 10px",
                   color: "var(--text-secondary)",
-                  fontSize: "16px",
+                  fontSize: "15px",
                   fontWeight: 500,
                 }}
               >
                 @{username}
               </p>
 
-              {/* Avatar emoji picker trigger */}
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((v) => !v)}
+              {/* Clean, neat photo action bar */}
+              <div
                 style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "var(--text-muted)",
-                  letterSpacing: "0.5px",
-                  marginBottom: "12px",
-                  padding: "4px 10px",
-                  borderRadius: "6px",
-                  transition: "color 0.15s",
+                  display: "flex",
+                  gap: "8px",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: "14px",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.color =
-                    "var(--accent-primary, #22d3ee)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color = "var(--text-muted)")
-                }
               >
-                ✏️ Change Avatar
-              </button>
-              {showEmojiPicker && (
-                <div
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
                   style={{
-                    position: "absolute",
-                    top: "calc(100% - 60px)",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    zIndex: 20,
-                    background: "var(--bg-card)",
-                    border: "1px solid var(--border-medium)",
-                    borderRadius: "16px",
-                    padding: "12px",
-                    boxShadow: "0 16px 48px rgba(0,0,0,0.6)",
-                    display: "grid",
-                    gridTemplateColumns: "repeat(8, 1fr)",
+                    background: "var(--bg-secondary, rgba(255,255,255,0.05))",
+                    border: "1px solid var(--border-medium, rgba(255,255,255,0.12))",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "var(--text-primary, #f1f5f9)",
+                    padding: "5px 12px",
+                    borderRadius: "8px",
+                    display: "inline-flex",
+                    alignItems: "center",
                     gap: "6px",
-                    backdropFilter: "blur(20px)",
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--accent-primary, #22d3ee)";
+                    e.currentTarget.style.color = "var(--accent-primary, #22d3ee)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--border-medium, rgba(255,255,255,0.12))";
+                    e.currentTarget.style.color = "var(--text-primary, #f1f5f9)";
                   }}
                 >
+                  <Upload size={12} />
+                  {uploadingAvatar ? "Processing…" : profile?.avatar ? "Change Photo" : "Upload Photo"}
+                </button>
+
+                {profile?.avatar && (
                   <button
                     type="button"
-                    onClick={() => handleAvatarEmoji("")}
+                    onClick={handleRemoveAvatar}
                     style={{
-                      fontSize: "10px",
-                      fontWeight: 700,
-                      color: "var(--text-muted)",
-                      background: "var(--bg-secondary)",
-                      border: "1px solid var(--border-light)",
-                      borderRadius: "8px",
-                      padding: "6px",
+                      background: "rgba(239, 68, 68, 0.1)",
+                      border: "1px solid rgba(239, 68, 68, 0.25)",
                       cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#ef4444",
+                      padding: "5px 12px",
+                      borderRadius: "8px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.2)";
+                      e.currentTarget.style.borderColor = "#ef4444";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
+                      e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.25)";
                     }}
                   >
-                    ABC
+                    <Trash2 size={12} />
+                    Remove
                   </button>
-                  {AVATAR_EMOJIS.map((em) => (
-                    <button
-                      key={em}
-                      type="button"
-                      onClick={() => handleAvatarEmoji(em)}
-                      style={{
-                        fontSize: "22px",
-                        background:
-                          avatarEmoji === em
-                            ? "color-mix(in srgb, var(--accent-primary, #22d3ee) 15%, transparent)"
-                            : "transparent",
-                        border:
-                          avatarEmoji === em
-                            ? "1px solid var(--accent-primary, #22d3ee)"
-                            : "1px solid transparent",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        padding: "4px",
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      {em}
-                    </button>
-                  ))}
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Role badge */}
               <div

@@ -16,6 +16,7 @@ export interface UserRecord {
   email: string;
   mobile: string;
   role: string;
+  avatar?: string;
   tokenVersion?: number;
 }
 

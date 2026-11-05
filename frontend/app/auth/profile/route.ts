@@ -14,6 +14,7 @@ export async function GET(req: Request) {
     email: "admin@knowledge-worker.local",
     mobile: "+1 555-0199",
     role: "ADMIN",
+    avatar: "",
   };
 
   return NextResponse.json({
@@ -22,6 +23,7 @@ export async function GET(req: Request) {
     name: user.name,
     email: user.email,
     mobile: user.mobile,
+    avatar: user.avatar || "",
     role: user.role,
     accountNonLocked: true,
   });
