@@ -949,40 +949,8 @@ export default function UserProfile({
                   justifyContent: "center",
                   alignItems: "center",
                   marginBottom: "14px",
-                  flexWrap: "wrap",
                 }}
               >
-                {profile?.avatar && (
-                  <button
-                    type="button"
-                    onClick={handleOpenAdjuster}
-                    disabled={uploadingAvatar}
-                    style={{
-                      background: "rgba(34, 211, 238, 0.12)",
-                      border: "1px solid rgba(34, 211, 238, 0.35)",
-                      cursor: "pointer",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      color: "var(--accent-primary, #22d3ee)",
-                      padding: "5px 12px",
-                      borderRadius: "8px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      transition: "all 0.15s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(34, 211, 238, 0.22)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(34, 211, 238, 0.12)";
-                    }}
-                  >
-                    <Crop size={12} />
-                    Adjust
-                  </button>
-                )}
-
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
