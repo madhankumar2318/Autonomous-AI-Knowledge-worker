@@ -6,7 +6,6 @@ import {
   TrendingDown,
   TrendingUp,
   Zap,
-  Sparkles,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../config";
@@ -426,26 +425,7 @@ export default function StockSection({
     );
   }
 
-  const handleAnalyzeStock = (stock: StockQuote) => {
-    const isPos = (stock.change_percent ?? 0) >= 0;
-    const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
 
-    window.dispatchEvent(
-      new CustomEvent("ak-set-chat-prompt", {
-        detail: { prompt },
-      }),
-    );
-
-    window.dispatchEvent(
-      new CustomEvent("ak-add-notification", {
-        detail: {
-          title: "Stock Checkup Triggered",
-          message: `Sent ${stock.symbol} metrics to AI Analyst.`,
-          type: "info",
-        },
-      }),
-    );
-  };
 
   // ── FULL TAB MODE ──
   if (loading) {
@@ -697,17 +677,7 @@ export default function StockSection({
                       <div className="stocks-card-symbol-group">
                         <div className="stocks-card-symbol-row">
                           <span className="stocks-card-symbol">{s.symbol}</span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAnalyzeStock(s);
-                            }}
-                            title={`Perform AI checkup on ${s.symbol}`}
-                            className="stocks-sparkle-btn"
-                          >
-                            <Sparkles className="w-3 h-3" />
-                          </button>
+
                         </div>
                         <div className="stocks-card-name" title={s.name}>
                           {cleanCompanyName(s.name)}
@@ -1016,25 +986,6 @@ export default function StockSection({
           color: var(--text-primary);
           letter-spacing: 0.3px;
           line-height: 1;
-        }
-        .stocks-sparkle-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 20px;
-          height: 20px;
-          border-radius: 5px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
-          color: #94a3b8;
-          cursor: pointer;
-          transition: all 0.15s ease;
-          flex-shrink: 0;
-        }
-        .stocks-sparkle-btn:hover {
-          color: #22d3ee;
-          background: rgba(34,211,238,0.12);
-          border-color: rgba(34,211,238,0.3);
         }
         .stocks-card-name {
           font-size: 11.5px;

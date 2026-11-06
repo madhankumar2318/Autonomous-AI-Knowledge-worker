@@ -5,7 +5,6 @@ import {
   TrendingDown,
   Activity,
   BarChart2,
-  Sparkles,
 } from "lucide-react";
 import React, { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -411,12 +410,6 @@ export default function StockChartDetail({
             font-size: 11px !important;
             padding: 2px 7px !important;
           }
-          .sc-ai-btn {
-            padding: 4px 8px !important;
-            font-size: 11px !important;
-            border-radius: 8px !important;
-            gap: 4px !important;
-          }
           .sc-close-btn {
             width: 30px !important;
             height: 30px !important;
@@ -463,20 +456,6 @@ export default function StockChartDetail({
         }
         .sc-header-actions {
           display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-        }
-        .sc-ai-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 6px 12px; border-radius: 10px;
-          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 12%, transparent);
-          border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 30%, transparent);
-          color: var(--accent-primary, #22d3ee); font-size: 12px; font-weight: 600;
-          cursor: pointer; transition: all 0.2s ease;
-          white-space: nowrap; flex-shrink: 0;
-        }
-        .sc-ai-btn:hover {
-          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 22%, transparent);
-          border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 50%, transparent);
-          transform: translateY(-1px);
         }
         .sc-close-btn {
           width: 34px; height: 34px; border-radius: 10px;
@@ -567,33 +546,6 @@ export default function StockChartDetail({
               </span>
             </div>
             <div className="sc-header-actions">
-              <button
-                type="button"
-                className="sc-ai-btn"
-                onClick={() => {
-                  const isPos = (stock.change_percent ?? 0) >= 0;
-                  const prompt = `Perform a comprehensive technical and fundamental checkup on ${stock.symbol} (${stock.name || stock.symbol}):\n\n- Current Price: ${formatPrice(stock.price)}\n- 24h Change: ${isPos ? "+" : ""}${formatChange(stock.change_percent)}\n- Trading Volume: ${formatVolume(stock.volume)}\n\nWhat is the market sentiment, key support/resistance levels, and overall outlook?`;
-                  window.dispatchEvent(
-                    new CustomEvent("ak-set-chat-prompt", {
-                      detail: { prompt },
-                    }),
-                  );
-                  window.dispatchEvent(
-                    new CustomEvent("ak-add-notification", {
-                      detail: {
-                        title: "Stock Checkup Triggered",
-                        message: `Sent ${stock.symbol} metrics to AI Analyst.`,
-                        type: "info",
-                      },
-                    }),
-                  );
-                  onClose();
-                }}
-                title="Analyze this stock with AI"
-              >
-                <Sparkles size={13} />
-                <span>AI Checkup</span>
-              </button>
               <button
                 className="sc-close-btn"
                 onClick={onClose}
