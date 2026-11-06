@@ -37,7 +37,7 @@ public class NewsService {
     // Simple TTL cache: cache_key → (articles, timestamp_ms)
     private final Map<String, List<Article>> newsCache = new ConcurrentHashMap<>();
     private final Map<String, Long> newsCacheTs = new ConcurrentHashMap<>();
-    private static final long CACHE_TTL_MS = 30 * 60 * 1000L; // 30 minutes
+    private static final long CACHE_TTL_MS = 60 * 1000L; // 60 seconds (1 minute) for live breaking news // 30 minutes
 
     public NewsResponse getNews(int page, String category, String topic) {
         String cat = category != null && !category.isBlank() ? category.toLowerCase().trim() : "all";
@@ -134,6 +134,13 @@ public class NewsService {
             }
         }
 
+        // Sort so newest breaking news is at the top
+        combined.sort((a, b) -> {
+            String tA = a.getPublishedAt() != null ? a.getPublishedAt() : "";
+            String tB = b.getPublishedAt() != null ? b.getPublishedAt() : "";
+            return tB.compareTo(tA);
+        });
+
         return combined;
     }
 
@@ -176,6 +183,78 @@ public class NewsService {
         return articles;
     }
 
+    private static final String[][] THEMATIC_PHOTOS = {
+        {"politics", "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"politics", "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"court", "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"court", "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"military", "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"military", "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"business", "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"business", "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"technology", "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"technology", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"health", "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"science", "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"sports", "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"entertainment", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80"},
+        {"world", "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80"}
+    };
+
+    private String getThematicImageUrl(String title, String category, int index) {
+        String lower = (title != null ? title : "").toLowerCase();
+        if (lower.matches(".*\\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice|death row|commute|prison|sentence)\\b.*")) {
+            return (index % 2 == 0) ? THEMATIC_PHOTOS[2][1] : THEMATIC_PHOTOS[3][1];
+        }
+        if (lower.matches(".*\\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern|midterm|governor)\\b.*")) {
+            return (index % 2 == 0) ? THEMATIC_PHOTOS[0][1] : THEMATIC_PHOTOS[1][1];
+        }
+        if (lower.matches(".*\\b(war|military|strike|drone|missile|attack|ukraine|russia|israel|gaza|iran|troops|army|weapon|terror|defense|treaty|broker)\\b.*")) {
+            return (index % 2 == 0) ? THEMATIC_PHOTOS[4][1] : THEMATIC_PHOTOS[5][1];
+        }
+        if (lower.matches(".*\\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq|gold|oil)\\b.*")) {
+            return (index % 2 == 0) ? THEMATIC_PHOTOS[6][1] : THEMATIC_PHOTOS[7][1];
+        }
+        if (lower.matches(".*\\b(ai|nvidia|chip|tech|software|google|apple|microsoft|openai|robot|computer|quantum|cyber|coding)\\b.*")) {
+            return (index % 2 == 0) ? THEMATIC_PHOTOS[8][1] : THEMATIC_PHOTOS[9][1];
+        }
+        if (lower.matches(".*\\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|patient|pandemic)\\b.*")) {
+            return THEMATIC_PHOTOS[10][1];
+        }
+        if (lower.matches(".*\\b(space|nasa|rocket|starship|spacex|satellite|mars|moon|astronaut|telescope|orbit|planet|astronomy)\\b.*")) {
+            return THEMATIC_PHOTOS[11][1];
+        }
+        if (lower.matches(".*\\b(sport|football|soccer|nfl|nba|premier league|match|cup|goal|coach|olympic|tennis|race|player)\\b.*")) {
+            return THEMATIC_PHOTOS[12][1];
+        }
+        if (lower.matches(".*\\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre|culture)\\b.*")) {
+            return THEMATIC_PHOTOS[13][1];
+        }
+        return THEMATIC_PHOTOS[14][1];
+    }
+
+    private String unescapeHtml(String text) {
+        if (text == null) return "";
+        return text.replaceAll("<[^>]+>", " ")
+                .replaceAll("&nbsp;", " ")
+                .replaceAll("&amp;", "&")
+                .replaceAll("&quot;", "\"")
+                .replaceAll("&#39;|&apos;", "'")
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
+    private String getAttribute(Element parent, String tag, String attr) {
+        NodeList nl = parent.getElementsByTagName(tag);
+        if (nl.getLength() > 0 && nl.item(0) instanceof Element) {
+            String val = ((Element) nl.item(0)).getAttribute(attr);
+            if (val != null && !val.isBlank()) return val.trim();
+        }
+        return null;
+    }
+
     private List<Article> parseRssFeed(String xml, String defaultCategory) {
         List<Article> articles = new ArrayList<>();
         try {
@@ -189,36 +268,64 @@ public class NewsService {
                 Element item = (Element) items.item(i);
                 String title = getXmlText(item, "title");
                 String link = getXmlText(item, "link");
-                String description = getXmlText(item, "description");
+                String rawDescription = getXmlText(item, "description");
                 String pubDate = getXmlText(item, "pubDate");
                 String source = getXmlText(item, "source");
 
                 if (title == null || title.isBlank() || link == null || link.isBlank()) continue;
 
-                // Clean HTML from description
-                if (description != null) {
-                    description = description.replaceAll("<[^>]+>", "").trim();
-                    if (description.length() > 200) description = description.substring(0, 200) + "...";
+                String cleanTitle = unescapeHtml(title);
+                if (cleanTitle.matches("^.*?\\s+[-–—]\\s+[^-–—]{2,40}$")) {
+                    int lastDash = cleanTitle.lastIndexOf("-");
+                    if (lastDash > 0) {
+                        String potentialSource = cleanTitle.substring(lastDash + 1).trim();
+                        if (source == null || source.isBlank() || source.equalsIgnoreCase("news")) {
+                            source = potentialSource;
+                        }
+                        cleanTitle = cleanTitle.substring(0, lastDash).trim();
+                    }
                 }
+
+                String cleanDesc = unescapeHtml(rawDescription);
+                if (cleanDesc.length() > 250) cleanDesc = cleanDesc.substring(0, 250) + "...";
+                if (cleanDesc.length() < 25) {
+                    cleanDesc = cleanTitle + ". Live developing coverage reported by " + (source != null ? source : "Global News") + " with latest global updates.";
+                }
+
                 if (source == null || source.isBlank()) source = extractDomain(link);
 
-                String parsedDate = Instant.now().minus(i, ChronoUnit.HOURS).toString();
+                String parsedDate = Instant.now().minus(i * 10L + 2, ChronoUnit.MINUTES).toString();
                 if (pubDate != null && !pubDate.isBlank()) {
                     try {
-                        // RSS date format: "Mon, 07 Sep 2026 12:00:00 GMT"
                         java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.ENGLISH);
                         parsedDate = sdf.parse(pubDate).toInstant().toString();
                     } catch (Exception ignored) {}
                 }
 
+                // Check for real media tags or img tag in description
+                String imageUrl = getAttribute(item, "media:content", "url");
+                if (imageUrl == null || imageUrl.isBlank()) imageUrl = getAttribute(item, "media:thumbnail", "url");
+                if (imageUrl == null || imageUrl.isBlank()) imageUrl = getAttribute(item, "enclosure", "url");
+                if (imageUrl == null || imageUrl.isBlank()) {
+                    if (rawDescription != null && rawDescription.contains("<img")) {
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("<img[^>]+src=[\"\']([^\"\']+)[\"\']").matcher(rawDescription);
+                        if (m.find()) {
+                            imageUrl = m.group(1);
+                        }
+                    }
+                }
+                if (imageUrl == null || !imageUrl.startsWith("http")) {
+                    imageUrl = getThematicImageUrl(cleanTitle, defaultCategory, i);
+                }
+
                 articles.add(Article.builder()
-                        .title(title)
-                        .description(description != null ? description : title)
+                        .title(cleanTitle)
+                        .description(cleanDesc)
                         .url(link)
                         .source(source)
                         .category(defaultCategory)
                         .publishedAt(parsedDate)
-                        .urlToImage("")
+                        .urlToImage(imageUrl)
                         .build());
             }
         } catch (Exception e) {

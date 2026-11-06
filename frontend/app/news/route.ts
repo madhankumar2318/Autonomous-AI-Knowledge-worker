@@ -16,47 +16,47 @@ interface RawArticle {
 
 const CONTEXTUAL_IMAGES: Record<string, string[]> = {
   politics: [
-    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&q=80", // US Capitol
-    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=800&q=80", // Government building
-    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80", // Press conference / podium
+    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&h=450&q=80", // US Capitol
+    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=800&h=450&q=80", // Government building
+    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&h=450&q=80", // Press conference / podium
   ],
   court: [
-    "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&q=80", // Court gavel
-    "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&q=80", // Law library
+    "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&h=450&q=80", // Court gavel
+    "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&h=450&q=80", // Law library
   ],
   military: [
-    "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&q=80", // Defense / military
-    "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&q=80", // Security / defense
+    "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80", // Defense / military
+    "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80", // Security / defense
   ],
   weather: [
-    "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&q=80", // Storm rain
-    "https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=800&q=80", // Storm clouds
+    "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&h=450&q=80", // Storm rain
+    "https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=800&h=450&q=80", // Storm clouds
   ],
   business: [
-    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&q=80", // Stock board
-    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80", // Wall Street
-    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&q=80", // Finance team
+    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80", // Stock board
+    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80", // Wall Street
+    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&h=450&q=80", // Finance team
   ],
   technology: [
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80", // Technology
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", // AI neural network
-    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80", // Software code
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80", // Technology
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80", // AI neural network
+    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&h=450&q=80", // Software code
   ],
   space: [
-    "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&q=80", // Rocket launch
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80", // Earth / satellite
+    "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80", // Rocket launch
+    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80", // Earth / satellite
   ],
   health: [
-    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80", // Healthcare / doctor
-    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&q=80", // Science laboratory
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80", // Healthcare / doctor
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80", // Science laboratory
   ],
   sports: [
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80", // Sports stadium
-    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80", // Football match
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80", // Sports stadium
+    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&h=450&q=80", // Football match
   ],
   entertainment: [
-    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80", // Concert / event
-    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&q=80", // Cinema / movie
+    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80", // Concert / event
+    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=450&q=80", // Cinema / movie
   ],
 };
 
@@ -92,6 +92,21 @@ function getSmartFallbackImage(title: string, category: string, index: number): 
   const cat = (category || "technology").toLowerCase();
   const pool = CONTEXTUAL_IMAGES[cat] || CONTEXTUAL_IMAGES.technology;
   return pool[index % pool.length];
+}
+
+function decodeHtml(html?: string): string {
+  if (!html) return "";
+  return html
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(dec))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function parseRssFeed(xml: string, defaultSource: string, category: string): RawArticle[] {
@@ -262,7 +277,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Bloomberg Technology",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Autonomous Knowledge Workers Deliver 65% Productivity Gains in Global Financial Firms",
@@ -271,7 +286,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Reuters",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Quantum Computing Lab Achieves 1000-Qubit Fault Tolerance Threshold Using Topological Codes",
@@ -280,7 +295,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "TechCrunch",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Open-Source Foundation Releases 400B Parameter Multimodal Model With Near-Human Reasoning",
@@ -289,7 +304,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "The Verge",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 80).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "TSMC Accelerates 2nm GAA Production Timeline Following Surging Customer AI Orders",
@@ -298,7 +313,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Wall Street Journal",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 110).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Silicon Photonics Breakthrough Triples Inter-Data-Center Bandwidth While Halving Latency",
@@ -307,7 +322,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Wired",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 145).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Cybersecurity Consortium Alerts on Automated Zero-Day Discovery Powered by Local LLMs",
@@ -316,7 +331,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "ZDNet",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 175).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Edge AI Sensors Deployed Across 10,000 Wind Turbines for Real-Time Predictive Maintenance",
@@ -325,7 +340,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Ars Technica",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 200).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1466611653911-95081537e5b7?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Next-Gen Solid State Battery Chemistry Powers 800-Mile Range EV Prototype in Test Trials",
@@ -334,7 +349,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Engadget",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1558441719-8b489c634a10?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1558441719-8b489c634a10?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Autonomous Logistics Fleet Crosses 50 Million Driverless Freight Miles Without Critical Incident",
@@ -343,7 +358,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Forbes Tech",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 280).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Decentralized Identity Frameworks Gain Adoption Across 40 Sovereign Digital Registries",
@@ -352,7 +367,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "CoinDesk",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 320).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Neuromorphic Vision Processors Enable Micro-Drones to Navigate Complex Indoor Warehouses",
@@ -361,7 +376,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "IEEE Spectrum",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "SpaceX Starship Successfully Deploys Orbital Fuel Depots Paving Way for Lunar Missions",
@@ -370,7 +385,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "SpaceNews",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 410).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1517976487507-5801f914c449?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1517976487507-5801f914c449?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Spatial Computing Headsets Implement Micro-OLED 4K Displays for Industrial CAD Engineering",
@@ -379,7 +394,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "CNET",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 460).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global Cloud Providers Transition 35% of Backup Generators to Hydrogen Fuel Cell Stacks",
@@ -388,7 +403,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "DatacenterDynamics",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 500).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Synthetic Biology Platform Synthesizes Enzyme That Digests Industrial Plastics in 8 Hours",
@@ -397,7 +412,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Nature Biotech",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 540).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Ultra-Dense Magnetic Tape Tech Stores 500 Terabytes on Single Cartridge for Deep Cold Storage",
@@ -406,7 +421,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "AnandTech",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 580).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Satellite Direct-to-Cell Broadband Reaches 99.8% Geographic Coverage Across Remote Continents",
@@ -415,7 +430,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "The Verge",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 620).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Semiconductor Packaging Standards Adopt 3D Hybrid Bonding for Heterogeneous AI Accelerators",
@@ -424,7 +439,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Semiconductor Engineering",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 660).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Graph Neural Networks Accelerate Materials Discovery for High-Temperature Superconductors",
@@ -433,7 +448,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "MIT Technology Review",
     category: "Technology",
     published_at: new Date(Date.now() - 1000 * 60 * 700).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=800&h=450&q=80",
   },
 
   // ── BUSINESS & FINANCE (16 articles) ──
@@ -444,7 +459,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Financial Times",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Tech Sector M&A Rebounds to Record Highs Driven by Specialized AI Model Acquisitions",
@@ -453,7 +468,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Wall Street Journal",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "S&P 500 Surpasses Historic Milestones as Corporate Margins Expand Across Software & Cloud",
@@ -462,7 +477,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Bloomberg Markets",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Cross-Border Settlement Networks Complete Pilot Using Tokenized Treasury Bills",
@@ -471,7 +486,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "CNBC",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 130).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Venture Capital Inflows Into Green Energy Infrastructure Jump 45% Year-Over-Year",
@@ -480,7 +495,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Reuters",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 165).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1497435334941-8c899ee9e8e9?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Consumer Confidence Index Climbs to Two-Year High on Resilient Real Wage Gains",
@@ -489,7 +504,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "MarketWatch",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 210).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Sovereign Wealth Funds Increase Allocation to Semiconductor Infrastructure to $120B",
@@ -498,7 +513,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Financial Times",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 260).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Commercial Real Estate Repurposes Obsolete Office Parks into High-Density Urban Data Hubs",
@@ -507,7 +522,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Forbes Business",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 310).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global Supply Chain Pressure Index Drops to Lowest Level Since 2019",
@@ -516,7 +531,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Bloomberg",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 350).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Fintech Platforms Integrate Real-Time Corporate Cash Management With Automated Yield Sweeps",
@@ -525,7 +540,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "TechCrunch",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 390).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global Copper Demand Reaches All-Time High Driven by Grid Modernization & EV Rollouts",
@@ -534,7 +549,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Reuters Commodities",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 430).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Corporate Green Bonds Exceed $1 Trillion in Annual Issuance Under Strict Audit Criteria",
@@ -543,7 +558,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Wall Street Journal",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 480).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Automated Tax & Regulatory Compliance Platforms Reduce Audit Filing Cycles From Months to Days",
@@ -552,7 +567,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Bloomberg Tax",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 520).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global Air Travel Bookings Surpass Pre-Pandemic Baselines by 14% With Premium Cabin Upsell",
@@ -561,7 +576,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "CNBC Travel",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 560).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Private Credit Funds Close Record $45B Facility to Fund Infrastructure & Enterprise Software",
@@ -570,7 +585,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Financial Times",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 610).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "India Emerges as Third-Largest Global Tech Startup Ecosystem With $28B Annual Inflow",
@@ -579,7 +594,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Economic Times",
     category: "Business",
     published_at: new Date(Date.now() - 1000 * 60 * 650).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=800&h=450&q=80",
   },
 
   // ── SCIENCE (15 articles) ──
@@ -590,7 +605,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "NASA",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 40).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Fusion Reactor Achieves Net Energy Gain of 3.8 Megajoules in Sustained Plasma Shot",
@@ -599,7 +614,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Nature",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 70).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Deep-Sea Expedition Discovers 120 Uncatalogued Bioluminescent Species in Mariana Trench",
@@ -608,7 +623,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "National Geographic",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 115).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Paleontologists Unearth Pristine 80-Million-Year-Old Feathered Dinosaur Fossil With Soft Tissue",
@@ -617,7 +632,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Science Magazine",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 150).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Gravitational Wave Observatories Detect Coalescence of Rare Intermediate-Mass Black Hole Pair",
@@ -626,7 +641,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Physics World",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 190).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Atmospheric Chemists Verify Rapid Recovery of Antarctic Ozone Layer Ahead of 2060 Projections",
@@ -635,7 +650,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Scientific American",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 230).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Mars Rover Uncovers Organic Carbon Molecules in Ancient Lacustrine Mudstones on Jezero Crater",
@@ -644,7 +659,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Space.com",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 270).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Neurologists Map the Complete Synaptic Connectome of Complex Mammalian Brain Region",
@@ -653,7 +668,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Nature Neuroscience",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 315).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Geneticists Successfully Synthesize Drought-Resilient C4 Photosynthesis in Rice Crops",
@@ -662,7 +677,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Cell",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 365).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Laser Interferometers Detect Micro-Seismic Earth Core Oscillations Providing Deep Planetary Map",
@@ -671,7 +686,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Eos Earth Science",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 415).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Cryo-EM Visualizes Molecular Action of Ribosome Inhibitor Against Resistant Superbugs",
@@ -680,7 +695,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Science",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 470).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Archaeologists Use Lidar to Uncover Sprawling Pre-Columbian Megacities in Amazon Basin",
@@ -689,7 +704,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "National Geographic",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 530).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Quantum Entanglement Preserved Across 1,200-Kilometer Fiber Network With Optical Repeaters",
@@ -698,7 +713,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Physics World",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 590).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Solar Probe Performs Closest Flyby of Sun at 400,000 MPH, Sampling Coronal Mass Ejection",
@@ -707,7 +722,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "NASA Science",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 640).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1532693322450-2cb5c511067d?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1532693322450-2cb5c511067d?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Graphene Aerogel Filter Desalinates Seawater Using Passive Solar Evaporation With 99% Purity",
@@ -716,7 +731,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Nature Materials",
     category: "Science",
     published_at: new Date(Date.now() - 1000 * 60 * 690).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&h=450&q=80",
   },
 
   // ── HEALTH & MEDICINE (15 articles) ──
@@ -727,7 +742,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "The Lancet",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "FDA Grants Priority Approval for In-Vivo CRISPR Therapy Halting Genetic Cardiomyopathy",
@@ -736,7 +751,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "New England Journal of Medicine",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 65).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "AI Diagnostic Scan Detects Early-Stage Alzheimer's Biomarkers 8 Years Before Symptom Onset",
@@ -745,7 +760,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "BBC Health",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 105).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Next-Generation GLP-1 Multi-Receptor Agonist Demonstrates 28% Sustained Weight Loss in Study",
@@ -754,7 +769,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Reuters Health",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 140).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Implantable Bioartificial Kidney Passes Long-Term Preclinical Safety Trials Without Immunosuppression",
@@ -763,7 +778,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "ScienceDaily",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 185).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "New Class of Narrow-Spectrum Antibiotics Synthesized to Destroy Drug-Resistant Acinetobacter",
@@ -772,7 +787,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Nature Medicine",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 225).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Non-Invasive Focused Ultrasound Safely Opens Blood-Brain Barrier to Deliver Chemotherapy",
@@ -781,7 +796,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "National Cancer Institute",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 275).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Continuous Optical Glucose Monitoring Ring Clears Clinical Trial With Sub-Milligram Accuracy",
@@ -790,7 +805,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "MobiHealthNews",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 330).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1510519138161-58474ebf8484?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1510519138161-58474ebf8484?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Cardiologists Successfully Perform Robotically Assisted Fully Remote Percutaneous Heart Stenting",
@@ -799,7 +814,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Medscape",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 380).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Cellular Senescence Reversal Demonstrated in Human Skin Tissue Using Yamanaka Factors",
@@ -808,7 +823,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Aging Cell",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 435).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1512290900672-1f55b9e59d60?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1512290900672-1f55b9e59d60?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global WHO Initiative Cuts Childhood Malaria Mortality by 62% in Target Regions",
@@ -817,7 +832,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "World Health Organization",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 490).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Brain-Computer Interface Restores Natural Conversational Speech to Paralyzed Patient at 90 WPM",
@@ -826,7 +841,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Nature",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 545).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Personalized Neoantigen Cancer Vaccine Shrinks Recurrent Pancreatic Tumors in 82% of Patients",
@@ -835,7 +850,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Bloomberg Health",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 600).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Regenerative Stem Cell Hydrogel Restores Full Meniscal Cartilage Function in Knee Joints",
@@ -844,7 +859,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Science Translational Medicine",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 655).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Sleep Quality Tracking Algorithms Discover Critical Glymphatic Toxin Clearance Windows",
@@ -853,7 +868,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "National Institutes of Health",
     category: "Health",
     published_at: new Date(Date.now() - 1000 * 60 * 710).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=800&h=450&q=80",
   },
 
   // ── SPORTS (16 articles) ──
@@ -864,7 +879,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "BBC Sport",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Formula 1 Unveils 2026 Engine Regulations With 100% Sustainable Fuel & Boosted Electrical Output",
@@ -873,7 +888,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Motorsport.com",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Olympic Committee Confirms Cricket, Flag Football, and Squash for 2028 Los Angeles Games",
@@ -882,7 +897,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "ESPN",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 85).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "NBA Finals Ratings Surge 24% Driven by High-Scoring Dynamic Offenses and Global Stars",
@@ -891,7 +906,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "The Athletic",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 125).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Grand Slam Tennis Final Thriller Goes to Five Sets in Record 4-Hour 45-Minute Epic",
@@ -900,7 +915,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Reuters Sports",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 170).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Marathon World Record Shattered by 38 Seconds With Precision Pacing & Carbon Footwear",
@@ -909,7 +924,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Runner's World",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 215).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1452626038306-9aae5e071dd3?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Premier League Agrees Historic $8.5 Billion Domestic Television Broadcast Package",
@@ -918,7 +933,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Sky Sports",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 265).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "PGA Tour and DP World Tour Finalize Historic Strategic Enterprise Investment Structure",
@@ -927,7 +942,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Golf Digest",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 310).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "FIFA World Cup 2026 Ticket Registration Exceeds 15 Million Within First 72 Hours",
@@ -936,7 +951,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "FIFA Official",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 360).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Cricket World Cup Final Attracts Record Peak 65 Million Concurrent Streaming Viewers",
@@ -945,7 +960,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "ESPN Cricinfo",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 410).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1531415074868-036b1c5f53ec?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1531415074868-036b1c5f53ec?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Tour de France Mountain Stage Decided by Stunning Solo Breakaway on Legendary Col du Tourmalet",
@@ -954,7 +969,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Cycling News",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 465).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Women's Super League Attendance Grows by 68% in Record-Breaking Season",
@@ -963,7 +978,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "The Guardian Sport",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 520).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1517466787929-bc90951d0974?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Super Bowl Halftime Show and Commercial Ads Set New Commercial Value Benchmarks",
@@ -972,7 +987,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Variety Sports & Media",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 575).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1566577739112-5180d4bf9390?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Extreme Sailing Foiling Catamarans Reach Unprecedented 58 Knots in Open Water Regatta",
@@ -981,7 +996,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Yachting World",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 630).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1500917293891-ef795e70e1f6?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "MLB Pitch Tracking Biometrics Drastically Reduce UCL Strain Among Fastball Starters",
@@ -990,7 +1005,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Baseball Prospectus",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 680).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "World Athletics Introduces Smart Track Sensors Providing Instantaneous Reaction Time Analysis",
@@ -999,7 +1014,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "World Athletics",
     category: "Sports",
     published_at: new Date(Date.now() - 1000 * 60 * 730).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&h=450&q=80",
   },
 
   // ── ENTERTAINMENT & MEDIA (18 articles) ──
@@ -1010,7 +1025,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Hollywood Reporter",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Streaming Titans Consolidate Platform Libraries to Create Comprehensive Unified Service",
@@ -1019,7 +1034,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Variety",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Interactive Generative Video Game Engine Generates Fully Voiced Living Worlds in Real Time",
@@ -1028,7 +1043,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "IGN",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 75).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global Music Festival Tour Sells Out 2.5 Million Tickets in Under 40 Minutes",
@@ -1037,7 +1052,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Billboard",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Independent Animated Feature Film Wins Prestigious Palme d'Or at Cannes Film Festival",
@@ -1046,7 +1061,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Deadline",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 160).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Spatial Audio Mixes of Classic Albums Uncover Lost Master Tapes and Vocal Harmonizations",
@@ -1055,7 +1070,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Pitchfork",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 205).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Broadway Box Office Reaches Historical Season High Driven by Fresh Original Musicals",
@@ -1064,7 +1079,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Playbill",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 255).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Virtual Production LED Volume Stages Replace 70% of Location Green Screens in Hollywood",
@@ -1073,7 +1088,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "TheWrap",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global Manga and Graphic Novel Publishing Surpasses $18 Billion Valuation",
@@ -1082,7 +1097,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Anime News Network",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 345).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Electronic Music Artists Pioneer Generative Live Synth Performances Responding to Crowd Energy",
@@ -1091,7 +1106,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "DJ Mag",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 395).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Museum of Modern Art Opens Landmark Exhibition on Algorithmic and Digital Artistry",
@@ -1100,7 +1115,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "ARTnews",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 450).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1547826039-bfc35e0f1ea8?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1547826039-bfc35e0f1ea8?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "High-Fantasy Book Series Adaptation Garners 80 Million Households in First Ten Days",
@@ -1109,7 +1124,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "IndieWire",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 505).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1463320726281-696a485928c7?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1463320726281-696a485928c7?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Podcasting Networks Expand Video Broadcast Studios With 4K Multi-Camera Production",
@@ -1118,7 +1133,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Rolling Stone",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 560).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Historical Epic Video Game Sets New Standard for Atmospheric Orchestral Scoring",
@@ -1127,7 +1142,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "GameSpot",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 615).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "International Documentary Festival Awards Grand Jury Prize to Ocean Conservation Expose",
@@ -1136,7 +1151,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Screen Daily",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 670).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Vinyl Record Sales Outpace Digital Downloads for Fifth Consecutive Year Among Gen-Z Audiences",
@@ -1145,7 +1160,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "Billboard",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 720).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1539185441755-769473a23570?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1539185441755-769473a23570?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Immersive VR Opera Production Stuns Audiences With Floating 3D Vocal Harmonies",
@@ -1154,7 +1169,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "The Stage",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 760).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800&h=450&q=80",
   },
   {
     title: "Global Film Archive Restores 100 Lost Silent Classics in 4K HDR Using Machine Learning",
@@ -1163,7 +1178,7 @@ const HUNDRED_NEWS: RawArticle[] = [
     source: "British Film Institute",
     category: "Entertainment",
     published_at: new Date(Date.now() - 1000 * 60 * 800).toISOString(),
-    url_to_image: "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&q=80",
+    url_to_image: "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=450&q=80",
   },
 ];
 
