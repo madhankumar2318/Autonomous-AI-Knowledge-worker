@@ -128,6 +128,19 @@ export default function Home_Page() {
     if (loggedInUser && typeof window !== "undefined") {
       const saved = localStorage.getItem(`ak_avatar_${loggedInUser}`);
       if (saved) setUserAvatar(saved);
+
+      const token = localStorage.getItem("ak_token");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      fetch(`${API_BASE_URL}/auth/profile`, { headers, credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data?.avatar) {
+            setUserAvatar(data.avatar);
+            localStorage.setItem(`ak_avatar_${loggedInUser}`, data.avatar);
+          }
+        })
+        .catch(() => {});
     } else {
       setUserAvatar("");
     }
@@ -678,7 +691,20 @@ export default function Home_Page() {
             >
               <div className="avatar-ring">
                 <div className="avatar-inner">
-                  {(loggedInUser || "US").slice(0, 2).toUpperCase()}
+                  {userAvatar ? (
+                    <img
+                      src={userAvatar}
+                      alt={loggedInUser || "User"}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  ) : (
+                    (loggedInUser || "US").slice(0, 2).toUpperCase()
+                  )}
                 </div>
               </div>
               <div className="avatar-info">
@@ -1094,6 +1120,7 @@ export default function Home_Page() {
           font-weight: 900;
           color: #d8b4fe;
           letter-spacing: 0.5px;
+          overflow: hidden;
         }
         .avatar-info { display: flex; flex-direction: column; gap: 1px; text-align: left; }
         .avatar-name { font-size: 13px; font-weight: 700; color: var(--text-primary); line-height: 1; }
