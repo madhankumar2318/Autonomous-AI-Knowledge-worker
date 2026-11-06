@@ -1,6 +1,16 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { Check, X, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Check,
+  RotateCcw,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 
 interface PhotoCropperModalProps {
   imageSrc: string;
@@ -9,7 +19,7 @@ interface PhotoCropperModalProps {
 }
 
 const VIEW_SIZE = 240; // 240px circular preview
-const TARGET_SIZE = 256; // High quality 256x256 export
+const TARGET_SIZE = 256; // 256x256 crisp avatar export
 
 export default function PhotoCropperModal({
   imageSrc,
@@ -24,7 +34,7 @@ export default function PhotoCropperModal({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [saving, setSaving] = useState(false);
 
-  // Load the image
+  // Load image
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -36,7 +46,7 @@ export default function PhotoCropperModal({
     img.src = imageSrc;
   }, [imageSrc]);
 
-  // Compute cover scale and clamped pan so image always completely fills the circle
+  // Compute cover scale and generous panning range so user can freely align left/right and up/down
   const getTransform = () => {
     if (!imageObj) return { baseScale: 1, totalScale: 1, clampedX: 0, clampedY: 0 };
 
@@ -49,16 +59,17 @@ export default function PhotoCropperModal({
     const currentW = imageObj.naturalWidth * totalScale;
     const currentH = imageObj.naturalHeight * totalScale;
 
-    const maxPanX = Math.max(0, (currentW - VIEW_SIZE) / 2);
-    const maxPanY = Math.max(0, (currentH - VIEW_SIZE) / 2);
+    // Generous panning room: allows at least 50% view travel in all directions
+    const maxPanX = Math.max(VIEW_SIZE * 0.5, (currentW - VIEW_SIZE) / 2 + 30);
+    const maxPanY = Math.max(VIEW_SIZE * 0.5, (currentH - VIEW_SIZE) / 2 + 30);
 
     const clampedX = Math.max(-maxPanX, Math.min(maxPanX, pan.x));
     const clampedY = Math.max(-maxPanY, Math.min(maxPanY, pan.y));
 
-    return { baseScale, totalScale, clampedX, clampedY };
+    return { baseScale, totalScale, clampedX, clampedY, currentW, currentH };
   };
 
-  // Render on canvas whenever zoom, pan, or image changes
+  // Render preview canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !imageObj) return;
@@ -69,16 +80,33 @@ export default function PhotoCropperModal({
 
     const { totalScale, clampedX, clampedY } = getTransform();
 
-    // Clip to circle so preview is cleanly circular
+    // Clip to circle
     ctx.save();
     ctx.beginPath();
     ctx.arc(VIEW_SIZE / 2, VIEW_SIZE / 2, VIEW_SIZE / 2, 0, Math.PI * 2);
     ctx.clip();
 
+    // 1. Ambient blurred background fill so moving left/right never exposes harsh voids
+    ctx.save();
+    ctx.filter = "blur(14px) brightness(0.65)";
+    const bgScale =
+      Math.max(
+        VIEW_SIZE / imageObj.naturalWidth,
+        VIEW_SIZE / imageObj.naturalHeight
+      ) * 1.35;
+    ctx.translate(VIEW_SIZE / 2, VIEW_SIZE / 2);
+    ctx.scale(bgScale, bgScale);
+    ctx.drawImage(
+      imageObj,
+      -imageObj.naturalWidth / 2,
+      -imageObj.naturalHeight / 2
+    );
+    ctx.restore();
+
+    // 2. Crisp centered & panned main image
+    ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-
-    // Draw centered + offset image
     ctx.translate(VIEW_SIZE / 2 + clampedX, VIEW_SIZE / 2 + clampedY);
     ctx.scale(totalScale, totalScale);
     ctx.drawImage(
@@ -87,9 +115,11 @@ export default function PhotoCropperModal({
       -imageObj.naturalHeight / 2
     );
     ctx.restore();
+
+    ctx.restore();
   }, [imageObj, zoom, pan]);
 
-  // Pointer drag handling
+  // Pointer drag events
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
     setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -117,10 +147,20 @@ export default function PhotoCropperModal({
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.08 : 0.08;
-    setZoom((prev) => Math.min(3, Math.max(1, +(prev + delta).toFixed(2))));
+    setZoom((prev) => Math.min(3, Math.max(0.8, +(prev + delta).toFixed(2))));
   };
 
-  // Export exact 256x256 circular crop
+  // Nudge alignment helpers (step 18px per click)
+  const nudge = (dx: number, dy: number) => {
+    setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+  };
+
+  const resetAlignment = () => {
+    setPan({ x: 0, y: 0 });
+    setZoom(1);
+  };
+
+  // Save 256x256 crisp avatar with exact WYSIWYG crop
   const handleSave = () => {
     if (!imageObj) return;
     setSaving(true);
@@ -139,9 +179,31 @@ export default function PhotoCropperModal({
       const factor = TARGET_SIZE / VIEW_SIZE;
       const finalScale = baseScale * zoom * factor;
 
+      outCtx.save();
+      outCtx.beginPath();
+      outCtx.arc(TARGET_SIZE / 2, TARGET_SIZE / 2, TARGET_SIZE / 2, 0, Math.PI * 2);
+      outCtx.clip();
+
+      // Ambient blurred background
+      outCtx.save();
+      outCtx.filter = "blur(14px) brightness(0.65)";
+      const bgScale =
+        Math.max(
+          TARGET_SIZE / imageObj.naturalWidth,
+          TARGET_SIZE / imageObj.naturalHeight
+        ) * 1.35;
+      outCtx.translate(TARGET_SIZE / 2, TARGET_SIZE / 2);
+      outCtx.scale(bgScale, bgScale);
+      outCtx.drawImage(
+        imageObj,
+        -imageObj.naturalWidth / 2,
+        -imageObj.naturalHeight / 2
+      );
+      outCtx.restore();
+
+      // Main image
       outCtx.imageSmoothingEnabled = true;
       outCtx.imageSmoothingQuality = "high";
-
       outCtx.translate(
         TARGET_SIZE / 2 + clampedX * factor,
         TARGET_SIZE / 2 + clampedY * factor
@@ -152,6 +214,7 @@ export default function PhotoCropperModal({
         -imageObj.naturalWidth / 2,
         -imageObj.naturalHeight / 2
       );
+      outCtx.restore();
 
       const croppedDataUrl = outCanvas.toDataURL("image/webp", 0.9);
       onCrop(croppedDataUrl);
@@ -166,23 +229,23 @@ export default function PhotoCropperModal({
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 100,
-        background: "rgba(0, 0, 0, 0.78)",
+        zIndex: 110,
+        background: "rgba(0, 0, 0, 0.8)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "20px",
+        padding: "16px",
         animation: "modalFadeIn 0.18s ease-out forwards",
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: "360px",
+          maxWidth: "380px",
           background: "#0c101b",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
           borderRadius: "20px",
           boxShadow: "0 25px 60px rgba(0, 0, 0, 0.9)",
           overflow: "hidden",
@@ -193,10 +256,11 @@ export default function PhotoCropperModal({
         {/* Header */}
         <div
           style={{
-            padding: "18px 22px 14px",
+            padding: "16px 20px 12px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
           }}
         >
           <div>
@@ -209,7 +273,7 @@ export default function PhotoCropperModal({
                 letterSpacing: "-0.2px",
               }}
             >
-              Adjust Photo
+              Adjust Profile Photo
             </h3>
             <p
               style={{
@@ -218,7 +282,7 @@ export default function PhotoCropperModal({
                 fontSize: "12px",
               }}
             >
-              Drag to position your photo
+              Drag or use arrows to position correctly
             </p>
           </div>
           <button
@@ -236,7 +300,6 @@ export default function PhotoCropperModal({
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              transition: "all 0.15s ease",
             }}
           >
             <X size={15} />
@@ -246,7 +309,7 @@ export default function PhotoCropperModal({
         {/* Circular Preview Container */}
         <div
           style={{
-            padding: "10px 0 20px",
+            padding: "16px 0 10px",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -261,7 +324,7 @@ export default function PhotoCropperModal({
               overflow: "hidden",
               position: "relative",
               boxShadow:
-                "0 0 0 3px rgba(34, 211, 238, 0.5), 0 15px 35px rgba(0, 0, 0, 0.6)",
+                "0 0 0 3px rgba(34, 211, 238, 0.55), 0 16px 36px rgba(0, 0, 0, 0.65)",
               cursor: isDragging ? "grabbing" : "grab",
               background: "#070a12",
             }}
@@ -286,18 +349,145 @@ export default function PhotoCropperModal({
           </div>
         </div>
 
+        {/* Directional Alignment & Nudge Bar */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            padding: "6px 20px 10px",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "11px",
+              color: "#64748b",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              marginRight: "4px",
+            }}
+          >
+            Align:
+          </span>
+
+          <button
+            type="button"
+            onClick={() => nudge(-18, 0)}
+            title="Move Left"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <ArrowLeft size={14} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => nudge(18, 0)}
+            title="Move Right"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <ArrowRight size={14} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => nudge(0, -18)}
+            title="Move Up"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <ArrowUp size={14} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => nudge(0, 18)}
+            title="Move Down"
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "#cbd5e1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+            }}
+          >
+            <ArrowDown size={14} />
+          </button>
+
+          <button
+            type="button"
+            onClick={resetAlignment}
+            title="Reset to center"
+            style={{
+              padding: "0 10px",
+              height: "32px",
+              borderRadius: "8px",
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(255, 255, 255, 0.1)",
+              color: "#94a3b8",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "4px",
+              fontSize: "11px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <RotateCcw size={12} />
+            <span>Center</span>
+          </button>
+        </div>
+
         {/* Minimal Zoom Bar */}
         <div
           style={{
-            padding: "0 28px 20px",
+            padding: "4px 24px 16px",
             display: "flex",
             alignItems: "center",
-            gap: "12px",
+            gap: "10px",
           }}
         >
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.max(1, +(z - 0.15).toFixed(2)))}
+            onClick={() => setZoom((z) => Math.max(0.8, +(z - 0.15).toFixed(2)))}
             style={{
               background: "transparent",
               border: "none",
@@ -314,7 +504,7 @@ export default function PhotoCropperModal({
 
           <input
             type="range"
-            min="1"
+            min="0.8"
             max="3"
             step="0.01"
             value={zoom}
@@ -348,7 +538,7 @@ export default function PhotoCropperModal({
         {/* Action Buttons */}
         <div
           style={{
-            padding: "14px 22px",
+            padding: "14px 20px",
             background: "rgba(255, 255, 255, 0.02)",
             borderTop: "1px solid rgba(255, 255, 255, 0.06)",
             display: "flex",
@@ -361,7 +551,7 @@ export default function PhotoCropperModal({
             type="button"
             onClick={onCancel}
             style={{
-              padding: "9px 18px",
+              padding: "8px 16px",
               borderRadius: "10px",
               border: "1px solid rgba(255, 255, 255, 0.1)",
               background: "transparent",
@@ -379,7 +569,7 @@ export default function PhotoCropperModal({
             onClick={handleSave}
             disabled={saving}
             style={{
-              padding: "9px 20px",
+              padding: "8px 20px",
               borderRadius: "10px",
               border: "none",
               background:

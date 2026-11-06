@@ -22,6 +22,7 @@ import {
   Camera,
   Upload,
   Trash2,
+  Crop,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
@@ -60,6 +61,22 @@ export default function UserProfile({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [cropperRawImage, setCropperRawImage] = useState<string | null>(null);
+  const [showPhotoViewer, setShowPhotoViewer] = useState(false);
+
+  const handleOpenAdjuster = () => {
+    if (typeof window !== "undefined") {
+      const raw = localStorage.getItem(`ak_avatar_raw_${username}`);
+      if (raw) {
+        setCropperRawImage(raw);
+        return;
+      }
+    }
+    if (profile?.avatar) {
+      setCropperRawImage(profile.avatar);
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,6 +96,9 @@ export default function UserProfile({
     reader.onload = (event) => {
       const src = event.target?.result as string;
       if (src) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(`ak_avatar_raw_${username}`, src);
+        }
         setCropperRawImage(src);
       }
     };
@@ -124,6 +144,7 @@ export default function UserProfile({
     setProfile((prev) => (prev ? { ...prev, avatar: "" } : prev));
     if (typeof window !== "undefined") {
       localStorage.removeItem(`ak_avatar_${username}`);
+      localStorage.removeItem(`ak_avatar_raw_${username}`);
       window.dispatchEvent(
         new CustomEvent("ak-avatar-updated", { detail: { avatar: "" } })
       );
@@ -805,6 +826,14 @@ export default function UserProfile({
                 />
 
                 <div
+                  onClick={() => {
+                    if (profile?.avatar) {
+                      setShowPhotoViewer(true);
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  title={profile?.avatar ? "Click to view & edit photo" : "Click to upload photo"}
                   style={{
                     position: "relative",
                     zIndex: 1,
@@ -823,8 +852,10 @@ export default function UserProfile({
                     color: "white",
                     letterSpacing: "-1px",
                     overflow: "hidden",
+                    cursor: "pointer",
                     boxShadow:
                       "0 16px 40px rgba(37,99,235,0.4), inset 0 1px 0 rgba(255,255,255,0.2)",
+                    transition: "transform 0.15s ease, box-shadow 0.15s ease",
                   }}
                 >
                   {profile?.avatar ? (
@@ -846,8 +877,15 @@ export default function UserProfile({
                 {/* Floating camera action badge on avatar corner */}
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  title={profile?.avatar ? "Change photo" : "Upload photo"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (profile?.avatar) {
+                      setShowPhotoViewer(true);
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  title={profile?.avatar ? "View & edit photo" : "Upload photo"}
                   disabled={uploadingAvatar}
                   style={{
                     position: "absolute",
@@ -911,8 +949,40 @@ export default function UserProfile({
                   justifyContent: "center",
                   alignItems: "center",
                   marginBottom: "14px",
+                  flexWrap: "wrap",
                 }}
               >
+                {profile?.avatar && (
+                  <button
+                    type="button"
+                    onClick={handleOpenAdjuster}
+                    disabled={uploadingAvatar}
+                    style={{
+                      background: "rgba(34, 211, 238, 0.12)",
+                      border: "1px solid rgba(34, 211, 238, 0.35)",
+                      cursor: "pointer",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "var(--accent-primary, #22d3ee)",
+                      padding: "5px 12px",
+                      borderRadius: "8px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(34, 211, 238, 0.22)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(34, 211, 238, 0.12)";
+                    }}
+                  >
+                    <Crop size={12} />
+                    Adjust
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -968,7 +1038,6 @@ export default function UserProfile({
                     }}
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background = "rgba(239, 68, 68, 0.1)";
-                      e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.25)";
                     }}
                   >
                     <Trash2 size={12} />
@@ -2536,6 +2605,219 @@ export default function UserProfile({
         @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         @keyframes ripplePulse { 0% { opacity: 0.8; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.2); } }
       `}</style>
+      {showPhotoViewer && profile?.avatar && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 105,
+            background: "rgba(0, 0, 0, 0.82)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+            animation: "panelIn 0.18s ease-out forwards",
+          }}
+          onClick={() => setShowPhotoViewer(false)}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "380px",
+              background: "#0d111c",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              borderRadius: "20px",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.95)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    color: "var(--text-primary, #f8fafc)",
+                    fontSize: "16px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Profile Photo
+                </h3>
+                <p
+                  style={{
+                    margin: "2px 0 0",
+                    color: "var(--text-secondary, #94a3b8)",
+                    fontSize: "12px",
+                  }}
+                >
+                  @{username}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPhotoViewer(false)}
+                title="Close"
+                style={{
+                  width: "30px",
+                  height: "30px",
+                  borderRadius: "8px",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  color: "#94a3b8",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Photo Preview */}
+            <div
+              style={{
+                padding: "24px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background:
+                  "radial-gradient(circle at center, rgba(34, 211, 238, 0.05) 0%, transparent 70%)",
+              }}
+            >
+              <div
+                style={{
+                  width: "220px",
+                  height: "220px",
+                  borderRadius: "28px",
+                  overflow: "hidden",
+                  boxShadow:
+                    "0 12px 35px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(34, 211, 238, 0.35)",
+                }}
+              >
+                <img
+                  src={profile.avatar}
+                  alt={profile.name || username}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div
+              style={{
+                padding: "16px 20px",
+                background: "rgba(255, 255, 255, 0.02)",
+                borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPhotoViewer(false);
+                  handleOpenAdjuster();
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 16px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background:
+                    "linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)",
+                  color: "#ffffff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(6, 182, 212, 0.35)",
+                }}
+              >
+                <Crop size={15} />
+                <span>Adjust Alignment & Zoom</span>
+              </button>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPhotoViewer(false);
+                    fileInputRef.current?.click();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "9px 14px",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                    background: "rgba(255, 255, 255, 0.04)",
+                    color: "var(--text-primary, #f1f5f9)",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Upload size={13} />
+                  <span>Upload New</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPhotoViewer(false);
+                    handleRemoveAvatar();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: "9px 14px",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                    background: "rgba(239, 68, 68, 0.08)",
+                    color: "#ef4444",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <Trash2 size={13} />
+                  <span>Remove</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {cropperRawImage && (
         <PhotoCropperModal
           imageSrc={cropperRawImage}
