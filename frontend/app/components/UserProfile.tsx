@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
+import PhotoCropperModal from "./PhotoCropperModal";
 
 interface UserProfileProps {
   username: string;
@@ -58,6 +59,7 @@ export default function UserProfile({
   const [editMobile, setEditMobile] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [cropperRawImage, setCropperRawImage] = useState<string | null>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,76 +70,54 @@ export default function UserProfile({
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast("Image size must be under 5MB.", "err");
+    if (file.size > 12 * 1024 * 1024) {
+      showToast("Image size must be under 12MB.", "err");
       return;
     }
 
-    setUploadingAvatar(true);
     const reader = new FileReader();
     reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        // Create an offscreen canvas to center-crop & resize to 256x256 square
-        const canvas = document.createElement("canvas");
-        const size = 256;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          setUploadingAvatar(false);
-          return;
-        }
-
-        const minDim = Math.min(img.width, img.height);
-        const sx = (img.width - minDim) / 2;
-        const sy = (img.height - minDim) / 2;
-        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
-
-        const dataUrl = canvas.toDataURL("image/webp", 0.85);
-
-        // Optimistic UI update
-        setProfile((prev) => (prev ? { ...prev, avatar: dataUrl } : prev));
-        if (typeof window !== "undefined") {
-          localStorage.setItem(`ak_avatar_${username}`, dataUrl);
-          window.dispatchEvent(
-            new CustomEvent("ak-avatar-updated", { detail: { avatar: dataUrl } })
-          );
-        }
-
-        // Save to backend
-        fetch(`${API_BASE_URL}/auth/profile`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-          credentials: "include",
-          body: JSON.stringify({ avatar: dataUrl }),
-        })
-          .then((res) => {
-            if (!res.ok) throw new Error();
-            showToast("Profile photo updated! 📸", "ok");
-          })
-          .catch(() => {
-            showToast("Photo saved locally. Server sync pending.", "ok");
-          })
-          .finally(() => {
-            setUploadingAvatar(false);
-          });
-      };
-      img.onerror = () => {
-        setUploadingAvatar(false);
-        showToast("Failed to process image.", "err");
-      };
-      img.src = event.target?.result as string;
+      const src = event.target?.result as string;
+      if (src) {
+        setCropperRawImage(src);
+      }
     };
     reader.onerror = () => {
-      setUploadingAvatar(false);
       showToast("Failed to read image file.", "err");
     };
     reader.readAsDataURL(file);
     e.target.value = "";
+  };
+
+  const saveAvatar = (dataUrl: string) => {
+    setUploadingAvatar(true);
+    setProfile((prev) => (prev ? { ...prev, avatar: dataUrl } : prev));
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`ak_avatar_${username}`, dataUrl);
+      window.dispatchEvent(
+        new CustomEvent("ak-avatar-updated", { detail: { avatar: dataUrl } })
+      );
+    }
+
+    fetch(`${API_BASE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      credentials: "include",
+      body: JSON.stringify({ avatar: dataUrl }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error();
+        showToast("Profile photo updated! 📸", "ok");
+      })
+      .catch(() => {
+        showToast("Photo saved locally. Server sync pending.", "ok");
+      })
+      .finally(() => {
+        setUploadingAvatar(false);
+      });
   };
 
   const handleRemoveAvatar = () => {
@@ -2556,6 +2536,18 @@ export default function UserProfile({
         @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         @keyframes ripplePulse { 0% { opacity: 0.8; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.2); } }
       `}</style>
+      {cropperRawImage && (
+        <PhotoCropperModal
+          imageSrc={cropperRawImage}
+          onCrop={(croppedDataUrl) => {
+            setCropperRawImage(null);
+            saveAvatar(croppedDataUrl);
+          }}
+          onCancel={() => {
+            setCropperRawImage(null);
+          }}
+        />
+      )}
     </>
   );
 }
