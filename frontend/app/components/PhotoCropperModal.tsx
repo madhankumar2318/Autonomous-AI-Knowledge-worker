@@ -54,8 +54,14 @@ export default function PhotoCropperModal({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [saving, setSaving] = useState(false);
 
+  const [detectedFace, setDetectedFace] = useState<{ x: number; y: number } | null>(null);
+
   // Smart Auto-Framing helper
-  const applyPreset = (preset: "face" | "bust" | "fit", img?: HTMLImageElement | null) => {
+  const applyPreset = (
+    preset: "face" | "bust" | "fit",
+    img?: HTMLImageElement | null,
+    face?: { x: number; y: number } | null
+  ) => {
     const currentImg = img || imageObj;
     if (!currentImg) return;
 
@@ -65,24 +71,53 @@ export default function PhotoCropperModal({
       VIEW_SIZE / currentImg.naturalHeight
     );
     const isPortrait = currentImg.naturalHeight > currentImg.naturalWidth;
+    const activeFace = face !== undefined ? face : detectedFace;
 
     if (preset === "face") {
-      const z = 1.55;
+      const z = 1.6;
+      const totalW = currentImg.naturalWidth * baseScale * z;
       const totalH = currentImg.naturalHeight * baseScale * z;
-      const targetPanY = isPortrait ? -(totalH - VIEW_SIZE) * 0.38 : -(totalH - VIEW_SIZE) * 0.2;
+
+      let targetX = 0;
+      let targetY = 0;
+
+      if (activeFace) {
+        // Center directly on detected face
+        targetX = (0.5 - activeFace.x) * totalW;
+        targetY = (0.5 - activeFace.y) * totalH;
+      } else {
+        // Positive offset moves image down to reveal head & face in top half
+        targetY = isPortrait ? (totalH - VIEW_SIZE) * 0.38 : (totalH - VIEW_SIZE) * 0.15;
+      }
+
       setZoom(z);
-      setPan({ x: 0, y: targetPanY });
+      setPan({ x: targetX, y: targetY });
     } else if (preset === "bust") {
-      // Upper Body - Golden Ratio headroom
-      const z = 1.18;
+      // Upper Body - Head & shoulders with golden-ratio headroom
+      const z = 1.2;
+      const totalW = currentImg.naturalWidth * baseScale * z;
       const totalH = currentImg.naturalHeight * baseScale * z;
-      const targetPanY = isPortrait ? -(totalH - VIEW_SIZE) * 0.22 : -(totalH - VIEW_SIZE) * 0.1;
+
+      let targetX = 0;
+      let targetY = 0;
+
+      if (activeFace) {
+        targetX = (0.5 - activeFace.x) * totalW * 0.6;
+        targetY = (0.5 - activeFace.y) * totalH + 35; // extra headroom
+      } else {
+        targetY = isPortrait ? (totalH - VIEW_SIZE) * 0.22 : (totalH - VIEW_SIZE) * 0.08;
+      }
+
       setZoom(z);
-      setPan({ x: 0, y: targetPanY });
+      setPan({ x: targetX, y: targetY });
     } else if (preset === "fit") {
       // Fit full image
-      const z = 0.95;
-      setZoom(z);
+      const fitScale = Math.min(
+        VIEW_SIZE / currentImg.naturalWidth,
+        VIEW_SIZE / currentImg.naturalHeight
+      );
+      const z = +(fitScale / baseScale).toFixed(2);
+      setZoom(Math.max(0.85, z));
       setPan({ x: 0, y: 0 });
     }
   };
@@ -91,10 +126,28 @@ export default function PhotoCropperModal({
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => {
+    img.onload = async () => {
       setImageObj(img);
-      // Auto-Frame immediately on load (Upper Body Golden Ratio)
-      applyPreset("bust", img);
+
+      // Attempt AI face detection if browser supports ShapeDetection API
+      let facePos: { x: number; y: number } | null = null;
+      if (typeof (window as any).FaceDetector === "function") {
+        try {
+          const detector = new (window as any).FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+          const faces = await detector.detect(img);
+          if (faces && faces.length > 0) {
+            const b = faces[0].boundingBox;
+            facePos = {
+              x: (b.x + b.width / 2) / img.naturalWidth,
+              y: (b.y + b.height / 2) / img.naturalHeight,
+            };
+            setDetectedFace(facePos);
+          }
+        } catch {}
+      }
+
+      // Auto-Frame immediately on load with correct positive offset
+      applyPreset("bust", img, facePos);
     };
     img.src = imageSrc;
   }, [imageSrc]);
