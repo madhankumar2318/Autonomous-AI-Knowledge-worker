@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { Check, Sparkles, User, X, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { Check, RotateCw, RotateCcw, X } from "lucide-react";
 
 interface PhotoCropperModalProps {
   imageSrc: string;
@@ -8,34 +8,12 @@ interface PhotoCropperModalProps {
   onCancel: () => void;
 }
 
-const VIEW_SIZE = 260; // 260px squircle preview
-const CORNER_RADIUS = 32; // Matches 24px-28px profile squircle radius
-const TARGET_SIZE = 256; // 256x256 crisp avatar export
+const MAX_STAGE_W = 340;
+const MAX_STAGE_H = 340;
+const TARGET_SIZE = 256;
+const MIN_CROP_SIZE = 50;
 
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) {
-  ctx.beginPath();
-  if (typeof ctx.roundRect === "function") {
-    ctx.roundRect(x, y, w, h, r);
-  } else {
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-}
+type DragHandle = "move" | "nw" | "ne" | "sw" | "se" | "n" | "s" | "e" | "w" | null;
 
 export default function PhotoCropperModal({
   imageSrc,
@@ -43,240 +21,362 @@ export default function PhotoCropperModal({
   onCancel,
 }: PhotoCropperModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const profileMiniCanvasRef = useRef<HTMLCanvasElement>(null);
-  const navbarMiniCanvasRef = useRef<HTMLCanvasElement>(null);
+  const miniCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
-  const [zoom, setZoom] = useState(1.15);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [activePreset, setActivePreset] = useState<"face" | "bust" | "fit">("bust");
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [rotation, setRotation] = useState(0);
+
+  // Layout inside the stage
+  const [stageSize, setStageSize] = useState({ w: 300, h: 300 });
+
+  // WhatsApp Square Crop Box: { x, y, size } in stage coordinates
+  const [crop, setCrop] = useState({ x: 20, y: 20, size: 200 });
+
+  // Dragging state
+  const [dragMode, setDragMode] = useState<DragHandle>(null);
+  const [dragStart, setDragStart] = useState({ px: 0, py: 0, cx: 0, cy: 0, cSize: 0 });
   const [saving, setSaving] = useState(false);
 
-  const [detectedFace, setDetectedFace] = useState<{ x: number; y: number } | null>(null);
-
-  // Smart Auto-Framing helper
-  const applyPreset = (
-    preset: "face" | "bust" | "fit",
-    img?: HTMLImageElement | null,
-    face?: { x: number; y: number } | null
-  ) => {
-    const currentImg = img || imageObj;
-    if (!currentImg) return;
-
-    setActivePreset(preset);
-    const baseScale = Math.max(
-      VIEW_SIZE / currentImg.naturalWidth,
-      VIEW_SIZE / currentImg.naturalHeight
-    );
-    const isPortrait = currentImg.naturalHeight > currentImg.naturalWidth;
-    const activeFace = face !== undefined ? face : detectedFace;
-
-    if (preset === "face") {
-      const z = 1.6;
-      const totalW = currentImg.naturalWidth * baseScale * z;
-      const totalH = currentImg.naturalHeight * baseScale * z;
-
-      let targetX = 0;
-      let targetY = 0;
-
-      if (activeFace) {
-        // Center directly on detected face
-        targetX = (0.5 - activeFace.x) * totalW;
-        targetY = (0.5 - activeFace.y) * totalH;
-      } else {
-        // Positive offset moves image down to reveal head & face in top half
-        targetY = isPortrait ? (totalH - VIEW_SIZE) * 0.38 : (totalH - VIEW_SIZE) * 0.15;
-      }
-
-      setZoom(z);
-      setPan({ x: targetX, y: targetY });
-    } else if (preset === "bust") {
-      // Upper Body - Head & shoulders with golden-ratio headroom
-      const z = 1.2;
-      const totalW = currentImg.naturalWidth * baseScale * z;
-      const totalH = currentImg.naturalHeight * baseScale * z;
-
-      let targetX = 0;
-      let targetY = 0;
-
-      if (activeFace) {
-        targetX = (0.5 - activeFace.x) * totalW * 0.6;
-        targetY = (0.5 - activeFace.y) * totalH + 35; // extra headroom
-      } else {
-        targetY = isPortrait ? (totalH - VIEW_SIZE) * 0.22 : (totalH - VIEW_SIZE) * 0.08;
-      }
-
-      setZoom(z);
-      setPan({ x: targetX, y: targetY });
-    } else if (preset === "fit") {
-      // Fit full image
-      const fitScale = Math.min(
-        VIEW_SIZE / currentImg.naturalWidth,
-        VIEW_SIZE / currentImg.naturalHeight
-      );
-      const z = +(fitScale / baseScale).toFixed(2);
-      setZoom(Math.max(0.85, z));
-      setPan({ x: 0, y: 0 });
-    }
-  };
-
-  // Load image & trigger initial Smart Auto-Framing
+  // Load image
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = async () => {
+    img.onload = () => {
       setImageObj(img);
-
-      // Attempt AI face detection if browser supports ShapeDetection API
-      let facePos: { x: number; y: number } | null = null;
-      if (typeof (window as any).FaceDetector === "function") {
-        try {
-          const detector = new (window as any).FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-          const faces = await detector.detect(img);
-          if (faces && faces.length > 0) {
-            const b = faces[0].boundingBox;
-            facePos = {
-              x: (b.x + b.width / 2) / img.naturalWidth,
-              y: (b.y + b.height / 2) / img.naturalHeight,
-            };
-            setDetectedFace(facePos);
-          }
-        } catch {}
-      }
-
-      // Auto-Frame immediately on load with correct positive offset
-      applyPreset("bust", img, facePos);
+      initializeCrop(img, 0);
     };
     img.src = imageSrc;
   }, [imageSrc]);
 
-  // Compute cover scale and generous bounded pan
-  const getTransform = () => {
-    if (!imageObj) return { baseScale: 1, totalScale: 1, clampedX: 0, clampedY: 0 };
+  // Compute stage size and initial centered WhatsApp crop box
+  const initializeCrop = (img: HTMLImageElement, rot: number) => {
+    const isSideways = rot % 180 !== 0;
+    const nw = isSideways ? img.naturalHeight : img.naturalWidth;
+    const nh = isSideways ? img.naturalWidth : img.naturalHeight;
 
-    const baseScale = Math.max(
-      VIEW_SIZE / imageObj.naturalWidth,
-      VIEW_SIZE / imageObj.naturalHeight
-    );
-    const totalScale = baseScale * zoom;
+    // Fit image inside MAX_STAGE_W x MAX_STAGE_H
+    const scale = Math.min(MAX_STAGE_W / nw, MAX_STAGE_H / nh);
+    const w = Math.round(nw * scale);
+    const h = Math.round(nh * scale);
 
-    const currentW = imageObj.naturalWidth * totalScale;
-    const currentH = imageObj.naturalHeight * totalScale;
+    setStageSize({ w, h });
 
-    // Generous travel margin: allows moving at least 50% across the frame
-    const maxPanX = Math.max(VIEW_SIZE * 0.55, (currentW - VIEW_SIZE) / 2 + 35);
-    const maxPanY = Math.max(VIEW_SIZE * 0.55, (currentH - VIEW_SIZE) / 2 + 35);
+    // Initial WhatsApp square crop: covers 85% of smaller dimension, placed near top/center
+    const size = Math.round(Math.min(w, h) * 0.82);
+    const x = Math.round((w - size) / 2);
+    // Bias slightly toward top (where human heads are)
+    const y = Math.round(Math.max(0, (h - size) * 0.18));
 
-    const clampedX = Math.max(-maxPanX, Math.min(maxPanX, pan.x));
-    const clampedY = Math.max(-maxPanY, Math.min(maxPanY, pan.y));
-
-    return { baseScale, totalScale, clampedX, clampedY, currentW, currentH };
+    setCrop({ x, y, size });
   };
 
-  // Render preview canvas and synchronize live mini-previews
+  // Handle 90 deg clockwise rotate
+  const handleRotate = () => {
+    if (!imageObj) return;
+    const newRot = (rotation + 90) % 360;
+    setRotation(newRot);
+    initializeCrop(imageObj, newRot);
+  };
+
+  // Handle Reset to full initial crop
+  const handleReset = () => {
+    if (!imageObj) return;
+    initializeCrop(imageObj, rotation);
+  };
+
+  // Live Canvas Rendering (Photo + WhatsApp Dimmed Overlay + Crop Box + Brackets)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !imageObj) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, VIEW_SIZE, VIEW_SIZE);
+    const { w, h } = stageSize;
+    ctx.clearRect(0, 0, w, h);
 
-    const { totalScale, clampedX, clampedY } = getTransform();
-
-    // Clip to exact squircle shape
+    // 1. Draw base photo with rotation
     ctx.save();
-    drawRoundedRect(ctx, 0, 0, VIEW_SIZE, VIEW_SIZE, CORNER_RADIUS);
-    ctx.clip();
+    ctx.translate(w / 2, h / 2);
+    ctx.rotate((rotation * Math.PI) / 180);
 
-    // 1. Ambient blurred background fill (seamless edge extension)
-    ctx.save();
-    ctx.filter = "blur(16px) brightness(0.65)";
-    const bgScale =
-      Math.max(
-        VIEW_SIZE / imageObj.naturalWidth,
-        VIEW_SIZE / imageObj.naturalHeight
-      ) * 1.35;
-    ctx.translate(VIEW_SIZE / 2, VIEW_SIZE / 2);
-    ctx.scale(bgScale, bgScale);
-    ctx.drawImage(
-      imageObj,
-      -imageObj.naturalWidth / 2,
-      -imageObj.naturalHeight / 2
-    );
-    ctx.restore();
+    const isSideways = rotation % 180 !== 0;
+    const drawW = isSideways ? h : w;
+    const drawH = isSideways ? w : h;
 
-    // 2. Crisp centered & panned main image
-    ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.translate(VIEW_SIZE / 2 + clampedX, VIEW_SIZE / 2 + clampedY);
-    ctx.scale(totalScale, totalScale);
-    ctx.drawImage(
-      imageObj,
-      -imageObj.naturalWidth / 2,
-      -imageObj.naturalHeight / 2
-    );
+    ctx.drawImage(imageObj, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.restore();
 
+    // 2. WhatsApp Dimmed Vignette Overlay outside the crop box
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+
+    // Top rect
+    ctx.fillRect(0, 0, w, crop.y);
+    // Bottom rect
+    ctx.fillRect(0, crop.y + crop.size, w, h - (crop.y + crop.size));
+    // Left rect
+    ctx.fillRect(0, crop.y, crop.x, crop.size);
+    // Right rect
+    ctx.fillRect(crop.x + crop.size, crop.y, w - (crop.x + crop.size), crop.size);
     ctx.restore();
 
-    // Update live mini-previews in real-time
-    if (profileMiniCanvasRef.current) {
-      const pCtx = profileMiniCanvasRef.current.getContext("2d");
-      if (pCtx) {
-        pCtx.clearRect(0, 0, 56, 56);
-        pCtx.drawImage(canvas, 0, 0, 56, 56);
-      }
-    }
-    if (navbarMiniCanvasRef.current) {
-      const nCtx = navbarMiniCanvasRef.current.getContext("2d");
-      if (nCtx) {
-        nCtx.clearRect(0, 0, 30, 30);
-        nCtx.drawImage(canvas, 0, 0, 30, 30);
-      }
-    }
-  }, [imageObj, zoom, pan]);
+    // 3. Crisp Crop Box Border
+    ctx.save();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(crop.x, crop.y, crop.size, crop.size);
 
-  // Pointer drag events for smooth fluid panning
+    // 4. Subtle 3x3 Rule-of-Thirds Grid
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+    ctx.lineWidth = 0.8;
+    const step = crop.size / 3;
+
+    ctx.beginPath();
+    // Vertical grid lines
+    ctx.moveTo(crop.x + step, crop.y);
+    ctx.lineTo(crop.x + step, crop.y + crop.size);
+    ctx.moveTo(crop.x + step * 2, crop.y);
+    ctx.lineTo(crop.x + step * 2, crop.y + crop.size);
+    // Horizontal grid lines
+    ctx.moveTo(crop.x, crop.y + step);
+    ctx.lineTo(crop.x + crop.size, crop.y + step);
+    ctx.moveTo(crop.x, crop.y + step * 2);
+    ctx.lineTo(crop.x + crop.size, crop.y + step * 2);
+    ctx.stroke();
+
+    // 5. WhatsApp Iconic Corner L-Brackets (Thick white corners)
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = "square";
+    const arm = Math.min(20, crop.size * 0.2);
+
+    ctx.beginPath();
+    // Top-Left
+    ctx.moveTo(crop.x, crop.y + arm);
+    ctx.lineTo(crop.x, crop.y);
+    ctx.lineTo(crop.x + arm, crop.y);
+
+    // Top-Right
+    ctx.moveTo(crop.x + crop.size - arm, crop.y);
+    ctx.lineTo(crop.x + crop.size, crop.y);
+    ctx.lineTo(crop.x + crop.size, crop.y + arm);
+
+    // Bottom-Right
+    ctx.moveTo(crop.x + crop.size, crop.y + crop.size - arm);
+    ctx.lineTo(crop.x + crop.size, crop.y + crop.size);
+    ctx.lineTo(crop.x + crop.size - arm, crop.y + crop.size);
+
+    // Bottom-Left
+    ctx.moveTo(crop.x + arm, crop.y + crop.size);
+    ctx.lineTo(crop.x, crop.y + crop.size);
+    ctx.lineTo(crop.x, crop.y + crop.size - arm);
+    ctx.stroke();
+
+    // Edge midpoint grips
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+    ctx.lineWidth = 3;
+    const midArm = 10;
+    ctx.beginPath();
+    // Top edge
+    ctx.moveTo(crop.x + crop.size / 2 - midArm, crop.y);
+    ctx.lineTo(crop.x + crop.size / 2 + midArm, crop.y);
+    // Bottom edge
+    ctx.moveTo(crop.x + crop.size / 2 - midArm, crop.y + crop.size);
+    ctx.lineTo(crop.x + crop.size / 2 + midArm, crop.y + crop.size);
+    // Left edge
+    ctx.moveTo(crop.x, crop.y + crop.size / 2 - midArm);
+    ctx.lineTo(crop.x, crop.y + crop.size / 2 + midArm);
+    // Right edge
+    ctx.moveTo(crop.x + crop.size, crop.y + crop.size / 2 - midArm);
+    ctx.lineTo(crop.x + crop.size, crop.y + crop.size / 2 + midArm);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // 6. Synchronize Live Mini-Preview
+    if (miniCanvasRef.current) {
+      const mCtx = miniCanvasRef.current.getContext("2d");
+      if (mCtx) {
+        mCtx.clearRect(0, 0, 56, 56);
+        // Draw the exact square crop region into the 56x56 mini preview
+        mCtx.drawImage(
+          canvas,
+          crop.x,
+          crop.y,
+          crop.size,
+          crop.size,
+          0,
+          0,
+          56,
+          56
+        );
+      }
+    }
+  }, [imageObj, stageSize, crop, rotation]);
+
+  // Determine which handle is under the pointer
+  const getHandleAt = (px: number, py: number): DragHandle => {
+    const hitRadius = 24;
+    const { x, y, size } = crop;
+
+    // Corners (checked first for precision)
+    if (Math.hypot(px - x, py - y) <= hitRadius) return "nw";
+    if (Math.hypot(px - (x + size), py - y) <= hitRadius) return "ne";
+    if (Math.hypot(px - x, py - (y + size)) <= hitRadius) return "sw";
+    if (Math.hypot(px - (x + size), py - (y + size)) <= hitRadius) return "se";
+
+    // Edges
+    if (Math.abs(py - y) <= 12 && px >= x && px <= x + size) return "n";
+    if (Math.abs(py - (y + size)) <= 12 && px >= x && px <= x + size) return "s";
+    if (Math.abs(px - x) <= 12 && py >= y && py <= y + size) return "w";
+    if (Math.abs(px - (x + size)) <= 12 && py >= y && py <= y + size) return "e";
+
+    // Inside crop box -> move
+    if (px >= x && px <= x + size && py >= y && py <= y + size) return "move";
+
+    return null;
+  };
+
+  // Pointer Down
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    const handle = getHandleAt(px, py);
+    if (!handle) return;
+
+    setDragMode(handle);
+    setDragStart({
+      px,
+      py,
+      cx: crop.x,
+      cy: crop.y,
+      cSize: crop.size,
+    });
+
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
   };
 
+  // Pointer Move (Smooth square resize & translation)
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!isDragging) return;
-    setPan({
-      x: e.clientX - dragStart.x,
-      y: e.clientY - dragStart.y,
-    });
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    if (!dragMode) {
+      // Dynamic cursor update on hover
+      const hoverHandle = getHandleAt(px, py);
+      if (hoverHandle === "nw" || hoverHandle === "se") {
+        canvas.style.cursor = "nwse-resize";
+      } else if (hoverHandle === "ne" || hoverHandle === "sw") {
+        canvas.style.cursor = "nesw-resize";
+      } else if (hoverHandle === "n" || hoverHandle === "s") {
+        canvas.style.cursor = "ns-resize";
+      } else if (hoverHandle === "e" || hoverHandle === "w") {
+        canvas.style.cursor = "ew-resize";
+      } else if (hoverHandle === "move") {
+        canvas.style.cursor = "move";
+      } else {
+        canvas.style.cursor = "default";
+      }
+      return;
+    }
+
+    const dx = px - dragStart.px;
+    const dy = py - dragStart.py;
+    const { w, h } = stageSize;
+    const { cx, cy, cSize } = dragStart;
+
+    if (dragMode === "move") {
+      // Move box around clamped to stage bounds
+      const nextX = Math.max(0, Math.min(w - cSize, cx + dx));
+      const nextY = Math.max(0, Math.min(h - cSize, cy + dy));
+      setCrop({ x: Math.round(nextX), y: Math.round(nextY), size: cSize });
+    } else if (dragMode === "se" || dragMode === "e" || dragMode === "s") {
+      // Expand / shrink from bottom-right corner
+      const delta = Math.max(dx, dy);
+      const maxAvailable = Math.min(w - cx, h - cy);
+      const nextSize = Math.max(MIN_CROP_SIZE, Math.min(maxAvailable, cSize + delta));
+      setCrop({ x: cx, y: cy, size: Math.round(nextSize) });
+    } else if (dragMode === "nw" || dragMode === "w" || dragMode === "n") {
+      // Expand / shrink from top-left corner
+      const delta = Math.max(-dx, -dy);
+      const maxAvailable = Math.min(cx + cSize, cy + cSize);
+      const nextSize = Math.max(MIN_CROP_SIZE, Math.min(maxAvailable, cSize + delta));
+      const nextX = cx + cSize - nextSize;
+      const nextY = cy + cSize - nextSize;
+      setCrop({ x: Math.round(nextX), y: Math.round(nextY), size: Math.round(nextSize) });
+    } else if (dragMode === "ne") {
+      // Expand / shrink from top-right corner
+      const delta = Math.max(dx, -dy);
+      const maxAvailable = Math.min(w - cx, cy + cSize);
+      const nextSize = Math.max(MIN_CROP_SIZE, Math.min(maxAvailable, cSize + delta));
+      const nextY = cy + cSize - nextSize;
+      setCrop({ x: cx, y: Math.round(nextY), size: Math.round(nextSize) });
+    } else if (dragMode === "sw") {
+      // Expand / shrink from bottom-left corner
+      const delta = Math.max(-dx, dy);
+      const maxAvailable = Math.min(cx + cSize, h - cy);
+      const nextSize = Math.max(MIN_CROP_SIZE, Math.min(maxAvailable, cSize + delta));
+      const nextX = cx + cSize - nextSize;
+      setCrop({ x: Math.round(nextX), y: cy, size: Math.round(nextSize) });
+    }
   };
 
+  // Pointer Up
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    setIsDragging(false);
+    setDragMode(null);
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
     } catch {}
   };
 
-  // Scroll wheel zoom
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.06 : 0.06;
-    setZoom((prev) => Math.min(3, Math.max(0.85, +(prev + delta).toFixed(2))));
-  };
-
-  // Save crisp 256x256 squircle avatar
+  // Save the cropped image at crisp 256x256 resolution
   const handleSave = () => {
     if (!imageObj) return;
     setSaving(true);
 
     try {
+      // Render full rotated image to an offscreen buffer at high resolution
+      const isSideways = rotation % 180 !== 0;
+      const nw = isSideways ? imageObj.naturalHeight : imageObj.naturalWidth;
+      const nh = isSideways ? imageObj.naturalWidth : imageObj.naturalHeight;
+
+      const buffer = document.createElement("canvas");
+      buffer.width = nw;
+      buffer.height = nh;
+      const bCtx = buffer.getContext("2d");
+      if (!bCtx) {
+        setSaving(false);
+        return;
+      }
+
+      bCtx.translate(nw / 2, nh / 2);
+      bCtx.rotate((rotation * Math.PI) / 180);
+      bCtx.imageSmoothingEnabled = true;
+      bCtx.imageSmoothingQuality = "high";
+      bCtx.drawImage(
+        imageObj,
+        -imageObj.naturalWidth / 2,
+        -imageObj.naturalHeight / 2
+      );
+
+      // Map stage crop coordinates to original full-resolution image coordinates
+      const scaleToNatural = nw / stageSize.w;
+      const sx = Math.round(crop.x * scaleToNatural);
+      const sy = Math.round(crop.y * scaleToNatural);
+      const sSize = Math.round(crop.size * scaleToNatural);
+
+      // Output canvas (256x256)
       const outCanvas = document.createElement("canvas");
       outCanvas.width = TARGET_SIZE;
       outCanvas.height = TARGET_SIZE;
@@ -286,51 +386,32 @@ export default function PhotoCropperModal({
         return;
       }
 
-      const { baseScale, clampedX, clampedY } = getTransform();
-      const factor = TARGET_SIZE / VIEW_SIZE;
-      const finalScale = baseScale * zoom * factor;
-      const targetRadius = (CORNER_RADIUS / VIEW_SIZE) * TARGET_SIZE;
-
-      outCtx.save();
-      drawRoundedRect(outCtx, 0, 0, TARGET_SIZE, TARGET_SIZE, targetRadius);
+      // Draw rounded squircle clipping path
+      const r = 32;
+      outCtx.beginPath();
+      if (typeof outCtx.roundRect === "function") {
+        outCtx.roundRect(0, 0, TARGET_SIZE, TARGET_SIZE, r);
+      } else {
+        outCtx.moveTo(r, 0);
+        outCtx.lineTo(TARGET_SIZE - r, 0);
+        outCtx.quadraticCurveTo(TARGET_SIZE, 0, TARGET_SIZE, r);
+        outCtx.lineTo(TARGET_SIZE, TARGET_SIZE - r);
+        outCtx.quadraticCurveTo(TARGET_SIZE, TARGET_SIZE, TARGET_SIZE - r, TARGET_SIZE);
+        outCtx.lineTo(r, TARGET_SIZE);
+        outCtx.quadraticCurveTo(0, TARGET_SIZE, 0, TARGET_SIZE - r);
+        outCtx.lineTo(0, r);
+        outCtx.quadraticCurveTo(0, 0, r, 0);
+      }
       outCtx.clip();
 
-      // Ambient blurred background
-      outCtx.save();
-      outCtx.filter = "blur(16px) brightness(0.65)";
-      const bgScale =
-        Math.max(
-          TARGET_SIZE / imageObj.naturalWidth,
-          TARGET_SIZE / imageObj.naturalHeight
-        ) * 1.35;
-      outCtx.translate(TARGET_SIZE / 2, TARGET_SIZE / 2);
-      outCtx.scale(bgScale, bgScale);
-      outCtx.drawImage(
-        imageObj,
-        -imageObj.naturalWidth / 2,
-        -imageObj.naturalHeight / 2
-      );
-      outCtx.restore();
-
-      // Main image
       outCtx.imageSmoothingEnabled = true;
       outCtx.imageSmoothingQuality = "high";
-      outCtx.translate(
-        TARGET_SIZE / 2 + clampedX * factor,
-        TARGET_SIZE / 2 + clampedY * factor
-      );
-      outCtx.scale(finalScale, finalScale);
-      outCtx.drawImage(
-        imageObj,
-        -imageObj.naturalWidth / 2,
-        -imageObj.naturalHeight / 2
-      );
-      outCtx.restore();
+      outCtx.drawImage(buffer, sx, sy, sSize, sSize, 0, 0, TARGET_SIZE, TARGET_SIZE);
 
       const croppedDataUrl = outCanvas.toDataURL("image/webp", 0.92);
       onCrop(croppedDataUrl);
     } catch (err) {
-      console.error("Failed to crop photo:", err);
+      console.error("Error cropping image:", err);
       setSaving(false);
     }
   };
@@ -341,7 +422,7 @@ export default function PhotoCropperModal({
         position: "fixed",
         inset: 0,
         zIndex: 110,
-        background: "rgba(0, 0, 0, 0.82)",
+        background: "rgba(0, 0, 0, 0.85)",
         backdropFilter: "blur(14px)",
         WebkitBackdropFilter: "blur(14px)",
         display: "flex",
@@ -354,11 +435,11 @@ export default function PhotoCropperModal({
       <div
         style={{
           width: "100%",
-          maxWidth: "420px",
-          background: "linear-gradient(180deg, #101626 0%, #0c101c 100%)",
+          maxWidth: "400px",
+          background: "#0c101a",
           border: "1px solid rgba(255, 255, 255, 0.12)",
           borderRadius: "24px",
-          boxShadow: "0 28px 70px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(34, 211, 238, 0.15)",
+          boxShadow: "0 30px 80px rgba(0, 0, 0, 0.95)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -367,28 +448,25 @@ export default function PhotoCropperModal({
         {/* Header */}
         <div
           style={{
-            padding: "18px 22px 14px",
+            padding: "16px 20px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
           }}
         >
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <Sparkles size={15} color="#22d3ee" />
-              <h3
-                style={{
-                  margin: 0,
-                  color: "#f8fafc",
-                  fontSize: "16px",
-                  fontWeight: 700,
-                  letterSpacing: "-0.2px",
-                }}
-              >
-                Profile Photo Studio
-              </h3>
-            </div>
+            <h3
+              style={{
+                margin: 0,
+                color: "#f8fafc",
+                fontSize: "16px",
+                fontWeight: 700,
+                letterSpacing: "-0.2px",
+              }}
+            >
+              Crop Profile Photo
+            </h3>
             <p
               style={{
                 margin: "3px 0 0",
@@ -396,7 +474,7 @@ export default function PhotoCropperModal({
                 fontSize: "12px",
               }}
             >
-              Drag to position · 1-tap smart framing
+              Drag corners to resize · Drag box to position
             </p>
           </div>
           <button
@@ -414,321 +492,138 @@ export default function PhotoCropperModal({
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
-              transition: "all 0.15s ease",
             }}
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* 1-Tap Framing Presets */}
+        {/* WhatsApp Interactive Cropping Canvas Stage */}
         <div
           style={{
+            padding: "20px 16px 14px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "8px",
-            padding: "14px 20px 8px",
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => applyPreset("bust")}
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              borderRadius: "10px",
-              border:
-                activePreset === "bust"
-                  ? "1px solid #22d3ee"
-                  : "1px solid rgba(255, 255, 255, 0.08)",
-              background:
-                activePreset === "bust"
-                  ? "rgba(34, 211, 238, 0.14)"
-                  : "rgba(255, 255, 255, 0.04)",
-              color: activePreset === "bust" ? "#22d3ee" : "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <span>🧍 Upper Body</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => applyPreset("face")}
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              borderRadius: "10px",
-              border:
-                activePreset === "face"
-                  ? "1px solid #22d3ee"
-                  : "1px solid rgba(255, 255, 255, 0.08)",
-              background:
-                activePreset === "face"
-                  ? "rgba(34, 211, 238, 0.14)"
-                  : "rgba(255, 255, 255, 0.04)",
-              color: activePreset === "face" ? "#22d3ee" : "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <span>👤 Headshot</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => applyPreset("fit")}
-            style={{
-              flex: 1,
-              padding: "7px 10px",
-              borderRadius: "10px",
-              border:
-                activePreset === "fit"
-                  ? "1px solid #22d3ee"
-                  : "1px solid rgba(255, 255, 255, 0.08)",
-              background:
-                activePreset === "fit"
-                  ? "rgba(34, 211, 238, 0.14)"
-                  : "rgba(255, 255, 255, 0.04)",
-              color: activePreset === "fit" ? "#22d3ee" : "#cbd5e1",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <span>🖼 Fit All</span>
-          </button>
-        </div>
-
-        {/* Main Squircle Workspace */}
-        <div
-          style={{
-            padding: "10px 0 14px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
+            background: "#07090e",
+            minHeight: "340px",
           }}
         >
           <div
             style={{
-              width: `${VIEW_SIZE}px`,
-              height: `${VIEW_SIZE}px`,
-              borderRadius: `${CORNER_RADIUS}px`,
-              overflow: "hidden",
               position: "relative",
-              boxShadow:
-                "0 0 0 2px rgba(34, 211, 238, 0.5), 0 18px 40px rgba(0, 0, 0, 0.75)",
-              cursor: isDragging ? "grabbing" : "grab",
-              background: "#070a12",
-              transition: "box-shadow 0.2s ease",
+              width: `${stageSize.w}px`,
+              height: `${stageSize.h}px`,
+              boxShadow: "0 10px 30px rgba(0, 0, 0, 0.8)",
+              borderRadius: "4px",
+              overflow: "hidden",
+              userSelect: "none",
             }}
           >
             <canvas
               ref={canvasRef}
-              width={VIEW_SIZE}
-              height={VIEW_SIZE}
+              width={stageSize.w}
+              height={stageSize.h}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
               onPointerCancel={handlePointerUp}
-              onWheel={handleWheel}
               style={{
                 display: "block",
                 width: "100%",
                 height: "100%",
                 touchAction: "none",
-                userSelect: "none",
               }}
             />
           </div>
         </div>
 
-        {/* Sleek Zoom Slider */}
+        {/* Quick Toolbar (Rotate + Reset + Mini Avatar Preview) */}
         <div
           style={{
-            padding: "0 28px 12px",
+            padding: "10px 20px",
+            background: "rgba(255, 255, 255, 0.02)",
+            borderTop: "1px solid rgba(255, 255, 255, 0.06)",
             display: "flex",
             alignItems: "center",
-            gap: "12px",
+            justifyContent: "space-between",
           }}
         >
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.max(0.85, +(z - 0.1).toFixed(2)))}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#64748b",
-              cursor: "pointer",
-              padding: "4px",
-              display: "flex",
-              alignItems: "center",
-            }}
-            title="Zoom Out"
-          >
-            <ZoomOut size={16} />
-          </button>
+          {/* Rotate & Reset Controls */}
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={handleRotate}
+              title="Rotate 90° Clockwise"
+              style={{
+                padding: "6px 12px",
+                borderRadius: "10px",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                color: "#cbd5e1",
+                fontSize: "12px",
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                cursor: "pointer",
+              }}
+            >
+              <RotateCw size={13} />
+              <span>Rotate</span>
+            </button>
 
-          <input
-            type="range"
-            min="0.85"
-            max="3"
-            step="0.01"
-            value={zoom}
-            onChange={(e) => {
-              setZoom(parseFloat(e.target.value));
-              setActivePreset("bust"); // Custom
-            }}
-            style={{
-              flex: 1,
-              accentColor: "#22d3ee",
-              cursor: "pointer",
-              height: "4px",
-            }}
-          />
+            <button
+              type="button"
+              onClick={handleReset}
+              title="Reset Crop Box"
+              style={{
+                padding: "6px 12px",
+                borderRadius: "10px",
+                background: "rgba(255, 255, 255, 0.05)",
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                color: "#cbd5e1",
+                fontSize: "12px",
+                fontWeight: 600,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                cursor: "pointer",
+              }}
+            >
+              <RotateCcw size={13} />
+              <span>Reset</span>
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#64748b",
-              cursor: "pointer",
-              padding: "4px",
-              display: "flex",
-              alignItems: "center",
-            }}
-            title="Zoom In"
-          >
-            <ZoomIn size={16} />
-          </button>
-        </div>
-
-        {/* Live Mini-Previews Row */}
-        <div
-          style={{
-            margin: "0 20px 14px",
-            padding: "10px 16px",
-            background: "rgba(255, 255, 255, 0.03)",
-            border: "1px solid rgba(255, 255, 255, 0.06)",
-            borderRadius: "14px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-around",
-          }}
-        >
-          {/* Profile Card Mini Preview */}
+          {/* Mini Live Result Preview */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "10px",
+              gap: "8px",
             }}
           >
+            <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 600 }}>
+              Preview:
+            </span>
             <div
               style={{
-                width: "56px",
-                height: "56px",
-                borderRadius: "16px",
+                width: "36px",
+                height: "36px",
+                borderRadius: "10px",
                 overflow: "hidden",
-                boxShadow: "0 4px 14px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 211, 238, 0.4)",
-                background: "#070a12",
+                boxShadow:
+                  "0 2px 10px rgba(0, 0, 0, 0.5), 0 0 0 1.5px rgba(34, 211, 238, 0.6)",
+                background: "#000",
               }}
             >
               <canvas
-                ref={profileMiniCanvasRef}
+                ref={miniCanvasRef}
                 width={56}
                 height={56}
                 style={{ width: "100%", height: "100%", display: "block" }}
               />
-            </div>
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "#cbd5e1",
-                  letterSpacing: "0.2px",
-                }}
-              >
-                Profile Card
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: "10px", color: "#64748b" }}>
-                Large Avatar
-              </p>
-            </div>
-          </div>
-
-          <div
-            style={{
-              width: "1px",
-              height: "36px",
-              background: "rgba(255, 255, 255, 0.08)",
-            }}
-          />
-
-          {/* Top Navbar Mini Preview */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-            }}
-          >
-            <div
-              style={{
-                width: "30px",
-                height: "30px",
-                borderRadius: "9px",
-                overflow: "hidden",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(34, 211, 238, 0.35)",
-                background: "#070a12",
-              }}
-            >
-              <canvas
-                ref={navbarMiniCanvasRef}
-                width={30}
-                height={30}
-                style={{ width: "100%", height: "100%", display: "block" }}
-              />
-            </div>
-            <div>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  color: "#cbd5e1",
-                  letterSpacing: "0.2px",
-                }}
-              >
-                Top Navbar
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: "10px", color: "#64748b" }}>
-                Pill Badge
-              </p>
             </div>
           </div>
         </div>
