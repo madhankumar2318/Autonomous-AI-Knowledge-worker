@@ -498,7 +498,17 @@ export default function UserProfile({
     setPwError("");
     if (!oldPw) return setPwError("Please enter your current password.");
     if (newPw.length < 8)
-      return setPwError("New password must be at least 8 characters.");
+      return setPwError("New password must be at least 8 characters long.");
+    if (newPw.length > 128)
+      return setPwError("New password must be at most 128 characters long.");
+    if (!/[A-Z]/.test(newPw))
+      return setPwError("New password must contain at least one uppercase letter (A-Z).");
+    if (!/[a-z]/.test(newPw))
+      return setPwError("New password must contain at least one lowercase letter (a-z).");
+    if (!/[0-9]/.test(newPw))
+      return setPwError("New password must contain at least one number (0-9).");
+    if (!/[^a-zA-Z0-9]/.test(newPw))
+      return setPwError("New password must contain at least one special character (!@#$%...).");
     if (newPw !== confirmPw) return setPwError("New passwords do not match.");
     setPwSaving(true);
     try {
@@ -2294,7 +2304,7 @@ export default function UserProfile({
                               type={showNew ? "text" : "password"}
                               value={newPw}
                               onChange={(e) => setNewPw(e.target.value)}
-                              placeholder="Min. 4 characters"
+                              placeholder="Min. 8 characters"
                               style={{
                                 width: "100%",
                                 background: "var(--bg-surface)",
@@ -2337,6 +2347,16 @@ export default function UserProfile({
                               )}
                             </button>
                           </div>
+                          <p
+                            style={{
+                              margin: "6px 0 0",
+                              fontSize: "11px",
+                              color: "var(--text-muted, #64748b)",
+                              letterSpacing: "0.2px",
+                            }}
+                          >
+                            Min. 8 chars · Upper & lowercase · Number · Symbol
+                          </p>
                         </div>
 
                         {/* Confirm New Password */}
