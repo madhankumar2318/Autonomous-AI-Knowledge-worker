@@ -1397,14 +1397,19 @@ export function deleteUploadFile(filename: string) {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || "akw_secure_jwt_secret_key_2026_x89f_auto";
+// Use configured JWT_SECRET or fallback to an ephemeral cryptographically random 256-bit secret.
+// Never use a static hardcoded key in production to prevent token forgery.
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  ((globalThis as any).__AKW_EPHEMERAL_JWT_SECRET ??= crypto
+    .randomBytes(32)
+    .toString("hex"));
 
-// Production guard: fail loudly if JWT_SECRET is not explicitly configured
+// Production guard: inform admin if using an ephemeral session key
 if (process.env.NODE_ENV === "production" && !process.env.JWT_SECRET) {
-  console.error(
-    "🚨 SECURITY WARNING: JWT_SECRET environment variable is not set in production. " +
-    "The application is using an insecure default key. " +
-    "Set JWT_SECRET in your production environment immediately."
+  console.warn(
+    "[SECURITY NOTICE] JWT_SECRET environment variable is not defined in production. " +
+    "An ephemeral random 256-bit secret is in use. Set JWT_SECRET in Vercel environment variables for persistent cross-restart sessions."
   );
 }
 

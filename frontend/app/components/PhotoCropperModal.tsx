@@ -684,7 +684,7 @@ export default function PhotoCropperModal({
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes modalFadeIn {
           from {
             opacity: 0;
