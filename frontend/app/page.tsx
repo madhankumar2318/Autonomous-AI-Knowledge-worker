@@ -262,7 +262,7 @@ export default function Home_Page() {
   }, []);
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("ak_active_tab") || "news";
+      return localStorage.getItem("ak_default_starting_tab") || localStorage.getItem("ak_active_tab") || "news";
     }
     return "news";
   });

@@ -192,4 +192,12 @@ public class AuthController {
         auditService.recordEvent("AUTH_PASSWORD_CHANGE", username, "authenticated", "/auth/password", "SUCCESS", "User changed password");
         return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
     }
+
+    @DeleteMapping("/profile")
+    public ResponseEntity<Map<String, String>> deleteAccount(Authentication authentication) {
+        String username = authentication != null ? authentication.getName() : "guest";
+        authService.deleteAccount(username);
+        auditService.recordEvent("AUTH_ACCOUNT_DELETE", username, "authenticated", "/auth/profile", "SUCCESS", "User deleted their account");
+        return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
+    }
 }

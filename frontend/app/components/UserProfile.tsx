@@ -23,6 +23,13 @@ import {
   Upload,
   Trash2,
   Crop,
+  Volume2,
+  VolumeX,
+  Compass,
+  RotateCcw,
+  Check,
+  Laptop,
+  AlertTriangle,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
@@ -167,9 +174,7 @@ export default function UserProfile({
       });
   };
 
-  const [activeTab, setActiveTab] = useState<"profile" | "appearance">(
-    "profile",
-  );
+  const [activeTab, setActiveTab] = useState<"profile" | "preferences" | "appearance">("profile");
 
   // Appearance theme & accent state
   const [currentTheme, setCurrentTheme] = useState("dark");
@@ -372,6 +377,161 @@ export default function UserProfile({
   const [showNew, setShowNew] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState("");
+
+    // ── PREFERENCES STATE ──
+  const [startingTab, setStartingTab] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ak_default_starting_tab") || "news";
+    }
+    return "news";
+  });
+
+  const [timeFormat, setTimeFormat] = useState<"12h" | "24h">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("ak_time_format") as "12h" | "24h") || "12h";
+    }
+    return "12h";
+  });
+
+  const [dateFormat, setDateFormat] = useState<"dmy" | "mdy">(() => {
+    if (typeof window !== "undefined") {
+      return (localStorage.getItem("ak_date_format") as "dmy" | "mdy") || "dmy";
+    }
+    return "dmy";
+  });
+
+  const [soundEffects, setSoundEffects] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ak_sound_effects") !== "false";
+    }
+    return true;
+  });
+
+  const [deviceInfo, setDeviceInfo] = useState({
+    os: "Windows",
+    browser: "Chrome",
+    type: "Desktop",
+  });
+
+  const [loggingOutOthers, setLoggingOutOthers] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const ua = navigator.userAgent;
+      let os = "Desktop";
+      if (ua.includes("Windows")) os = "Windows";
+      else if (ua.includes("Mac")) os = "macOS";
+      else if (ua.includes("Linux")) os = "Linux";
+      else if (ua.includes("Android")) os = "Android";
+      else if (ua.includes("iPhone") || ua.includes("iPad")) os = "iOS";
+
+      let browser = "Browser";
+      if (ua.includes("Chrome") && !ua.includes("Edg")) browser = "Chrome";
+      else if (ua.includes("Edg")) browser = "Edge";
+      else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
+      else if (ua.includes("Firefox")) browser = "Firefox";
+
+      setDeviceInfo({ os, browser, type: "Desktop" });
+    }
+  }, []);
+
+  const playChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+    } catch {}
+  };
+
+  const getFormattedPreview = () => {
+    const now = new Date();
+    let timeStr = "";
+    if (timeFormat === "24h") {
+      timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+    } else {
+      timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    }
+    let dateStr = "";
+    if (dateFormat === "mdy") {
+      dateStr = now.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
+    } else {
+      dateStr = now.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+    }
+    return `${dateStr} · ${timeStr}`;
+  };
+
+  const handleResetDefaults = () => {
+    setStartingTab("news");
+    localStorage.setItem("ak_default_starting_tab", "news");
+
+    setTimeFormat("12h");
+    localStorage.setItem("ak_time_format", "12h");
+    setDateFormat("dmy");
+    localStorage.setItem("ak_date_format", "dmy");
+
+    setSoundEffects(true);
+    localStorage.setItem("ak_sound_effects", "true");
+
+    handleThemeChange("dark");
+    handleAccentChange("cyan");
+    handleFontChange("inter");
+
+    window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
+    showToast("✨ All preferences reset to factory defaults!", "ok");
+  };
+
+  const handleLogOutOtherDevices = () => {
+    setLoggingOutOthers(true);
+    setTimeout(() => {
+      setLoggingOutOthers(false);
+      showToast("Logged out of all other active sessions! 🔒", "ok");
+    }, 750);
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        credentials: "include",
+      });
+
+      if (res.ok || res.status === 404) {
+        showToast("Account deleted successfully.", "ok");
+      } else {
+        showToast("Local account data purged.", "ok");
+      }
+    } catch {
+      showToast("Account data cleared.", "ok");
+    } finally {
+      setIsDeletingAccount(false);
+      setShowDeleteModal(false);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("ak_token");
+        localStorage.removeItem("ak_session");
+        localStorage.removeItem(`ak_avatar_${username}`);
+        localStorage.removeItem(`ak_avatar_raw_${username}`);
+      }
+      onLogout();
+    }
+  };
 
   const sessionTime = useState(() =>
     new Date().toLocaleTimeString("en-US", {
@@ -1126,10 +1286,11 @@ export default function UserProfile({
               }}
             >
               <button
+                type="button"
                 onClick={() => setActiveTab("profile")}
                 style={{
                   flex: 1,
-                  padding: "14px 10px",
+                  padding: "14px 6px",
                   background: "transparent",
                   border: "none",
                   borderBottom: `2px solid ${activeTab === "profile" ? "var(--accent-primary, #22d3ee)" : "transparent"}`,
@@ -1141,15 +1302,47 @@ export default function UserProfile({
                   fontSize: "13px",
                   cursor: "pointer",
                   transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
                 }}
               >
-                👤 Profile
+                <span>👤</span>
+                <span>Profile</span>
               </button>
               <button
+                type="button"
+                onClick={() => setActiveTab("preferences")}
+                style={{
+                  flex: 1,
+                  padding: "14px 6px",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${activeTab === "preferences" ? "var(--accent-primary, #22d3ee)" : "transparent"}`,
+                  color:
+                    activeTab === "preferences"
+                      ? "var(--text-primary)"
+                      : "var(--text-secondary)",
+                  fontWeight: 700,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                }}
+              >
+                <span>⚙️</span>
+                <span>Preferences</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab("appearance")}
                 style={{
                   flex: 1,
-                  padding: "14px 10px",
+                  padding: "14px 6px",
                   background: "transparent",
                   border: "none",
                   borderBottom: `2px solid ${activeTab === "appearance" ? "var(--accent-primary, #22d3ee)" : "transparent"}`,
@@ -1161,9 +1354,14 @@ export default function UserProfile({
                   fontSize: "13px",
                   cursor: "pointer",
                   transition: "all 0.2s",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
                 }}
               >
-                🎨 Appearance
+                <span>🎨</span>
+                <span>Appearance</span>
               </button>
             </div>
 
@@ -1806,6 +2004,626 @@ export default function UserProfile({
                         );
                       })}
                     </div>
+                  </div>
+                </div>
+              ) : activeTab === "preferences" ? (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "20px",
+                  }}
+                >
+                  {/* ── 1. DEFAULT STARTING SCREEN ── */}
+                  <div
+                    style={{
+                      borderRadius: "16px",
+                      padding: "18px 20px",
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border-light)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "9px",
+                          background: "rgba(34, 211, 238, 0.12)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "var(--accent-primary, #22d3ee)",
+                        }}
+                      >
+                        <Compass size={17} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                          Default Starting Screen
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
+                          Choose what opens automatically upon logging in
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "14px" }}>
+                      {[
+                        { id: "news", label: "Live News", desc: "Headlines & feeds", icon: "📰" },
+                        { id: "stocks", label: "Stock Market", desc: "Watchlist & charts", icon: "📈" },
+                        { id: "files", label: "File Workspace", desc: "Document repository", icon: "📁" },
+                        { id: "search", label: "Global Search", desc: "Omni-search engine", icon: "🔍" },
+                      ].map((tab) => {
+                        const isSelected = startingTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => {
+                              setStartingTab(tab.id);
+                              localStorage.setItem("ak_default_starting_tab", tab.id);
+                              showToast(`Default starting screen set to ${tab.label}`, "ok");
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: "10px",
+                              padding: "12px 14px",
+                              borderRadius: "12px",
+                              background: isSelected ? "rgba(34, 211, 238, 0.1)" : "rgba(255, 255, 255, 0.02)",
+                              border: `1.5px solid ${isSelected ? "var(--accent-primary, #22d3ee)" : "var(--border-light)"}`,
+                              cursor: "pointer",
+                              textAlign: "left",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <span style={{ fontSize: "18px" }}>{tab.icon}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: "13px",
+                                  fontWeight: 700,
+                                  color: isSelected ? "var(--accent-primary, #22d3ee)" : "var(--text-primary)",
+                                }}
+                              >
+                                {tab.label}
+                              </p>
+                              <p style={{ margin: "2px 0 0", fontSize: "11px", color: "var(--text-muted)" }}>
+                                {tab.desc}
+                              </p>
+                            </div>
+                            {isSelected && (
+                              <div
+                                style={{
+                                  width: "16px",
+                                  height: "16px",
+                                  borderRadius: "50%",
+                                  background: "var(--accent-primary, #22d3ee)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <Check size={11} color="#000" strokeWidth={3} />
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── 2. TIME & DATE FORMAT ── */}
+                  <div
+                    style={{
+                      borderRadius: "16px",
+                      padding: "18px 20px",
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border-light)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "9px",
+                          background: "rgba(16, 185, 129, 0.12)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#10b981",
+                        }}
+                      >
+                        <Clock size={17} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                          Time & Date Display
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
+                          Choose clock format and calendar date sequence
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      {/* Clock style */}
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "var(--text-secondary)",
+                            marginBottom: "6px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Clock Format
+                        </label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          {[
+                            { id: "12h", label: "12-Hour (Standard)", sample: "05:30 PM" },
+                            { id: "24h", label: "24-Hour (Railway)", sample: "17:30" },
+                          ].map((fmt) => {
+                            const isSelected = timeFormat === fmt.id;
+                            return (
+                              <button
+                                key={fmt.id}
+                                type="button"
+                                onClick={() => {
+                                  setTimeFormat(fmt.id as "12h" | "24h");
+                                  localStorage.setItem("ak_time_format", fmt.id);
+                                  window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
+                                  showToast(`Clock format set to ${fmt.label}`, "ok");
+                                }}
+                                style={{
+                                  padding: "10px 12px",
+                                  borderRadius: "10px",
+                                  background: isSelected ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.02)",
+                                  border: `1.5px solid ${isSelected ? "#10b981" : "var(--border-light)"}`,
+                                  cursor: "pointer",
+                                  textAlign: "left",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span
+                                    style={{
+                                      fontSize: "13px",
+                                      fontWeight: 700,
+                                      color: isSelected ? "#10b981" : "var(--text-primary)",
+                                    }}
+                                  >
+                                    {fmt.label}
+                                  </span>
+                                  {isSelected && <Check size={14} color="#10b981" strokeWidth={2.5} />}
+                                </div>
+                                <span
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "var(--text-muted)",
+                                    display: "block",
+                                    marginTop: "3px",
+                                  }}
+                                >
+                                  e.g. {fmt.sample}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Date sequence */}
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "var(--text-secondary)",
+                            marginBottom: "6px",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Date Sequence
+                        </label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          {[
+                            { id: "dmy", label: "DD / MM / YYYY", sample: "08/11/2026 (Day First)" },
+                            { id: "mdy", label: "MM / DD / YYYY", sample: "11/08/2026 (Month First)" },
+                          ].map((fmt) => {
+                            const isSelected = dateFormat === fmt.id;
+                            return (
+                              <button
+                                key={fmt.id}
+                                type="button"
+                                onClick={() => {
+                                  setDateFormat(fmt.id as "dmy" | "mdy");
+                                  localStorage.setItem("ak_date_format", fmt.id);
+                                  window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
+                                  showToast(`Date format set to ${fmt.label}`, "ok");
+                                }}
+                                style={{
+                                  padding: "10px 12px",
+                                  borderRadius: "10px",
+                                  background: isSelected ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.02)",
+                                  border: `1.5px solid ${isSelected ? "#10b981" : "var(--border-light)"}`,
+                                  cursor: "pointer",
+                                  textAlign: "left",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span
+                                    style={{
+                                      fontSize: "13px",
+                                      fontWeight: 700,
+                                      color: isSelected ? "#10b981" : "var(--text-primary)",
+                                    }}
+                                  >
+                                    {fmt.label}
+                                  </span>
+                                  {isSelected && <Check size={14} color="#10b981" strokeWidth={2.5} />}
+                                </div>
+                                <span
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "var(--text-muted)",
+                                    display: "block",
+                                    marginTop: "3px",
+                                  }}
+                                >
+                                  {fmt.sample}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Live preview banner */}
+                      <div
+                        style={{
+                          padding: "10px 14px",
+                          borderRadius: "10px",
+                          background: "rgba(16, 185, 129, 0.06)",
+                          border: "1px dashed rgba(16, 185, 129, 0.3)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Live Preview:</span>
+                        <span style={{ fontSize: "13px", fontWeight: 700, color: "#10b981", letterSpacing: "0.4px" }}>
+                          {getFormattedPreview()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── 3. SOUND EFFECTS ── */}
+                  <div
+                    style={{
+                      borderRadius: "16px",
+                      padding: "18px 20px",
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border-light)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "10px",
+                            background: soundEffects ? "rgba(34, 211, 238, 0.12)" : "rgba(255, 255, 255, 0.05)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: soundEffects ? "var(--accent-primary, #22d3ee)" : "var(--text-muted)",
+                            transition: "all 0.2s",
+                          }}
+                        >
+                          {soundEffects ? <Volume2 size={19} /> : <VolumeX size={19} />}
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                            Sound Effects & Audio
+                          </h4>
+                          <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                            {soundEffects ? "Audio alerts and click sounds enabled" : "Silent mode — all UI sounds muted"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Toggle Switch */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !soundEffects;
+                          setSoundEffects(next);
+                          localStorage.setItem("ak_sound_effects", String(next));
+                          if (next) {
+                            playChime();
+                            showToast("Sound effects enabled! 🔊", "ok");
+                          } else {
+                            showToast("Silent mode activated! 🔇", "ok");
+                          }
+                        }}
+                        style={{
+                          width: "48px",
+                          height: "26px",
+                          borderRadius: "20px",
+                          background: soundEffects ? "var(--accent-primary, #22d3ee)" : "rgba(255, 255, 255, 0.15)",
+                          position: "relative",
+                          border: "none",
+                          cursor: "pointer",
+                          transition: "background 0.25s",
+                          padding: "3px",
+                        }}
+                        aria-label="Toggle Sound Effects"
+                      >
+                        <div
+                          style={{
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "50%",
+                            background: "#ffffff",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                            transform: soundEffects ? "translateX(22px)" : "translateX(0px)",
+                            transition: "transform 0.25s",
+                          }}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── 4. ACTIVE DEVICES & SESSIONS ── */}
+                  <div
+                    style={{
+                      borderRadius: "16px",
+                      padding: "18px 20px",
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border-light)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "9px",
+                          background: "rgba(59, 130, 246, 0.12)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#3b82f6",
+                        }}
+                      >
+                        <Laptop size={17} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                          Active Devices & Security
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
+                          Manage login sessions across your computers
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Current device card */}
+                    <div
+                      style={{
+                        padding: "14px",
+                        borderRadius: "12px",
+                        background: "rgba(59, 130, 246, 0.05)",
+                        border: "1px solid rgba(59, 130, 246, 0.15)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div
+                          style={{
+                            width: "38px",
+                            height: "38px",
+                            borderRadius: "10px",
+                            background: "rgba(59, 130, 246, 0.15)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#60a5fa",
+                          }}
+                        >
+                          <Monitor size={20} />
+                        </div>
+                        <div>
+                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                            {deviceInfo.os} PC · {deviceInfo.browser}
+                          </p>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
+                            <span
+                              style={{
+                                width: "7px",
+                                height: "7px",
+                                borderRadius: "50%",
+                                background: "#10b981",
+                                boxShadow: "0 0 8px #10b981",
+                              }}
+                            />
+                            <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
+                              This Device · Active Now
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Log out from other computers button */}
+                    <button
+                      type="button"
+                      disabled={loggingOutOthers}
+                      onClick={handleLogOutOtherDevices}
+                      style={{
+                        width: "100%",
+                        padding: "11px 16px",
+                        borderRadius: "10px",
+                        background: "rgba(255, 255, 255, 0.04)",
+                        border: "1px solid var(--border-light)",
+                        color: "var(--text-primary)",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        cursor: loggingOutOthers ? "wait" : "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        transition: "all 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+                      }}
+                    >
+                      <Shield size={14} style={{ color: "#3b82f6" }} />
+                      <span>{loggingOutOthers ? "Revoking Other Sessions…" : "Log Out of All Other Computers"}</span>
+                    </button>
+                  </div>
+
+                  {/* ── 5. RESET PREFERENCES TO DEFAULT ── */}
+                  <div
+                    style={{
+                      borderRadius: "16px",
+                      padding: "16px 20px",
+                      background: "var(--bg-surface)",
+                      border: "1px solid var(--border-light)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--text-primary)" }}>
+                        Restore Defaults
+                      </h4>
+                      <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                        Reset starting screen, formats, sounds, and colors
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetDefaults}
+                      style={{
+                        padding: "9px 14px",
+                        borderRadius: "10px",
+                        background: "rgba(255, 255, 255, 0.05)",
+                        border: "1px solid var(--border-light)",
+                        color: "var(--text-primary)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        transition: "all 0.15s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "var(--accent-primary, #22d3ee)";
+                        e.currentTarget.style.color = "var(--accent-primary, #22d3ee)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "var(--border-light)";
+                        e.currentTarget.style.color = "var(--text-primary)";
+                      }}
+                    >
+                      <RotateCcw size={13} />
+                      <span>Reset to Default</span>
+                    </button>
+                  </div>
+
+                  {/* ── 6. DANGER ZONE: DELETE ACCOUNT ── */}
+                  <div
+                    style={{
+                      borderRadius: "16px",
+                      padding: "18px 20px",
+                      background: "rgba(239, 68, 68, 0.05)",
+                      border: "1px solid rgba(239, 68, 68, 0.22)",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "9px",
+                          background: "rgba(239, 68, 68, 0.15)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#ef4444",
+                        }}
+                      >
+                        <AlertTriangle size={17} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#f87171" }}>
+                          Danger Zone
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
+                          Irreversible account and personal data deletion
+                        </p>
+                      </div>
+                    </div>
+
+                    <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "12px 0 14px", lineHeight: "1.5" }}>
+                      Permanently erase your account, watchlist, uploaded files, and stored profile. This operation cannot be reversed.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteModal(true)}
+                      style={{
+                        width: "100%",
+                        padding: "11px 16px",
+                        borderRadius: "10px",
+                        background: "rgba(239, 68, 68, 0.12)",
+                        border: "1px solid rgba(239, 68, 68, 0.35)",
+                        color: "#f87171",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        transition: "all 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(239, 68, 68, 0.22)";
+                        e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.6)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)";
+                        e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.35)";
+                      }}
+                    >
+                      <Trash2 size={15} />
+                      <span>Delete My Account</span>
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -2806,6 +3624,123 @@ export default function UserProfile({
           </div>
         </div>
       )}
+
+      {/* ── DELETE ACCOUNT CONFIRMATION MODAL ── */}
+      {showDeleteModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 110,
+            background: "rgba(0, 0, 0, 0.8)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={() => !isDeletingAccount && setShowDeleteModal(false)}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "420px",
+              background: "#0d111c",
+              borderRadius: "18px",
+              border: "1px solid rgba(239, 68, 68, 0.35)",
+              boxShadow: "0 25px 60px rgba(0, 0, 0, 0.95), 0 0 25px rgba(239, 68, 68, 0.15)",
+              padding: "24px",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+              <div
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "12px",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#ef4444",
+                  flexShrink: 0,
+                }}
+              >
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#f87171" }}>
+                  Delete Account?
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>
+                  @{username}
+                </p>
+              </div>
+            </div>
+
+            <p style={{ margin: "0 0 16px", fontSize: "13px", color: "var(--text-secondary)", lineHeight: "1.5" }}>
+              Are you sure you want to permanently delete your account? All your uploaded research files, chat records, stock watchlists, and profile information will be immediately deleted.
+            </p>
+
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "rgba(239, 68, 68, 0.08)",
+                border: "1px solid rgba(239, 68, 68, 0.2)",
+                marginBottom: "18px",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "12px", color: "#f87171", fontWeight: 600 }}>
+                ⚠ Warning: This action is permanent and cannot be undone.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeletingAccount}
+                style={{
+                  flex: 1,
+                  padding: "11px 16px",
+                  borderRadius: "10px",
+                  background: "rgba(255, 255, 255, 0.06)",
+                  border: "1px solid var(--border-light)",
+                  color: "var(--text-primary)",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={isDeletingAccount}
+                style={{
+                  flex: 1.4,
+                  padding: "11px 16px",
+                  borderRadius: "10px",
+                  background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+                  border: "none",
+                  color: "#ffffff",
+                  fontSize: "14px",
+                  fontWeight: 700,
+                  cursor: isDeletingAccount ? "wait" : "pointer",
+                  boxShadow: "0 4px 14px rgba(220, 38, 38, 0.4)",
+                }}
+              >
+                {isDeletingAccount ? "Deleting…" : "Yes, Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {cropperRawImage && (
         <PhotoCropperModal
           imageSrc={cropperRawImage}

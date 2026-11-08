@@ -453,4 +453,10 @@ public class AuthService {
         // Invalidate all previously issued refresh tokens for this user across all sessions
         refreshTokenRepository.deleteByUsername(username);
     }
+
+    @Transactional
+    public void deleteAccount(String username) {
+        refreshTokenRepository.deleteByUsername(username);
+        userRepository.findByUsername(username).ifPresent(userRepository::delete);
+    }
 }

@@ -90,3 +90,28 @@ export async function PUT(req: Request) {
     return NextResponse.json({ message: err?.message || "Failed to update profile." }, { status: 500 });
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const csrfCheck = verifyCsrf(req);
+    if (!csrfCheck.ok) {
+      return csrfErrorResponse(csrfCheck.reason);
+    }
+
+    const username = verifyToken(getAuthToken(req));
+    if (!username) {
+      return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
+    }
+
+    usersStore.delete(username);
+    usersStore.delete(username.toLowerCase());
+    saveUsersToDisk();
+
+    const response = NextResponse.json({ message: "Account deleted successfully." });
+    response.cookies.delete("ak_token");
+    response.cookies.delete("ak_refresh_token");
+    return response;
+  } catch (err: any) {
+    return NextResponse.json({ message: err?.message || "Failed to delete account." }, { status: 500 });
+  }
+}
