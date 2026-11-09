@@ -2084,8 +2084,10 @@ export default function UserProfile({
                               localStorage.setItem("ak_default_starting_tab", tab.id);
                               if (username) {
                                 localStorage.setItem(`ak_default_starting_tab_${username}`, tab.id);
+                                localStorage.setItem(`ak_default_starting_tab_${username.toLowerCase()}`, tab.id);
                               }
                               if (typeof window !== "undefined") {
+                                sessionStorage.removeItem("ak_session_navigated");
                                 window.dispatchEvent(
                                   new CustomEvent("ak-starting-tab-changed", { detail: { startingTab: tab.id } })
                                 );

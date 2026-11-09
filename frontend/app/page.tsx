@@ -512,6 +512,49 @@ export default function Home_Page() {
     }
   };
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout failed on server:", err);
+    }
+    if (typeof window !== "undefined") {
+      const currentSavedUser = loggedInUser;
+      sessionStorage.removeItem("ak_session_navigated");
+      localStorage.removeItem("ak_session");
+      localStorage.removeItem("ak_token");
+      localStorage.removeItem("ak_active_tab");
+      const defaultStartTab =
+        (currentSavedUser ? localStorage.getItem(`ak_default_starting_tab_${currentSavedUser.toLowerCase()}`) : null) ||
+        (currentSavedUser ? localStorage.getItem(`ak_default_starting_tab_${currentSavedUser}`) : null) ||
+        localStorage.getItem("ak_default_starting_tab") ||
+        "news";
+      setActiveTab(defaultStartTab);
+    }
+    setShowProfile(false);
+    setIsLoggedIn(false);
+    setLoggedInUser("");
+  }, [loggedInUser]);
+
+  // Ensure chosen default starting tab is applied on fresh session/login
+  useEffect(() => {
+    if (isLoggedIn && typeof window !== "undefined") {
+      const isNavigated = sessionStorage.getItem("ak_session_navigated");
+      if (!isNavigated) {
+        const defaultStartTab =
+          (loggedInUser ? localStorage.getItem(`ak_default_starting_tab_${loggedInUser.toLowerCase()}`) : null) ||
+          (loggedInUser ? localStorage.getItem(`ak_default_starting_tab_${loggedInUser}`) : null) ||
+          localStorage.getItem("ak_default_starting_tab") ||
+          "news";
+        setActiveTab(defaultStartTab);
+        localStorage.setItem("ak_active_tab", defaultStartTab);
+      }
+    }
+  }, [isLoggedIn, loggedInUser]);
+
   const activeTabData = NAV_TABS.find((t) => t.id === activeTab) || NAV_TABS[0];
 
   if (!sessionChecked) {
@@ -643,6 +686,7 @@ export default function Home_Page() {
               if (typeof window !== "undefined") {
                 sessionStorage.removeItem("ak_session_navigated");
                 const defaultStartTab =
+                  localStorage.getItem(`ak_default_starting_tab_${username.toLowerCase()}`) ||
                   localStorage.getItem(`ak_default_starting_tab_${username}`) ||
                   localStorage.getItem("ak_default_starting_tab") ||
                   "news";
@@ -741,20 +785,7 @@ export default function Home_Page() {
             </button>
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  await fetch(`${API_BASE_URL}/auth/logout`, {
-                    method: "POST",
-                    credentials: "include",
-                  });
-                } catch (err) {
-                  console.error("Logout failed on server:", err);
-                }
-                localStorage.removeItem("ak_session");
-                localStorage.removeItem("ak_token");
-                setIsLoggedIn(false);
-                setLoggedInUser("");
-              }}
+              onClick={handleLogout}
               className="header-logout-btn"
               title="Logout"
             >
@@ -918,31 +949,7 @@ export default function Home_Page() {
         <UserProfile
           username={loggedInUser}
           onClose={() => setShowProfile(false)}
-          onLogout={async () => {
-            try {
-              await fetch(`${API_BASE_URL}/auth/logout`, {
-                method: "POST",
-                credentials: "include",
-              });
-            } catch (err) {
-              console.error("Logout failed on server:", err);
-            }
-            if (typeof window !== "undefined") {
-              const currentSavedUser = loggedInUser;
-              sessionStorage.removeItem("ak_session_navigated");
-              localStorage.removeItem("ak_session");
-              localStorage.removeItem("ak_token");
-              localStorage.removeItem("ak_active_tab");
-              const defaultStartTab =
-                (currentSavedUser ? localStorage.getItem(`ak_default_starting_tab_${currentSavedUser}`) : null) ||
-                localStorage.getItem("ak_default_starting_tab") ||
-                "news";
-              setActiveTab(defaultStartTab);
-            }
-            setShowProfile(false);
-            setIsLoggedIn(false);
-            setLoggedInUser("");
-          }}
+          onLogout={handleLogout}
         />
       )}
 

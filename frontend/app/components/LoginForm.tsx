@@ -547,7 +547,8 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         if (authToken) {
           localStorage.setItem("ak_token", authToken);
         }
-        onLoginSuccess(username, authToken);
+        const effectiveUser = data.username || data.user?.username || username;
+        onLoginSuccess(effectiveUser, authToken);
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");
