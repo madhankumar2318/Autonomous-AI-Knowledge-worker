@@ -262,7 +262,10 @@ export default function Home_Page() {
   }, []);
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("ak_default_starting_tab") || localStorage.getItem("ak_active_tab") || "news";
+      const savedUser = localStorage.getItem("ak_session");
+      const userDefault = savedUser ? localStorage.getItem(`ak_default_starting_tab_${savedUser}`) : null;
+      const globalDefault = localStorage.getItem("ak_default_starting_tab");
+      return userDefault || globalDefault || "news";
     }
     return "news";
   });
@@ -487,6 +490,20 @@ export default function Home_Page() {
     localStorage.setItem("ak_active_tab", activeTab);
   }, [activeTab]);
 
+  useEffect(() => {
+    const handleStartingTabChanged = (e: any) => {
+      const newStartingTab = e.detail?.startingTab;
+      if (newStartingTab) {
+        setActiveTab(newStartingTab);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ak_active_tab", newStartingTab);
+        }
+      }
+    };
+    window.addEventListener("ak-starting-tab-changed", handleStartingTabChanged);
+    return () => window.removeEventListener("ak-starting-tab-changed", handleStartingTabChanged);
+  }, [activeTab]);
+
   const handleGlobalSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (globalSearchQuery.trim()) {
@@ -622,6 +639,15 @@ export default function Home_Page() {
               localStorage.setItem("ak_session", username);
               if (token) {
                 localStorage.setItem("ak_token", token);
+              }
+              if (typeof window !== "undefined") {
+                sessionStorage.removeItem("ak_session_navigated");
+                const defaultStartTab =
+                  localStorage.getItem(`ak_default_starting_tab_${username}`) ||
+                  localStorage.getItem("ak_default_starting_tab") ||
+                  "news";
+                setActiveTab(defaultStartTab);
+                localStorage.setItem("ak_active_tab", defaultStartTab);
               }
             }}
           />
@@ -901,8 +927,18 @@ export default function Home_Page() {
             } catch (err) {
               console.error("Logout failed on server:", err);
             }
-            localStorage.removeItem("ak_session");
-            localStorage.removeItem("ak_token");
+            if (typeof window !== "undefined") {
+              const currentSavedUser = loggedInUser;
+              sessionStorage.removeItem("ak_session_navigated");
+              localStorage.removeItem("ak_session");
+              localStorage.removeItem("ak_token");
+              localStorage.removeItem("ak_active_tab");
+              const defaultStartTab =
+                (currentSavedUser ? localStorage.getItem(`ak_default_starting_tab_${currentSavedUser}`) : null) ||
+                localStorage.getItem("ak_default_starting_tab") ||
+                "news";
+              setActiveTab(defaultStartTab);
+            }
             setShowProfile(false);
             setIsLoggedIn(false);
             setLoggedInUser("");

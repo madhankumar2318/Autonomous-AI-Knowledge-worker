@@ -381,10 +381,21 @@ export default function UserProfile({
     // ── PREFERENCES STATE ──
   const [startingTab, setStartingTab] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("ak_default_starting_tab") || "news";
+      const userKey = username ? localStorage.getItem(`ak_default_starting_tab_${username}`) : null;
+      return userKey || localStorage.getItem("ak_default_starting_tab") || "news";
     }
     return "news";
   });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const userKey = username ? localStorage.getItem(`ak_default_starting_tab_${username}`) : null;
+      const saved = userKey || localStorage.getItem("ak_default_starting_tab");
+      if (saved) {
+        setStartingTab(saved);
+      }
+    }
+  }, [username]);
 
   const [timeFormat, setTimeFormat] = useState<"12h" | "24h">(() => {
     if (typeof window !== "undefined") {
@@ -476,6 +487,14 @@ export default function UserProfile({
   const handleResetDefaults = () => {
     setStartingTab("news");
     localStorage.setItem("ak_default_starting_tab", "news");
+    if (username) {
+      localStorage.setItem(`ak_default_starting_tab_${username}`, "news");
+    }
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("ak-starting-tab-changed", { detail: { startingTab: "news" } })
+      );
+    }
 
     setTimeFormat("12h");
     localStorage.setItem("ak_time_format", "12h");
@@ -2063,6 +2082,14 @@ export default function UserProfile({
                             onClick={() => {
                               setStartingTab(tab.id);
                               localStorage.setItem("ak_default_starting_tab", tab.id);
+                              if (username) {
+                                localStorage.setItem(`ak_default_starting_tab_${username}`, tab.id);
+                              }
+                              if (typeof window !== "undefined") {
+                                window.dispatchEvent(
+                                  new CustomEvent("ak-starting-tab-changed", { detail: { startingTab: tab.id } })
+                                );
+                              }
                               showToast(`Default starting screen set to ${tab.label}`, "ok");
                             }}
                             style={{
