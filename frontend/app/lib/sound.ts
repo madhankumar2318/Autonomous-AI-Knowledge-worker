@@ -78,6 +78,59 @@ export function playAiResponseChime() {
 }
 
 /**
+ * 📁 File Upload & RAG Indexing Complete:
+ * A clean, bright, elegant bell "ding" (G5 784Hz -> C6 1046.5Hz harmonic with sparkling decay)
+ * Plays when a PDF, document, or dataset finishes uploading and indexing into the workspace.
+ */
+export function playUploadSuccessSound() {
+  if (!isSoundEnabled()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+
+    // Tone 1: Fundamental Bell (G5 - 783.99 Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(783.99, now);
+    gain1.gain.setValueAtTime(0.18, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.35);
+
+    // Tone 2: Crisp Bright Harmonic (C6 - 1046.50 Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(1046.5, now + 0.04);
+    gain2.gain.setValueAtTime(0.22, now + 0.04);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.04);
+    osc2.stop(now + 0.45);
+
+    // Tone 3: Sparkling High Shimmer (E6 - 1318.51 Hz)
+    const osc3 = ctx.createOscillator();
+    const gain3 = ctx.createGain();
+    osc3.type = "sine";
+    osc3.frequency.setValueAtTime(1318.51, now + 0.08);
+    gain3.gain.setValueAtTime(0.12, now + 0.08);
+    gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc3.connect(gain3);
+    gain3.connect(ctx.destination);
+    osc3.start(now + 0.08);
+    osc3.stop(now + 0.3);
+  } catch (err) {
+    console.debug("[Sound] playUploadSuccessSound error:", err);
+  }
+}
+
+/**
  * 💬 User Message Sent Sound:
  * Soft, subtle pop (320Hz -> 520Hz, 80ms)
  */

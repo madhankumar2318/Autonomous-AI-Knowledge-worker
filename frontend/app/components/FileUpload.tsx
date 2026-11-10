@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { showToast } from "./Toast";
+import { playUploadSuccessSound } from "../lib/sound";
 import { API_BASE_URL } from "../config";
 import DocumentWorkspace from "./DocumentWorkspace";
 import { storeLocalFileBlob, deleteLocalFileBlob, storeLocalFileText } from "../lib/idb";
@@ -410,6 +411,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
           setUploadProgress(0);
           setUploading(false);
           setUploadingFilename(null);
+          playUploadSuccessSound();
           showToast(
             "success",
             `"${fileToUpload.name}" uploaded & RAG indexed successfully!`,
@@ -461,6 +463,7 @@ export default function FileUpload({ username = "guest" }: FileUploadProps) {
       const data = await res.json();
       if (res.ok) {
         if (data.rag_status === "success") {
+          playUploadSuccessSound();
           showToast(
             "success",
             `"${filename}" re-indexed successfully with ${data.chunks} chunks!`,
