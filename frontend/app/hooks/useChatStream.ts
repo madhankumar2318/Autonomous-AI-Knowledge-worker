@@ -3,6 +3,7 @@ import { showToast } from "../components/Toast";
 import { API_BASE_URL } from "../config";
 import { PRESETS } from "../components/ChatAssistant";
 import { getLocalFileText, getLocalFileBlob, storeLocalFileText } from "../lib/idb";
+import { playAiResponseChime, playMessageSentSound } from "../lib/sound";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -786,6 +787,7 @@ export function useChatStream({
       } as ChatMessage,
     ]);
     setLoading(true);
+    playMessageSentSound();
 
     const completeAllResearchSteps = () => {
       setMessages((prev) => {
@@ -1130,6 +1132,7 @@ export function useChatStream({
       setLoading(false);
       setStreamingStatus("");
       abortControllerRef.current = null;
+      playAiResponseChime();
 
       const finalMessages = latestMessagesRef.current;
 

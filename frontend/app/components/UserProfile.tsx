@@ -34,6 +34,7 @@ import {
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
 import PhotoCropperModal from "./PhotoCropperModal";
+import { playAiResponseChime, playClickSound } from "../lib/sound";
 
 interface UserProfileProps {
   username: string;
@@ -2382,7 +2383,7 @@ export default function UserProfile({
                           setSoundEffects(next);
                           localStorage.setItem("ak_sound_effects", String(next));
                           if (next) {
-                            playChime();
+                            playAiResponseChime();
                             showToast("Sound effects enabled! 🔊", "ok");
                           } else {
                             showToast("Silent mode activated! 🔇", "ok");

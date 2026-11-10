@@ -1,6 +1,7 @@
 "use client";
 import { AlertCircle, AlertTriangle, CheckCircle, Info, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { playClickSound } from "../lib/sound";
 
 export type ToastType = "success" | "error" | "info" | "warning";
 
@@ -72,6 +73,7 @@ export function ToastContainer() {
   // Expose addToast globally
   useEffect(() => {
     window.addToast = (type: ToastType, message: string) => {
+      playClickSound();
       const id = Math.random().toString(36).substr(2, 9);
       setToasts((prev) => {
         // De-duplicate identical toast messages and cap at max 3
