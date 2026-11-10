@@ -37,9 +37,9 @@ export function isSoundEnabled(): boolean {
 }
 
 /**
- * 🔔 AI Response Completion Chime:
- * A warm, two-tone pleasant chime (D5 587Hz -> A5 880Hz)
- * Plays when the AI finishes generating an answer (stock analysis, research, chat, etc.)
+ * ✨ Celestial Crystal Shimmer (AI Response Ready):
+ * A smooth, velvety 3-note harmonic cascade (E5 659Hz -> B5 988Hz -> E6 1319Hz).
+ * Engineered with gentle attack curves and warm decay to sound luxurious, non-fatiguing, and calm.
  */
 export function playAiResponseChime() {
   if (!isSoundEnabled()) return;
@@ -49,32 +49,75 @@ export function playAiResponseChime() {
   try {
     const now = ctx.currentTime;
 
-    // Note 1: D5 (587.33 Hz)
+    // Note 1: E5 (659.25 Hz) - Warm crystal base
     const osc1 = ctx.createOscillator();
     const gain1 = ctx.createGain();
     osc1.type = "sine";
-    osc1.frequency.setValueAtTime(587.33, now);
-    gain1.gain.setValueAtTime(0.18, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    osc1.frequency.setValueAtTime(659.25, now);
+    gain1.gain.setValueAtTime(0.001, now);
+    gain1.gain.exponentialRampToValueAtTime(0.14, now + 0.02); // soft attack
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
     osc1.connect(gain1);
     gain1.connect(ctx.destination);
     osc1.start(now);
-    osc1.stop(now + 0.22);
+    osc1.stop(now + 0.35);
 
-    // Note 2: A5 (880.00 Hz) — slightly delayed for a modern "ping" feel
+    // Note 2: B5 (987.77 Hz) - Harmonic shimmer, offset by 45ms
     const osc2 = ctx.createOscillator();
     const gain2 = ctx.createGain();
     osc2.type = "sine";
-    osc2.frequency.setValueAtTime(880.0, now + 0.09);
-    gain2.gain.setValueAtTime(0.2, now + 0.09);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+    osc2.frequency.setValueAtTime(987.77, now + 0.045);
+    gain2.gain.setValueAtTime(0.001, now + 0.045);
+    gain2.gain.exponentialRampToValueAtTime(0.12, now + 0.07);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
     osc2.connect(gain2);
     gain2.connect(ctx.destination);
-    osc2.start(now + 0.09);
-    osc2.stop(now + 0.38);
+    osc2.start(now + 0.045);
+    osc2.stop(now + 0.42);
+
+    // Note 3: E6 (1318.51 Hz) - High celestial sparkle, offset by 90ms
+    const osc3 = ctx.createOscillator();
+    const gain3 = ctx.createGain();
+    osc3.type = "sine";
+    osc3.frequency.setValueAtTime(1318.51, now + 0.09);
+    gain3.gain.setValueAtTime(0.001, now + 0.09);
+    gain3.gain.exponentialRampToValueAtTime(0.09, now + 0.12);
+    gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc3.connect(gain3);
+    gain3.connect(ctx.destination);
+    osc3.start(now + 0.09);
+    osc3.stop(now + 0.5);
   } catch (err) {
     console.debug("[Sound] playAiResponseChime error:", err);
   }
+}
+
+/**
+ * 🍃 Silk Air Glide (User Message Sent):
+ * An ultra-smooth, low-frequency breath (440Hz -> 620Hz) with zero harsh pops or clicks.
+ * Feels like whispering a thought into the cloud.
+ */
+export function playMessageSentSound() {
+  if (!isSoundEnabled()) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  try {
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    // Smooth, gentle curve
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.exponentialRampToValueAtTime(620, now + 0.08);
+    gain.gain.setValueAtTime(0.001, now);
+    gain.gain.exponentialRampToValueAtTime(0.09, now + 0.02); // soft fade in
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1); // soft fade out
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  } catch {}
 }
 
 /**
@@ -131,31 +174,6 @@ export function playUploadSuccessSound() {
 }
 
 /**
- * 💬 User Message Sent Sound:
- * Soft, subtle pop (320Hz -> 520Hz, 80ms)
- */
-export function playMessageSentSound() {
-  if (!isSoundEnabled()) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
-  try {
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(320, now);
-    osc.frequency.exponentialRampToValueAtTime(520, now + 0.07);
-    gain.gain.setValueAtTime(0.12, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.09);
-  } catch {}
-}
-
-/**
  * 🔘 Subtle UI Click / Toggle Tone:
  */
 export function playClickSound() {
@@ -170,7 +188,7 @@ export function playClickSound() {
     osc.type = "sine";
     osc.frequency.setValueAtTime(700, now);
     osc.frequency.exponentialRampToValueAtTime(450, now + 0.04);
-    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.setValueAtTime(0.08, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
     osc.connect(gain);
     gain.connect(ctx.destination);
