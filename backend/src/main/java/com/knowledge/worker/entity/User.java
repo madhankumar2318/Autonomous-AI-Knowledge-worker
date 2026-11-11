@@ -36,6 +36,22 @@ public class User {
     @Column(name = "avatar", columnDefinition = "TEXT")
     private String avatar;
 
+    @Column(name = "default_starting_screen", length = 50)
+    @Builder.Default
+    private String defaultStartingScreen = "news";
+
+    @Column(name = "time_format", length = 10)
+    @Builder.Default
+    private String timeFormat = "12h";
+
+    @Column(name = "date_format", length = 20)
+    @Builder.Default
+    private String dateFormat = "DD/MM/YYYY";
+
+    @Column(name = "sound_effects")
+    @Builder.Default
+    private Boolean soundEffects = true;
+
     @Builder.Default
     @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "integer default 0")
     private int failedLoginAttempts = 0;

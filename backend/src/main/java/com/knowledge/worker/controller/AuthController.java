@@ -80,7 +80,7 @@ public class AuthController {
                     .build();
         }
         try {
-            AuthResponse res = authService.login(req, response, clientIp);
+            AuthResponse res = authService.login(req, response, clientIp, request);
             auditService.recordEvent("AUTH_LOGIN_SUCCESS", req.getUsername(), clientIp, "/auth/login", "SUCCESS", "User authenticated successfully");
             return ResponseEntity.ok(res);
         } catch (ResponseStatusException rse) {
@@ -161,7 +161,7 @@ public class AuthController {
         String username = authentication != null ? authentication.getName() : "guest";
         ProfileUpdateRequest req = bodyReq;
         if (req == null) {
-            req = new ProfileUpdateRequest(name, email, mobile, avatar);
+            req = ProfileUpdateRequest.builder().name(name).email(email).mobile(mobile).avatar(avatar).build();
         } else {
             if (req.getName() == null && name != null) req.setName(name);
             if (req.getEmail() == null && email != null) req.setEmail(email);
@@ -199,5 +199,46 @@ public class AuthController {
         authService.deleteAccount(username);
         auditService.recordEvent("AUTH_ACCOUNT_DELETE", username, "authenticated", "/auth/profile", "SUCCESS", "User deleted their account");
         return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
+    }
+    @GetMapping("/devices")
+    public ResponseEntity<Map<String, Object>> getDevices(Authentication authentication, HttpServletRequest request) {
+        String username = authentication != null ? authentication.getName() : "guest";
+        java.util.List<DeviceSessionDto> sessions = authService.getActiveDevices(username, request);
+        return ResponseEntity.ok(Map.of("sessions", sessions));
+    }
+
+    @PostMapping("/devices")
+    public ResponseEntity<Map<String, Object>> handleDeviceAction(
+            Authentication authentication,
+            @RequestBody(required = false) DeviceActionRequest body,
+            HttpServletRequest request
+    ) {
+        String username = authentication != null ? authentication.getName() : "guest";
+        String action = body != null ? body.getAction() : "";
+        if ("logout_others".equalsIgnoreCase(action)) {
+            authService.logoutOtherDevices(username, request);
+        } else if ("logout_device".equalsIgnoreCase(action) && body != null && body.getSessionId() != null) {
+            authService.logoutDevice(username, body.getSessionId());
+        }
+        java.util.List<DeviceSessionDto> sessions = authService.getActiveDevices(username, request);
+        return ResponseEntity.ok(Map.of("message", "Success", "sessions", sessions));
+    }
+
+    @PostMapping("/devices/logout-others")
+    public ResponseEntity<Map<String, Object>> logoutOthers(Authentication authentication, HttpServletRequest request) {
+        String username = authentication != null ? authentication.getName() : "guest";
+        authService.logoutOtherDevices(username, request);
+        java.util.List<DeviceSessionDto> sessions = authService.getActiveDevices(username, request);
+        return ResponseEntity.ok(Map.of("message", "Logged out of other devices successfully", "sessions", sessions));
+    }
+
+    @DeleteMapping("/devices/{id}")
+    public ResponseEntity<Map<String, String>> deleteDevice(
+            Authentication authentication,
+            @PathVariable("id") String deviceId
+    ) {
+        String username = authentication != null ? authentication.getName() : "guest";
+        authService.logoutDevice(username, deviceId);
+        return ResponseEntity.ok(Map.of("message", "Device disconnected successfully"));
     }
 }

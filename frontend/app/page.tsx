@@ -139,6 +139,14 @@ export default function Home_Page() {
             setUserAvatar(data.avatar);
             localStorage.setItem(`ak_avatar_${loggedInUser}`, data.avatar);
           }
+          if (data?.defaultStartingTab) {
+            localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
+            localStorage.setItem(`ak_default_starting_tab_${loggedInUser}`, data.defaultStartingTab);
+            localStorage.setItem(`ak_default_starting_tab_${loggedInUser.toLowerCase()}`, data.defaultStartingTab);
+          }
+          if (data?.soundEffects !== undefined) {
+            localStorage.setItem("ak_sound_effects", String(data.soundEffects));
+          }
         })
         .catch(() => {});
     } else {
@@ -433,6 +441,25 @@ export default function Home_Page() {
           setLoggedInUser(user);
           setIsLoggedIn(true);
           localStorage.setItem("ak_session", user);
+          const srvTab = data.defaultStartingTab || data.user?.defaultStartingTab;
+          if (srvTab) {
+            localStorage.setItem("ak_default_starting_tab", srvTab);
+            localStorage.setItem(`ak_default_starting_tab_${user}`, srvTab);
+            localStorage.setItem(`ak_default_starting_tab_${user.toLowerCase()}`, srvTab);
+            if (typeof window !== "undefined" && !sessionStorage.getItem("ak_session_navigated")) {
+              setActiveTab(srvTab);
+              localStorage.setItem("ak_active_tab", srvTab);
+            }
+          }
+          const srvAvatar = data.avatar || data.user?.avatar;
+          if (srvAvatar) {
+            setUserAvatar(srvAvatar);
+            localStorage.setItem(`ak_avatar_${user}`, srvAvatar);
+          }
+          const srvSound = data.soundEffects !== undefined ? data.soundEffects : data.user?.soundEffects;
+          if (srvSound !== undefined) {
+            localStorage.setItem("ak_sound_effects", String(srvSound));
+          }
         } else if (data?.valid === false) {
           localStorage.removeItem("ak_session");
           localStorage.removeItem("ak_token");
@@ -676,7 +703,7 @@ export default function Home_Page() {
             }}
           />
           <LoginForm
-            onLoginSuccess={(username, token) => {
+            onLoginSuccess={(username, token, userData) => {
               setIsLoggedIn(true);
               setLoggedInUser(username);
               localStorage.setItem("ak_session", username);
@@ -685,13 +712,29 @@ export default function Home_Page() {
               }
               if (typeof window !== "undefined") {
                 sessionStorage.removeItem("ak_session_navigated");
+                const srvTab = userData?.defaultStartingTab || userData?.user?.defaultStartingTab;
                 const defaultStartTab =
+                  srvTab ||
                   localStorage.getItem(`ak_default_starting_tab_${username.toLowerCase()}`) ||
                   localStorage.getItem(`ak_default_starting_tab_${username}`) ||
                   localStorage.getItem("ak_default_starting_tab") ||
                   "news";
                 setActiveTab(defaultStartTab);
                 localStorage.setItem("ak_active_tab", defaultStartTab);
+                if (srvTab) {
+                  localStorage.setItem("ak_default_starting_tab", srvTab);
+                  localStorage.setItem(`ak_default_starting_tab_${username}`, srvTab);
+                  localStorage.setItem(`ak_default_starting_tab_${username.toLowerCase()}`, srvTab);
+                }
+                const srvAvatar = userData?.avatar || userData?.user?.avatar;
+                if (srvAvatar) {
+                  setUserAvatar(srvAvatar);
+                  localStorage.setItem(`ak_avatar_${username}`, srvAvatar);
+                }
+                const srvSound = userData?.soundEffects !== undefined ? userData.soundEffects : userData?.user?.soundEffects;
+                if (srvSound !== undefined) {
+                  localStorage.setItem("ak_sound_effects", String(srvSound));
+                }
               }
             }}
           />

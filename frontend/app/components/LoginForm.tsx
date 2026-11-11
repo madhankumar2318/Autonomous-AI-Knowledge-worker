@@ -339,7 +339,7 @@ const COUNTRIES = [
 ];
 
 interface LoginFormProps {
-  onLoginSuccess: (username: string, token: string) => void;
+  onLoginSuccess: (username: string, token: string, userData?: any) => void;
 }
 
 const getPasswordScore = (pw: string) => {
@@ -548,7 +548,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
           localStorage.setItem("ak_token", authToken);
         }
         const effectiveUser = data.username || data.user?.username || username;
-        onLoginSuccess(effectiveUser, authToken);
+        onLoginSuccess(effectiveUser, authToken, data);
       }
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred");

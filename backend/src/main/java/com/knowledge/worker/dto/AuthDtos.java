@@ -71,6 +71,17 @@ public class AuthDtos {
         private String name;
         private String email;
         private String mobile;
+        private String avatar;
+        @JsonProperty("default_starting_tab")
+        private String defaultStartingTab;
+        @JsonProperty("time_format")
+        private String timeFormat;
+        @JsonProperty("date_format")
+        private String dateFormat;
+        @JsonProperty("sound_effects")
+        private Boolean soundEffects;
+        @JsonProperty("session_id")
+        private String sessionId;
         private String message;
     }
 
@@ -96,6 +107,14 @@ public class AuthDtos {
         private String email;
         private String mobile;
         private String avatar;
+        @JsonProperty("default_starting_tab")
+        private String defaultStartingTab;
+        @JsonProperty("time_format")
+        private String timeFormat;
+        @JsonProperty("date_format")
+        private String dateFormat;
+        @JsonProperty("sound_effects")
+        private Boolean soundEffects;
     }
 
     @Getter
@@ -115,6 +134,49 @@ public class AuthDtos {
         private String mobile;
 
         private String avatar;
+
+        @JsonProperty("default_starting_tab")
+        private String defaultStartingTab;
+
+        @JsonProperty("time_format")
+        private String timeFormat;
+
+        @JsonProperty("date_format")
+        private String dateFormat;
+
+        @JsonProperty("sound_effects")
+        private Boolean soundEffects;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class DeviceSessionDto {
+        private String id;
+        @JsonProperty("device_type")
+        private String deviceType;
+        private String os;
+        private String browser;
+        private String ip;
+        @JsonProperty("last_active_at")
+        private long lastActiveAt;
+        @JsonProperty("created_at")
+        private long createdAt;
+        @JsonProperty("is_current")
+        private boolean isCurrent;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class DeviceActionRequest {
+        private String action;
+        @JsonProperty("session_id")
+        private String sessionId;
     }
 
     @Getter

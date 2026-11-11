@@ -18,6 +18,22 @@ export interface UserRecord {
   role: string;
   avatar?: string;
   tokenVersion?: number;
+  defaultStartingTab?: string;
+  timeFormat?: string;
+  dateFormat?: string;
+  soundEffects?: boolean;
+}
+
+export interface UserSessionRecord {
+  id: string;
+  username: string;
+  deviceType: "Desktop" | "Mobile" | "Tablet";
+  os: string;
+  browser: string;
+  ip: string;
+  userAgent: string;
+  lastActiveAt: number;
+  createdAt: number;
 }
 
 export interface UserSettingRecord {
@@ -580,6 +596,7 @@ const globalStore = globalThis as unknown as {
   __AKW_UPLOADS__?: Map<string, UploadRecord>;
   __AKW_BUFFERS__?: Map<string, Buffer>;
   __AKW_ACCOUNT_ATTEMPTS__?: Map<string, AccountAttemptRecord>;
+  __AKW_SESSIONS__?: Map<string, UserSessionRecord>;
 };
 
 if (!globalStore.__AKW_ACCOUNT_ATTEMPTS__) {
@@ -910,6 +927,174 @@ export const threadsStore = globalStore.__AKW_THREADS__!;
 export const uploadsStore = globalStore.__AKW_UPLOADS__!;
 export const buffersStore = globalStore.__AKW_BUFFERS__!;
 export const accountAttemptsStore = globalStore.__AKW_ACCOUNT_ATTEMPTS__!;
+
+// ── Multi-Device Session Store & Management ──────────────────────────────────
+export function saveSessionsToDisk(): void {
+  const sessions = Array.from(globalStore.__AKW_SESSIONS__?.values() || []);
+  const dirs = getStorageDirs();
+  for (const dir of dirs) {
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      const p = path.join(dir, "sessions_index.json");
+      fs.writeFileSync(p, JSON.stringify(sessions, null, 2), "utf-8");
+    } catch {}
+  }
+}
+
+export function syncSessionsFromDisk(): Map<string, UserSessionRecord> {
+  if (!globalStore.__AKW_SESSIONS__) {
+    globalStore.__AKW_SESSIONS__ = new Map<string, UserSessionRecord>();
+  }
+  const sessions = globalStore.__AKW_SESSIONS__;
+  for (const dir of getStorageDirs()) {
+    try {
+      const p = path.join(dir, "sessions_index.json");
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, "utf-8");
+        const list: UserSessionRecord[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          for (const s of list) {
+            if (s && s.id && s.username) {
+              sessions.set(s.id, s);
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+  return sessions;
+}
+
+if (!globalStore.__AKW_SESSIONS__) {
+  syncSessionsFromDisk();
+}
+
+export const sessionsStore = globalStore.__AKW_SESSIONS__!;
+
+export function parseUserAgent(uaString: string): {
+  deviceType: "Desktop" | "Mobile" | "Tablet";
+  os: string;
+  browser: string;
+} {
+  const ua = uaString || "";
+  let deviceType: "Desktop" | "Mobile" | "Tablet" = "Desktop";
+  if (/iPad|tablet|(android(?!.*mobile))/i.test(ua)) {
+    deviceType = "Tablet";
+  } else if (/iPhone|iPod|Android.*Mobile|Mobile|Windows Phone/i.test(ua)) {
+    deviceType = "Mobile";
+  }
+
+  let os = "Desktop";
+  if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+  else if (/Android/i.test(ua)) os = "Android";
+  else if (/Windows/i.test(ua)) os = "Windows";
+  else if (/Macintosh|Mac OS X/i.test(ua)) os = "macOS";
+  else if (/Linux/i.test(ua)) os = "Linux";
+
+  let browser = "Browser";
+  if (/Edg\//i.test(ua)) browser = "Edge";
+  else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = deviceType === "Mobile" ? "Chrome Mobile" : "Chrome";
+  else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = deviceType === "Mobile" ? "Mobile Safari" : "Safari";
+  else if (/Firefox\//i.test(ua)) browser = "Firefox";
+  else if (/Opera|OPR\//i.test(ua)) browser = "Opera";
+
+  return { deviceType, os, browser };
+}
+
+export function recordUserSession(
+  username: string,
+  req: Request,
+  preferredSessionId?: string | null
+): string {
+  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const normUser = username.trim().toLowerCase();
+  const ua = req.headers.get("user-agent") || "";
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    req.headers.get("x-real-ip") ||
+    "127.0.0.1";
+  const parsed = parseUserAgent(ua);
+
+  // If a session ID is supplied and already valid, refresh it
+  if (preferredSessionId && sessions.has(preferredSessionId)) {
+    const existing = sessions.get(preferredSessionId)!;
+    if (existing.username.toLowerCase() === normUser) {
+      existing.lastActiveAt = Date.now();
+      existing.ip = ip;
+      existing.userAgent = ua;
+      sessions.set(preferredSessionId, existing);
+      saveSessionsToDisk();
+      return preferredSessionId;
+    }
+  }
+
+  // Look for matching existing session for this user + device type + OS + browser
+  for (const [sId, sess] of Array.from(sessions.entries())) {
+    if (
+      sess.username.toLowerCase() === normUser &&
+      sess.deviceType === parsed.deviceType &&
+      sess.os === parsed.os &&
+      sess.browser === parsed.browser
+    ) {
+      sess.lastActiveAt = Date.now();
+      sess.ip = ip;
+      sess.userAgent = ua;
+      sessions.set(sId, sess);
+      saveSessionsToDisk();
+      return sId;
+    }
+  }
+
+  // Register brand new distinct device session
+  const newSessionId = "sess_" + crypto.randomBytes(12).toString("hex");
+  const sessionRecord: UserSessionRecord = {
+    id: newSessionId,
+    username,
+    deviceType: parsed.deviceType,
+    os: parsed.os,
+    browser: parsed.browser,
+    ip,
+    userAgent: ua,
+    lastActiveAt: Date.now(),
+    createdAt: Date.now(),
+  };
+  sessions.set(newSessionId, sessionRecord);
+  saveSessionsToDisk();
+  return newSessionId;
+}
+
+export function getUserSessions(username: string): UserSessionRecord[] {
+  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const normUser = username.trim().toLowerCase();
+  const list: UserSessionRecord[] = [];
+  for (const s of Array.from(sessions.values())) {
+    if (s.username.toLowerCase() === normUser) {
+      list.push(s);
+    }
+  }
+  return list.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+}
+
+export function removeUserSession(username: string, sessionId: string): void {
+  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const normUser = username.trim().toLowerCase();
+  const s = sessions.get(sessionId);
+  if (s && s.username.toLowerCase() === normUser) {
+    sessions.delete(sessionId);
+    saveSessionsToDisk();
+  }
+}
+
+export function removeOtherUserSessions(username: string, currentSessionId: string): void {
+  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const normUser = username.trim().toLowerCase();
+  for (const [id, s] of Array.from(sessions.entries())) {
+    if (s.username.toLowerCase() === normUser && id !== currentSessionId) {
+      sessions.delete(id);
+    }
+  }
+  saveSessionsToDisk();
+}
 
 // ── Account Lockout & Brute-Force Backoff ─────────────────────────────────────
 const MAX_FAILED_ATTEMPTS = 5;

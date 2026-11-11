@@ -24,6 +24,10 @@ export async function GET(req: Request) {
     email: user.email,
     mobile: user.mobile,
     avatar: user.avatar || "",
+    defaultStartingTab: user.defaultStartingTab || "news",
+    timeFormat: user.timeFormat || "12h",
+    dateFormat: user.dateFormat || "DD/MM/YYYY",
+    soundEffects: user.soundEffects ?? true,
     role: user.role,
     accountNonLocked: true,
   });
@@ -72,6 +76,21 @@ export async function PUT(req: Request) {
       }
       user.mobile = mobile;
     }
+    if (body.avatar !== undefined) {
+      user.avatar = String(body.avatar);
+    }
+    if (body.defaultStartingTab !== undefined) {
+      user.defaultStartingTab = String(body.defaultStartingTab).slice(0, 30);
+    }
+    if (body.timeFormat !== undefined) {
+      user.timeFormat = String(body.timeFormat).slice(0, 10);
+    }
+    if (body.dateFormat !== undefined) {
+      user.dateFormat = String(body.dateFormat).slice(0, 20);
+    }
+    if (body.soundEffects !== undefined) {
+      user.soundEffects = Boolean(body.soundEffects);
+    }
 
     usersStore.set(username, user);
     usersStore.set(username.toLowerCase(), user);
@@ -83,6 +102,11 @@ export async function PUT(req: Request) {
       name: user.name,
       email: user.email,
       mobile: user.mobile,
+      avatar: user.avatar || "",
+      defaultStartingTab: user.defaultStartingTab || "news",
+      timeFormat: user.timeFormat || "12h",
+      dateFormat: user.dateFormat || "DD/MM/YYYY",
+      soundEffects: user.soundEffects ?? true,
       role: user.role,
       message: "Profile updated successfully.",
     });

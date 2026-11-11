@@ -93,7 +93,39 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse login(LoginRequest req, HttpServletResponse response, String clientIp) {
+    private String parseDeviceType(String ua) {
+        if (ua == null) return "Desktop";
+        if (ua.matches("(?i).*iPad|tablet|(android(?!.*mobile)).*")) return "Tablet";
+        if (ua.matches("(?i).*iPhone|iPod|Android.*Mobile|Mobile|Windows Phone.*")) return "Mobile";
+        return "Desktop";
+    }
+
+    private String parseOs(String ua) {
+        if (ua == null) return "Desktop";
+        if (ua.matches("(?i).*iPhone|iPad|iPod.*")) return "iOS";
+        if (ua.matches("(?i).*Android.*")) return "Android";
+        if (ua.matches("(?i).*Windows.*")) return "Windows";
+        if (ua.matches("(?i).*Macintosh|Mac OS X.*")) return "macOS";
+        if (ua.matches("(?i).*Linux.*")) return "Linux";
+        return "Desktop";
+    }
+
+    private String parseBrowser(String ua) {
+        if (ua == null) return "Browser";
+        if (ua.matches("(?i).*Edg/.*")) return "Edge";
+        if (ua.matches("(?i).*Chrome/.*") && !ua.matches("(?i).*Edg/.*")) {
+            return ua.matches("(?i).*Mobile.*") ? "Chrome Mobile" : "Chrome";
+        }
+        if (ua.matches("(?i).*Safari/.*") && !ua.matches("(?i).*Chrome/.*")) {
+            return ua.matches("(?i).*Mobile.*") ? "Mobile Safari" : "Safari";
+        }
+        if (ua.matches("(?i).*Firefox/.*")) return "Firefox";
+        if (ua.matches("(?i).*Opera|OPR/.*")) return "Opera";
+        return "Browser";
+    }
+
+    @Transactional
+    public AuthResponse login(LoginRequest req, HttpServletResponse response, String clientIp, HttpServletRequest request) {
         User user = userRepository.findByUsername(req.getUsername())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid username or password"));
 
@@ -458,5 +490,60 @@ public class AuthService {
     public void deleteAccount(String username) {
         refreshTokenRepository.deleteByUsername(username);
         userRepository.findByUsername(username).ifPresent(userRepository::delete);
+    }
+    public java.util.List<DeviceSessionDto> getActiveDevices(String username, HttpServletRequest request) {
+        java.util.List<RefreshToken> tokens = refreshTokenRepository.findByUsername(username);
+        Instant now = Instant.now();
+        String currentFamilyId = request != null ? request.getHeader("X-Session-Id") : null;
+        String currentUa = request != null ? request.getHeader("User-Agent") : "";
+
+        java.util.Map<String, RefreshToken> latestByFamily = new java.util.LinkedHashMap<>();
+        for (RefreshToken t : tokens) {
+            if (!t.isRevoked() && t.getExpiresAt().isAfter(now)) {
+                String fid = t.getFamilyId() != null ? t.getFamilyId() : String.valueOf(t.getId());
+                RefreshToken existing = latestByFamily.get(fid);
+                if (existing == null || (t.getLastActiveAt() != null && t.getLastActiveAt().isAfter(existing.getLastActiveAt()))) {
+                    latestByFamily.put(fid, t);
+                }
+            }
+        }
+
+        java.util.List<DeviceSessionDto> list = new java.util.ArrayList<>();
+        for (RefreshToken t : latestByFamily.values()) {
+            boolean isCurr = (currentFamilyId != null && currentFamilyId.equals(t.getFamilyId()))
+                    || (currentUa != null && !currentUa.isBlank() && currentUa.equals(t.getUserAgent()));
+            list.add(DeviceSessionDto.builder()
+                    .id(t.getFamilyId() != null ? t.getFamilyId() : String.valueOf(t.getId()))
+                    .deviceType(t.getDeviceType() != null ? t.getDeviceType() : "Desktop")
+                    .os(t.getOs() != null ? t.getOs() : "Desktop")
+                    .browser(t.getBrowser() != null ? t.getBrowser() : "Browser")
+                    .ip(t.getIpAddress() != null ? t.getIpAddress() : "unknown")
+                    .lastActiveAt(t.getLastActiveAt() != null ? t.getLastActiveAt().toEpochMilli() : System.currentTimeMillis())
+                    .createdAt(t.getCreatedAt() != null ? t.getCreatedAt().toEpochMilli() : System.currentTimeMillis())
+                    .isCurrent(isCurr)
+                    .build());
+        }
+
+        if (list.stream().noneMatch(DeviceSessionDto::isCurrent) && !list.isEmpty()) {
+            list.get(0).setCurrent(true);
+        }
+
+        list.sort((a, b) -> Long.compare(b.getLastActiveAt(), a.getLastActiveAt()));
+        return list;
+    }
+
+    @Transactional
+    public void logoutOtherDevices(String username, HttpServletRequest request) {
+        String currentFamilyId = request != null ? request.getHeader("X-Session-Id") : null;
+        if (currentFamilyId != null && !currentFamilyId.isBlank()) {
+            refreshTokenRepository.deleteByUsernameAndFamilyIdNot(username, currentFamilyId);
+        }
+    }
+
+    @Transactional
+    public void logoutDevice(String username, String familyIdOrId) {
+        if (familyIdOrId != null && !familyIdOrId.isBlank()) {
+            refreshTokenRepository.deleteByFamilyId(familyIdOrId);
+        }
     }
 }

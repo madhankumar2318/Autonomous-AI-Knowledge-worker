@@ -7,6 +7,7 @@ import {
   isAccountLocked,
   recordFailedLogin,
   recordSuccessfulLogin,
+  recordUserSession,
 } from "@/app/lib/store";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
@@ -116,16 +117,24 @@ export async function POST(req: Request) {
     }
 
     const token = generateToken(username);
+    const sessionId = recordUserSession(effectiveUser.username, req);
 
     const response = NextResponse.json({
       access_token: token,
       token: token,
       token_type: "bearer",
+      session_id: sessionId,
+      sessionId: sessionId,
       username: effectiveUser.username,
       name: effectiveUser.name,
       email: effectiveUser.email,
       mobile: effectiveUser.mobile,
       role: effectiveUser.role,
+      avatar: effectiveUser.avatar || "",
+      defaultStartingTab: effectiveUser.defaultStartingTab || "news",
+      timeFormat: effectiveUser.timeFormat || "12h",
+      dateFormat: effectiveUser.dateFormat || "DD/MM/YYYY",
+      soundEffects: effectiveUser.soundEffects ?? true,
       message: "Login successful",
     });
 
@@ -141,6 +150,13 @@ export async function POST(req: Request) {
     response.cookies.set("ak_session", effectiveUser.username, {
       path: "/",
       httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 86400 * 7,
+    });
+    response.cookies.set("ak_sid", sessionId, {
+      path: "/",
+      httpOnly: false, // Accessible to client so it can identify "This Device"
       secure: isProd,
       sameSite: "lax",
       maxAge: 86400 * 7,

@@ -29,6 +29,25 @@ public class RefreshToken {
     @Column(name = "family_id", length = 64)
     private String familyId;
 
+    @Column(name = "device_type", length = 30)
+    private String deviceType;
+
+    @Column(name = "os", length = 50)
+    private String os;
+
+    @Column(name = "browser", length = 50)
+    private String browser;
+
+    @Column(name = "ip_address", length = 60)
+    private String ipAddress;
+
+    @Column(name = "user_agent", columnDefinition = "TEXT")
+    private String userAgent;
+
+    @Column(name = "last_active_at")
+    @Builder.Default
+    private Instant lastActiveAt = Instant.now();
+
     @Column(nullable = false)
     @Builder.Default
     private boolean revoked = false;

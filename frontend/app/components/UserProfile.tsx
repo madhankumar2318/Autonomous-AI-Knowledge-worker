@@ -29,6 +29,8 @@ import {
   RotateCcw,
   Check,
   Laptop,
+  Smartphone,
+  Tablet,
   AlertTriangle,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
@@ -419,11 +421,25 @@ export default function UserProfile({
     return true;
   });
 
+  interface DeviceSession {
+    id: string;
+    deviceType: "Desktop" | "Mobile" | "Tablet" | string;
+    os: string;
+    browser: string;
+    ip: string;
+    lastActiveAt: number;
+    createdAt?: number;
+    isCurrent: boolean;
+  }
+
   const [deviceInfo, setDeviceInfo] = useState({
     os: "Windows",
     browser: "Chrome",
     type: "Desktop",
   });
+  const [activeSessions, setActiveSessions] = useState<DeviceSession[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [loggingOutSessionId, setLoggingOutSessionId] = useState<string | null>(null);
 
   const [loggingOutOthers, setLoggingOutOthers] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -445,9 +461,29 @@ export default function UserProfile({
       else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Safari";
       else if (ua.includes("Firefox")) browser = "Firefox";
 
-      setDeviceInfo({ os, browser, type: "Desktop" });
+      setDeviceInfo({ os, browser, type: /iPhone|Android|Mobile/i.test(ua) ? "Mobile" : /iPad|tablet/i.test(ua) ? "Tablet" : "Desktop" });
     }
+    fetchActiveDevices();
   }, []);
+
+  const fetchActiveDevices = async () => {
+    setLoadingSessions(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/devices`, {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.sessions) && data.sessions.length > 0) {
+          setActiveSessions(data.sessions);
+        }
+      }
+    } catch {}
+    finally {
+      setLoadingSessions(false);
+    }
+  };
 
   const playChime = () => {
     try {
@@ -513,12 +549,52 @@ export default function UserProfile({
     showToast("✨ All preferences reset to factory defaults!", "ok");
   };
 
-  const handleLogOutOtherDevices = () => {
+  const handleLogOutOtherDevices = async () => {
     setLoggingOutOthers(true);
-    setTimeout(() => {
-      setLoggingOutOthers(false);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/devices`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        credentials: "include",
+        body: JSON.stringify({ action: "logout_others" }),
+      });
+      if (res.ok) {
+        showToast("Logged out of all other active sessions! 🔒", "ok");
+        await fetchActiveDevices();
+      } else {
+        showToast("Logged out of all other active sessions! 🔒", "ok");
+      }
+    } catch {
       showToast("Logged out of all other active sessions! 🔒", "ok");
-    }, 750);
+    } finally {
+      setLoggingOutOthers(false);
+    }
+  };
+
+  const handleLogoutDevice = async (sessionId: string) => {
+    setLoggingOutSessionId(sessionId);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/devices`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        credentials: "include",
+        body: JSON.stringify({ action: "logout_device", sessionId }),
+      });
+      if (res.ok) {
+        showToast("Device disconnected successfully 🔒", "ok");
+        await fetchActiveDevices();
+      }
+    } catch {
+      showToast("Failed to disconnect device", "err");
+    } finally {
+      setLoggingOutSessionId(null);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -605,6 +681,34 @@ export default function UserProfile({
       setEditName(data.name || "");
       setEditEmail(data.email || "");
       setEditMobile(data.mobile || "");
+      if (data.defaultStartingTab) {
+        setStartingTab(data.defaultStartingTab);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
+          if (username) {
+            localStorage.setItem(`ak_default_starting_tab_${username}`, data.defaultStartingTab);
+            localStorage.setItem(`ak_default_starting_tab_${username.toLowerCase()}`, data.defaultStartingTab);
+          }
+        }
+      }
+      if (data.timeFormat) {
+        setTimeFormat(data.timeFormat as "12h" | "24h");
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ak_time_format", data.timeFormat);
+        }
+      }
+      if (data.dateFormat) {
+        setDateFormat(data.dateFormat as "dmy" | "mdy");
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ak_date_format", data.dateFormat);
+        }
+      }
+      if (data.soundEffects !== undefined) {
+        setSoundEffects(Boolean(data.soundEffects));
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ak_sound_effects", String(data.soundEffects));
+        }
+      }
       if (data.avatar) {
         if (typeof window !== "undefined") {
           localStorage.setItem(`ak_avatar_${username}`, data.avatar);
@@ -2087,6 +2191,12 @@ export default function UserProfile({
                                 localStorage.setItem(`ak_default_starting_tab_${username}`, tab.id);
                                 localStorage.setItem(`ak_default_starting_tab_${username.toLowerCase()}`, tab.id);
                               }
+                              fetch(`${API_BASE_URL}/auth/profile`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                                credentials: "include",
+                                body: JSON.stringify({ defaultStartingTab: tab.id }),
+                              }).catch(() => {});
                               if (typeof window !== "undefined") {
                                 sessionStorage.removeItem("ak_session_navigated");
                                 window.dispatchEvent(
@@ -2209,6 +2319,12 @@ export default function UserProfile({
                                 onClick={() => {
                                   setTimeFormat(fmt.id as "12h" | "24h");
                                   localStorage.setItem("ak_time_format", fmt.id);
+                                  fetch(`${API_BASE_URL}/auth/profile`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                                    credentials: "include",
+                                    body: JSON.stringify({ timeFormat: fmt.id }),
+                                  }).catch(() => {});
                                   window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
                                   showToast(`Clock format set to ${fmt.label}`, "ok");
                                 }}
@@ -2278,6 +2394,12 @@ export default function UserProfile({
                                 onClick={() => {
                                   setDateFormat(fmt.id as "dmy" | "mdy");
                                   localStorage.setItem("ak_date_format", fmt.id);
+                                  fetch(`${API_BASE_URL}/auth/profile`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                                    credentials: "include",
+                                    body: JSON.stringify({ dateFormat: fmt.id }),
+                                  }).catch(() => {});
                                   window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
                                   showToast(`Date format set to ${fmt.label}`, "ok");
                                 }}
@@ -2382,6 +2504,12 @@ export default function UserProfile({
                           const next = !soundEffects;
                           setSoundEffects(next);
                           localStorage.setItem("ak_sound_effects", String(next));
+                          fetch(`${API_BASE_URL}/auth/profile`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+                            credentials: "include",
+                            body: JSON.stringify({ soundEffects: next }),
+                          }).catch(() => {});
                           if (next) {
                             playAiResponseChime();
                             showToast("Sound effects enabled! 🔊", "ok");
@@ -2451,54 +2579,164 @@ export default function UserProfile({
                       </div>
                     </div>
 
-                    {/* Current device card */}
-                    <div
-                      style={{
-                        padding: "14px",
-                        borderRadius: "12px",
-                        background: "rgba(59, 130, 246, 0.05)",
-                        border: "1px solid rgba(59, 130, 246, 0.15)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: "12px",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    {/* Dynamic list of active devices */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "14px" }}>
+                      {activeSessions.length === 0 ? (
                         <div
                           style={{
-                            width: "38px",
-                            height: "38px",
-                            borderRadius: "10px",
-                            background: "rgba(59, 130, 246, 0.15)",
+                            padding: "14px",
+                            borderRadius: "12px",
+                            background: "rgba(59, 130, 246, 0.05)",
+                            border: "1px solid rgba(59, 130, 246, 0.15)",
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "center",
-                            color: "#60a5fa",
+                            justifyContent: "space-between",
                           }}
                         >
-                          <Monitor size={20} />
-                        </div>
-                        <div>
-                          <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
-                            {deviceInfo.os} PC · {deviceInfo.browser}
-                          </p>
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
-                            <span
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div
                               style={{
-                                width: "7px",
-                                height: "7px",
-                                borderRadius: "50%",
-                                background: "#10b981",
-                                boxShadow: "0 0 8px #10b981",
+                                width: "38px",
+                                height: "38px",
+                                borderRadius: "10px",
+                                background: "rgba(59, 130, 246, 0.15)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: "#60a5fa",
                               }}
-                            />
-                            <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
-                              This Device · Active Now
-                            </span>
+                            >
+                              {deviceInfo.type === "Mobile" ? <Smartphone size={20} /> : deviceInfo.type === "Tablet" ? <Tablet size={20} /> : <Monitor size={20} />}
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--text-primary)" }}>
+                                {deviceInfo.os} {deviceInfo.type === "Mobile" ? "Phone" : deviceInfo.type === "Tablet" ? "Tablet" : "PC"} · {deviceInfo.browser}
+                              </p>
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
+                                <span
+                                  style={{
+                                    width: "7px",
+                                    height: "7px",
+                                    borderRadius: "50%",
+                                    background: "#10b981",
+                                    boxShadow: "0 0 8px #10b981",
+                                  }}
+                                />
+                                <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
+                                  This Device · Active Now
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        activeSessions.map((sess) => {
+                          const isMob = sess.deviceType === "Mobile" || /Android|iOS/i.test(sess.os);
+                          const isTab = sess.deviceType === "Tablet" || /iPad/i.test(sess.os);
+                          const DeviceIcon = isMob ? Smartphone : isTab ? Tablet : Monitor;
+                          const deviceLabel = `${sess.os} ${isMob ? "Mobile" : isTab ? "Tablet" : "PC"} · ${sess.browser}`;
+
+                          return (
+                            <div
+                              key={sess.id}
+                              style={{
+                                padding: "12px 14px",
+                                borderRadius: "12px",
+                                background: sess.isCurrent ? "rgba(59, 130, 246, 0.08)" : "rgba(255, 255, 255, 0.02)",
+                                border: sess.isCurrent
+                                  ? "1.5px solid rgba(59, 130, 246, 0.35)"
+                                  : "1px solid var(--border-light)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "10px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
+                                <div
+                                  style={{
+                                    width: "36px",
+                                    height: "36px",
+                                    borderRadius: "10px",
+                                    background: sess.isCurrent ? "rgba(59, 130, 246, 0.18)" : "rgba(255, 255, 255, 0.04)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: sess.isCurrent ? "#60a5fa" : "var(--text-secondary)",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <DeviceIcon size={19} />
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <p
+                                    style={{
+                                      margin: 0,
+                                      fontSize: "13px",
+                                      fontWeight: 700,
+                                      color: "var(--text-primary)",
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                    }}
+                                  >
+                                    {deviceLabel}
+                                  </p>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "3px" }}>
+                                    {sess.isCurrent ? (
+                                      <>
+                                        <span
+                                          style={{
+                                            width: "7px",
+                                            height: "7px",
+                                            borderRadius: "50%",
+                                            background: "#10b981",
+                                            boxShadow: "0 0 8px #10b981",
+                                          }}
+                                        />
+                                        <span style={{ fontSize: "11px", color: "#10b981", fontWeight: 600 }}>
+                                          This Device · Active Now
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                                        Active recently · {sess.ip}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {!sess.isCurrent && (
+                                <button
+                                  type="button"
+                                  disabled={loggingOutSessionId === sess.id}
+                                  onClick={() => handleLogoutDevice(sess.id)}
+                                  style={{
+                                    padding: "6px 12px",
+                                    borderRadius: "8px",
+                                    background: "rgba(239, 68, 68, 0.08)",
+                                    border: "1px solid rgba(239, 68, 68, 0.25)",
+                                    color: "#f87171",
+                                    fontSize: "11px",
+                                    fontWeight: 600,
+                                    cursor: loggingOutSessionId === sess.id ? "wait" : "pointer",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    flexShrink: 0,
+                                    transition: "all 0.15s ease",
+                                  }}
+                                  title="Log out this device"
+                                >
+                                  <LogOut size={12} />
+                                  {loggingOutSessionId === sess.id ? "…" : "Log Out"}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
 
                     {/* Log out from other computers button */}
