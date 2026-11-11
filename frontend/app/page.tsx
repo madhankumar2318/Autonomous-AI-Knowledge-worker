@@ -123,11 +123,20 @@ export default function Home_Page() {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isCmdKOpen, setIsCmdKOpen] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string>("");
+  const [userDisplayName, setUserDisplayName] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ak_display_name") || "";
+    }
+    return "";
+  });
 
   useEffect(() => {
     if (loggedInUser && typeof window !== "undefined") {
       const saved = localStorage.getItem(`ak_avatar_${loggedInUser}`);
       if (saved) setUserAvatar(saved);
+
+      const savedName = localStorage.getItem("ak_display_name");
+      if (savedName) setUserDisplayName(savedName);
 
       const token = localStorage.getItem("ak_token");
       const headers: Record<string, string> = {};
@@ -135,6 +144,10 @@ export default function Home_Page() {
       fetch(`${API_BASE_URL}/auth/profile`, { headers, credentials: "include" })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
+          if (data?.name) {
+            setUserDisplayName(data.name);
+            localStorage.setItem("ak_display_name", data.name);
+          }
           if (data?.avatar) {
             setUserAvatar(data.avatar);
             localStorage.setItem(`ak_avatar_${loggedInUser}`, data.avatar);
@@ -151,12 +164,23 @@ export default function Home_Page() {
         .catch(() => {});
     } else {
       setUserAvatar("");
+      setUserDisplayName("");
     }
     const handleAvatarUpdated = (e: any) => {
       setUserAvatar(e.detail?.avatar || "");
     };
+    const handleProfileUpdated = (e: any) => {
+      if (e.detail?.name) {
+        setUserDisplayName(e.detail.name);
+        localStorage.setItem("ak_display_name", e.detail.name);
+      }
+    };
     window.addEventListener("ak-avatar-updated", handleAvatarUpdated);
-    return () => window.removeEventListener("ak-avatar-updated", handleAvatarUpdated);
+    window.addEventListener("ak-profile-updated", handleProfileUpdated);
+    return () => {
+      window.removeEventListener("ak-avatar-updated", handleAvatarUpdated);
+      window.removeEventListener("ak-profile-updated", handleProfileUpdated);
+    };
   }, [loggedInUser]);
 
   // Live activity notifications state
@@ -821,7 +845,7 @@ export default function Home_Page() {
                 </div>
               </div>
               <div className="avatar-info">
-                <span className="avatar-name">{loggedInUser || "User"}</span>
+                <span className="avatar-name">{userDisplayName || loggedInUser || "User"}</span>
                 <span className="avatar-role">Admin</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-white/30" />

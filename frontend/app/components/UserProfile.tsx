@@ -756,14 +756,20 @@ export default function UserProfile({
         return;
       }
       const data = await res.json().catch(() => null);
+      const updatedName = data?.name ?? editName;
       setProfile((p) =>
         p ? {
           ...p,
-          name: data?.name ?? editName,
+          name: updatedName,
           email: data?.email ?? editEmail,
           mobile: data?.mobile ?? editMobile,
         } : p,
       );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("ak-profile-updated", { detail: { name: updatedName } })
+        );
+      }
       setEditing(false);
       showToast("Profile updated successfully!", "ok");
     } catch {

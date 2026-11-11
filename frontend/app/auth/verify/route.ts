@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyToken, usersStore, UserRecord } from "@/app/lib/store";
+import { getDbUser } from "@/app/lib/db";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("Authorization");
@@ -16,7 +17,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ valid: false }, { status: 401 });
   }
 
-  const user: UserRecord = usersStore.get(username) || {
+  // Fetch persistent user profile from Supabase PostgreSQL
+  const dbUser = await getDbUser(username);
+  if (dbUser) {
+    usersStore.set(dbUser.username, dbUser);
+    usersStore.set(dbUser.username.toLowerCase(), dbUser);
+  }
+
+  const user: UserRecord = dbUser || usersStore.get(username) || usersStore.get(username.toLowerCase()) || {
     id: "user-" + Date.now(),
     username,
     passwordHash: "",

@@ -8,6 +8,13 @@ import {
   removeOtherUserSessions,
   parseUserAgent,
 } from "@/app/lib/store";
+import {
+  recordDbSession,
+  getDbSessions,
+  removeDbSession,
+  removeOtherDbSessions,
+} from "@/app/lib/db";
+import { getClientIp } from "@/app/lib/rate-limiter";
 
 function getClientSessionId(req: Request): string | null {
   const cookieHeader = req.headers.get("cookie") || "";
@@ -24,22 +31,41 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
   }
 
-  // Ensure current device session is recorded/refreshed
+  // Ensure current device session is recorded/refreshed in memory
   const clientSid = getClientSessionId(req);
   const activeSid = recordUserSession(username, req, clientSid);
 
-  const rawSessions = getUserSessions(username);
   const ua = req.headers.get("user-agent") || "";
   const currentParsed = parseUserAgent(ua);
+  const ip = getClientIp(req);
 
-  // Map sessions and identify which is current device
+  // Persist session to Supabase PostgreSQL for cross-device visibility
+  await recordDbSession(username, {
+    id: activeSid,
+    deviceType: currentParsed.deviceType,
+    os: currentParsed.os,
+    browser: currentParsed.browser,
+    ip,
+    userAgent: ua,
+  }).catch((err) => {
+    console.warn("[DEVICES] Failed to record DB session:", err);
+  });
+
+  // Retrieve persistent sessions from Supabase PostgreSQL
+  const dbSessions = await getDbSessions(username);
+  const rawSessions = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
+
+  // Identify which session is the current requesting device
+  let matchedCurrent = false;
   const sessions = rawSessions.map((s) => {
     const isCurrent =
-      s.id === activeSid ||
-      s.id === clientSid ||
-      (s.deviceType === currentParsed.deviceType &&
-        s.os === currentParsed.os &&
-        s.browser === currentParsed.browser);
+      !matchedCurrent &&
+      (s.id === activeSid ||
+        s.id === clientSid ||
+        (s.deviceType === currentParsed.deviceType &&
+          s.os === currentParsed.os &&
+          s.browser === currentParsed.browser));
+    if (isCurrent) matchedCurrent = true;
     return {
       id: s.id,
       deviceType: s.deviceType,
@@ -53,8 +79,7 @@ export async function GET(req: Request) {
   });
 
   // Make sure at least one session is flagged as current (the active one)
-  const hasCurrent = sessions.some((s) => s.isCurrent);
-  if (!hasCurrent && sessions.length > 0) {
+  if (!matchedCurrent && sessions.length > 0) {
     sessions[0].isCurrent = true;
   }
 
@@ -89,7 +114,10 @@ export async function POST(req: Request) {
     // Keep only the current session active
     const activeSid = recordUserSession(username, req, clientSid);
     removeOtherUserSessions(username, activeSid);
-    const remaining = getUserSessions(username);
+    await removeOtherDbSessions(username, activeSid).catch(() => {});
+
+    const dbSessions = await getDbSessions(username);
+    const remaining = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
     return NextResponse.json({
       message: "Logged out of all other active sessions.",
       activeCount: remaining.length,
@@ -101,8 +129,12 @@ export async function POST(req: Request) {
   }
 
   if (action === "logout_device" && body.sessionId) {
-    removeUserSession(username, String(body.sessionId));
-    const remaining = getUserSessions(username);
+    const targetSid = String(body.sessionId);
+    removeUserSession(username, targetSid);
+    await removeDbSession(username, targetSid).catch(() => {});
+
+    const dbSessions = await getDbSessions(username);
+    const remaining = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
     return NextResponse.json({
       message: "Device session removed.",
       activeCount: remaining.length,
@@ -126,7 +158,10 @@ export async function DELETE(req: Request) {
   }
 
   removeUserSession(username, sessionId);
-  const remaining = getUserSessions(username);
+  await removeDbSession(username, sessionId).catch(() => {});
+
+  const dbSessions = await getDbSessions(username);
+  const remaining = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
   return NextResponse.json({
     message: "Device disconnected successfully.",
     activeCount: remaining.length,

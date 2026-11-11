@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthToken, verifyToken, usersStore, saveUsersToDisk, UserRecord } from "@/app/lib/store";
+import { getDbUser, updateDbUser } from "@/app/lib/db";
 import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 
 export async function GET(req: Request) {
@@ -7,7 +8,15 @@ export async function GET(req: Request) {
   if (!username) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
   }
-  const user: UserRecord = usersStore.get(username) || {
+
+  // Fetch persistent user profile from Supabase PostgreSQL
+  const dbUser = await getDbUser(username);
+  if (dbUser) {
+    usersStore.set(dbUser.username, dbUser);
+    usersStore.set(dbUser.username.toLowerCase(), dbUser);
+  }
+
+  const user: UserRecord = dbUser || usersStore.get(username) || usersStore.get(username.toLowerCase()) || {
     id: "admin-1",
     username: "admin",
     passwordHash: "",
@@ -105,6 +114,20 @@ export async function PUT(req: Request) {
     usersStore.set(username, user);
     usersStore.set(username.toLowerCase(), user);
     saveUsersToDisk();
+
+    // Persist to Supabase PostgreSQL database
+    await updateDbUser(username, {
+      name: user.name,
+      email: user.email,
+      mobile: user.mobile,
+      avatar: user.avatar,
+      defaultStartingTab: user.defaultStartingTab,
+      timeFormat: user.timeFormat,
+      dateFormat: user.dateFormat,
+      soundEffects: user.soundEffects,
+    }).catch((err) => {
+      console.warn("[AUTH] Failed to persist profile updates to DB:", err);
+    });
 
     return NextResponse.json({
       id: user.id,

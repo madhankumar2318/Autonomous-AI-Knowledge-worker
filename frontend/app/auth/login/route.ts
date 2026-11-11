@@ -9,7 +9,9 @@ import {
   recordFailedLogin,
   recordSuccessfulLogin,
   recordUserSession,
+  parseUserAgent,
 } from "@/app/lib/store";
+import { getDbUser, recordDbSession } from "@/app/lib/db";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
 
 export async function POST(req: Request) {
@@ -59,8 +61,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Look up user from registry (admin is seeded with hashed password)
-    const user = usersStore.get(username) || usersStore.get(username.toLowerCase());
+    // Look up user from database or memory registry
+    const dbUser = await getDbUser(username);
+    if (dbUser) {
+      usersStore.set(dbUser.username, dbUser);
+      usersStore.set(dbUser.username.toLowerCase(), dbUser);
+    }
+    const user = dbUser || usersStore.get(username) || usersStore.get(username.toLowerCase());
     const isAdmin = username.toLowerCase() === "admin";
 
     let isPasswordValid = false;
@@ -124,6 +131,20 @@ export async function POST(req: Request) {
 
     const token = generateToken(username);
     const sessionId = recordUserSession(effectiveUser.username, req);
+
+    // Record session in PostgreSQL for cross-device visibility
+    const ua = req.headers.get("user-agent") || "";
+    const parsedUa = parseUserAgent(ua);
+    await recordDbSession(effectiveUser.username, {
+      id: sessionId,
+      deviceType: parsedUa.deviceType,
+      os: parsedUa.os,
+      browser: parsedUa.browser,
+      ip,
+      userAgent: ua,
+    }).catch((err) => {
+      console.warn("[AUTH] Failed to persist session in DB:", err);
+    });
 
     const response = NextResponse.json({
       access_token: token,
