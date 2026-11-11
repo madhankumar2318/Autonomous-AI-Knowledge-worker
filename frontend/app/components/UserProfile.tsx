@@ -468,49 +468,21 @@ export default function UserProfile({
     } catch {}
   };
 
-  const getFormattedPreview = () => {
-    const now = new Date();
-    let timeStr = "";
-    if (timeFormat === "24h") {
-      timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
-    } else {
-      timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-    }
-    let dateStr = "";
-    if (dateFormat === "mdy") {
-      dateStr = now.toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" });
-    } else {
-      dateStr = now.toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
-    }
-    return `${dateStr} · ${timeStr}`;
-  };
-
   const handleResetDefaults = () => {
-    setStartingTab("news");
-    localStorage.setItem("ak_default_starting_tab", "news");
-    if (username) {
-      localStorage.setItem(`ak_default_starting_tab_${username}`, "news");
-    }
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("ak-starting-tab-changed", { detail: { startingTab: "news" } })
-      );
-    }
-
-    setTimeFormat("12h");
-    localStorage.setItem("ak_time_format", "12h");
-    setDateFormat("dmy");
-    localStorage.setItem("ak_date_format", "dmy");
-
     setSoundEffects(true);
     localStorage.setItem("ak_sound_effects", "true");
+    fetch(`${API_BASE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      credentials: "include",
+      body: JSON.stringify({ soundEffects: true }),
+    }).catch(() => {});
 
     handleThemeChange("dark");
     handleAccentChange("cyan");
     handleFontChange("inter");
 
-    window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
-    showToast("✨ All preferences reset to factory defaults!", "ok");
+    showToast("✨ Preferences reset to factory defaults!", "ok");
   };
 
 
@@ -2048,330 +2020,7 @@ export default function UserProfile({
                     gap: "20px",
                   }}
                 >
-                  {/* ── 1. DEFAULT STARTING SCREEN ── */}
-                  <div
-                    style={{
-                      borderRadius: "16px",
-                      padding: "18px 20px",
-                      background: "var(--bg-surface)",
-                      border: "1px solid var(--border-light)",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-                      <div
-                        style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "9px",
-                          background: "rgba(34, 211, 238, 0.12)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "var(--accent-primary, #22d3ee)",
-                        }}
-                      >
-                        <Compass size={17} />
-                      </div>
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
-                          Default Starting Screen
-                        </h4>
-                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
-                          Choose what opens automatically upon logging in
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "14px" }}>
-                      {[
-                        { id: "news", label: "Live News", desc: "Headlines & feeds", icon: "📰" },
-                        { id: "stocks", label: "Stock Market", desc: "Watchlist & charts", icon: "📈" },
-                        { id: "files", label: "File Workspace", desc: "Document repository", icon: "📁" },
-                        { id: "search", label: "Global Search", desc: "Omni-search engine", icon: "🔍" },
-                      ].map((tab) => {
-                        const isSelected = startingTab === tab.id;
-                        return (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => {
-                              setStartingTab(tab.id);
-                              localStorage.setItem("ak_default_starting_tab", tab.id);
-                              if (username) {
-                                localStorage.setItem(`ak_default_starting_tab_${username}`, tab.id);
-                                localStorage.setItem(`ak_default_starting_tab_${username.toLowerCase()}`, tab.id);
-                              }
-                              fetch(`${API_BASE_URL}/auth/profile`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                                credentials: "include",
-                                body: JSON.stringify({ defaultStartingTab: tab.id }),
-                              }).catch(() => {});
-                              if (typeof window !== "undefined") {
-                                sessionStorage.removeItem("ak_session_navigated");
-                                window.dispatchEvent(
-                                  new CustomEvent("ak-starting-tab-changed", { detail: { startingTab: tab.id } })
-                                );
-                              }
-                              showToast(`Default starting screen set to ${tab.label}`, "ok");
-                            }}
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              gap: "10px",
-                              padding: "12px 14px",
-                              borderRadius: "12px",
-                              background: isSelected ? "rgba(34, 211, 238, 0.1)" : "rgba(255, 255, 255, 0.02)",
-                              border: `1.5px solid ${isSelected ? "var(--accent-primary, #22d3ee)" : "var(--border-light)"}`,
-                              cursor: "pointer",
-                              textAlign: "left",
-                              transition: "all 0.15s ease",
-                            }}
-                          >
-                            <span style={{ fontSize: "18px" }}>{tab.icon}</span>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p
-                                style={{
-                                  margin: 0,
-                                  fontSize: "13px",
-                                  fontWeight: 700,
-                                  color: isSelected ? "var(--accent-primary, #22d3ee)" : "var(--text-primary)",
-                                }}
-                              >
-                                {tab.label}
-                              </p>
-                              <p style={{ margin: "2px 0 0", fontSize: "11px", color: "var(--text-muted)" }}>
-                                {tab.desc}
-                              </p>
-                            </div>
-                            {isSelected && (
-                              <div
-                                style={{
-                                  width: "16px",
-                                  height: "16px",
-                                  borderRadius: "50%",
-                                  background: "var(--accent-primary, #22d3ee)",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <Check size={11} color="#000" strokeWidth={3} />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* ── 2. TIME & DATE FORMAT ── */}
-                  <div
-                    style={{
-                      borderRadius: "16px",
-                      padding: "18px 20px",
-                      background: "var(--bg-surface)",
-                      border: "1px solid var(--border-light)",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
-                      <div
-                        style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "9px",
-                          background: "rgba(16, 185, 129, 0.12)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "#10b981",
-                        }}
-                      >
-                        <Clock size={17} />
-                      </div>
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
-                          Time & Date Display
-                        </h4>
-                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
-                          Choose clock format and calendar date sequence
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                      {/* Clock style */}
-                      <div>
-                        <label
-                          style={{
-                            display: "block",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color: "var(--text-secondary)",
-                            marginBottom: "6px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          Clock Format
-                        </label>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                          {[
-                            { id: "12h", label: "12-Hour (Standard)", sample: "05:30 PM" },
-                            { id: "24h", label: "24-Hour (Railway)", sample: "17:30" },
-                          ].map((fmt) => {
-                            const isSelected = timeFormat === fmt.id;
-                            return (
-                              <button
-                                key={fmt.id}
-                                type="button"
-                                onClick={() => {
-                                  setTimeFormat(fmt.id as "12h" | "24h");
-                                  localStorage.setItem("ak_time_format", fmt.id);
-                                  fetch(`${API_BASE_URL}/auth/profile`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                                    credentials: "include",
-                                    body: JSON.stringify({ timeFormat: fmt.id }),
-                                  }).catch(() => {});
-                                  window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
-                                  showToast(`Clock format set to ${fmt.label}`, "ok");
-                                }}
-                                style={{
-                                  padding: "10px 12px",
-                                  borderRadius: "10px",
-                                  background: isSelected ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.02)",
-                                  border: `1.5px solid ${isSelected ? "#10b981" : "var(--border-light)"}`,
-                                  cursor: "pointer",
-                                  textAlign: "left",
-                                  transition: "all 0.15s ease",
-                                }}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                  <span
-                                    style={{
-                                      fontSize: "13px",
-                                      fontWeight: 700,
-                                      color: isSelected ? "#10b981" : "var(--text-primary)",
-                                    }}
-                                  >
-                                    {fmt.label}
-                                  </span>
-                                  {isSelected && <Check size={14} color="#10b981" strokeWidth={2.5} />}
-                                </div>
-                                <span
-                                  style={{
-                                    fontSize: "11px",
-                                    color: "var(--text-muted)",
-                                    display: "block",
-                                    marginTop: "3px",
-                                  }}
-                                >
-                                  e.g. {fmt.sample}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Date sequence */}
-                      <div>
-                        <label
-                          style={{
-                            display: "block",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color: "var(--text-secondary)",
-                            marginBottom: "6px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                          }}
-                        >
-                          Date Sequence
-                        </label>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                          {[
-                            { id: "dmy", label: "DD / MM / YYYY", sample: "08/11/2026 (Day First)" },
-                            { id: "mdy", label: "MM / DD / YYYY", sample: "11/08/2026 (Month First)" },
-                          ].map((fmt) => {
-                            const isSelected = dateFormat === fmt.id;
-                            return (
-                              <button
-                                key={fmt.id}
-                                type="button"
-                                onClick={() => {
-                                  setDateFormat(fmt.id as "dmy" | "mdy");
-                                  localStorage.setItem("ak_date_format", fmt.id);
-                                  fetch(`${API_BASE_URL}/auth/profile`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                                    credentials: "include",
-                                    body: JSON.stringify({ dateFormat: fmt.id }),
-                                  }).catch(() => {});
-                                  window.dispatchEvent(new CustomEvent("ak-datetime-format-changed"));
-                                  showToast(`Date format set to ${fmt.label}`, "ok");
-                                }}
-                                style={{
-                                  padding: "10px 12px",
-                                  borderRadius: "10px",
-                                  background: isSelected ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.02)",
-                                  border: `1.5px solid ${isSelected ? "#10b981" : "var(--border-light)"}`,
-                                  cursor: "pointer",
-                                  textAlign: "left",
-                                  transition: "all 0.15s ease",
-                                }}
-                              >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                  <span
-                                    style={{
-                                      fontSize: "13px",
-                                      fontWeight: 700,
-                                      color: isSelected ? "#10b981" : "var(--text-primary)",
-                                    }}
-                                  >
-                                    {fmt.label}
-                                  </span>
-                                  {isSelected && <Check size={14} color="#10b981" strokeWidth={2.5} />}
-                                </div>
-                                <span
-                                  style={{
-                                    fontSize: "11px",
-                                    color: "var(--text-muted)",
-                                    display: "block",
-                                    marginTop: "3px",
-                                  }}
-                                >
-                                  {fmt.sample}
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Live preview banner */}
-                      <div
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: "10px",
-                          background: "rgba(16, 185, 129, 0.06)",
-                          border: "1px dashed rgba(16, 185, 129, 0.3)",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Live Preview:</span>
-                        <span style={{ fontSize: "13px", fontWeight: 700, color: "#10b981", letterSpacing: "0.4px" }}>
-                          {getFormattedPreview()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── 3. SOUND EFFECTS ── */}
+                  {/* ── 1. SOUND EFFECTS & AUDIO ── */}
                   <div
                     style={{
                       borderRadius: "16px",
@@ -2455,7 +2104,7 @@ export default function UserProfile({
                     </div>
                   </div>
 
-                  {/* ── 4. RESET PREFERENCES TO DEFAULT ── */}
+                  {/* ── 2. RESET PREFERENCES TO DEFAULT ── */}
                   <div
                     style={{
                       borderRadius: "16px",
@@ -2472,7 +2121,7 @@ export default function UserProfile({
                         Restore Defaults
                       </h4>
                       <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--text-secondary)" }}>
-                        Reset starting screen, formats, sounds, and colors
+                        Reset audio sounds, appearance theme, and colors
                       </p>
                     </div>
                     <button
@@ -2506,7 +2155,7 @@ export default function UserProfile({
                     </button>
                   </div>
 
-                  {/* ── 6. DANGER ZONE: DELETE ACCOUNT ── */}
+                  {/* ── 3. DANGER ZONE: DELETE ACCOUNT ── */}
                   <div
                     style={{
                       borderRadius: "16px",
