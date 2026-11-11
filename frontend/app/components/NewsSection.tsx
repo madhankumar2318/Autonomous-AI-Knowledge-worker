@@ -63,20 +63,46 @@ function getSourceBadgeStyle(source?: string) {
 }
 
 function timeAgo(iso?: string): string {
-  if (!iso) return "Just now";
-  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  if (!iso) return "Recent";
+  const date = new Date(iso);
+  const time = date.getTime();
+  if (isNaN(time)) return "Recent";
+
+  const diff = Date.now() - time;
+  // Handle slight future clock skew (up to 5 mins ahead)
+  if (diff < 0 && diff > -300000) return "Just now";
+  if (diff < 0) {
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
   const mins = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days = Math.floor(diff / 86400000);
 
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
+  if (hours === 1) return "1h ago";
   if (hours < 24) return `${hours}h ago`;
   if (days === 1) return "Yesterday";
   if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-US", {
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+  });
+}
+
+function formatFullDateTime(iso?: string): string | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return undefined;
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
   });
 }
 
@@ -519,7 +545,7 @@ export default function NewsSection({
                     )}
                   </p>
                   <div className="news-hero-footer">
-                    <span className="news-time">
+                    <span className="news-time" title={formatFullDateTime(featuredArticle.publishedAt)}>
                       <Clock className="w-3.5 h-3.5" />
                       {timeAgo(featuredArticle.publishedAt)}
                     </span>
@@ -552,7 +578,7 @@ export default function NewsSection({
                         <span className="news-side-source">
                           {art.source || "News"}
                         </span>
-                        <span className="news-side-time">
+                        <span className="news-side-time" title={formatFullDateTime(art.publishedAt)}>
                           {timeAgo(art.publishedAt)}
                         </span>
                       </div>
@@ -630,7 +656,7 @@ export default function NewsSection({
                       )}
                     </p>
                     <div className="news-card-footer">
-                      <span className="news-time">
+                      <span className="news-time" title={formatFullDateTime(article.publishedAt)}>
                         <Clock className="w-3 h-3" />
                         {timeAgo(article.publishedAt)}
                       </span>

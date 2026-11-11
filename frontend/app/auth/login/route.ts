@@ -127,11 +127,11 @@ export async function POST(req: Request) {
       email: effectiveUser.email,
       mobile: effectiveUser.mobile,
       role: effectiveUser.role,
-      avatar: effectiveUser.avatar || "",
-      defaultStartingTab: effectiveUser.defaultStartingTab || "news",
-      timeFormat: effectiveUser.timeFormat || "12h",
-      dateFormat: effectiveUser.dateFormat || "DD/MM/YYYY",
-      soundEffects: effectiveUser.soundEffects ?? true,
+      avatar: (effectiveUser as any).avatar || "",
+      defaultStartingTab: (effectiveUser as any).defaultStartingTab || "news",
+      timeFormat: (effectiveUser as any).timeFormat || "12h",
+      dateFormat: (effectiveUser as any).dateFormat || "DD/MM/YYYY",
+      soundEffects: (effectiveUser as any).soundEffects ?? true,
       message: "Login successful",
     });
 

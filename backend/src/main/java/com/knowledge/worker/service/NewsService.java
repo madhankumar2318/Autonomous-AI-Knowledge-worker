@@ -294,12 +294,34 @@ public class NewsService {
 
                 if (source == null || source.isBlank()) source = extractDomain(link);
 
-                String parsedDate = Instant.now().minus(i * 10L + 2, ChronoUnit.MINUTES).toString();
-                if (pubDate != null && !pubDate.isBlank()) {
+                String dateTag = pubDate;
+                if (dateTag == null || dateTag.isBlank()) dateTag = getXmlText(item, "dc:date");
+                if (dateTag == null || dateTag.isBlank()) dateTag = getXmlText(item, "published");
+                if (dateTag == null || dateTag.isBlank()) dateTag = getXmlText(item, "updated");
+
+                String parsedDate = null;
+                if (dateTag != null && !dateTag.isBlank()) {
+                    String cleanDt = dateTag.trim();
                     try {
-                        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.ENGLISH);
-                        parsedDate = sdf.parse(pubDate).toInstant().toString();
-                    } catch (Exception ignored) {}
+                        parsedDate = java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME.parse(cleanDt, Instant::from).toString();
+                    } catch (Exception e1) {
+                        try {
+                            parsedDate = Instant.parse(cleanDt).toString();
+                        } catch (Exception e2) {
+                            try {
+                                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.ENGLISH);
+                                parsedDate = sdf.parse(cleanDt).toInstant().toString();
+                            } catch (Exception e3) {
+                                try {
+                                    java.text.SimpleDateFormat sdf2 = new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH);
+                                    parsedDate = sdf2.parse(cleanDt).toInstant().toString();
+                                } catch (Exception ignored) {}
+                            }
+                        }
+                    }
+                }
+                if (parsedDate == null) {
+                    parsedDate = Instant.now().toString();
                 }
 
                 // Check for real media tags or img tag in description
