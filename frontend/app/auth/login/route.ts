@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  UserRecord,
   usersStore,
   generateToken,
   hashPassword,
@@ -101,7 +102,7 @@ export async function POST(req: Request) {
       usersStore.set(username, user);
     }
 
-    const effectiveUser = user || {
+    const effectiveUser: UserRecord = user || {
       id: "user-" + Date.now(),
       username,
       name: isAdmin ? "Administrator" : username,
@@ -110,6 +111,11 @@ export async function POST(req: Request) {
       role: isAdmin ? "ADMIN" : "USER",
       passwordHash: hashPassword(password),
       tokenVersion: 1,
+      avatar: "",
+      defaultStartingTab: "news",
+      timeFormat: "12h",
+      dateFormat: "DD/MM/YYYY",
+      soundEffects: true,
     };
 
     if (!user) {

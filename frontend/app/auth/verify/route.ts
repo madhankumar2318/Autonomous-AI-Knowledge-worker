@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyToken, usersStore } from "@/app/lib/store";
+import { verifyToken, usersStore, UserRecord } from "@/app/lib/store";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("Authorization");
@@ -16,10 +16,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ valid: false }, { status: 401 });
   }
 
-  const user = usersStore.get(username) || {
+  const user: UserRecord = usersStore.get(username) || {
+    id: "user-" + Date.now(),
     username,
+    passwordHash: "",
     name: username === "admin" ? "Administrator" : username,
+    email: `${username}@knowledge-worker.local`,
+    mobile: "+1 555-0199",
     role: username === "admin" ? "ADMIN" : "USER",
+    avatar: "",
+    defaultStartingTab: "news",
+    timeFormat: "12h",
+    dateFormat: "DD/MM/YYYY",
+    soundEffects: true,
   };
 
   return NextResponse.json({

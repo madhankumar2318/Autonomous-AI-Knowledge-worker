@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthToken, verifyToken, usersStore, saveUsersToDisk } from "@/app/lib/store";
+import { getAuthToken, verifyToken, usersStore, saveUsersToDisk, UserRecord } from "@/app/lib/store";
 import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 
 export async function GET(req: Request) {
@@ -7,14 +7,19 @@ export async function GET(req: Request) {
   if (!username) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
   }
-  const user = usersStore.get(username) || {
+  const user: UserRecord = usersStore.get(username) || {
     id: "admin-1",
     username: "admin",
+    passwordHash: "",
     name: "Administrator",
     email: "admin@knowledge-worker.local",
     mobile: "+1 555-0199",
     role: "ADMIN",
     avatar: "",
+    defaultStartingTab: "news",
+    timeFormat: "12h",
+    dateFormat: "DD/MM/YYYY",
+    soundEffects: true,
   };
 
   return NextResponse.json({
@@ -46,7 +51,7 @@ export async function PUT(req: Request) {
     }
     const body = await req.json().catch(() => ({}));
 
-    let user = usersStore.get(username);
+    let user: UserRecord | undefined = usersStore.get(username);
     if (!user) {
       user = {
         id: "user-" + Date.now(),
@@ -56,6 +61,11 @@ export async function PUT(req: Request) {
         email: `${username}@example.com`,
         mobile: "",
         role: username === "admin" ? "ADMIN" : "USER",
+        avatar: "",
+        defaultStartingTab: "news",
+        timeFormat: "12h",
+        dateFormat: "DD/MM/YYYY",
+        soundEffects: true,
       };
     }
 
