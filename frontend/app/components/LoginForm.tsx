@@ -547,6 +547,10 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         if (authToken) {
           localStorage.setItem("ak_token", authToken);
         }
+        const sid = data.sessionId || data.session_id;
+        if (sid) {
+          localStorage.setItem("ak_sid", sid);
+        }
         const effectiveUser = data.username || data.user?.username || username;
         onLoginSuccess(effectiveUser, authToken, data);
       }

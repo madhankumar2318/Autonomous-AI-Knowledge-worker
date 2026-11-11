@@ -32,6 +32,7 @@ import {
   Smartphone,
   Tablet,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
@@ -466,6 +467,15 @@ export default function UserProfile({
     fetchActiveDevices();
   }, []);
 
+  // Live polling when Preferences tab is open to reflect logins/logouts in real-time
+  useEffect(() => {
+    if (activeTab === "preferences") {
+      fetchActiveDevices();
+      const interval = setInterval(fetchActiveDevices, 8000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
+
   const fetchActiveDevices = async () => {
     setLoadingSessions(true);
     try {
@@ -475,7 +485,7 @@ export default function UserProfile({
       });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.sessions) && data.sessions.length > 0) {
+        if (Array.isArray(data.sessions)) {
           setActiveSessions(data.sessions);
         }
       }
@@ -551,6 +561,8 @@ export default function UserProfile({
 
   const handleLogOutOtherDevices = async () => {
     setLoggingOutOthers(true);
+    // Optimistically keep only current device
+    setActiveSessions((prev) => prev.filter((s) => s.isCurrent));
     try {
       const res = await fetch(`${API_BASE_URL}/auth/devices`, {
         method: "POST",
@@ -563,12 +575,11 @@ export default function UserProfile({
       });
       if (res.ok) {
         showToast("Logged out of all other active sessions! 🔒", "ok");
-        await fetchActiveDevices();
-      } else {
-        showToast("Logged out of all other active sessions! 🔒", "ok");
       }
+      await fetchActiveDevices();
     } catch {
       showToast("Logged out of all other active sessions! 🔒", "ok");
+      await fetchActiveDevices();
     } finally {
       setLoggingOutOthers(false);
     }
@@ -576,6 +587,8 @@ export default function UserProfile({
 
   const handleLogoutDevice = async (sessionId: string) => {
     setLoggingOutSessionId(sessionId);
+    // Optimistically remove the target session
+    setActiveSessions((prev) => prev.filter((s) => s.id !== sessionId));
     try {
       const res = await fetch(`${API_BASE_URL}/auth/devices`, {
         method: "POST",
@@ -588,10 +601,11 @@ export default function UserProfile({
       });
       if (res.ok) {
         showToast("Device disconnected successfully 🔒", "ok");
-        await fetchActiveDevices();
       }
+      await fetchActiveDevices();
     } catch {
       showToast("Failed to disconnect device", "err");
+      await fetchActiveDevices();
     } finally {
       setLoggingOutSessionId(null);
     }
@@ -663,6 +677,10 @@ export default function UserProfile({
       const token = localStorage.getItem("ak_token");
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
+      }
+      const sid = localStorage.getItem("ak_sid");
+      if (sid) {
+        headers["X-Session-Id"] = sid;
       }
     }
     return headers;
@@ -2560,29 +2578,67 @@ export default function UserProfile({
                       border: "1px solid var(--border-light)",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
-                      <div
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div
+                          style={{
+                            width: "32px",
+                            height: "32px",
+                            borderRadius: "9px",
+                            background: "rgba(59, 130, 246, 0.12)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            color: "#3b82f6",
+                          }}
+                        >
+                          <Laptop size={17} />
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                              Active Devices & Security
+                            </h4>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                padding: "2px 7px",
+                                borderRadius: "6px",
+                                background: "rgba(59, 130, 246, 0.15)",
+                                color: "#60a5fa",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {activeSessions.length} {activeSessions.length === 1 ? "device" : "devices"}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
+                            Manage login sessions across your computers and mobile devices
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => fetchActiveDevices()}
+                        title="Refresh active devices"
+                        disabled={loadingSessions}
                         style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "9px",
-                          background: "rgba(59, 130, 246, 0.12)",
+                          background: "rgba(255, 255, 255, 0.04)",
+                          border: "1px solid var(--border-light)",
+                          borderRadius: "8px",
+                          padding: "6px 11px",
+                          cursor: "pointer",
+                          color: "var(--text-secondary)",
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          color: "#3b82f6",
+                          gap: "6px",
+                          fontSize: "12px",
+                          fontWeight: 600,
                         }}
                       >
-                        <Laptop size={17} />
-                      </div>
-                      <div>
-                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
-                          Active Devices & Security
-                        </h4>
-                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
-                          Manage login sessions across your computers
-                        </p>
-                      </div>
+                        <RefreshCw size={13} className={loadingSessions ? "animate-spin text-blue-400" : ""} />
+                        <span>Refresh</span>
+                      </button>
                     </div>
 
                     {/* Dynamic list of active devices */}

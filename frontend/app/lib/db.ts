@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import type { UserRecord, UserSessionRecord } from "./store";
+import { parseUserAgent } from "./store";
 
 // Supabase PostgreSQL Pool singleton
 const connectionString =
@@ -144,26 +145,30 @@ export async function recordDbSession(
 ): Promise<void> {
   if (!username || !session.id) return;
   try {
-    // 1. Check if session already exists by family_id or same device signature
+    // 1. Update existing session by exact family_id
     const updateRes = await dbPool.query(
       `UPDATE public.refresh_tokens
        SET last_active_at = NOW(),
            ip_address = $1,
            user_agent = $2,
+           device_type = $3,
+           os = $4,
+           browser = $5,
            revoked = false
-       WHERE LOWER(username) = LOWER($3)
-         AND (family_id = $4 OR (device_type = $5 AND os = $6 AND browser = $7 AND (revoked = false OR revoked IS NULL)))`,
+       WHERE LOWER(username) = LOWER($6)
+         AND family_id = $7`,
       [
         session.ip,
         session.userAgent,
-        username.trim(),
-        session.id,
         session.deviceType,
         session.os,
         session.browser,
+        username.trim(),
+        session.id,
       ]
     );
 
+    // 2. Insert new session if this session ID does not exist yet
     if (updateRes.rowCount === 0) {
       await dbPool.query(
         `INSERT INTO public.refresh_tokens (
@@ -200,27 +205,37 @@ export async function getDbSessions(username: string): Promise<UserSessionRecord
        WHERE LOWER(username) = LOWER($1)
          AND (revoked = false OR revoked IS NULL)
          AND (expires_at > NOW() OR expires_at IS NULL)
-         AND device_type IS NOT NULL
        ORDER BY last_active_at DESC NULLS LAST, created_at DESC
-       LIMIT 20`,
+       LIMIT 30`,
       [username.trim()]
     );
 
     const sessions: UserSessionRecord[] = [];
-    const seen = new Set<string>();
+    const seenSids = new Set<string>();
 
     for (const r of res.rows) {
-      // Deduplicate by deviceType + OS + browser to prevent duplicate cards
-      const signature = `${r.device_type}-${r.os}-${r.browser}`;
-      if (seen.has(signature)) continue;
-      seen.add(signature);
+      const sid = r.family_id || String(r.id);
+      if (seenSids.has(sid)) continue;
+      seenSids.add(sid);
+
+      let devType: "Desktop" | "Mobile" | "Tablet" = (r.device_type as any) || "Desktop";
+      let os = r.os || "Unknown";
+      let browser = r.browser || "Unknown";
+
+      // If legacy row had null device_type, parse from user_agent
+      if ((!r.device_type || r.device_type === "Unknown") && r.user_agent) {
+        const parsed = parseUserAgent(r.user_agent);
+        devType = parsed.deviceType;
+        os = parsed.os;
+        browser = parsed.browser;
+      }
 
       sessions.push({
-        id: r.family_id || String(r.id),
+        id: sid,
         username: r.username,
-        deviceType: (r.device_type as any) || "Desktop",
-        os: r.os || "Unknown",
-        browser: r.browser || "Unknown",
+        deviceType: devType,
+        os,
+        browser,
         ip: r.ip_address || "Unknown",
         userAgent: r.user_agent || "",
         lastActiveAt: Number(r.lastActiveAt) || Date.now(),
@@ -232,6 +247,25 @@ export async function getDbSessions(username: string): Promise<UserSessionRecord
   } catch (err) {
     console.warn("[DB] Failed to get sessions from PostgreSQL:", (err as Error).message);
     return [];
+  }
+}
+
+export async function isDbSessionRevoked(username: string, sessionId: string): Promise<boolean> {
+  if (!username || !sessionId) return false;
+  try {
+    const res = await dbPool.query(
+      `SELECT revoked FROM public.refresh_tokens
+       WHERE LOWER(username) = LOWER($1)
+         AND (family_id = $2 OR id::text = $2)
+       ORDER BY id DESC
+       LIMIT 1`,
+      [username.trim(), sessionId]
+    );
+    if (res.rows.length === 0) return false;
+    return Boolean(res.rows[0].revoked);
+  } catch (err) {
+    console.warn("[DB] Failed to check revoked status:", (err as Error).message);
+    return false;
   }
 }
 

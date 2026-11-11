@@ -442,6 +442,10 @@ export default function Home_Page() {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
+    const currentSid = localStorage.getItem("ak_sid");
+    if (currentSid) {
+      headers["X-Session-Id"] = currentSid;
+    }
 
     fetch(`${API_BASE_URL}/auth/verify`, {
       headers,
@@ -452,6 +456,7 @@ export default function Home_Page() {
           // Explicit unauthorized: clear and switch to login
           localStorage.removeItem("ak_session");
           localStorage.removeItem("ak_token");
+          localStorage.removeItem("ak_sid");
           setLoggedInUser("");
           setIsLoggedIn(false);
           return null;
@@ -460,6 +465,9 @@ export default function Home_Page() {
       })
       .then((data) => {
         if (!data) return;
+        if (data?.sessionId) {
+          localStorage.setItem("ak_sid", data.sessionId);
+        }
         const user = data?.username || data?.user?.username;
         if (data?.valid && user) {
           setLoggedInUser(user);
@@ -504,6 +512,30 @@ export default function Home_Page() {
       })
       .finally(() => setSessionChecked(true));
   }, []);
+
+  // Periodic active session heartbeat: verifies session validity and tracks active status
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const interval = setInterval(() => {
+      const token = localStorage.getItem("ak_token");
+      const sid = localStorage.getItem("ak_sid");
+      if (!token) return;
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      if (sid) headers["X-Session-Id"] = sid;
+      fetch(`${API_BASE_URL}/auth/verify`, { headers, credentials: "include" })
+        .then((r) => {
+          if (r.status === 401 || r.status === 403) {
+            localStorage.removeItem("ak_session");
+            localStorage.removeItem("ak_token");
+            localStorage.removeItem("ak_sid");
+            setLoggedInUser("");
+            setIsLoggedIn(false);
+          }
+        })
+        .catch(() => {});
+    }, 15000); // Pulse every 15 seconds
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const handleOpenDocument = () => {
@@ -733,6 +765,10 @@ export default function Home_Page() {
               localStorage.setItem("ak_session", username);
               if (token) {
                 localStorage.setItem("ak_token", token);
+              }
+              const sid = userData?.sessionId || userData?.session_id;
+              if (sid) {
+                localStorage.setItem("ak_sid", sid);
               }
               if (typeof window !== "undefined") {
                 sessionStorage.removeItem("ak_session_navigated");

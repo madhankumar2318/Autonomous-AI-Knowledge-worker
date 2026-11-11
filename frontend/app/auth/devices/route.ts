@@ -17,11 +17,11 @@ import {
 import { getClientIp } from "@/app/lib/rate-limiter";
 
 function getClientSessionId(req: Request): string | null {
+  const headerSid = req.headers.get("x-session-id");
+  if (headerSid) return headerSid.trim();
   const cookieHeader = req.headers.get("cookie") || "";
   const match = cookieHeader.match(/ak_sid=([^;]+)/);
-  if (match) return match[1];
-  const headerSid = req.headers.get("x-session-id");
-  if (headerSid) return headerSid;
+  if (match) return match[1].trim();
   return null;
 }
 
@@ -56,16 +56,17 @@ export async function GET(req: Request) {
   const rawSessions = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
 
   // Identify which session is the current requesting device
+  const targetSid = clientSid || activeSid;
   let matchedCurrent = false;
+
   const sessions = rawSessions.map((s) => {
-    const isCurrent =
-      !matchedCurrent &&
-      (s.id === activeSid ||
-        s.id === clientSid ||
-        (s.deviceType === currentParsed.deviceType &&
-          s.os === currentParsed.os &&
-          s.browser === currentParsed.browser));
-    if (isCurrent) matchedCurrent = true;
+    let isCurrent = false;
+    if (!matchedCurrent) {
+      if (s.id === targetSid || s.id === activeSid || (clientSid && s.id === clientSid)) {
+        isCurrent = true;
+        matchedCurrent = true;
+      }
+    }
     return {
       id: s.id,
       deviceType: s.deviceType,
@@ -78,9 +79,17 @@ export async function GET(req: Request) {
     };
   });
 
-  // Make sure at least one session is flagged as current (the active one)
+  // If no exact ID matched yet, match by deviceType and OS
   if (!matchedCurrent && sessions.length > 0) {
-    sessions[0].isCurrent = true;
+    const idx = sessions.findIndex(
+      (s) => s.deviceType === currentParsed.deviceType && s.os === currentParsed.os
+    );
+    if (idx !== -1) {
+      sessions[idx].isCurrent = true;
+      matchedCurrent = true;
+    } else {
+      sessions[0].isCurrent = true;
+    }
   }
 
   const response = NextResponse.json({
