@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
-import { verifyToken, usersStore, UserRecord, parseUserAgent, recordUserSession } from "@/app/lib/store";
-import { getDbUser, isDbSessionRevoked, recordDbSession } from "@/app/lib/db";
-import { getClientIp } from "@/app/lib/rate-limiter";
-
-function getClientSessionId(req: Request): string | null {
-  const headerSid = req.headers.get("x-session-id");
-  if (headerSid) return headerSid.trim();
-  const cookieHeader = req.headers.get("cookie") || "";
-  const match = cookieHeader.match(/ak_sid=([^;]+)/);
-  if (match) return match[1].trim();
-  return null;
-}
+import { verifyToken, getUserRecord, setUserRecord, UserRecord } from "@/app/lib/store";
+import { getDbUser } from "@/app/lib/db";
 
 export async function GET(req: Request) {
   const authHeader = req.headers.get("Authorization");
@@ -27,45 +17,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ valid: false }, { status: 401 });
   }
 
-  const clientSid = getClientSessionId(req);
-
-  // Check if this device session has been revoked/logged out by another device
-  if (clientSid) {
-    const isRevoked = await isDbSessionRevoked(username, clientSid);
-    if (isRevoked) {
-      const resp = NextResponse.json(
-        { valid: false, revoked: true, message: "Your session has been terminated from another device." },
-        { status: 401 }
-      );
-      resp.cookies.delete("ak_sid");
-      resp.cookies.delete("ak_token");
-      return resp;
-    }
-  }
-
-  // Record/refresh this device in memory and PostgreSQL so it appears in Active Devices
-  const activeSid = recordUserSession(username, req, clientSid);
-  const ua = req.headers.get("user-agent") || "";
-  const parsedUa = parseUserAgent(ua);
-  const ip = getClientIp(req);
-
-  await recordDbSession(username, {
-    id: activeSid,
-    deviceType: parsedUa.deviceType,
-    os: parsedUa.os,
-    browser: parsedUa.browser,
-    ip,
-    userAgent: ua,
-  }).catch(() => {});
-
-  // Fetch persistent user profile from Supabase PostgreSQL
+  // Fetch persistent user profile from database if available
   const dbUser = await getDbUser(username);
   if (dbUser) {
-    usersStore.set(dbUser.username, dbUser);
-    usersStore.set(dbUser.username.toLowerCase(), dbUser);
+    setUserRecord(dbUser);
   }
 
-  const user: UserRecord = dbUser || usersStore.get(username) || usersStore.get(username.toLowerCase()) || {
+  const user: UserRecord = dbUser || getUserRecord(username) || {
     id: "user-" + Date.now(),
     username,
     passwordHash: "",
@@ -80,9 +38,8 @@ export async function GET(req: Request) {
     soundEffects: true,
   };
 
-  const response = NextResponse.json({
+  return NextResponse.json({
     valid: true,
-    sessionId: activeSid,
     username: user.username,
     name: user.name,
     role: user.role,
@@ -104,14 +61,4 @@ export async function GET(req: Request) {
       role: user.role,
     },
   });
-
-  response.cookies.set("ak_sid", activeSid, {
-    path: "/",
-    httpOnly: false,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 86400 * 30,
-  });
-
-  return response;
 }

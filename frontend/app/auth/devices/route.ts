@@ -17,11 +17,11 @@ import {
 import { getClientIp } from "@/app/lib/rate-limiter";
 
 function getClientSessionId(req: Request): string | null {
-  const headerSid = req.headers.get("x-session-id");
-  if (headerSid) return headerSid.trim();
   const cookieHeader = req.headers.get("cookie") || "";
   const match = cookieHeader.match(/ak_sid=([^;]+)/);
-  if (match) return match[1].trim();
+  if (match) return match[1];
+  const headerSid = req.headers.get("x-session-id");
+  if (headerSid) return headerSid;
   return null;
 }
 
@@ -31,15 +31,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
   }
 
-  // Ensure current device session is recorded/refreshed in memory
+  // Ensure current device session is recorded/refreshed
   const clientSid = getClientSessionId(req);
   const activeSid = recordUserSession(username, req, clientSid);
 
   const ua = req.headers.get("user-agent") || "";
-  const currentParsed = parseUserAgent(ua);
+  const hintType = req.headers.get("x-device-type") || undefined;
+  const hintOs = req.headers.get("x-device-os") || undefined;
+  const hintBrowser = req.headers.get("x-device-browser") || undefined;
+
+  const currentParsed = parseUserAgent(ua, hintType);
+  if (hintOs) currentParsed.os = hintOs;
+  if (hintBrowser) currentParsed.browser = hintBrowser;
   const ip = getClientIp(req);
 
-  // Persist session to Supabase PostgreSQL for cross-device visibility
+  // Persist session to PostgreSQL if available
   await recordDbSession(username, {
     id: activeSid,
     deviceType: currentParsed.deviceType,
@@ -51,45 +57,46 @@ export async function GET(req: Request) {
     console.warn("[DEVICES] Failed to record DB session:", err);
   });
 
-  // Retrieve persistent sessions from Supabase PostgreSQL
-  const dbSessions = await getDbSessions(username);
-  const rawSessions = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
+  // Retrieve persistent sessions from disk and DB
+  const dbSessions = await getDbSessions(username).catch(() => []);
+  const memSessions = getUserSessions(username);
 
-  // Identify which session is the current requesting device
-  const targetSid = clientSid || activeSid;
-  let matchedCurrent = false;
-
-  const sessions = rawSessions.map((s) => {
-    let isCurrent = false;
-    if (!matchedCurrent) {
-      if (s.id === targetSid || s.id === activeSid || (clientSid && s.id === clientSid)) {
-        isCurrent = true;
-        matchedCurrent = true;
-      }
+  const sessionMap = new Map<string, any>();
+  for (const s of memSessions) {
+    sessionMap.set(s.id, s);
+  }
+  for (const s of dbSessions) {
+    if (!sessionMap.has(s.id)) {
+      sessionMap.set(s.id, s);
     }
+  }
+
+  const rawSessions = Array.from(sessionMap.values()).sort(
+    (a, b) => (Number(b.lastActiveAt) || 0) - (Number(a.lastActiveAt) || 0)
+  );
+
+  // Accurately identify which session is the current requesting device
+  let matchedCurrent = false;
+  const sessions = rawSessions.map((s) => {
+    const isCurrent =
+      !matchedCurrent &&
+      (s.id === activeSid || (Boolean(clientSid) && s.id === clientSid));
+    if (isCurrent) matchedCurrent = true;
     return {
       id: s.id,
-      deviceType: s.deviceType,
-      os: s.os,
-      browser: s.browser,
-      ip: s.ip,
-      lastActiveAt: s.lastActiveAt,
-      createdAt: s.createdAt,
+      deviceType: s.deviceType || "Desktop",
+      os: s.os || "Unknown",
+      browser: s.browser || "Unknown",
+      ip: s.ip || ip || "127.0.0.1",
+      lastActiveAt: Number(s.lastActiveAt) || Date.now(),
+      createdAt: Number(s.createdAt) || Date.now(),
       isCurrent,
     };
   });
 
-  // If no exact ID matched yet, match by deviceType and OS
+  // If no exact match was found, flag the active one as current
   if (!matchedCurrent && sessions.length > 0) {
-    const idx = sessions.findIndex(
-      (s) => s.deviceType === currentParsed.deviceType && s.os === currentParsed.os
-    );
-    if (idx !== -1) {
-      sessions[idx].isCurrent = true;
-      matchedCurrent = true;
-    } else {
-      sessions[0].isCurrent = true;
-    }
+    sessions[0].isCurrent = true;
   }
 
   const response = NextResponse.json({
@@ -125,8 +132,7 @@ export async function POST(req: Request) {
     removeOtherUserSessions(username, activeSid);
     await removeOtherDbSessions(username, activeSid).catch(() => {});
 
-    const dbSessions = await getDbSessions(username);
-    const remaining = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
+    const remaining = getUserSessions(username);
     return NextResponse.json({
       message: "Logged out of all other active sessions.",
       activeCount: remaining.length,
@@ -137,17 +143,19 @@ export async function POST(req: Request) {
     });
   }
 
-  if (action === "logout_device" && body.sessionId) {
-    const targetSid = String(body.sessionId);
+  if (action === "logout_device" && (body.sessionId || body.targetSessionId)) {
+    const targetSid = String(body.sessionId || body.targetSessionId);
     removeUserSession(username, targetSid);
     await removeDbSession(username, targetSid).catch(() => {});
 
-    const dbSessions = await getDbSessions(username);
-    const remaining = dbSessions.length > 0 ? dbSessions : getUserSessions(username);
+    const remaining = getUserSessions(username);
     return NextResponse.json({
       message: "Device session removed.",
       activeCount: remaining.length,
-      sessions: remaining,
+      sessions: remaining.map((s) => ({
+        ...s,
+        isCurrent: s.id === clientSid,
+      })),
     });
   }
 

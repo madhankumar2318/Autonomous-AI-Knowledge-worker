@@ -486,10 +486,18 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
       let res: Response;
       try {
+        const clientSid = typeof window !== "undefined" ? localStorage.getItem("ak_session_id") || "" : "";
+        const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+        const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
+        const isTab = /iPad|tablet/i.test(ua);
+        const devType = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
+
         res = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "X-Session-Id": clientSid,
+            "X-Device-Type": devType,
           },
           body: JSON.stringify(payload),
           credentials: "include",
@@ -549,9 +557,21 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         }
         const sid = data.sessionId || data.session_id;
         if (sid) {
-          localStorage.setItem("ak_sid", sid);
+          localStorage.setItem("ak_session_id", sid);
         }
         const effectiveUser = data.username || data.user?.username || username;
+        if (data.avatar) {
+          localStorage.setItem(`ak_avatar_${effectiveUser}`, data.avatar);
+          localStorage.setItem(`ak_avatar_${effectiveUser.toLowerCase()}`, data.avatar);
+        }
+        if (data.name) {
+          localStorage.setItem("ak_display_name", data.name);
+        }
+        if (data.defaultStartingTab) {
+          localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
+          localStorage.setItem(`ak_default_starting_tab_${effectiveUser}`, data.defaultStartingTab);
+          localStorage.setItem(`ak_default_starting_tab_${effectiveUser.toLowerCase()}`, data.defaultStartingTab);
+        }
         onLoginSuccess(effectiveUser, authToken, data);
       }
     } catch (err: any) {

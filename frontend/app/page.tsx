@@ -141,9 +141,27 @@ export default function Home_Page() {
       const token = localStorage.getItem("ak_token");
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
+      const sid = localStorage.getItem("ak_session_id");
+      if (sid) headers["X-Session-Id"] = sid;
+      const ua = navigator.userAgent;
+      const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
+      const isTab = /iPad|tablet/i.test(ua);
+      headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
+
       fetch(`${API_BASE_URL}/auth/profile`, { headers, credentials: "include" })
-        .then((r) => (r.ok ? r.json() : null))
+        .then((r) => {
+          if (r.status === 401) {
+            localStorage.removeItem("ak_session");
+            localStorage.removeItem("ak_token");
+            localStorage.removeItem("ak_session_id");
+            setIsLoggedIn(false);
+            setLoggedInUser("");
+            return null;
+          }
+          return r.ok ? r.json() : null;
+        })
         .then((data) => {
+          if (!data) return;
           if (data?.name) {
             setUserDisplayName(data.name);
             localStorage.setItem("ak_display_name", data.name);
@@ -151,11 +169,16 @@ export default function Home_Page() {
           if (data?.avatar) {
             setUserAvatar(data.avatar);
             localStorage.setItem(`ak_avatar_${loggedInUser}`, data.avatar);
+            localStorage.setItem(`ak_avatar_${loggedInUser.toLowerCase()}`, data.avatar);
           }
           if (data?.defaultStartingTab) {
             localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
             localStorage.setItem(`ak_default_starting_tab_${loggedInUser}`, data.defaultStartingTab);
             localStorage.setItem(`ak_default_starting_tab_${loggedInUser.toLowerCase()}`, data.defaultStartingTab);
+            if (!sessionStorage.getItem("ak_session_navigated")) {
+              setActiveTab(data.defaultStartingTab);
+              localStorage.setItem("ak_active_tab", data.defaultStartingTab);
+            }
           }
           if (data?.soundEffects !== undefined) {
             localStorage.setItem("ak_sound_effects", String(data.soundEffects));
@@ -442,10 +465,6 @@ export default function Home_Page() {
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
-    const currentSid = localStorage.getItem("ak_sid");
-    if (currentSid) {
-      headers["X-Session-Id"] = currentSid;
-    }
 
     fetch(`${API_BASE_URL}/auth/verify`, {
       headers,
@@ -456,7 +475,6 @@ export default function Home_Page() {
           // Explicit unauthorized: clear and switch to login
           localStorage.removeItem("ak_session");
           localStorage.removeItem("ak_token");
-          localStorage.removeItem("ak_sid");
           setLoggedInUser("");
           setIsLoggedIn(false);
           return null;
@@ -465,9 +483,6 @@ export default function Home_Page() {
       })
       .then((data) => {
         if (!data) return;
-        if (data?.sessionId) {
-          localStorage.setItem("ak_sid", data.sessionId);
-        }
         const user = data?.username || data?.user?.username;
         if (data?.valid && user) {
           setLoggedInUser(user);
@@ -512,30 +527,6 @@ export default function Home_Page() {
       })
       .finally(() => setSessionChecked(true));
   }, []);
-
-  // Periodic active session heartbeat: verifies session validity and tracks active status
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    const interval = setInterval(() => {
-      const token = localStorage.getItem("ak_token");
-      const sid = localStorage.getItem("ak_sid");
-      if (!token) return;
-      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
-      if (sid) headers["X-Session-Id"] = sid;
-      fetch(`${API_BASE_URL}/auth/verify`, { headers, credentials: "include" })
-        .then((r) => {
-          if (r.status === 401 || r.status === 403) {
-            localStorage.removeItem("ak_session");
-            localStorage.removeItem("ak_token");
-            localStorage.removeItem("ak_sid");
-            setLoggedInUser("");
-            setIsLoggedIn(false);
-          }
-        })
-        .catch(() => {});
-    }, 15000); // Pulse every 15 seconds
-    return () => clearInterval(interval);
-  }, [isLoggedIn]);
 
   useEffect(() => {
     const handleOpenDocument = () => {
@@ -768,7 +759,7 @@ export default function Home_Page() {
               }
               const sid = userData?.sessionId || userData?.session_id;
               if (sid) {
-                localStorage.setItem("ak_sid", sid);
+                localStorage.setItem("ak_session_id", sid);
               }
               if (typeof window !== "undefined") {
                 sessionStorage.removeItem("ak_session_navigated");
@@ -790,6 +781,12 @@ export default function Home_Page() {
                 if (srvAvatar) {
                   setUserAvatar(srvAvatar);
                   localStorage.setItem(`ak_avatar_${username}`, srvAvatar);
+                  localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, srvAvatar);
+                }
+                const srvName = userData?.name || userData?.user?.name;
+                if (srvName) {
+                  setUserDisplayName(srvName);
+                  localStorage.setItem("ak_display_name", srvName);
                 }
                 const srvSound = userData?.soundEffects !== undefined ? userData.soundEffects : userData?.user?.soundEffects;
                 if (srvSound !== undefined) {
@@ -927,6 +924,9 @@ export default function Home_Page() {
                       if (tab.id === "settings") {
                         setShowProfile(true);
                       } else {
+                        if (typeof window !== "undefined") {
+                          sessionStorage.setItem("ak_session_navigated", "1");
+                        }
                         setActiveTab(tab.id);
                       }
                       setIsMobileMenuOpen(false);

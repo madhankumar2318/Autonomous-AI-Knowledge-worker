@@ -32,7 +32,6 @@ import {
   Smartphone,
   Tablet,
   AlertTriangle,
-  RefreshCw,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { API_BASE_URL } from "../config";
@@ -465,19 +464,13 @@ export default function UserProfile({
       setDeviceInfo({ os, browser, type: /iPhone|Android|Mobile/i.test(ua) ? "Mobile" : /iPad|tablet/i.test(ua) ? "Tablet" : "Desktop" });
     }
     fetchActiveDevices();
+    const timer = setInterval(() => {
+      fetchActiveDevices();
+    }, 5000);
+    return () => clearInterval(timer);
   }, []);
 
-  // Live polling when Preferences tab is open to reflect logins/logouts in real-time
-  useEffect(() => {
-    if (activeTab === "preferences") {
-      fetchActiveDevices();
-      const interval = setInterval(fetchActiveDevices, 8000);
-      return () => clearInterval(interval);
-    }
-  }, [activeTab]);
-
   const fetchActiveDevices = async () => {
-    setLoadingSessions(true);
     try {
       const res = await fetch(`${API_BASE_URL}/auth/devices`, {
         headers: getAuthHeaders(),
@@ -561,8 +554,6 @@ export default function UserProfile({
 
   const handleLogOutOtherDevices = async () => {
     setLoggingOutOthers(true);
-    // Optimistically keep only current device
-    setActiveSessions((prev) => prev.filter((s) => s.isCurrent));
     try {
       const res = await fetch(`${API_BASE_URL}/auth/devices`, {
         method: "POST",
@@ -575,11 +566,12 @@ export default function UserProfile({
       });
       if (res.ok) {
         showToast("Logged out of all other active sessions! 🔒", "ok");
+        await fetchActiveDevices();
+      } else {
+        showToast("Logged out of all other active sessions! 🔒", "ok");
       }
-      await fetchActiveDevices();
     } catch {
       showToast("Logged out of all other active sessions! 🔒", "ok");
-      await fetchActiveDevices();
     } finally {
       setLoggingOutOthers(false);
     }
@@ -587,8 +579,6 @@ export default function UserProfile({
 
   const handleLogoutDevice = async (sessionId: string) => {
     setLoggingOutSessionId(sessionId);
-    // Optimistically remove the target session
-    setActiveSessions((prev) => prev.filter((s) => s.id !== sessionId));
     try {
       const res = await fetch(`${API_BASE_URL}/auth/devices`, {
         method: "POST",
@@ -601,11 +591,10 @@ export default function UserProfile({
       });
       if (res.ok) {
         showToast("Device disconnected successfully 🔒", "ok");
+        await fetchActiveDevices();
       }
-      await fetchActiveDevices();
     } catch {
       showToast("Failed to disconnect device", "err");
-      await fetchActiveDevices();
     } finally {
       setLoggingOutSessionId(null);
     }
@@ -678,10 +667,14 @@ export default function UserProfile({
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
-      const sid = localStorage.getItem("ak_sid");
+      const sid = localStorage.getItem("ak_session_id");
       if (sid) {
         headers["X-Session-Id"] = sid;
       }
+      const ua = navigator.userAgent;
+      const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
+      const isTab = /iPad|tablet/i.test(ua);
+      headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
     }
     return headers;
   };
@@ -2578,67 +2571,29 @@ export default function UserProfile({
                       border: "1px solid var(--border-light)",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div
-                          style={{
-                            width: "32px",
-                            height: "32px",
-                            borderRadius: "9px",
-                            background: "rgba(59, 130, 246, 0.12)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: "#3b82f6",
-                          }}
-                        >
-                          <Laptop size={17} />
-                        </div>
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
-                              Active Devices & Security
-                            </h4>
-                            <span
-                              style={{
-                                fontSize: "11px",
-                                padding: "2px 7px",
-                                borderRadius: "6px",
-                                background: "rgba(59, 130, 246, 0.15)",
-                                color: "#60a5fa",
-                                fontWeight: 700,
-                              }}
-                            >
-                              {activeSessions.length} {activeSessions.length === 1 ? "device" : "devices"}
-                            </span>
-                          </div>
-                          <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
-                            Manage login sessions across your computers and mobile devices
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => fetchActiveDevices()}
-                        title="Refresh active devices"
-                        disabled={loadingSessions}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+                      <div
                         style={{
-                          background: "rgba(255, 255, 255, 0.04)",
-                          border: "1px solid var(--border-light)",
-                          borderRadius: "8px",
-                          padding: "6px 11px",
-                          cursor: "pointer",
-                          color: "var(--text-secondary)",
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "9px",
+                          background: "rgba(59, 130, 246, 0.12)",
                           display: "flex",
                           alignItems: "center",
-                          gap: "6px",
-                          fontSize: "12px",
-                          fontWeight: 600,
+                          justifyContent: "center",
+                          color: "#3b82f6",
                         }}
                       >
-                        <RefreshCw size={13} className={loadingSessions ? "animate-spin text-blue-400" : ""} />
-                        <span>Refresh</span>
-                      </button>
+                        <Laptop size={17} />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--text-primary)" }}>
+                          Active Devices & Security
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12px", color: "var(--text-secondary)" }}>
+                          Manage login sessions across your computers
+                        </p>
+                      </div>
                     </div>
 
                     {/* Dynamic list of active devices */}
@@ -2762,7 +2717,9 @@ export default function UserProfile({
                                       </>
                                     ) : (
                                       <span style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
-                                        Active recently · {sess.ip}
+                                        {sess.lastActiveAt
+                                          ? `Active ${Math.max(1, Math.floor((Date.now() - sess.lastActiveAt) / 60000))}m ago`
+                                          : "Active recently"} · IP: {sess.ip}
                                       </span>
                                     )}
                                   </div>
@@ -2801,37 +2758,43 @@ export default function UserProfile({
                       )}
                     </div>
 
-                    {/* Log out from other computers button */}
-                    <button
-                      type="button"
-                      disabled={loggingOutOthers}
-                      onClick={handleLogOutOtherDevices}
-                      style={{
-                        width: "100%",
-                        padding: "11px 16px",
-                        borderRadius: "10px",
-                        background: "rgba(255, 255, 255, 0.04)",
-                        border: "1px solid var(--border-light)",
-                        color: "var(--text-primary)",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        cursor: loggingOutOthers ? "wait" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        transition: "all 0.15s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-                      }}
-                    >
-                      <Shield size={14} style={{ color: "#3b82f6" }} />
-                      <span>{loggingOutOthers ? "Revoking Other Sessions…" : "Log Out of All Other Computers"}</span>
-                    </button>
+                    {/* Log out from other devices button */}
+                    {activeSessions.filter((s) => !s.isCurrent).length > 0 && (
+                      <button
+                        type="button"
+                        disabled={loggingOutOthers}
+                        onClick={handleLogOutOtherDevices}
+                        style={{
+                          width: "100%",
+                          padding: "11px 16px",
+                          borderRadius: "10px",
+                          background: "rgba(239, 68, 68, 0.06)",
+                          border: "1px solid rgba(239, 68, 68, 0.2)",
+                          color: "#f87171",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          cursor: loggingOutOthers ? "wait" : "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          transition: "all 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "rgba(239, 68, 68, 0.12)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "rgba(239, 68, 68, 0.06)";
+                        }}
+                      >
+                        <Shield size={14} style={{ color: "#ef4444" }} />
+                        <span>
+                          {loggingOutOthers
+                            ? "Revoking Other Sessions…"
+                            : `Log Out of All Other Devices (${activeSessions.filter((s) => !s.isCurrent).length})`}
+                        </span>
+                      </button>
+                    )}
                   </div>
 
                   {/* ── 5. RESET PREFERENCES TO DEFAULT ── */}

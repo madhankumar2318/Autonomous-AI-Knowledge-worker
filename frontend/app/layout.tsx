@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Autonomous AI Knowledge Worker",
   description: "AI-powered knowledge worker for news, research, and insights",
+  openGraph: {
+    title: "Autonomous AI Knowledge Worker",
+    description: "AI-powered knowledge worker for news, research, and insights",
+  },
 };
 
 export default function RootLayout({

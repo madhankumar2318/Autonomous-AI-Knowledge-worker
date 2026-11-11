@@ -34,6 +34,7 @@ export interface UserSessionRecord {
   userAgent: string;
   lastActiveAt: number;
   createdAt: number;
+  revoked?: boolean;
 }
 
 export interface UserSettingRecord {
@@ -597,6 +598,7 @@ const globalStore = globalThis as unknown as {
   __AKW_BUFFERS__?: Map<string, Buffer>;
   __AKW_ACCOUNT_ATTEMPTS__?: Map<string, AccountAttemptRecord>;
   __AKW_SESSIONS__?: Map<string, UserSessionRecord>;
+  __AKW_REVOKED_SESSIONS__?: Set<string>;
 };
 
 if (!globalStore.__AKW_ACCOUNT_ATTEMPTS__) {
@@ -604,13 +606,33 @@ if (!globalStore.__AKW_ACCOUNT_ATTEMPTS__) {
 }
 
 export function saveUsersToDisk(): void {
-  const users = Array.from(globalStore.__AKW_USERS__?.values() || []);
+  const map = globalStore.__AKW_USERS__;
+  if (!map) return;
+  // Deduplicate by normalized lowercase username
+  const uniqueUsers = new Map<string, UserRecord>();
+  for (const u of Array.from(map.values())) {
+    if (u && u.username) {
+      uniqueUsers.set(u.username.toLowerCase(), u);
+    }
+  }
+  const usersList = Array.from(uniqueUsers.values());
   const dirs = getStorageDirs();
   for (const dir of dirs) {
     try {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const p = path.join(dir, "users_index.json");
-      fs.writeFileSync(p, JSON.stringify(users, null, 2), "utf-8");
+      fs.writeFileSync(p, JSON.stringify(usersList, null, 2), "utf-8");
+
+      // Also persist avatars individually for guaranteed reliability
+      const avatarsDir = path.join(dir, "avatars");
+      if (!fs.existsSync(avatarsDir)) fs.mkdirSync(avatarsDir, { recursive: true });
+      for (const u of usersList) {
+        if (u.avatar) {
+          try {
+            fs.writeFileSync(path.join(avatarsDir, `${u.username.toLowerCase()}.txt`), u.avatar, "utf-8");
+          } catch {}
+        }
+      }
     } catch {}
   }
 }
@@ -621,10 +643,10 @@ export function syncUsersFromDisk(): Map<string, UserRecord> {
   }
   const users = globalStore.__AKW_USERS__;
 
-  // 1. Ensure default admin is always seeded with salted scrypt hash
+  // 1. Ensure default admin is seeded if map is initially empty
   if (!users.has("admin")) {
     const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD || "Sk_uyir18";
-    users.set("admin", {
+    const defaultAdmin: UserRecord = {
       id: "admin-1",
       username: "admin",
       passwordHash: hashPassword(initialAdminPassword),
@@ -633,10 +655,17 @@ export function syncUsersFromDisk(): Map<string, UserRecord> {
       mobile: "+1 555-0199",
       role: "ADMIN",
       tokenVersion: 1,
-    });
+      avatar: "",
+      defaultStartingTab: "news",
+      timeFormat: "12h",
+      dateFormat: "DD/MM/YYYY",
+      soundEffects: true,
+    };
+    users.set("admin", defaultAdmin);
+    users.set("ADMIN", defaultAdmin);
   }
 
-  // 2. Load users from users_index.json across storage dirs
+  // 2. Load users from users_index.json across storage dirs and ALWAYS merge/update
   for (const dir of getStorageDirs()) {
     try {
       const p = path.join(dir, "users_index.json");
@@ -647,12 +676,27 @@ export function syncUsersFromDisk(): Map<string, UserRecord> {
           for (const u of list) {
             if (u && u.username) {
               const normKey = u.username.toLowerCase();
-              if (!users.has(normKey)) {
-                users.set(normKey, u);
+              const existing = users.get(normKey);
+              // Check if avatar backup file exists
+              let avatar = u.avatar || existing?.avatar || "";
+              if (!avatar) {
+                const avFile = path.join(dir, "avatars", `${normKey}.txt`);
+                if (fs.existsSync(avFile)) {
+                  try { avatar = fs.readFileSync(avFile, "utf-8"); } catch {}
+                }
               }
-              if (!users.has(u.username)) {
-                users.set(u.username, u);
-              }
+              const merged: UserRecord = {
+                ...(existing || {}),
+                ...u,
+                avatar: avatar || u.avatar || existing?.avatar || "",
+                name: u.name || existing?.name || u.username,
+                defaultStartingTab: u.defaultStartingTab || existing?.defaultStartingTab || "news",
+                timeFormat: u.timeFormat || existing?.timeFormat || "12h",
+                dateFormat: u.dateFormat || existing?.dateFormat || "DD/MM/YYYY",
+                soundEffects: u.soundEffects !== undefined ? u.soundEffects : (existing?.soundEffects ?? true),
+              };
+              users.set(normKey, merged);
+              users.set(u.username, merged);
             }
           }
         }
@@ -661,6 +705,29 @@ export function syncUsersFromDisk(): Map<string, UserRecord> {
   }
 
   return users;
+}
+
+export function getUserRecord(username: string): UserRecord | null {
+  if (!username) return null;
+  syncUsersFromDisk();
+  const normUser = username.trim().toLowerCase();
+  return usersStore.get(normUser) || usersStore.get(username) || null;
+}
+
+export function setUserRecord(user: UserRecord): void {
+  if (!user || !user.username) return;
+  const normUser = user.username.trim().toLowerCase();
+  usersStore.set(user.username, user);
+  usersStore.set(normUser, user);
+  saveUsersToDisk();
+}
+
+export function deleteUserRecord(username: string): void {
+  if (!username) return;
+  const normUser = username.trim().toLowerCase();
+  usersStore.delete(username);
+  usersStore.delete(normUser);
+  saveUsersToDisk();
 }
 
 if (!globalStore.__AKW_USERS__) {
@@ -929,6 +996,11 @@ export const buffersStore = globalStore.__AKW_BUFFERS__!;
 export const accountAttemptsStore = globalStore.__AKW_ACCOUNT_ATTEMPTS__!;
 
 // ── Multi-Device Session Store & Management ──────────────────────────────────
+if (!globalStore.__AKW_REVOKED_SESSIONS__) {
+  globalStore.__AKW_REVOKED_SESSIONS__ = new Set<string>();
+}
+export const revokedSessionsStore = globalStore.__AKW_REVOKED_SESSIONS__!;
+
 export function saveSessionsToDisk(): void {
   const sessions = Array.from(globalStore.__AKW_SESSIONS__?.values() || []);
   const dirs = getStorageDirs();
@@ -937,6 +1009,8 @@ export function saveSessionsToDisk(): void {
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const p = path.join(dir, "sessions_index.json");
       fs.writeFileSync(p, JSON.stringify(sessions, null, 2), "utf-8");
+      const revP = path.join(dir, "revoked_sessions.json");
+      fs.writeFileSync(revP, JSON.stringify(Array.from(revokedSessionsStore), null, 2), "utf-8");
     } catch {}
   }
 }
@@ -948,6 +1022,19 @@ export function syncSessionsFromDisk(): Map<string, UserSessionRecord> {
   const sessions = globalStore.__AKW_SESSIONS__;
   for (const dir of getStorageDirs()) {
     try {
+      const revP = path.join(dir, "revoked_sessions.json");
+      if (fs.existsSync(revP)) {
+        const raw = fs.readFileSync(revP, "utf-8");
+        const list: string[] = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          for (const id of list) {
+            if (id) {
+              revokedSessionsStore.add(id);
+              sessions.delete(id);
+            }
+          }
+        }
+      }
       const p = path.join(dir, "sessions_index.json");
       if (fs.existsSync(p)) {
         const raw = fs.readFileSync(p, "utf-8");
@@ -955,7 +1042,12 @@ export function syncSessionsFromDisk(): Map<string, UserSessionRecord> {
         if (Array.isArray(list)) {
           for (const s of list) {
             if (s && s.id && s.username) {
-              sessions.set(s.id, s);
+              if (s.revoked || revokedSessionsStore.has(s.id)) {
+                revokedSessionsStore.add(s.id);
+                sessions.delete(s.id);
+              } else {
+                sessions.set(s.id, s);
+              }
             }
           }
         }
@@ -971,16 +1063,21 @@ if (!globalStore.__AKW_SESSIONS__) {
 
 export const sessionsStore = globalStore.__AKW_SESSIONS__!;
 
-export function parseUserAgent(uaString: string): {
+export function parseUserAgent(
+  uaString: string,
+  hintDeviceType?: string
+): {
   deviceType: "Desktop" | "Mobile" | "Tablet";
   os: string;
   browser: string;
 } {
   const ua = uaString || "";
   let deviceType: "Desktop" | "Mobile" | "Tablet" = "Desktop";
-  if (/iPad|tablet|(android(?!.*mobile))/i.test(ua)) {
+  if (hintDeviceType === "Mobile" || hintDeviceType === "Tablet" || hintDeviceType === "Desktop") {
+    deviceType = hintDeviceType;
+  } else if (/iPad|tablet|(android(?!.*mobile))/i.test(ua)) {
     deviceType = "Tablet";
-  } else if (/iPhone|iPod|Android.*Mobile|Mobile|Windows Phone/i.test(ua)) {
+  } else if (/iPhone|iPod|Android.*Mobile|Mobile|Windows Phone|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) {
     deviceType = "Mobile";
   }
 
@@ -992,11 +1089,12 @@ export function parseUserAgent(uaString: string): {
   else if (/Linux/i.test(ua)) os = "Linux";
 
   let browser = "Browser";
-  if (/Edg\//i.test(ua)) browser = "Edge";
+  if (/Edg\//i.test(ua)) browser = deviceType === "Mobile" ? "Edge Mobile" : "Edge";
+  else if (/SamsungBrowser/i.test(ua)) browser = "Samsung Internet";
   else if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) browser = deviceType === "Mobile" ? "Chrome Mobile" : "Chrome";
   else if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) browser = deviceType === "Mobile" ? "Mobile Safari" : "Safari";
-  else if (/Firefox\//i.test(ua)) browser = "Firefox";
-  else if (/Opera|OPR\//i.test(ua)) browser = "Opera";
+  else if (/Firefox\//i.test(ua)) browser = deviceType === "Mobile" ? "Firefox Mobile" : "Firefox";
+  else if (/Opera|OPR\//i.test(ua)) browser = deviceType === "Mobile" ? "Opera Mobile" : "Opera";
 
   return { deviceType, os, browser };
 }
@@ -1006,35 +1104,68 @@ export function recordUserSession(
   req: Request,
   preferredSessionId?: string | null
 ): string {
-  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const sessions = syncSessionsFromDisk();
   const normUser = username.trim().toLowerCase();
   const ua = req.headers.get("user-agent") || "";
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
     req.headers.get("x-real-ip") ||
     "127.0.0.1";
-  const parsed = parseUserAgent(ua);
 
-  // If a session ID is supplied and already valid, refresh it
-  if (preferredSessionId && sessions.has(preferredSessionId)) {
-    const existing = sessions.get(preferredSessionId)!;
-    if (existing.username.toLowerCase() === normUser) {
+  const hintType = req.headers.get("x-device-type") || undefined;
+  const hintOs = req.headers.get("x-device-os") || undefined;
+  const hintBrowser = req.headers.get("x-device-browser") || undefined;
+
+  const parsed = parseUserAgent(ua, hintType);
+  if (hintOs) parsed.os = hintOs;
+  if (hintBrowser) parsed.browser = hintBrowser;
+
+  const clientSid = preferredSessionId || req.headers.get("x-session-id") || null;
+
+  // 1. If explicit client session ID was provided and is already registered for this user:
+  if (clientSid && sessions.has(clientSid)) {
+    const existing = sessions.get(clientSid)!;
+    if (existing.username.toLowerCase() === normUser && !existing.revoked && !revokedSessionsStore.has(clientSid)) {
       existing.lastActiveAt = Date.now();
       existing.ip = ip;
       existing.userAgent = ua;
-      sessions.set(preferredSessionId, existing);
+      existing.deviceType = parsed.deviceType;
+      existing.os = parsed.os;
+      existing.browser = parsed.browser;
+      sessions.set(clientSid, existing);
       saveSessionsToDisk();
-      return preferredSessionId;
+      return clientSid;
     }
   }
 
-  // Look for matching existing session for this user + device type + OS + browser
+  // 2. If client passed a specific session ID that isn't revoked, register it with that ID
+  if (clientSid && !revokedSessionsStore.has(clientSid)) {
+    const sessionRecord: UserSessionRecord = {
+      id: clientSid,
+      username,
+      deviceType: parsed.deviceType,
+      os: parsed.os,
+      browser: parsed.browser,
+      ip,
+      userAgent: ua,
+      lastActiveAt: Date.now(),
+      createdAt: Date.now(),
+    };
+    sessions.set(clientSid, sessionRecord);
+    saveSessionsToDisk();
+    return clientSid;
+  }
+
+  // 3. Check for matching active session for same user + deviceType + OS + browser within last 12 hours
   for (const [sId, sess] of Array.from(sessions.entries())) {
     if (
       sess.username.toLowerCase() === normUser &&
+      !sess.revoked &&
+      !revokedSessionsStore.has(sId) &&
       sess.deviceType === parsed.deviceType &&
       sess.os === parsed.os &&
-      sess.browser === parsed.browser
+      sess.browser === parsed.browser &&
+      Date.now() - sess.lastActiveAt < 12 * 60 * 60 * 1000
     ) {
       sess.lastActiveAt = Date.now();
       sess.ip = ip;
@@ -1045,8 +1176,8 @@ export function recordUserSession(
     }
   }
 
-  // Register brand new distinct device session
-  const newSessionId = "sess_" + crypto.randomBytes(12).toString("hex");
+  // 4. Register brand new distinct device session (e.g. separate Phone or Laptop)
+  const newSessionId = "sess_" + Date.now().toString(36) + "_" + crypto.randomBytes(6).toString("hex");
   const sessionRecord: UserSessionRecord = {
     id: newSessionId,
     username,
@@ -1064,11 +1195,19 @@ export function recordUserSession(
 }
 
 export function getUserSessions(username: string): UserSessionRecord[] {
-  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const sessions = syncSessionsFromDisk();
   const normUser = username.trim().toLowerCase();
   const list: UserSessionRecord[] = [];
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
   for (const s of Array.from(sessions.values())) {
-    if (s.username.toLowerCase() === normUser) {
+    if (
+      s.username.toLowerCase() === normUser &&
+      !s.revoked &&
+      !revokedSessionsStore.has(s.id) &&
+      now - s.lastActiveAt < thirtyDaysMs
+    ) {
       list.push(s);
     }
   }
@@ -1076,20 +1215,24 @@ export function getUserSessions(username: string): UserSessionRecord[] {
 }
 
 export function removeUserSession(username: string, sessionId: string): void {
-  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const sessions = syncSessionsFromDisk();
   const normUser = username.trim().toLowerCase();
+  revokedSessionsStore.add(sessionId);
   const s = sessions.get(sessionId);
   if (s && s.username.toLowerCase() === normUser) {
+    s.revoked = true;
     sessions.delete(sessionId);
-    saveSessionsToDisk();
   }
+  saveSessionsToDisk();
 }
 
 export function removeOtherUserSessions(username: string, currentSessionId: string): void {
-  const sessions = globalStore.__AKW_SESSIONS__ || syncSessionsFromDisk();
+  const sessions = syncSessionsFromDisk();
   const normUser = username.trim().toLowerCase();
   for (const [id, s] of Array.from(sessions.entries())) {
     if (s.username.toLowerCase() === normUser && id !== currentSessionId) {
+      revokedSessionsStore.add(id);
+      s.revoked = true;
       sessions.delete(id);
     }
   }
@@ -1589,18 +1732,21 @@ const JWT_SECRET =
   "akw-autonomous-ai-knowledge-worker-production-secret-key-2026-v1";
 
 
-export function generateToken(username: string): string {
+export function generateToken(username: string, sessionId?: string): string {
   const normUser = username.trim().toLowerCase();
-  const user = usersStore.get(normUser) || usersStore.get(username);
+  const user = getUserRecord(normUser) || usersStore.get(normUser) || usersStore.get(username);
   const tokenVersion = user?.tokenVersion ?? 1;
 
   const header = { alg: "HS256", typ: "JWT" };
-  const payload = {
+  const payload: Record<string, any> = {
     sub: username,
     ver: tokenVersion,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 86400 * 7,
   };
+  if (sessionId) {
+    payload.sid = sessionId;
+  }
   const encHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const encPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = crypto
@@ -1612,11 +1758,10 @@ export function generateToken(username: string): string {
 
 export function invalidateUserTokens(username: string): void {
   const normUser = username.trim().toLowerCase();
-  const user = usersStore.get(normUser) || usersStore.get(username);
+  const user = getUserRecord(normUser) || usersStore.get(normUser) || usersStore.get(username);
   if (user) {
     user.tokenVersion = (user.tokenVersion || 1) + 1;
-    usersStore.set(user.username, user);
-    usersStore.set(normUser, user);
+    setUserRecord(user);
   }
 }
 
@@ -1647,10 +1792,16 @@ export function verifyToken(token: string | null): string | null {
         }
         if (payload.sub && typeof payload.sub === "string") {
           // Token rotation / revocation check: verify version if present
-          const user = usersStore.get(payload.sub.toLowerCase()) || usersStore.get(payload.sub);
+          const user = getUserRecord(payload.sub.toLowerCase()) || usersStore.get(payload.sub);
           if (user && user.tokenVersion !== undefined && payload.ver !== undefined) {
             if (payload.ver !== user.tokenVersion) {
               return null; // Token revoked
+            }
+          }
+          // If token was bound to a specific session ID, check that the session is not revoked
+          if (payload.sid && typeof payload.sid === "string") {
+            if (revokedSessionsStore.has(payload.sid)) {
+              return null; // Explicitly logged out session
             }
           }
           return payload.sub;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAuthToken, verifyToken, usersStore, saveUsersToDisk, UserRecord } from "@/app/lib/store";
+import { getAuthToken, verifyToken, getUserRecord, setUserRecord, deleteUserRecord, UserRecord } from "@/app/lib/store";
 import { getDbUser, updateDbUser } from "@/app/lib/db";
 import { verifyCsrf, csrfErrorResponse } from "@/app/lib/csrf";
 
@@ -9,21 +9,20 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
   }
 
-  // Fetch persistent user profile from Supabase PostgreSQL
+  // Fetch persistent user profile from database if available
   const dbUser = await getDbUser(username);
   if (dbUser) {
-    usersStore.set(dbUser.username, dbUser);
-    usersStore.set(dbUser.username.toLowerCase(), dbUser);
+    setUserRecord(dbUser);
   }
 
-  const user: UserRecord = dbUser || usersStore.get(username) || usersStore.get(username.toLowerCase()) || {
+  const user: UserRecord = dbUser || getUserRecord(username) || {
     id: "admin-1",
-    username: "admin",
+    username,
     passwordHash: "",
-    name: "Administrator",
-    email: "admin@knowledge-worker.local",
+    name: username === "admin" ? "Administrator" : username,
+    email: `${username}@knowledge-worker.local`,
     mobile: "+1 555-0199",
-    role: "ADMIN",
+    role: username === "admin" ? "ADMIN" : "USER",
     avatar: "",
     defaultStartingTab: "news",
     timeFormat: "12h",
@@ -60,7 +59,7 @@ export async function PUT(req: Request) {
     }
     const body = await req.json().catch(() => ({}));
 
-    let user: UserRecord | undefined = usersStore.get(username);
+    let user: UserRecord | null = getUserRecord(username);
     if (!user) {
       user = {
         id: "user-" + Date.now(),
@@ -111,9 +110,7 @@ export async function PUT(req: Request) {
       user.soundEffects = Boolean(body.soundEffects);
     }
 
-    usersStore.set(username, user);
-    usersStore.set(username.toLowerCase(), user);
-    saveUsersToDisk();
+    setUserRecord(user);
 
     // Persist to Supabase PostgreSQL database
     await updateDbUser(username, {
@@ -160,9 +157,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ message: "Unauthorized. Please log in." }, { status: 401 });
     }
 
-    usersStore.delete(username);
-    usersStore.delete(username.toLowerCase());
-    saveUsersToDisk();
+    deleteUserRecord(username);
 
     const response = NextResponse.json({ message: "Account deleted successfully." });
     response.cookies.delete("ak_token");

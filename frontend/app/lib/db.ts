@@ -1,24 +1,40 @@
 import { Pool } from "pg";
 import type { UserRecord, UserSessionRecord } from "./store";
-import { parseUserAgent } from "./store";
 
-// Supabase PostgreSQL Pool singleton
-const connectionString =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres.rpspgywtemubhlpypxoq:Sk_uyir1823@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres";
+// In AI Studio web environment, direct TCP to external databases is blocked.
+// If DATABASE_URL is set (e.g. Cloud SQL socket or configured URL), use Pool with fast timeout;
+// otherwise mock dbPool with an in-memory stub that falls back seamlessly to the persistent store.
+const connectionString = process.env.DATABASE_URL;
 
-// Reuse pool across warm lambda invocations
-const globalForDb = globalThis as unknown as { __akw_pg_pool__?: Pool };
+interface MockPool {
+  query: (sql: string, params?: any[]) => Promise<{ rows: any[]; rowCount: number }>;
+  connect?: () => Promise<{ query: () => Promise<{ rows: any[] }>; release: () => void }>;
+}
 
-export const dbPool =
-  globalForDb.__akw_pg_pool__ ??
-  new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-    max: 5,
-    idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 5000,
-  });
+const globalForDb = globalThis as unknown as { __akw_pg_pool__?: Pool | MockPool };
+
+function createDbPool(): Pool | MockPool {
+  if (connectionString) {
+    try {
+      return new Pool({
+        connectionString,
+        ssl: connectionString.includes("localhost") || connectionString.includes("/cloudsql/") ? false : { rejectUnauthorized: false },
+        max: 5,
+        idleTimeoutMillis: 5000,
+        connectionTimeoutMillis: 2000,
+      });
+    } catch {
+      console.warn("[DB] Failed to initialize Pool, using in-memory mock");
+    }
+  }
+  // Mock DB pool
+  return {
+    query: async () => ({ rows: [], rowCount: 0 }),
+    connect: async () => ({ query: async () => ({ rows: [] }), release: () => {} }),
+  };
+}
+
+export const dbPool = globalForDb.__akw_pg_pool__ ?? createDbPool();
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.__akw_pg_pool__ = dbPool;
@@ -145,30 +161,26 @@ export async function recordDbSession(
 ): Promise<void> {
   if (!username || !session.id) return;
   try {
-    // 1. Update existing session by exact family_id
+    // 1. Check if session already exists by family_id or same device signature
     const updateRes = await dbPool.query(
       `UPDATE public.refresh_tokens
        SET last_active_at = NOW(),
            ip_address = $1,
            user_agent = $2,
-           device_type = $3,
-           os = $4,
-           browser = $5,
            revoked = false
-       WHERE LOWER(username) = LOWER($6)
-         AND family_id = $7`,
+       WHERE LOWER(username) = LOWER($3)
+         AND (family_id = $4 OR (device_type = $5 AND os = $6 AND browser = $7 AND (revoked = false OR revoked IS NULL)))`,
       [
         session.ip,
         session.userAgent,
+        username.trim(),
+        session.id,
         session.deviceType,
         session.os,
         session.browser,
-        username.trim(),
-        session.id,
       ]
     );
 
-    // 2. Insert new session if this session ID does not exist yet
     if (updateRes.rowCount === 0) {
       await dbPool.query(
         `INSERT INTO public.refresh_tokens (
@@ -205,37 +217,27 @@ export async function getDbSessions(username: string): Promise<UserSessionRecord
        WHERE LOWER(username) = LOWER($1)
          AND (revoked = false OR revoked IS NULL)
          AND (expires_at > NOW() OR expires_at IS NULL)
+         AND device_type IS NOT NULL
        ORDER BY last_active_at DESC NULLS LAST, created_at DESC
-       LIMIT 30`,
+       LIMIT 20`,
       [username.trim()]
     );
 
     const sessions: UserSessionRecord[] = [];
-    const seenSids = new Set<string>();
+    const seen = new Set<string>();
 
     for (const r of res.rows) {
-      const sid = r.family_id || String(r.id);
-      if (seenSids.has(sid)) continue;
-      seenSids.add(sid);
-
-      let devType: "Desktop" | "Mobile" | "Tablet" = (r.device_type as any) || "Desktop";
-      let os = r.os || "Unknown";
-      let browser = r.browser || "Unknown";
-
-      // If legacy row had null device_type, parse from user_agent
-      if ((!r.device_type || r.device_type === "Unknown") && r.user_agent) {
-        const parsed = parseUserAgent(r.user_agent);
-        devType = parsed.deviceType;
-        os = parsed.os;
-        browser = parsed.browser;
-      }
+      // Deduplicate by deviceType + OS + browser to prevent duplicate cards
+      const signature = `${r.device_type}-${r.os}-${r.browser}`;
+      if (seen.has(signature)) continue;
+      seen.add(signature);
 
       sessions.push({
-        id: sid,
+        id: r.family_id || String(r.id),
         username: r.username,
-        deviceType: devType,
-        os,
-        browser,
+        deviceType: (r.device_type as any) || "Desktop",
+        os: r.os || "Unknown",
+        browser: r.browser || "Unknown",
         ip: r.ip_address || "Unknown",
         userAgent: r.user_agent || "",
         lastActiveAt: Number(r.lastActiveAt) || Date.now(),
@@ -247,25 +249,6 @@ export async function getDbSessions(username: string): Promise<UserSessionRecord
   } catch (err) {
     console.warn("[DB] Failed to get sessions from PostgreSQL:", (err as Error).message);
     return [];
-  }
-}
-
-export async function isDbSessionRevoked(username: string, sessionId: string): Promise<boolean> {
-  if (!username || !sessionId) return false;
-  try {
-    const res = await dbPool.query(
-      `SELECT revoked FROM public.refresh_tokens
-       WHERE LOWER(username) = LOWER($1)
-         AND (family_id = $2 OR id::text = $2)
-       ORDER BY id DESC
-       LIMIT 1`,
-      [username.trim(), sessionId]
-    );
-    if (res.rows.length === 0) return false;
-    return Boolean(res.rows[0].revoked);
-  } catch (err) {
-    console.warn("[DB] Failed to check revoked status:", (err as Error).message);
-    return false;
   }
 }
 

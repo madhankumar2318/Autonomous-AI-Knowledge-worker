@@ -10,6 +10,8 @@ import {
   recordSuccessfulLogin,
   recordUserSession,
   parseUserAgent,
+  getUserRecord,
+  setUserRecord,
 } from "@/app/lib/store";
 import { getDbUser, recordDbSession } from "@/app/lib/db";
 import { checkRateLimit, getClientIp } from "@/app/lib/rate-limiter";
@@ -61,13 +63,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Look up user from database or memory registry
+    // Look up user from database or memory registry (with disk sync)
     const dbUser = await getDbUser(username);
     if (dbUser) {
-      usersStore.set(dbUser.username, dbUser);
-      usersStore.set(dbUser.username.toLowerCase(), dbUser);
+      setUserRecord(dbUser);
     }
-    const user = dbUser || usersStore.get(username) || usersStore.get(username.toLowerCase());
+    const user = dbUser || getUserRecord(username);
     const isAdmin = username.toLowerCase() === "admin";
 
     let isPasswordValid = false;
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
     // Upgrade plaintext legacy password to salted scrypt hash
     if (user && !user.passwordHash.startsWith("scrypt:")) {
       user.passwordHash = hashPassword(password);
-      usersStore.set(username, user);
+      setUserRecord(user);
     }
 
     const effectiveUser: UserRecord = user || {
@@ -126,15 +127,16 @@ export async function POST(req: Request) {
     };
 
     if (!user) {
-      usersStore.set(username, effectiveUser);
+      setUserRecord(effectiveUser);
     }
 
-    const token = generateToken(username);
+    // Distinct device session registration
     const sessionId = recordUserSession(effectiveUser.username, req);
+    const token = generateToken(effectiveUser.username, sessionId);
 
-    // Record session in PostgreSQL for cross-device visibility
+    // Record session in PostgreSQL for cross-device visibility if configured
     const ua = req.headers.get("user-agent") || "";
-    const parsedUa = parseUserAgent(ua);
+    const parsedUa = parseUserAgent(ua, req.headers.get("x-device-type") || undefined);
     await recordDbSession(effectiveUser.username, {
       id: sessionId,
       deviceType: parsedUa.deviceType,
@@ -170,6 +172,13 @@ export async function POST(req: Request) {
     response.cookies.set("ak_token", token, {
       path: "/",
       httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      maxAge: 86400 * 7,
+    });
+    response.cookies.set("ak_sid", sessionId, {
+      path: "/",
+      httpOnly: false,
       secure: isProd,
       sameSite: "lax",
       maxAge: 86400 * 7,

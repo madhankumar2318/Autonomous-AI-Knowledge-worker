@@ -1,0 +1,24 @@
+[
+  {
+    "id": "sess_mwbx2kp6_8a5d86780339",
+    "username": "admin",
+    "deviceType": "Mobile",
+    "os": "Desktop",
+    "browser": "Browser",
+    "ip": "127.0.0.1",
+    "userAgent": "node",
+    "lastActiveAt": 1794389320699,
+    "createdAt": 1794389320267
+  },
+  {
+    "id": "sess_mwbx4miv_dd42f6e0b601",
+    "username": "admin",
+    "deviceType": "Mobile",
+    "os": "Desktop",
+    "browser": "Browser",
+    "ip": "127.0.0.1",
+    "userAgent": "node",
+    "lastActiveAt": 1794389416235,
+    "createdAt": 1794389415944
+  }
+]
