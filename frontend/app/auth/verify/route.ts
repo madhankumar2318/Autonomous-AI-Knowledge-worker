@@ -17,21 +17,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ valid: false }, { status: 401 });
   }
 
-  // Check if session was revoked remotely
-  const { decodeTokenPayload, revokedSessionsStore } = await import("@/app/lib/store");
-  const { isDbSessionRevoked } = await import("@/app/lib/db");
-  const payload = decodeTokenPayload(token);
-  const sid = payload?.sid || req.headers.get("x-session-id");
-  if (sid) {
-    if (revokedSessionsStore.has(sid)) {
-      return NextResponse.json({ valid: false, message: "Session revoked" }, { status: 401 });
-    }
-    const isRevoked = await isDbSessionRevoked(username, sid);
-    if (isRevoked) {
-      revokedSessionsStore.add(sid);
-      return NextResponse.json({ valid: false, message: "Session revoked" }, { status: 401 });
-    }
-  }
+
 
   // Fetch persistent user profile from database if available
   const dbUser = await getDbUser(username);

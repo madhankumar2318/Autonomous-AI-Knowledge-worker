@@ -2,7 +2,7 @@
   {
     "id": "admin-1",
     "username": "admin",
-    "passwordHash": "scrypt:15389328ea25e5b81a38f3ae52fadb05:631a8b9d78a7b1f0c6cff271f6ff42152018d04f5d45e44200f92811610c12701f96d960b34795b239017166a7ee774910f2e5a4ef8aae2ec84b2322e9bfaa73",
+    "passwordHash": "scrypt:913cdfdf9ea3aca64163c6e7cd66c035:647976015d1da66010ee3e9f33da5e0b73f3d334be5078d3d935c6f8131f8b6cae45ab45e89817611a0c8dd92bd35de1c27953d6cb03357923a2e137841e62cf",
     "name": "Madhan",
     "email": "admin@knowledge-worker.local",
     "mobile": "+1 555-0199",

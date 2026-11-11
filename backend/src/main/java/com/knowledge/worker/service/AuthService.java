@@ -321,15 +321,7 @@ public class AuthService {
             return VerifyResponse.builder().valid(false).build();
         }
 
-        String sid = request != null ? request.getHeader("X-Session-Id") : null;
-        if (sid != null && !sid.isBlank()) {
-            java.util.List<RefreshToken> userTokens = refreshTokenRepository.findByUsername(username);
-            for (RefreshToken t : userTokens) {
-                if ((sid.equals(t.getFamilyId()) || sid.equals(String.valueOf(t.getId()))) && t.isRevoked()) {
-                    return VerifyResponse.builder().valid(false).build();
-                }
-            }
-        }
+
 
         Optional<User> userOpt = userRepository.findByUsername(username);
         if (userOpt.isEmpty()) {

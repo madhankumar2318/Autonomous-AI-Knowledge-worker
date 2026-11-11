@@ -206,55 +206,7 @@ export default function Home_Page() {
     };
   }, [loggedInUser]);
 
-  // Active session heartbeat: periodically verifies that this device session is still active
-  // If another device logged this session out, it immediately terminates local state and returns to login
-  useEffect(() => {
-    if (!loggedInUser || !isLoggedIn || typeof window === "undefined") return;
 
-    const checkSessionValidity = async () => {
-      const token = localStorage.getItem("ak_token");
-      if (!token) return;
-      const sid = localStorage.getItem("ak_session_id");
-      const headers: Record<string, string> = {
-        Authorization: `Bearer ${token}`,
-      };
-      if (sid) headers["X-Session-Id"] = sid;
-
-      try {
-        const res = await fetch(`${API_BASE_URL}/auth/verify`, {
-          headers,
-          credentials: "include",
-        });
-        if (res.status === 401 || res.status === 403) {
-          localStorage.removeItem("ak_session");
-          localStorage.removeItem("ak_token");
-          localStorage.removeItem("ak_session_id");
-          setIsLoggedIn(false);
-          setLoggedInUser("");
-          sessionStorage.removeItem("ak_session_navigated");
-        }
-      } catch {}
-    };
-
-    const interval = setInterval(checkSessionValidity, 6000);
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        checkSessionValidity();
-      }
-    };
-    const onFocus = () => {
-      checkSessionValidity();
-    };
-
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("focus", onFocus);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [loggedInUser, isLoggedIn]);
 
   // Live activity notifications state
   const [notifications, setNotifications] = useState<NotificationItem[]>([
