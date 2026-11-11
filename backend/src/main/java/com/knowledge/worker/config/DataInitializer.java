@@ -36,9 +36,13 @@ public class DataInitializer implements CommandLineRunner {
                 User admin = User.builder()
                         .username("admin")
                         .password(passwordEncoder.encode(adminPass))
-                        .name("Administrator")
+                        .name("Madhan")
                         .email("admin@knowledge-worker.local")
                         .mobile("+1 555-0199")
+                        .defaultStartingScreen("news")
+                        .timeFormat("12h")
+                        .dateFormat("DD/MM/YYYY")
+                        .soundEffects(true)
                         .failedLoginAttempts(0)
                         .accountLocked(false)
                         .lockoutExpiry(null)
@@ -55,6 +59,11 @@ public class DataInitializer implements CommandLineRunner {
                 log.info("Default admin user created successfully.");
             } else {
                 User admin = adminOpt.get();
+                // If admin still has default placeholder name "Administrator", upgrade to "Madhan"
+                if (admin.getName() == null || admin.getName().isBlank() || "Administrator".equalsIgnoreCase(admin.getName())) {
+                    admin.setName("Madhan");
+                    userRepository.save(admin);
+                }
                 // Security: Preserve user's custom password! Do NOT overwrite existing password on restart.
                 if (admin.isAccountLocked()) {
                     admin.setAccountLocked(false);

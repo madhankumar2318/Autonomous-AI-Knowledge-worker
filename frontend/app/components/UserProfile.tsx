@@ -73,6 +73,28 @@ export default function UserProfile({
   const [cropperRawImage, setCropperRawImage] = useState<string | null>(null);
   const [showPhotoViewer, setShowPhotoViewer] = useState(false);
 
+  const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = {
+      "X-Requested-With": "XMLHttpRequest",
+      "X-AKW-CSRF": "1",
+    };
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("ak_token");
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      const sid = localStorage.getItem("ak_session_id");
+      if (sid) {
+        headers["X-Session-Id"] = sid;
+      }
+      const ua = navigator.userAgent;
+      const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
+      const isTab = /iPad|tablet/i.test(ua);
+      headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
+    }
+    return headers;
+  };
+
   const handleOpenAdjuster = () => {
     if (typeof window !== "undefined") {
       const raw = localStorage.getItem(`ak_avatar_raw_${username}`);
@@ -124,6 +146,7 @@ export default function UserProfile({
     setProfile((prev) => (prev ? { ...prev, avatar: dataUrl } : prev));
     if (typeof window !== "undefined") {
       localStorage.setItem(`ak_avatar_${username}`, dataUrl);
+      localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, dataUrl);
       window.dispatchEvent(
         new CustomEvent("ak-avatar-updated", { detail: { avatar: dataUrl } })
       );
@@ -138,12 +161,17 @@ export default function UserProfile({
       credentials: "include",
       body: JSON.stringify({ avatar: dataUrl }),
     })
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) throw new Error();
-        showToast("Profile photo updated! 📸", "ok");
+        const json = await res.json().catch(() => ({}));
+        if (json?.avatar) {
+          localStorage.setItem(`ak_avatar_${username}`, json.avatar);
+          localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, json.avatar);
+        }
+        showToast("Profile photo updated across all devices! 📸", "ok");
       })
       .catch(() => {
-        showToast("Photo saved locally. Server sync pending.", "ok");
+        showToast("Photo saved locally. Syncing with server...", "ok");
       })
       .finally(() => {
         setUploadingAvatar(false);
@@ -566,12 +594,19 @@ export default function UserProfile({
       });
       if (res.ok) {
         showToast("Logged out of all other active sessions! 🔒", "ok");
-        await fetchActiveDevices();
+        const json = await res.json().catch(() => ({}));
+        if (Array.isArray(json?.sessions)) {
+          setActiveSessions(json.sessions);
+        } else {
+          await fetchActiveDevices();
+        }
       } else {
         showToast("Logged out of all other active sessions! 🔒", "ok");
+        await fetchActiveDevices();
       }
     } catch {
       showToast("Logged out of all other active sessions! 🔒", "ok");
+      await fetchActiveDevices();
     } finally {
       setLoggingOutOthers(false);
     }
@@ -591,7 +626,14 @@ export default function UserProfile({
       });
       if (res.ok) {
         showToast("Device disconnected successfully 🔒", "ok");
-        await fetchActiveDevices();
+        const json = await res.json().catch(() => ({}));
+        if (Array.isArray(json?.sessions)) {
+          setActiveSessions(json.sessions);
+        } else {
+          await fetchActiveDevices();
+        }
+      } else {
+        showToast("Failed to disconnect device", "err");
       }
     } catch {
       showToast("Failed to disconnect device", "err");
@@ -656,28 +698,6 @@ export default function UserProfile({
   useEffect(() => {
     fetchProfile();
   }, [username]);
-
-    const getAuthHeaders = (): Record<string, string> => {
-    const headers: Record<string, string> = {
-      "X-Requested-With": "XMLHttpRequest",
-      "X-AKW-CSRF": "1",
-    };
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("ak_token");
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      const sid = localStorage.getItem("ak_session_id");
-      if (sid) {
-        headers["X-Session-Id"] = sid;
-      }
-      const ua = navigator.userAgent;
-      const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
-      const isTab = /iPad|tablet/i.test(ua);
-      headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
-    }
-    return headers;
-  };
 
   async function fetchProfile() {
     setLoading(true);

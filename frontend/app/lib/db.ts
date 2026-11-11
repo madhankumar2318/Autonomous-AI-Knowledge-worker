@@ -96,15 +96,24 @@ export async function updateDbUser(
   try {
     const res = await dbPool.query(
       `UPDATE public.users SET
-        name = COALESCE($1, name),
-        email = COALESCE($2, email),
-        mobile = COALESCE($3, mobile),
-        avatar = COALESCE($4, avatar),
-        default_starting_screen = COALESCE($5, default_starting_screen),
-        time_format = COALESCE($6, time_format),
-        date_format = COALESCE($7, date_format),
+        name = CASE
+          WHEN $1 IS NULL THEN name
+          WHEN $1 = 'Administrator' AND name IS NOT NULL AND name != '' AND name != 'Administrator' THEN name
+          WHEN LENGTH(TRIM($1)) > 0 THEN $1
+          ELSE name
+        END,
+        email = COALESCE(NULLIF(TRIM($2), ''), email),
+        mobile = COALESCE(NULLIF(TRIM($3), ''), mobile),
+        avatar = CASE
+          WHEN $4 = '__REMOVE__' THEN NULL
+          WHEN $4 IS NOT NULL AND LENGTH(TRIM($4)) > 0 THEN $4
+          ELSE avatar
+        END,
+        default_starting_screen = COALESCE(NULLIF(TRIM($5), ''), default_starting_screen),
+        time_format = COALESCE(NULLIF(TRIM($6), ''), time_format),
+        date_format = COALESCE(NULLIF(TRIM($7), ''), date_format),
         sound_effects = COALESCE($8, sound_effects),
-        password = COALESCE($9, password)
+        password = COALESCE(NULLIF(TRIM($9), ''), password)
        WHERE LOWER(username) = LOWER($10)
        RETURNING id, username, password as "passwordHash", name, email, mobile,
                  COALESCE(role, 'ADMIN') as role, avatar,
@@ -161,15 +170,31 @@ export async function recordDbSession(
 ): Promise<void> {
   if (!username || !session.id) return;
   try {
-    // 1. Check if session already exists by family_id or same device signature
+    // 1. Clean up stale/ghost records for this user (unknown IP older than 1 hr, or old revoked tokens)
+    await dbPool.query(
+      `DELETE FROM public.refresh_tokens
+       WHERE LOWER(username) = LOWER($1)
+         AND (
+           (ip_address = 'unknown' AND last_active_at < NOW() - interval '1 hour')
+           OR (revoked = true AND last_active_at < NOW() - interval '1 day')
+           OR (last_active_at < NOW() - interval '30 days')
+         )`,
+      [username.trim()]
+    ).catch(() => {});
+
+    // 2. Check if an active session already exists for this exact device or family_id
     const updateRes = await dbPool.query(
       `UPDATE public.refresh_tokens
-       SET last_active_at = NOW(),
+       SET family_id = $4,
+           device_type = $5,
+           os = $6,
+           browser = $7,
+           last_active_at = NOW(),
            ip_address = $1,
            user_agent = $2,
            revoked = false
        WHERE LOWER(username) = LOWER($3)
-         AND (family_id = $4 OR (device_type = $5 AND os = $6 AND browser = $7 AND (revoked = false OR revoked IS NULL)))`,
+         AND (family_id = $4 OR (device_type = $5 AND os = $6 AND (revoked = false OR revoked IS NULL)))`,
       [
         session.ip,
         session.userAgent,
@@ -218,8 +243,9 @@ export async function getDbSessions(username: string): Promise<UserSessionRecord
          AND (revoked = false OR revoked IS NULL)
          AND (expires_at > NOW() OR expires_at IS NULL)
          AND device_type IS NOT NULL
+         AND (ip_address != 'unknown' OR last_active_at > NOW() - interval '5 minutes')
        ORDER BY last_active_at DESC NULLS LAST, created_at DESC
-       LIMIT 20`,
+       LIMIT 10`,
       [username.trim()]
     );
 
@@ -227,8 +253,8 @@ export async function getDbSessions(username: string): Promise<UserSessionRecord
     const seen = new Set<string>();
 
     for (const r of res.rows) {
-      // Deduplicate by deviceType + OS + browser to prevent duplicate cards
-      const signature = `${r.device_type}-${r.os}-${r.browser}`;
+      // Deduplicate strictly by device_type + os so each real physical device gets at most 1 card
+      const signature = `${r.device_type}-${r.os}`;
       if (seen.has(signature)) continue;
       seen.add(signature);
 
@@ -238,7 +264,7 @@ export async function getDbSessions(username: string): Promise<UserSessionRecord
         deviceType: (r.device_type as any) || "Desktop",
         os: r.os || "Unknown",
         browser: r.browser || "Unknown",
-        ip: r.ip_address || "Unknown",
+        ip: r.ip_address || "127.0.0.1",
         userAgent: r.user_agent || "",
         lastActiveAt: Number(r.lastActiveAt) || Date.now(),
         createdAt: Number(r.createdAt) || Date.now(),
@@ -259,7 +285,7 @@ export async function removeDbSession(username: string, sessionId: string): Prom
       `UPDATE public.refresh_tokens
        SET revoked = true
        WHERE LOWER(username) = LOWER($1)
-         AND (family_id = $2 OR id::text = $2)`,
+         AND (family_id = $2 OR id::text = $2 OR token = $2)`,
       [username.trim(), sessionId]
     );
   } catch (err) {
@@ -281,4 +307,21 @@ export async function removeOtherDbSessions(username: string, currentSessionId: 
   } catch (err) {
     console.warn("[DB] Failed to remove other sessions from PostgreSQL:", (err as Error).message);
   }
+}
+
+export async function isDbSessionRevoked(username: string, sessionId: string): Promise<boolean> {
+  if (!username || !sessionId) return false;
+  try {
+    const res = await dbPool.query(
+      `SELECT revoked FROM public.refresh_tokens
+       WHERE LOWER(username) = LOWER($1)
+         AND (family_id = $2 OR id::text = $2)
+       LIMIT 1`,
+      [username.trim(), sessionId]
+    );
+    if (res.rows.length > 0 && res.rows[0].revoked === true) {
+      return true;
+    }
+  } catch {}
+  return false;
 }

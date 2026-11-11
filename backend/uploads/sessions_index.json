@@ -20,5 +20,38 @@
     "userAgent": "node",
     "lastActiveAt": 1794389416235,
     "createdAt": 1794389415944
+  },
+  {
+    "id": "sess_mwby0tp3_1936e6e70873",
+    "username": "admin",
+    "deviceType": "Desktop",
+    "os": "Desktop",
+    "browser": "Browser",
+    "ip": "127.0.0.1",
+    "userAgent": "node",
+    "lastActiveAt": 1794390918232,
+    "createdAt": 1794390918232
+  },
+  {
+    "id": "sess_mwbyhwr4_b580547389d3",
+    "username": "admin",
+    "deviceType": "Desktop",
+    "os": "Windows",
+    "browser": "Edge",
+    "ip": "127.0.0.1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    "lastActiveAt": 1794391978906,
+    "createdAt": 1794391715345
+  },
+  {
+    "id": "sess_laptop_win_123",
+    "username": "admin",
+    "deviceType": "Desktop",
+    "os": "Windows",
+    "browser": "Edge",
+    "ip": "127.0.0.1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    "lastActiveAt": 1794392869768,
+    "createdAt": 1794392869541
   }
 ]

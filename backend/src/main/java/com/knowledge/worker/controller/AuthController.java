@@ -111,9 +111,9 @@ public class AuthController {
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<VerifyResponse> verify(Authentication authentication) {
+    public ResponseEntity<VerifyResponse> verify(Authentication authentication, HttpServletRequest request) {
         String username = authentication != null ? authentication.getName() : null;
-        return ResponseEntity.ok(authService.verify(username));
+        return ResponseEntity.ok(authService.verify(username, request));
     }
 
     @PostMapping("/refresh")

@@ -650,7 +650,7 @@ export function syncUsersFromDisk(): Map<string, UserRecord> {
       id: "admin-1",
       username: "admin",
       passwordHash: hashPassword(initialAdminPassword),
-      name: "Administrator",
+      name: "Madhan",
       email: "admin@knowledge-worker.local",
       mobile: "+1 555-0199",
       role: "ADMIN",
@@ -685,12 +685,28 @@ export function syncUsersFromDisk(): Map<string, UserRecord> {
                   try { avatar = fs.readFileSync(avFile, "utf-8"); } catch {}
                 }
               }
+
+              // Guard: never overwrite non-empty avatar with empty
+              const resolvedAvatar = (u.avatar && u.avatar.length > 0)
+                ? u.avatar
+                : (avatar && avatar.length > 0 ? avatar : (existing?.avatar || ""));
+
+              // Guard: never overwrite "Madhan" with "Administrator"
+              const resolvedName = (existing?.name && existing.name !== "Administrator" && (!u.name || u.name === "Administrator"))
+                ? existing.name
+                : (u.name && u.name !== "Administrator" ? u.name : (existing?.name || (u.username === "admin" ? "Madhan" : u.username)));
+
+              // Guard: preserve defaultStartingTab
+              const resolvedTab = (existing?.defaultStartingTab && existing.defaultStartingTab !== "news" && (!u.defaultStartingTab || u.defaultStartingTab === "news"))
+                ? existing.defaultStartingTab
+                : (u.defaultStartingTab || existing?.defaultStartingTab || "news");
+
               const merged: UserRecord = {
                 ...(existing || {}),
                 ...u,
-                avatar: avatar || u.avatar || existing?.avatar || "",
-                name: u.name || existing?.name || u.username,
-                defaultStartingTab: u.defaultStartingTab || existing?.defaultStartingTab || "news",
+                avatar: resolvedAvatar,
+                name: resolvedName,
+                defaultStartingTab: resolvedTab,
                 timeFormat: u.timeFormat || existing?.timeFormat || "12h",
                 dateFormat: u.dateFormat || existing?.dateFormat || "DD/MM/YYYY",
                 soundEffects: u.soundEffects !== undefined ? u.soundEffects : (existing?.soundEffects ?? true),
@@ -1200,18 +1216,28 @@ export function getUserSessions(username: string): UserSessionRecord[] {
   const list: UserSessionRecord[] = [];
   const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
   const now = Date.now();
+  const seenDevices = new Set<string>();
 
-  for (const s of Array.from(sessions.values())) {
+  const sorted = Array.from(sessions.values()).sort(
+    (a, b) => (b.lastActiveAt || 0) - (a.lastActiveAt || 0)
+  );
+
+  for (const s of sorted) {
     if (
       s.username.toLowerCase() === normUser &&
       !s.revoked &&
       !revokedSessionsStore.has(s.id) &&
-      now - s.lastActiveAt < thirtyDaysMs
+      now - s.lastActiveAt < thirtyDaysMs &&
+      s.ip !== "unknown"
     ) {
-      list.push(s);
+      const devKey = `${s.deviceType}-${s.os}`;
+      if (!seenDevices.has(devKey)) {
+        seenDevices.add(devKey);
+        list.push(s);
+      }
     }
   }
-  return list.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+  return list;
 }
 
 export function removeUserSession(username: string, sessionId: string): void {
@@ -1812,6 +1838,19 @@ export function verifyToken(token: string | null): string | null {
     }
   }
 
+  return null;
+}
+
+export function decodeTokenPayload(token: string | null): any | null {
+  if (!token) return null;
+  const raw = token.replace(/^Bearer\s+/i, "").trim();
+  const parts = raw.split(".");
+  if (parts.length === 3) {
+    try {
+      const payloadStr = Buffer.from(parts[1], "base64url").toString("utf-8");
+      return JSON.parse(payloadStr);
+    } catch {}
+  }
   return null;
 }
 
