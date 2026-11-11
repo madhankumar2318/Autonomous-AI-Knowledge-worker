@@ -46,23 +46,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check account lockout status (Brute-Force defense by username)
-    const lockStatus = isAccountLocked(username);
-    if (lockStatus.locked) {
-      return NextResponse.json(
-        {
-          message: `Account is temporarily locked due to multiple failed login attempts. Please try again in ${Math.ceil(lockStatus.remainingSeconds / 60)} minutes (${lockStatus.remainingSeconds}s).`,
-          error: "ACCOUNT_LOCKED",
-        },
-        {
-          status: 423, // Locked
-          headers: {
-            "Retry-After": String(lockStatus.remainingSeconds),
-          },
-        }
-      );
-    }
-
     // Look up user from database or memory registry (with disk sync)
     const dbUser = await getDbUser(username);
     if (dbUser) {
@@ -77,31 +60,16 @@ export async function POST(req: Request) {
     }
 
     if (!isPasswordValid) {
-      const failureRecord = recordFailedLogin(username, ip);
-      if (failureRecord.locked) {
-        return NextResponse.json(
-          {
-            message: `Account has been locked for 15 minutes due to 5 consecutive failed attempts.`,
-            error: "ACCOUNT_LOCKED",
-          },
-          {
-            status: 423,
-            headers: {
-              "Retry-After": String(failureRecord.remainingSeconds),
-            },
-          }
-        );
-      }
-      const attemptsLeft = 5 - failureRecord.attempts;
+      recordFailedLogin(username, ip);
       return NextResponse.json(
         {
-          message: `Invalid username or password. ${attemptsLeft} attempt${attemptsLeft === 1 ? "" : "s"} remaining before temporary account lockout.`,
+          message: "Invalid username or password.",
         },
         { status: 401 }
       );
     }
 
-    // Successful login: reset attempts and record audit event
+    // Successful login: record audit event
     recordSuccessfulLogin(username, ip);
 
     // Upgrade plaintext legacy password to salted scrypt hash

@@ -1265,29 +1265,8 @@ export function removeOtherUserSessions(username: string, currentSessionId: stri
   saveSessionsToDisk();
 }
 
-// ── Account Lockout & Brute-Force Backoff ─────────────────────────────────────
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes window
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes lock
-
-export function isAccountLocked(username: string): { locked: boolean; remainingSeconds: number } {
-  const normUser = username.trim().toLowerCase();
-  const attempt = accountAttemptsStore.get(normUser);
-  if (!attempt) return { locked: false, remainingSeconds: 0 };
-
-  const now = Date.now();
-  if (attempt.lockedUntil > now) {
-    const remainingSeconds = Math.ceil((attempt.lockedUntil - now) / 1000);
-    return { locked: true, remainingSeconds };
-  }
-
-  // Lock expired
-  if (attempt.lockedUntil > 0) {
-    attempt.failedCount = 0;
-    attempt.lockedUntil = 0;
-    accountAttemptsStore.set(normUser, attempt);
-  }
-
+// ── Account Lockout Removed (Standard Friendly Authentication) ────────────────
+export function isAccountLocked(_username: string): { locked: boolean; remainingSeconds: number } {
   return { locked: false, remainingSeconds: 0 };
 }
 
@@ -1296,54 +1275,16 @@ export function recordFailedLogin(
   ip: string
 ): { locked: boolean; remainingSeconds: number; attempts: number } {
   const normUser = username.trim().toLowerCase();
-  const now = Date.now();
-  let attempt = accountAttemptsStore.get(normUser);
-
-  if (!attempt) {
-    attempt = { failedCount: 0, lockedUntil: 0, lastFailed: 0 };
-  }
-
-  // Reset failure count if past the sliding window
-  if (now - attempt.lastFailed > LOCKOUT_WINDOW_MS && attempt.lockedUntil <= now) {
-    attempt.failedCount = 0;
-  }
-
-  attempt.failedCount += 1;
-  attempt.lastFailed = now;
-
-  let locked = false;
-  let remainingSeconds = 0;
-
-  if (attempt.failedCount >= MAX_FAILED_ATTEMPTS) {
-    attempt.lockedUntil = now + LOCKOUT_DURATION_MS;
-    locked = true;
-    remainingSeconds = Math.ceil(LOCKOUT_DURATION_MS / 1000);
-
-    logAuditEvent({
-      type: "ACCOUNT_LOCKED",
-      severity: "CRITICAL",
-      username: normUser,
-      ip,
-      details: {
-        failedAttempts: attempt.failedCount,
-        lockedForSeconds: remainingSeconds,
-      },
-    });
-  } else {
-    logAuditEvent({
-      type: "AUTH_LOGIN_FAILED",
-      severity: "WARN",
-      username: normUser,
-      ip,
-      details: {
-        failedAttempts: attempt.failedCount,
-        remainingAttemptsBeforeLock: MAX_FAILED_ATTEMPTS - attempt.failedCount,
-      },
-    });
-  }
-
-  accountAttemptsStore.set(normUser, attempt);
-  return { locked, remainingSeconds, attempts: attempt.failedCount };
+  logAuditEvent({
+    type: "AUTH_LOGIN_FAILED",
+    severity: "WARN",
+    username: normUser,
+    ip,
+    details: {
+      message: "Failed password attempt",
+    },
+  });
+  return { locked: false, remainingSeconds: 0, attempts: 1 };
 }
 
 export function recordSuccessfulLogin(username: string, ip: string): void {

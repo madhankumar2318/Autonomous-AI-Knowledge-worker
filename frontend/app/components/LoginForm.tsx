@@ -588,6 +588,17 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setUsername(saved);
         setRememberMe(true);
       }
+      const savedAccent = localStorage.getItem("ak_accent") || "cyan";
+      const savedCustomHex = localStorage.getItem("ak_accent_custom_hex") || "#22d3ee";
+      const hexMap: Record<string, string> = {
+        cyan: "#22d3ee",
+        purple: "#a855f7",
+        emerald: "#10b981",
+        amber: "#f59e0b",
+        rose: "#f43f5e",
+      };
+      const activeColor = savedAccent === "custom" ? savedCustomHex : (hexMap[savedAccent] || "#22d3ee");
+      document.documentElement.style.setProperty("--accent-primary", activeColor);
     } catch (_e) {
       /* ignore */
     }
@@ -1099,7 +1110,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 height: "52px",
                 borderRadius: "14px",
                 border: "none",
-                background: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)",
+                background: "linear-gradient(135deg, var(--accent-primary, #10b981) 0%, color-mix(in srgb, var(--accent-primary, #10b981) 65%, black) 100%)",
                 color: "#ffffff",
                 fontSize: "15px",
                 fontWeight: 800,
@@ -1108,7 +1119,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 justifyContent: "center",
                 gap: "8px",
                 cursor: "pointer",
-                boxShadow: "0 8px 24px rgba(139, 92, 246, 0.25)",
+                boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-primary, #10b981) 35%, transparent)",
                 marginTop: "12px",
               }}
             >
@@ -1124,7 +1135,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 height: "52px",
                 borderRadius: "14px",
                 border: "none",
-                background: "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)",
+                background: "linear-gradient(135deg, var(--accent-primary, #10b981) 0%, color-mix(in srgb, var(--accent-primary, #10b981) 65%, black) 100%)",
                 color: "#ffffff",
                 fontSize: "15px",
                 fontWeight: 800,
@@ -1133,7 +1144,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 justifyContent: "center",
                 gap: "8px",
                 cursor: loading ? "wait" : "pointer",
-                boxShadow: "0 8px 24px rgba(139, 92, 246, 0.25)",
+                boxShadow: "0 8px 24px color-mix(in srgb, var(--accent-primary, #10b981) 35%, transparent)",
                 marginTop: "12px",
               }}
             >
@@ -1189,17 +1200,17 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       height: "18px",
                       borderRadius: "6px",
                       border: rememberMe
-                        ? "1.5px solid #22d3ee"
+                        ? "1.5px solid var(--accent-primary, #10b981)"
                         : "1.5px solid rgba(255,255,255,0.2)",
                       background: rememberMe
-                        ? "rgba(34,211,238,0.15)"
+                        ? "color-mix(in srgb, var(--accent-primary, #10b981) 18%, transparent)"
                         : "rgba(255,255,255,0.02)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                       transition: "all 0.2s ease",
                       boxShadow: rememberMe
-                        ? "0 0 10px rgba(34,211,238,0.25)"
+                        ? "0 0 10px color-mix(in srgb, var(--accent-primary, #10b981) 35%, transparent)"
                         : "none",
                     }}
                   >
@@ -1213,7 +1224,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                       >
                         <path
                           d="M1 4.5L3.5 7L9 1"
-                          stroke="#22d3ee"
+                          stroke="var(--accent-primary, #10b981)"
                           strokeWidth="2"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -1228,11 +1239,11 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                   className="link-btn"
                   onClick={() => setIsRegistering(true)}
                   style={{
-                    background: "rgba(34,211,238,0.06)",
-                    border: "1px solid rgba(34,211,238,0.15)",
+                    background: "color-mix(in srgb, var(--accent-primary, #10b981) 10%, transparent)",
+                    border: "1px solid color-mix(in srgb, var(--accent-primary, #10b981) 22%, transparent)",
                     borderRadius: "20px",
                     padding: "8px 18px",
-                    color: "#22d3ee",
+                    color: "var(--accent-primary, #10b981)",
                     fontSize: "12px",
                     fontWeight: 700,
                     cursor: "pointer",
