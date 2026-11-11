@@ -318,6 +318,15 @@ export default function UserProfile({
       "--accent-primary",
       accentObj.color,
     );
+    window.dispatchEvent(
+      new CustomEvent("ak-accent-changed", { detail: { accent: accentId, color: accentObj.color } })
+    );
+    fetch(`${API_BASE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      credentials: "include",
+      body: JSON.stringify({ accentColor: accentId }),
+    }).catch(() => {});
     showToast(`Accent updated to ${accentObj.label}! 🎨`, "ok");
   };
 
@@ -327,6 +336,15 @@ export default function UserProfile({
     localStorage.setItem("ak_accent", "custom");
     localStorage.setItem("ak_accent_custom_hex", hex);
     document.documentElement.style.setProperty("--accent-primary", hex);
+    window.dispatchEvent(
+      new CustomEvent("ak-accent-changed", { detail: { accent: "custom", color: hex } })
+    );
+    fetch(`${API_BASE_URL}/auth/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      credentials: "include",
+      body: JSON.stringify({ accentColor: "custom", customHex: hex }),
+    }).catch(() => {});
     showToast(`Custom accent set to ${hex.toUpperCase()}! 🎨`, "ok");
   };
 
@@ -995,7 +1013,7 @@ export default function UserProfile({
                     inset: "-4px",
                     borderRadius: "28px",
                     background:
-                      "linear-gradient(135deg, var(--accent-primary, #22d3ee) 0%, #3b82f6 100%)",
+                      "linear-gradient(135deg, var(--accent-primary, #22d3ee) 0%, color-mix(in srgb, var(--accent-primary, #22d3ee) 65%, black) 100%)",
                     opacity: 0.5,
                     filter: "blur(10px)",
                   }}
@@ -1657,14 +1675,14 @@ export default function UserProfile({
                           width: "32px",
                           height: "32px",
                           borderRadius: "10px",
-                          background: "rgba(168,85,247,0.1)",
-                          border: "1px solid rgba(168,85,247,0.25)",
+                          background: "color-mix(in srgb, var(--accent-primary, #22d3ee) 12%, transparent)",
+                          border: "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent)",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
                         }}
                       >
-                        <Sparkles size={16} style={{ color: "#c084fc" }} />
+                        <Sparkles size={16} style={{ color: "var(--accent-primary, #22d3ee)" }} />
                       </div>
                       <div>
                         <h3
@@ -2036,7 +2054,7 @@ export default function UserProfile({
                             width: "36px",
                             height: "36px",
                             borderRadius: "10px",
-                            background: soundEffects ? "rgba(34, 211, 238, 0.12)" : "rgba(255, 255, 255, 0.05)",
+                            background: soundEffects ? "color-mix(in srgb, var(--accent-primary, #22d3ee) 12%, transparent)" : "rgba(255, 255, 255, 0.05)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -2597,14 +2615,14 @@ export default function UserProfile({
                             width: "32px",
                             height: "32px",
                             borderRadius: "10px",
-                            background: "rgba(34,211,238,0.12)",
-                            border: "1px solid rgba(34,211,238,0.25)",
+                            background: "color-mix(in srgb, var(--accent-primary, #22d3ee) 12%, transparent)",
+                            border: "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
                           }}
                         >
-                          <Lock size={14} style={{ color: "#22d3ee" }} />
+                          <Lock size={14} style={{ color: "var(--accent-primary, #22d3ee)" }} />
                         </div>
                         <span
                           style={{
@@ -2893,13 +2911,13 @@ export default function UserProfile({
                               padding: "10px",
                               borderRadius: "10px",
                               background:
-                                "linear-gradient(135deg, #0891b2, #22d3ee)",
+                                "linear-gradient(135deg, color-mix(in srgb, var(--accent-primary, #22d3ee) 70%, black), var(--accent-primary, #22d3ee))",
                               border: "none",
                               color: "white",
                               fontSize: "15px",
                               fontWeight: 700,
                               cursor: pwSaving ? "wait" : "pointer",
-                              boxShadow: "0 4px 12px rgba(34,211,238,0.35)",
+                              boxShadow: "0 4px 12px color-mix(in srgb, var(--accent-primary, #22d3ee) 35%, transparent)",
                             }}
                           >
                             {pwSaving ? "Changing…" : "🔒 Change Password"}

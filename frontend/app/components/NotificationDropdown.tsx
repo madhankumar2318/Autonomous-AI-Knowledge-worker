@@ -88,7 +88,7 @@ export default function NotificationDropdown({
         width: "360px",
         maxWidth: "90vw",
         background: "rgba(10, 10, 26, 0.94)",
-        border: "1px solid rgba(34, 211, 238, 0.22)",
+        border: "1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent)",
         borderRadius: "14px",
         boxShadow:
           "0 12px 40px -10px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.05)",
@@ -164,7 +164,7 @@ export default function NotificationDropdown({
               background: "none",
               border: "none",
               fontSize: "11px",
-              color: unreadCount === 0 ? "#52525b" : "#22d3ee",
+              color: unreadCount === 0 ? "#52525b" : "var(--accent-primary, #22d3ee)",
               cursor: unreadCount === 0 ? "default" : "pointer",
               display: "flex",
               alignItems: "center",
@@ -221,7 +221,7 @@ export default function NotificationDropdown({
                 borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
                 background: notif.read
                   ? "transparent"
-                  : "rgba(34, 211, 238, 0.03)",
+                  : "color-mix(in srgb, var(--accent-primary, #22d3ee) 6%, transparent)",
                 cursor: "pointer",
                 transition: "background 0.15s ease",
                 position: "relative",
@@ -229,12 +229,12 @@ export default function NotificationDropdown({
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = notif.read
                   ? "rgba(255, 255, 255, 0.02)"
-                  : "rgba(34, 211, 238, 0.05)";
+                  : "color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = notif.read
                   ? "transparent"
-                  : "rgba(34, 211, 238, 0.03)";
+                  : "color-mix(in srgb, var(--accent-primary, #22d3ee) 6%, transparent)";
               }}
             >
               {/* Status ring */}
@@ -247,7 +247,7 @@ export default function NotificationDropdown({
                     width: "6px",
                     height: "6px",
                     borderRadius: "50%",
-                    background: "#22d3ee",
+                    background: "var(--accent-primary, #22d3ee)",
                   }}
                 />
               )}
@@ -341,7 +341,7 @@ export default function NotificationDropdown({
             max-width: calc(100vw - 24px) !important;
             z-index: 99999 !important;
             margin: 0 auto !important;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(34, 211, 238, 0.15) !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px color-mix(in srgb, var(--accent-primary, #22d3ee) 15%, transparent) !important;
           }
           .notif-dropdown-body {
             max-height: 380px !important;

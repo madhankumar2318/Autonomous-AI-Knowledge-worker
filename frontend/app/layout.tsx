@@ -27,7 +27,31 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var t = localStorage.getItem('ak_theme') || 'dark';
+                  document.documentElement.setAttribute('data-theme', t);
+                  var a = localStorage.getItem('ak_accent') || 'cyan';
+                  var hexMap = {
+                    cyan: '#22d3ee',
+                    purple: '#a855f7',
+                    emerald: '#10b981',
+                    amber: '#f59e0b',
+                    rose: '#f43f5e'
+                  };
+                  var color = a === 'custom' ? (localStorage.getItem('ak_accent_custom_hex') || '#22d3ee') : (hexMap[a] || '#22d3ee');
+                  document.documentElement.style.setProperty('--accent-primary', color);
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

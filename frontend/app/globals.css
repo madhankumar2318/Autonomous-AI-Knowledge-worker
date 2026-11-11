@@ -13,8 +13,8 @@
   --bg-card: rgba(255, 255, 255, 0.04);
 
   /* Accent Colors */
-  --accent-primary: #22d3ee; /* Cyan 400 */
-  --accent-primary-hover: #67e8f9;
+  --accent-primary: #22d3ee; /* Dynamic user accent */
+  --accent-primary-hover: color-mix(in srgb, var(--accent-primary) 85%, white);
   --accent-secondary: #3b82f6; /* Blue 500 */
   --accent-success: #10b981;
   --accent-warning: #f59e0b;
@@ -32,7 +32,7 @@
   --border-dark: rgba(255, 255, 255, 0.2);
 
   /* Shadows */
-  --shadow-glow: 0 0 15px rgba(34, 211, 238, 0.3);
+  --shadow-glow: 0 0 15px color-mix(in srgb, var(--accent-primary) 30%, transparent);
   --shadow-base: 0 4px 30px rgba(0, 0, 0, 0.5);
 
   /* Spacing */

@@ -38,12 +38,28 @@ const SOURCE_COLORS: Record<string, string> = {
   TechCrunch: "#0a8a07",
   "The Verge": "#e40000",
   Wired: "#000000",
-  default: "#22d3ee",
+  default: "var(--accent-primary, #10b981)",
 };
 
 function getSourceColor(source?: string) {
   if (!source) return SOURCE_COLORS.default;
   return SOURCE_COLORS[source] || SOURCE_COLORS.default;
+}
+
+function getSourceBadgeStyle(source?: string) {
+  const color = getSourceColor(source);
+  if (color.startsWith("var")) {
+    return {
+      background: `color-mix(in srgb, ${color} 16%, transparent)`,
+      borderColor: `color-mix(in srgb, ${color} 38%, transparent)`,
+      color,
+    };
+  }
+  return {
+    background: `${color}18`,
+    borderColor: `${color}40`,
+    color,
+  };
 }
 
 function timeAgo(iso?: string): string {
@@ -481,11 +497,7 @@ export default function NewsSection({
                     {featuredArticle.source && (
                       <span
                         className="news-source-badge"
-                        style={{
-                          background: `${getSourceColor(featuredArticle.source)}22`,
-                          borderColor: `${getSourceColor(featuredArticle.source)}55`,
-                          color: getSourceColor(featuredArticle.source),
-                        }}
+                        style={getSourceBadgeStyle(featuredArticle.source)}
                       >
                         {featuredArticle.source}
                       </span>
@@ -599,11 +611,7 @@ export default function NewsSection({
                     <div className="news-card-meta">
                       <span
                         className="news-source-badge"
-                        style={{
-                          background: `${getSourceColor(article.source)}18`,
-                          borderColor: `${getSourceColor(article.source)}40`,
-                          color: getSourceColor(article.source),
-                        }}
+                        style={getSourceBadgeStyle(article.source)}
                       >
                         {article.source || "News"}
                       </span>
@@ -642,7 +650,7 @@ export default function NewsSection({
       {articles.length === 0 && !loading && (
         <div className="news-empty">
           <div className="news-empty-icon">
-            <SearchX className="w-6 h-6 text-cyan-400" />
+            <SearchX className="w-6 h-6" style={{ color: "var(--accent-primary, #22d3ee)" }} />
           </div>
           <h3 className="news-empty-title">No articles found</h3>
           <p className="news-empty-sub">
@@ -744,7 +752,7 @@ export default function NewsSection({
         }
         .news-search-input:focus {
           background: var(--bg-hover);
-          border-color: rgba(34,211,238,0.4);
+          border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, transparent);
         }
         .news-search-input::placeholder { color: var(--text-muted); }
 
@@ -848,8 +856,8 @@ export default function NewsSection({
           cursor: pointer;
         }
         .news-hero-card:hover {
-          border-color: rgba(34,211,238,0.3);
-          box-shadow: var(--shadow-base), 0 0 0 1px rgba(34,211,238,0.15);
+          border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 30%, transparent);
+          box-shadow: var(--shadow-base), 0 0 0 1px color-mix(in srgb, var(--accent-primary, #22d3ee) 15%, transparent);
           transform: translateY(-2px);
         }
         .news-hero-img-wrap {
@@ -944,7 +952,7 @@ export default function NewsSection({
         }
         .news-side-card:hover {
           background: var(--bg-hover);
-          border-color: rgba(34,211,238,0.25);
+          border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent);
           transform: translateX(2px);
         }
         .news-side-content { flex: 1; min-width: 0; }
@@ -1063,7 +1071,7 @@ export default function NewsSection({
         }
         .news-card:hover {
           background: var(--bg-hover);
-          border-color: rgba(34,211,238,0.25);
+          border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent);
           transform: translateY(-2px);
           box-shadow: var(--shadow-base);
         }
@@ -1156,8 +1164,8 @@ export default function NewsSection({
           width: 56px;
           height: 56px;
           border-radius: 16px;
-          background: rgba(34,211,238,0.08);
-          border: 1px solid rgba(34,211,238,0.2);
+          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 10%, transparent);
+          border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent);
           display: flex;
           align-items: center;
           justify-content: center;

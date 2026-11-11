@@ -57,8 +57,8 @@ const NAV_TABS = [
     label: "Live News",
     shortLabel: "News",
     icon: NewspaperIconCustom,
-    accent: "#22d3ee",
-    accentRgb: "34,211,238",
+    accent: "var(--accent-primary, #22d3ee)",
+    accentRgb: "16,185,129",
     description: "Real-time headlines",
     badge: "LIVE",
   },
@@ -198,11 +198,34 @@ export default function Home_Page() {
         localStorage.setItem("ak_display_name", e.detail.name);
       }
     };
+    const handleAccentEvent = (e: any) => {
+      const color = e.detail?.color;
+      if (color) {
+        document.documentElement.style.setProperty("--accent-primary", color);
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      const savedAccent = localStorage.getItem("ak_accent") || "cyan";
+      const savedCustomHex = localStorage.getItem("ak_accent_custom_hex") || "#22d3ee";
+      const hexMap: Record<string, string> = {
+        cyan: "#22d3ee",
+        purple: "#a855f7",
+        emerald: "#10b981",
+        amber: "#f59e0b",
+        rose: "#f43f5e",
+      };
+      const activeColor = savedAccent === "custom" ? savedCustomHex : (hexMap[savedAccent] || "#22d3ee");
+      document.documentElement.style.setProperty("--accent-primary", activeColor);
+    }
+
     window.addEventListener("ak-avatar-updated", handleAvatarUpdated);
     window.addEventListener("ak-profile-updated", handleProfileUpdated);
+    window.addEventListener("ak-accent-changed", handleAccentEvent);
     return () => {
       window.removeEventListener("ak-avatar-updated", handleAvatarUpdated);
       window.removeEventListener("ak-profile-updated", handleProfileUpdated);
+      window.removeEventListener("ak-accent-changed", handleAccentEvent);
     };
   }, [loggedInUser]);
 
@@ -651,11 +674,11 @@ export default function Home_Page() {
             width: "52px",
             height: "52px",
             borderRadius: "18px",
-            background: "linear-gradient(135deg, #22d3ee, #0891b2)",
+            background: "linear-gradient(135deg, var(--accent-primary, #22d3ee), color-mix(in srgb, var(--accent-primary, #22d3ee) 70%, black))",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: "0 8px 32px rgba(34,211,238,0.4)",
+            boxShadow: "0 8px 32px color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, transparent)",
           }}
         >
           <Brain size={26} style={{ color: "white" }} />
@@ -665,8 +688,8 @@ export default function Home_Page() {
             width: "32px",
             height: "32px",
             borderRadius: "50%",
-            border: "2.5px solid rgba(34,211,238,0.2)",
-            borderTopColor: "#22d3ee",
+            border: "2.5px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 20%, transparent)",
+            borderTopColor: "var(--accent-primary, #22d3ee)",
             animation: "spin 0.8s linear infinite",
           }}
         />
@@ -982,8 +1005,8 @@ export default function Home_Page() {
               <div
                 className="content-tab-icon"
                 style={{
-                  background: `rgba(${activeTabData.accentRgb},0.15)`,
-                  border: `1px solid rgba(${activeTabData.accentRgb},0.3)`,
+                  background: `color-mix(in srgb, ${activeTabData.accent} 15%, transparent)`,
+                  border: `1px solid color-mix(in srgb, ${activeTabData.accent} 30%, transparent)`,
                 }}
               >
                 <activeTabData.icon
@@ -1106,11 +1129,11 @@ export default function Home_Page() {
           width: 36px;
           height: 36px;
           border-radius: 12px;
-          background: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
+          background: linear-gradient(135deg, var(--accent-primary, #22d3ee) 0%, color-mix(in srgb, var(--accent-primary, #22d3ee) 65%, black) 100%);
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4px 16px rgba(34,211,238,0.4);
+          box-shadow: 0 4px 16px color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, transparent);
           flex-shrink: 0;
         }
         .brand-text { display: flex; flex-direction: column; gap: 1px; }
@@ -1177,8 +1200,8 @@ export default function Home_Page() {
         }
         .search-input:focus {
           background: var(--bg-hover);
-          border-color: rgba(34,211,238,0.4);
-          box-shadow: 0 0 0 3px rgba(34,211,238,0.08);
+          border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, transparent);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-primary, #22d3ee) 12%, transparent);
         }
         .search-input::placeholder { color: var(--text-muted); }
         .search-kbd {
@@ -1234,7 +1257,7 @@ export default function Home_Page() {
           width: 6px;
           height: 6px;
           border-radius: 50%;
-          background: #22d3ee;
+          background: var(--accent-primary, #22d3ee);
           border: 1.5px solid var(--bg-primary);
         }
  
@@ -1250,11 +1273,11 @@ export default function Home_Page() {
           cursor: pointer;
           transition: all 0.2s ease;
         }
-        .header-avatar-btn:hover { background: var(--bg-hover); border-color: rgba(34,211,238,0.3); }
+        .header-avatar-btn:hover { background: var(--bg-hover); border-color: color-mix(in srgb, var(--accent-primary, #22d3ee) 30%, transparent); }
         .avatar-ring {
           padding: 1.5px;
           border-radius: 9px;
-          background: linear-gradient(135deg, #22d3ee, #0891b2);
+          background: linear-gradient(135deg, var(--accent-primary, #22d3ee), color-mix(in srgb, var(--accent-primary, #22d3ee) 65%, black));
         }
         .avatar-inner {
           width: 26px;
@@ -1357,15 +1380,15 @@ export default function Home_Page() {
         }
         .sidebar-nav-item:hover .sidebar-nav-icon-wrap {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(var(--tab-accent-rgb), 0.25);
-          border-color: rgba(var(--tab-accent-rgb), 0.35);
+          box-shadow: 0 4px 12px color-mix(in srgb, var(--tab-accent, var(--accent-primary, #22d3ee)) 25%, transparent);
+          border-color: color-mix(in srgb, var(--tab-accent, var(--accent-primary, #22d3ee)) 35%, transparent);
         }
         .sidebar-nav-item:hover .sidebar-nav-icon {
-          color: var(--tab-accent);
+          color: var(--tab-accent, var(--accent-primary, #22d3ee));
         }
         .sidebar-nav-active {
-          background: rgba(var(--tab-accent-rgb), 0.1) !important;
-          border-color: rgba(var(--tab-accent-rgb), 0.2) !important;
+          background: color-mix(in srgb, var(--tab-accent, var(--accent-primary, #22d3ee)) 12%, transparent) !important;
+          border-color: color-mix(in srgb, var(--tab-accent, var(--accent-primary, #22d3ee)) 22%, transparent) !important;
           color: var(--text-primary) !important;
         }
         .sidebar-nav-icon-wrap {
@@ -1382,8 +1405,8 @@ export default function Home_Page() {
           will-change: transform;
         }
         .sidebar-nav-active .sidebar-nav-icon-wrap {
-          background: rgba(var(--tab-accent-rgb), 0.2);
-          border-color: rgba(var(--tab-accent-rgb), 0.35);
+          background: color-mix(in srgb, var(--tab-accent, var(--accent-primary, #22d3ee)) 20%, transparent);
+          border-color: color-mix(in srgb, var(--tab-accent, var(--accent-primary, #22d3ee)) 40%, transparent);
         }
         .sidebar-nav-icon {
           width: 15px;
@@ -1391,7 +1414,7 @@ export default function Home_Page() {
           transition: color 0.2s ease;
         }
         .sidebar-nav-active .sidebar-nav-icon {
-          color: var(--tab-accent) !important;
+          color: var(--tab-accent, var(--accent-primary, #22d3ee)) !important;
         }
         .sidebar-nav-text {
           display: flex;
@@ -1420,11 +1443,13 @@ export default function Home_Page() {
           font-weight: 800;
           padding: 2px 5px;
           border-radius: 4px;
-          background: rgba(34,211,238,0.25);
-          color: #67e8f9;
-          border: 1px solid rgba(34,211,238,0.35);
+          background: color-mix(in srgb, var(--accent-primary, #22d3ee) 18%, transparent);
+          color: var(--accent-primary, #22d3ee);
+          border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 35%, transparent);
           letter-spacing: 0.5px;
           flex-shrink: 0;
+          transition: opacity 0.2s;
+        }
           transition: opacity 0.2s;
         }
         .sidebar-collapsed .sidebar-badge { display: none !important; }
