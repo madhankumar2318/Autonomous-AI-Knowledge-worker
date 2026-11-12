@@ -560,6 +560,17 @@ export default function UserProfile({
 
   useEffect(() => {
     fetchProfile();
+    const handleVis = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchProfile();
+      }
+    };
+    window.addEventListener("visibilitychange", handleVis);
+    window.addEventListener("focus", handleVis);
+    return () => {
+      window.removeEventListener("visibilitychange", handleVis);
+      window.removeEventListener("focus", handleVis);
+    };
   }, [username]);
 
   async function fetchProfile() {

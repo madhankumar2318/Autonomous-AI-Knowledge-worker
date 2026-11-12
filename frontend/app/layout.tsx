@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import OfflineBanner from "./components/OfflineBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,9 +16,19 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Autonomous AI Knowledge Worker",
   description: "AI-powered knowledge worker for news, research, and insights",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
   openGraph: {
     title: "Autonomous AI Knowledge Worker",
     description: "AI-powered knowledge worker for news, research, and insights",
+    images: ["/icon.svg"],
   },
 };
 
@@ -55,6 +66,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <OfflineBanner />
         {children}
       </body>
     </html>

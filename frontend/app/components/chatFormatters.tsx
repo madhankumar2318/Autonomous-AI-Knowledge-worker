@@ -278,10 +278,21 @@ export function formatMessage(
   let i = 0;
 
   const handleCopy = (codeText: string, btnId: string) => {
-    navigator.clipboard.writeText(codeText);
+    try {
+      if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(codeText);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = codeText;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+    } catch {}
     const btn = document.getElementById(btnId);
     if (btn) {
-      btn.innerText = "Copied!";
+      btn.innerText = "Copied! ✓";
       btn.style.background = "rgba(16, 185, 129, 0.25)";
       btn.style.borderColor = "#10b981";
       btn.style.color = "#10b981";
@@ -290,7 +301,7 @@ export function formatMessage(
         btn.style.background = "rgba(255, 255, 255, 0.03)";
         btn.style.borderColor = "rgba(255, 255, 255, 0.1)";
         btn.style.color = "#94a3b8";
-      }, 1500);
+      }, 1600);
     }
   };
 

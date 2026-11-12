@@ -138,53 +138,74 @@ export default function Home_Page() {
       const savedName = localStorage.getItem("ak_display_name");
       if (savedName) setUserDisplayName(savedName);
 
-      const token = localStorage.getItem("ak_token");
-      const headers: Record<string, string> = {};
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-      const sid = localStorage.getItem("ak_session_id");
-      if (sid) headers["X-Session-Id"] = sid;
-      const ua = navigator.userAgent;
-      const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
-      const isTab = /iPad|tablet/i.test(ua);
-      headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
+      const syncUserProfile = () => {
+        const activeUser = loggedInUser || localStorage.getItem("ak_session");
+        if (!activeUser) return;
+        const token = localStorage.getItem("ak_token");
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const sid = localStorage.getItem("ak_session_id");
+        if (sid) headers["X-Session-Id"] = sid;
+        const ua = navigator.userAgent;
+        const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
+        const isTab = /iPad|tablet/i.test(ua);
+        headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
 
-      fetch(`${API_BASE_URL}/auth/profile`, { headers, credentials: "include" })
-        .then((r) => {
-          if (r.status === 401) {
-            localStorage.removeItem("ak_session");
-            localStorage.removeItem("ak_token");
-            localStorage.removeItem("ak_session_id");
-            setIsLoggedIn(false);
-            setLoggedInUser("");
-            return null;
-          }
-          return r.ok ? r.json() : null;
-        })
-        .then((data) => {
-          if (!data) return;
-          if (data?.name) {
-            setUserDisplayName(data.name);
-            localStorage.setItem("ak_display_name", data.name);
-          }
-          if (data?.avatar) {
-            setUserAvatar(data.avatar);
-            localStorage.setItem(`ak_avatar_${loggedInUser}`, data.avatar);
-            localStorage.setItem(`ak_avatar_${loggedInUser.toLowerCase()}`, data.avatar);
-          }
-          if (data?.defaultStartingTab) {
-            localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
-            localStorage.setItem(`ak_default_starting_tab_${loggedInUser}`, data.defaultStartingTab);
-            localStorage.setItem(`ak_default_starting_tab_${loggedInUser.toLowerCase()}`, data.defaultStartingTab);
-            if (!sessionStorage.getItem("ak_session_navigated")) {
-              setActiveTab(data.defaultStartingTab);
-              localStorage.setItem("ak_active_tab", data.defaultStartingTab);
+        fetch(`${API_BASE_URL}/auth/profile`, { headers, credentials: "include" })
+          .then((r) => {
+            if (r.status === 401) {
+              localStorage.removeItem("ak_session");
+              localStorage.removeItem("ak_token");
+              localStorage.removeItem("ak_session_id");
+              setIsLoggedIn(false);
+              setLoggedInUser("");
+              return null;
             }
-          }
-          if (data?.soundEffects !== undefined) {
-            localStorage.setItem("ak_sound_effects", String(data.soundEffects));
-          }
-        })
-        .catch(() => {});
+            return r.ok ? r.json() : null;
+          })
+          .then((data) => {
+            if (!data) return;
+            if (data?.name) {
+              setUserDisplayName(data.name);
+              localStorage.setItem("ak_display_name", data.name);
+            }
+            if (data?.avatar !== undefined) {
+              setUserAvatar(data.avatar);
+              localStorage.setItem(`ak_avatar_${activeUser}`, data.avatar);
+              localStorage.setItem(`ak_avatar_${activeUser.toLowerCase()}`, data.avatar);
+            }
+            if (data?.defaultStartingTab) {
+              localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
+              localStorage.setItem(`ak_default_starting_tab_${activeUser}`, data.defaultStartingTab);
+              localStorage.setItem(`ak_default_starting_tab_${activeUser.toLowerCase()}`, data.defaultStartingTab);
+              if (!sessionStorage.getItem("ak_session_navigated")) {
+                setActiveTab(data.defaultStartingTab);
+                localStorage.setItem("ak_active_tab", data.defaultStartingTab);
+              }
+            }
+            if (data?.soundEffects !== undefined) {
+              localStorage.setItem("ak_sound_effects", String(data.soundEffects));
+            }
+          })
+          .catch(() => {});
+      };
+
+      syncUserProfile();
+
+      const handleVisibilityOrFocus = () => {
+        if (typeof document !== "undefined" && document.visibilityState === "visible") {
+          syncUserProfile();
+        }
+      };
+
+      window.addEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.addEventListener("focus", handleVisibilityOrFocus);
+
+      const backgroundSyncTimer = setInterval(() => {
+        if (typeof document !== "undefined" && document.visibilityState === "visible") {
+          syncUserProfile();
+        }
+      }, 25000);
     } else {
       setUserAvatar("");
       setUserDisplayName("");
@@ -226,6 +247,9 @@ export default function Home_Page() {
       window.removeEventListener("ak-avatar-updated", handleAvatarUpdated);
       window.removeEventListener("ak-profile-updated", handleProfileUpdated);
       window.removeEventListener("ak-accent-changed", handleAccentEvent);
+      window.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      clearInterval(backgroundSyncTimer);
     };
   }, [loggedInUser]);
 
