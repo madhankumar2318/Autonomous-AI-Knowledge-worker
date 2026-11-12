@@ -232,6 +232,7 @@ CRITICAL SECURITY PROTOCOL:
 
             Request httpReq = new Request.Builder()
                     .url(url)
+                    .header("x-goog-api-key", geminiApiKey)
                     .post(RequestBody.create(objectMapper.writeValueAsString(bodyMap), MediaType.parse("application/json")))
                     .build();
 
@@ -282,6 +283,7 @@ CRITICAL SECURITY PROTOCOL:
         );
         Request httpReq = new Request.Builder()
                 .url(url)
+                .header("x-goog-api-key", geminiApiKey)
                 .post(RequestBody.create(objectMapper.writeValueAsString(bodyMap), MediaType.parse("application/json")))
                 .build();
 

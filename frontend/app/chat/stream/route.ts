@@ -40,7 +40,7 @@ function getGroqApiKey(bodyKey?: string): string {
 }
 
 function getGeminiApiKey(bodyKey?: string): string {
-  if (bodyKey && typeof bodyKey === "string" && bodyKey.startsWith("AIza")) return bodyKey.trim();
+  if (bodyKey && typeof bodyKey === "string" && (bodyKey.startsWith("AIza") || bodyKey.startsWith("AQ."))) return bodyKey.trim();
   if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY.trim();
   try {
     const fs = require("node:fs");
@@ -98,6 +98,7 @@ async function streamFromGemini(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
       },
       body: JSON.stringify(requestBody),
     });
@@ -109,6 +110,7 @@ async function streamFromGemini(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
         },
         body: JSON.stringify(requestBody),
       });
