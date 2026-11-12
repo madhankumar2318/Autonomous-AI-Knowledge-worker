@@ -131,6 +131,66 @@ export default function Home_Page() {
   });
 
   useEffect(() => {
+    const syncUserProfile = () => {
+      const activeUser = loggedInUser || (typeof window !== "undefined" ? localStorage.getItem("ak_session") : null);
+      if (!activeUser || typeof window === "undefined") return;
+      const token = localStorage.getItem("ak_token");
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const sid = localStorage.getItem("ak_session_id");
+      if (sid) headers["X-Session-Id"] = sid;
+      const ua = navigator.userAgent;
+      const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
+      const isTab = /iPad|tablet/i.test(ua);
+      headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
+
+      fetch(`${API_BASE_URL}/auth/profile`, { headers, credentials: "include" })
+        .then((r) => {
+          if (r.status === 401) {
+            localStorage.removeItem("ak_session");
+            localStorage.removeItem("ak_token");
+            localStorage.removeItem("ak_session_id");
+            setIsLoggedIn(false);
+            setLoggedInUser("");
+            return null;
+          }
+          return r.ok ? r.json() : null;
+        })
+        .then((data) => {
+          if (!data) return;
+          if (data?.name) {
+            setUserDisplayName(data.name);
+            localStorage.setItem("ak_display_name", data.name);
+          }
+          if (data?.avatar !== undefined) {
+            setUserAvatar(data.avatar);
+            localStorage.setItem(`ak_avatar_${activeUser}`, data.avatar);
+            localStorage.setItem(`ak_avatar_${activeUser.toLowerCase()}`, data.avatar);
+          }
+          if (data?.defaultStartingTab) {
+            localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
+            localStorage.setItem(`ak_default_starting_tab_${activeUser}`, data.defaultStartingTab);
+            localStorage.setItem(`ak_default_starting_tab_${activeUser.toLowerCase()}`, data.defaultStartingTab);
+            if (!sessionStorage.getItem("ak_session_navigated")) {
+              setActiveTab(data.defaultStartingTab);
+              localStorage.setItem("ak_active_tab", data.defaultStartingTab);
+            }
+          }
+          if (data?.soundEffects !== undefined) {
+            localStorage.setItem("ak_sound_effects", String(data.soundEffects));
+          }
+        })
+        .catch(() => {});
+    };
+
+    let backgroundSyncTimer: any = null;
+
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        syncUserProfile();
+      }
+    };
+
     if (loggedInUser && typeof window !== "undefined") {
       const saved = localStorage.getItem(`ak_avatar_${loggedInUser}`);
       if (saved) setUserAvatar(saved);
@@ -138,70 +198,12 @@ export default function Home_Page() {
       const savedName = localStorage.getItem("ak_display_name");
       if (savedName) setUserDisplayName(savedName);
 
-      const syncUserProfile = () => {
-        const activeUser = loggedInUser || localStorage.getItem("ak_session");
-        if (!activeUser) return;
-        const token = localStorage.getItem("ak_token");
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-        const sid = localStorage.getItem("ak_session_id");
-        if (sid) headers["X-Session-Id"] = sid;
-        const ua = navigator.userAgent;
-        const isMob = /iPhone|Android.*Mobile|Mobile/i.test(ua);
-        const isTab = /iPad|tablet/i.test(ua);
-        headers["X-Device-Type"] = isMob ? "Mobile" : isTab ? "Tablet" : "Desktop";
-
-        fetch(`${API_BASE_URL}/auth/profile`, { headers, credentials: "include" })
-          .then((r) => {
-            if (r.status === 401) {
-              localStorage.removeItem("ak_session");
-              localStorage.removeItem("ak_token");
-              localStorage.removeItem("ak_session_id");
-              setIsLoggedIn(false);
-              setLoggedInUser("");
-              return null;
-            }
-            return r.ok ? r.json() : null;
-          })
-          .then((data) => {
-            if (!data) return;
-            if (data?.name) {
-              setUserDisplayName(data.name);
-              localStorage.setItem("ak_display_name", data.name);
-            }
-            if (data?.avatar !== undefined) {
-              setUserAvatar(data.avatar);
-              localStorage.setItem(`ak_avatar_${activeUser}`, data.avatar);
-              localStorage.setItem(`ak_avatar_${activeUser.toLowerCase()}`, data.avatar);
-            }
-            if (data?.defaultStartingTab) {
-              localStorage.setItem("ak_default_starting_tab", data.defaultStartingTab);
-              localStorage.setItem(`ak_default_starting_tab_${activeUser}`, data.defaultStartingTab);
-              localStorage.setItem(`ak_default_starting_tab_${activeUser.toLowerCase()}`, data.defaultStartingTab);
-              if (!sessionStorage.getItem("ak_session_navigated")) {
-                setActiveTab(data.defaultStartingTab);
-                localStorage.setItem("ak_active_tab", data.defaultStartingTab);
-              }
-            }
-            if (data?.soundEffects !== undefined) {
-              localStorage.setItem("ak_sound_effects", String(data.soundEffects));
-            }
-          })
-          .catch(() => {});
-      };
-
       syncUserProfile();
-
-      const handleVisibilityOrFocus = () => {
-        if (typeof document !== "undefined" && document.visibilityState === "visible") {
-          syncUserProfile();
-        }
-      };
 
       window.addEventListener("visibilitychange", handleVisibilityOrFocus);
       window.addEventListener("focus", handleVisibilityOrFocus);
 
-      const backgroundSyncTimer = setInterval(() => {
+      backgroundSyncTimer = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "visible") {
           syncUserProfile();
         }
