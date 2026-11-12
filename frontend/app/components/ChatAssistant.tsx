@@ -653,24 +653,24 @@ export default function ChatAssistant({
                                 ) : <span />}
                                 <button
                                   type="button"
-                                  onClick={() => handleCopyMessage(msg.content, msg.id || `${idx}`)}
+                                  onClick={() => handleCopyMessage(msg.content, `${idx}`)}
                                   title="Copy response to clipboard"
                                   style={{
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: "4px",
-                                    background: copiedMsgId === (msg.id || `${idx}`) ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                                    background: copiedMsgId === `${idx}` ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.04)",
                                     border: "1px solid",
-                                    borderColor: copiedMsgId === (msg.id || `${idx}`) ? "#10b981" : "rgba(255, 255, 255, 0.1)",
+                                    borderColor: copiedMsgId === `${idx}` ? "#10b981" : "rgba(255, 255, 255, 0.1)",
                                     borderRadius: "4px",
                                     padding: "2px 8px",
                                     fontSize: "11px",
-                                    color: copiedMsgId === (msg.id || `${idx}`) ? "#10b981" : "var(--text-muted)",
+                                    color: copiedMsgId === `${idx}` ? "#10b981" : "var(--text-muted)",
                                     cursor: "pointer",
                                     transition: "all 0.15s ease",
                                   }}
                                 >
-                                  {copiedMsgId === (msg.id || `${idx}`) ? (
+                                  {copiedMsgId === `${idx}` ? (
                                     <>
                                       <Check size={12} />
                                       <span>Copied!</span>
@@ -1865,24 +1865,24 @@ export default function ChatAssistant({
                                   ) : <span />}
                                   <button
                                     type="button"
-                                    onClick={() => handleCopyMessage(msg.content, msg.id || `${idx}`)}
+                                    onClick={() => handleCopyMessage(msg.content, `${idx}`)}
                                     title="Copy response to clipboard"
                                     style={{
                                       display: "inline-flex",
                                       alignItems: "center",
                                       gap: "4px",
-                                      background: copiedMsgId === (msg.id || `${idx}`) ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.04)",
+                                      background: copiedMsgId === `${idx}` ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.04)",
                                       border: "1px solid",
-                                      borderColor: copiedMsgId === (msg.id || `${idx}`) ? "#10b981" : "rgba(255, 255, 255, 0.1)",
+                                      borderColor: copiedMsgId === `${idx}` ? "#10b981" : "rgba(255, 255, 255, 0.1)",
                                       borderRadius: "4px",
                                       padding: "2px 8px",
                                       fontSize: "11px",
-                                      color: copiedMsgId === (msg.id || `${idx}`) ? "#10b981" : "var(--text-muted)",
+                                      color: copiedMsgId === `${idx}` ? "#10b981" : "var(--text-muted)",
                                       cursor: "pointer",
                                       transition: "all 0.15s ease",
                                     }}
                                   >
-                                    {copiedMsgId === (msg.id || `${idx}`) ? (
+                                    {copiedMsgId === `${idx}` ? (
                                       <>
                                         <Check size={12} />
                                         <span>Copied!</span>

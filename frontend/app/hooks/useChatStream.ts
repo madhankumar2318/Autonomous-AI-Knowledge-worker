@@ -21,6 +21,7 @@ export interface ResearchPlan {
 }
 
 export interface ChatMessage {
+  id?: string;
   role: "user" | "ai";
   content: string;
   thinkingLogs?: string[];
