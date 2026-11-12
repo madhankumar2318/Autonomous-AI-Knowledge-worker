@@ -292,16 +292,14 @@ export function formatMessage(
     } catch {}
     const btn = document.getElementById(btnId);
     if (btn) {
-      btn.innerText = "Copied! ✓";
-      btn.style.background = "rgba(16, 185, 129, 0.25)";
+      btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span style="color:#10b981;font-weight:600">Copied!</span>`;
+      btn.style.background = "rgba(16, 185, 129, 0.16)";
       btn.style.borderColor = "#10b981";
-      btn.style.color = "#10b981";
       setTimeout(() => {
-        btn.innerText = "Copy";
-        btn.style.background = "rgba(255, 255, 255, 0.03)";
-        btn.style.borderColor = "rgba(255, 255, 255, 0.1)";
-        btn.style.color = "#94a3b8";
-      }, 1600);
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy code</span>`;
+        btn.style.background = "";
+        btn.style.borderColor = "";
+      }, 1800);
     }
   };
 
@@ -320,8 +318,13 @@ export function formatMessage(
             type="button"
             onClick={() => handleCopy(capturedCode, btnId)}
             className="chat-md-code-copy"
+            title="Copy code to clipboard"
           >
-            Copy
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+            <span>Copy code</span>
           </button>
         </div>
         <pre className="chat-md-code-pre">

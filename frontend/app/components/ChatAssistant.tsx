@@ -20,8 +20,6 @@ import {
   Mic,
   MicOff,
   ArrowLeft,
-  Copy,
-  Check,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
@@ -360,24 +358,7 @@ export default function ChatAssistant({
   const renderMessage = (text: string) =>
     formatMessage(text, handleCitationClick);
 
-  const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
 
-  const handleCopyMessage = (text: string, id: string) => {
-    try {
-      if (typeof navigator !== "undefined" && navigator?.clipboard?.writeText) {
-        navigator.clipboard.writeText(text);
-      } else {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
-      setCopiedMsgId(id);
-      setTimeout(() => setCopiedMsgId(null), 1800);
-    } catch {}
-  };
 
   // â”€â”€ INLINE (full-page tab) MODE â”€â”€
   if (inline) {
@@ -629,59 +610,26 @@ export default function ChatAssistant({
                                 &#x258B;
                               </span>
                             )}
-                            {msg.role === "ai" && !loading && msg.content && (
+                            {msg.model && (
                               <div
                                 style={{
                                   display: "flex",
                                   alignItems: "center",
-                                  justifyContent: "space-between",
-                                  marginTop: "8px",
-                                  paddingTop: "6px",
+                                  marginTop: "6px",
+                                  paddingTop: "4px",
                                   borderTop: "1px solid rgba(255, 255, 255, 0.05)",
                                 }}
                               >
-                                {msg.model ? (
-                                  <span
-                                    style={{
-                                      fontSize: "10px",
-                                      color: "var(--text-muted)",
-                                      opacity: 0.8,
-                                    }}
-                                  >
-                                    ⚡ {msg.model}
-                                  </span>
-                                ) : <span />}
-                                <button
-                                  type="button"
-                                  onClick={() => handleCopyMessage(msg.content, `${idx}`)}
-                                  title="Copy response to clipboard"
+                                <span
                                   style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    background: copiedMsgId === `${idx}` ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                                    border: "1px solid",
-                                    borderColor: copiedMsgId === `${idx}` ? "#10b981" : "rgba(255, 255, 255, 0.1)",
-                                    borderRadius: "4px",
-                                    padding: "2px 8px",
-                                    fontSize: "11px",
-                                    color: copiedMsgId === `${idx}` ? "#10b981" : "var(--text-muted)",
-                                    cursor: "pointer",
-                                    transition: "all 0.15s ease",
+                                    fontSize: "10px",
+                                    color: "var(--text-muted)",
+                                    opacity: 0.7,
+                                    letterSpacing: "0.2px",
                                   }}
                                 >
-                                  {copiedMsgId === `${idx}` ? (
-                                    <>
-                                      <Check size={12} />
-                                      <span>Copied!</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Copy size={12} />
-                                      <span>Copy</span>
-                                    </>
-                                  )}
-                                </button>
+                                  ⚡ {msg.model}
+                                </span>
                               </div>
                             )}
                           </>
@@ -1841,59 +1789,26 @@ export default function ChatAssistant({
                                   &#x258B;
                                 </span>
                               )}
-                              {msg.role === "ai" && !loading && msg.content && (
+                              {msg.model && (
                                 <div
                                   style={{
                                     display: "flex",
                                     alignItems: "center",
-                                    justifyContent: "space-between",
-                                    marginTop: "8px",
-                                    paddingTop: "6px",
+                                    marginTop: "6px",
+                                    paddingTop: "4px",
                                     borderTop: "1px solid rgba(255, 255, 255, 0.05)",
                                   }}
                                 >
-                                  {msg.model ? (
-                                    <span
-                                      style={{
-                                        fontSize: "10px",
-                                        color: "var(--text-muted)",
-                                        opacity: 0.7,
-                                      }}
-                                    >
-                                      ⚡ {msg.model}
-                                    </span>
-                                  ) : <span />}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopyMessage(msg.content, `${idx}`)}
-                                    title="Copy response to clipboard"
+                                  <span
                                     style={{
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      background: copiedMsgId === `${idx}` ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.04)",
-                                      border: "1px solid",
-                                      borderColor: copiedMsgId === `${idx}` ? "#10b981" : "rgba(255, 255, 255, 0.1)",
-                                      borderRadius: "4px",
-                                      padding: "2px 8px",
-                                      fontSize: "11px",
-                                      color: copiedMsgId === `${idx}` ? "#10b981" : "var(--text-muted)",
-                                      cursor: "pointer",
-                                      transition: "all 0.15s ease",
+                                      fontSize: "10px",
+                                      color: "var(--text-muted)",
+                                      opacity: 0.7,
+                                      letterSpacing: "0.2px",
                                     }}
                                   >
-                                    {copiedMsgId === `${idx}` ? (
-                                      <>
-                                        <Check size={12} />
-                                        <span>Copied!</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Copy size={12} />
-                                        <span>Copy</span>
-                                      </>
-                                    )}
-                                  </button>
+                                    ⚡ {msg.model}
+                                  </span>
                                 </div>
                               )}
                             </>

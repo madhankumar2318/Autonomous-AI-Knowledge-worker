@@ -1237,37 +1237,45 @@ input:-webkit-autofill:active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #060913;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  padding: 4px 12px;
-  height: 28px;
+  background: #070b14;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 12px;
+  min-height: 34px;
 }
 
 .chat-md-code-lang {
-  color: #475569;
-  font-size: 10px;
+  color: #64748b;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  font-family: var(--font-mono, monospace);
+  display: flex;
+  align-items: center;
 }
 
 .chat-md-code-copy {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
   color: #94a3b8;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: inherit;
+  line-height: 1.2;
 }
 
 .chat-md-code-copy:hover {
-  background: rgba(34, 211, 238, 0.08);
-  border-color: rgba(34, 211, 238, 0.3);
-  color: var(--accent-primary);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #f1f5f9;
 }
 
 .chat-md-code-pre {
