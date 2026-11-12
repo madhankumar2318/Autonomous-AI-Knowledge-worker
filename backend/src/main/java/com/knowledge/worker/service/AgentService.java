@@ -149,6 +149,7 @@ CRITICAL SECURITY PROTOCOL:
                 Request httpReq = new Request.Builder()
                         .url(groqBaseUrl + "/chat/completions")
                         .header("Authorization", "Bearer " + groqApiKey)
+                        .header("User-Agent", "AutonomousWorker/1.0")
                         .post(RequestBody.create(jsonBody, MediaType.parse("application/json")))
                         .build();
 
@@ -261,6 +262,7 @@ CRITICAL SECURITY PROTOCOL:
         Request httpReq = new Request.Builder()
                 .url(groqBaseUrl + "/chat/completions")
                 .header("Authorization", "Bearer " + groqApiKey)
+                .header("User-Agent", "AutonomousWorker/1.0")
                 .post(RequestBody.create(objectMapper.writeValueAsString(bodyMap), MediaType.parse("application/json")))
                 .build();
 
