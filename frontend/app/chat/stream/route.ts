@@ -39,28 +39,80 @@ function getGroqApiKey(bodyKey?: string): string {
   return "";
 }
 
-// High-fidelity streaming from Gemini REST API (no npm package dependency)
+function getGeminiApiKey(bodyKey?: string): string {
+  if (bodyKey && typeof bodyKey === "string" && bodyKey.startsWith("AIza")) return bodyKey.trim();
+  if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY.trim();
+  try {
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const candidates = [
+      path.resolve(process.cwd(), ".env"),
+      path.resolve(process.cwd(), "../.env"),
+      path.resolve(process.cwd(), "frontend/.env.local"),
+      path.resolve(process.cwd(), ".env.local"),
+      path.resolve(process.cwd(), "../backend/.env"),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        const text = fs.readFileSync(p, "utf-8");
+        const match = text.match(/GEMINI_API_KEY\s*=\s*([^\r\n]+)/);
+        if (match && match[1]) {
+          return match[1].trim().replace(/^["']|["']$/g, "");
+        }
+      }
+    }
+  } catch {}
+  return "";
+}
+
+interface GroundingSource {
+  title: string;
+  url: string;
+}
+
+// High-fidelity streaming from Gemini REST API with Native Google Search Grounding
 async function streamFromGemini(
   model: string,
   promptContents: any[],
   apiKey: string,
   systemInstruction: string,
-  onToken: (token: string) => void
+  onToken: (token: string) => void,
+  enableSearch: boolean = true,
+  onSources?: (sources: GroundingSource[], queries: string[]) => void
 ): Promise<boolean> {
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?key=${apiKey}&alt=sse`;
-    const response = await fetch(url, {
+    const requestBody: any = {
+      contents: promptContents,
+      systemInstruction: {
+        parts: [{ text: systemInstruction }],
+      },
+    };
+
+    // Enable Google Search Grounding for real-time 2026 facts and web intelligence
+    if (enableSearch) {
+      requestBody.tools = [{ googleSearch: {} }];
+    }
+
+    let response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        contents: promptContents,
-        systemInstruction: {
-          parts: [{ text: systemInstruction }],
-        },
-      }),
+      body: JSON.stringify(requestBody),
     });
+
+    // Graceful fallback: If an older model rejects the googleSearch tool, immediately retry without tools
+    if (!response.ok && enableSearch) {
+      delete requestBody.tools;
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
+    }
 
     if (!response.ok || !response.body) return false;
 
@@ -68,6 +120,8 @@ async function streamFromGemini(
     const decoder = new TextDecoder();
     let buffer = "";
     let receivedTokens = 0;
+    const collectedSources: GroundingSource[] = [];
+    const collectedQueries: string[] = [];
 
     while (true) {
       const { value, done } = await reader.read();
@@ -81,15 +135,44 @@ async function streamFromGemini(
         if (trimmed.startsWith("data: ")) {
           try {
             const data = JSON.parse(trimmed.slice(6));
-            const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+            const candidate = data?.candidates?.[0];
+            const text = candidate?.content?.parts?.[0]?.text;
             if (text) {
               receivedTokens++;
               onToken(text);
+            }
+
+            // Extract Google Search grounding metadata
+            const meta = candidate?.groundingMetadata;
+            if (meta) {
+              if (Array.isArray(meta.webSearchQueries)) {
+                for (const q of meta.webSearchQueries) {
+                  if (q && typeof q === "string" && !collectedQueries.includes(q)) {
+                    collectedQueries.push(q);
+                  }
+                }
+              }
+              if (Array.isArray(meta.groundingChunks)) {
+                for (const chunk of meta.groundingChunks) {
+                  if (chunk?.web?.uri) {
+                    const uri = chunk.web.uri;
+                    const title = chunk.web.title || uri;
+                    if (!collectedSources.some((s) => s.url === uri)) {
+                      collectedSources.push({ title, url: uri });
+                    }
+                  }
+                }
+              }
             }
           } catch {}
         }
       }
     }
+
+    if (collectedSources.length > 0 && onSources) {
+      onSources(collectedSources, collectedQueries);
+    }
+
     return receivedTokens > 0;
   } catch {
     return false;
@@ -752,7 +835,8 @@ Rules for Answering Document Inquiries:
    - Separate distinct sections, companies, and projects with double line breaks (\n\n) and clear Markdown headings (###).
    - For projects, present each project title clearly (e.g., "### Autonomous AI Knowledge Worker"), followed by "**Tech Stack:** [technologies]" on a new line, followed by bulleted accomplishments each on their own line.
    - Ensure clean word spacing without split OCR syllables or glued words.
-6. **Tone**: Highly articulate, professional, confident, and factual. Never return empty, robotic, or generic non-answers.`;
+6. **Real-Time Live Web Intelligence**: When answering inquiries about current events, breaking news, sports scores, financial markets, or real-time facts, use your live Google Search Grounding capability to deliver verified, up-to-date answers with exact details, dates, and figures.
+7. **Tone**: Highly articulate, professional, confident, and factual. Never return empty, robotic, or generic non-answers.`;
 
         // Format history for LLM
         const cleanHistory = history.slice(-8).map((item: any) => {
@@ -769,46 +853,14 @@ Rules for Answering Document Inquiries:
 
         let streamSuccess = false;
 
-        // ── 1. PRIMARY: Try Groq API (High-speed LPU with 120B / 27B parameter models) ──
-        if (getGroqApiKey(clientApiKey)) {
-          const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"];
-          const groqMessages = [
-            ...cleanHistory,
-            { role: "user", content: promptText },
-          ];
+        const requestedModel = (body.model || "").toLowerCase();
+        const geminiKey = getGeminiApiKey(body.gemini_api_key || body.geminiKey || clientApiKey);
+        const groqKey = getGroqApiKey(clientApiKey);
+        const prefersGemini = requestedModel.includes("gemini") || !requestedModel.includes("llama");
 
-          for (const gModel of groqModels) {
-            try {
-              const ok = await streamFromGroq(
-                gModel,
-                groqMessages,
-                effectiveSystemInstruction,
-                (token) => {
-                  generatedText += token;
-                  sendEvent({ type: "token", content: token });
-                },
-                clientApiKey
-              );
-
-              if (ok && generatedText.length > 10) {
-                streamSuccess = true;
-                const modelLabel =
-                  gModel === "qwen/qwen3.8-27b"
-                    ? "Groq LPU (Qwen 3.8 27B)"
-                    : gModel === "openai/gpt-oss-20b"
-                    ? "Groq LPU (GPT-OSS 20B)"
-                    : "Groq LPU (GPT-OSS 120B)";
-                sendEvent({ type: "model_used", content: modelLabel });
-                break;
-              }
-            } catch (gErr) {
-              console.warn(`Groq model ${gModel} attempt failed:`, gErr);
-            }
-          }
-        }
-
-        // ── 2. SECONDARY: Try Google Gemini API if Groq did not complete ──
-        if (!streamSuccess && process.env.GEMINI_API_KEY) {
+        // ── Helper: Run Google Gemini with Native Google Search Grounding ──
+        const runGemini = async (): Promise<boolean> => {
+          if (!geminiKey) return false;
           try {
             const promptContents: any[] = [];
             let lastRole: string | null = null;
@@ -835,28 +887,107 @@ Rules for Answering Document Inquiries:
               promptContents.push({ role: "user", parts: [{ text: promptText }] });
             }
 
-            const candidateModels = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+            const candidateModels = [
+              "gemini-2.5-flash",
+              "gemini-2.0-flash",
+              "gemini-1.5-flash",
+              "gemini-flash-latest"
+            ];
+
             for (const candidateModel of candidateModels) {
               try {
+                let collectedSources: GroundingSource[] = [];
+                let collectedQueries: string[] = [];
+
                 const ok = await streamFromGemini(
                   candidateModel,
                   promptContents,
-                  process.env.GEMINI_API_KEY,
+                  geminiKey,
                   effectiveSystemInstruction,
                   (token) => {
                     generatedText += token;
                     sendEvent({ type: "token", content: token });
+                  },
+                  true, // Google Search Grounding enabled for live 2026 web intelligence
+                  (sources, queries) => {
+                    collectedSources = sources;
+                    collectedQueries = queries;
                   }
                 );
 
                 if (ok && generatedText) {
-                  streamSuccess = true;
-                  sendEvent({ type: "model_used", content: "Google Gemini 2.5 Flash" });
-                  break;
+                  // If live web search sources were referenced, append verified links
+                  if (collectedSources.length > 0) {
+                    const sourcesBlock =
+                      `\n\n---\n**🌐 Verified Web Sources:**\n` +
+                      collectedSources.slice(0, 5).map((s) => `- [${s.title}](${s.url})`).join("\n");
+                    generatedText += sourcesBlock;
+                    sendEvent({ type: "token", content: sourcesBlock });
+                  }
+
+                  const modelLabel = collectedSources.length > 0
+                    ? `Google Gemini 2.5 Flash (Live Web Grounded)`
+                    : `Google Gemini 2.5 Flash`;
+                  sendEvent({ type: "model_used", content: modelLabel });
+                  return true;
                 }
               } catch (_mErr) {}
             }
           } catch (_aiErr) {}
+          return false;
+        };
+
+        // ── Helper: Run Groq LPU API ──
+        const runGroq = async (): Promise<boolean> => {
+          if (!groqKey) return false;
+          const groqModels = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"];
+          const groqMessages = [
+            ...cleanHistory,
+            { role: "user", content: promptText },
+          ];
+
+          for (const gModel of groqModels) {
+            try {
+              const ok = await streamFromGroq(
+                gModel,
+                groqMessages,
+                effectiveSystemInstruction,
+                (token) => {
+                  generatedText += token;
+                  sendEvent({ type: "token", content: token });
+                },
+                clientApiKey
+              );
+
+              if (ok && generatedText.length > 10) {
+                const modelLabel =
+                  gModel === "qwen/qwen3.8-27b"
+                    ? "Groq LPU (Qwen 3.8 27B)"
+                    : gModel === "openai/gpt-oss-20b"
+                    ? "Groq LPU (GPT-OSS 20B)"
+                    : "Groq LPU (GPT-OSS 120B)";
+                sendEvent({ type: "model_used", content: modelLabel });
+                return true;
+              }
+            } catch (gErr) {
+              console.warn(`Groq model ${gModel} attempt failed:`, gErr);
+            }
+          }
+          return false;
+        };
+
+        if (prefersGemini) {
+          // Gemini is preferred: run Gemini with Live Google Search Grounding first
+          streamSuccess = await runGemini();
+          if (!streamSuccess) {
+            streamSuccess = await runGroq();
+          }
+        } else {
+          // Groq is explicitly requested (e.g. Llama/Groq mode)
+          streamSuccess = await runGroq();
+          if (!streamSuccess) {
+            streamSuccess = await runGemini();
+          }
         }
 
         // ── 3. FALLBACK: High-Fidelity Document-Grounded Semantic RAG Engine ──
