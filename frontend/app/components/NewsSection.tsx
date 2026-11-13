@@ -18,6 +18,7 @@ interface Article {
   publishedAt?: string;
   summary?: string;
   source?: string;
+  category?: string;
 }
 
 const CATEGORIES = [

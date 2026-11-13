@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["pdfjs-dist", "canvas"],
-  webpack: (config) => {
+  webpack: (config: any) => {
     config.resolve.alias.canvas = false;
     return config;
   },

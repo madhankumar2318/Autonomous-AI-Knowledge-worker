@@ -82,7 +82,7 @@ export default function OfflineBanner() {
         )}
       </div>
 
-      <style jsx global>{`
+      <style>{`
         @keyframes bannerSlideDown {
           from {
             opacity: 0;
