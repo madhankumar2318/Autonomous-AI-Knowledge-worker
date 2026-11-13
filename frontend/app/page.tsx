@@ -1102,6 +1102,8 @@ export default function Home_Page() {
       {showProfile && (
         <UserProfile
           username={loggedInUser}
+          initialAvatar={userAvatar}
+          initialDisplayName={userDisplayName}
           onClose={() => setShowProfile(false)}
           onLogout={handleLogout}
         />

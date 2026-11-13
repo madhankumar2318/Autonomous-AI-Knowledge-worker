@@ -37,6 +37,8 @@ import { playAiResponseChime, playClickSound } from "../lib/sound";
 
 interface UserProfileProps {
   username: string;
+  initialAvatar?: string;
+  initialDisplayName?: string;
   onClose: () => void;
   onLogout: () => void;
 }
@@ -51,18 +53,56 @@ interface ProfileData {
 
 export default function UserProfile({
   username,
+  initialAvatar = "",
+  initialDisplayName = "",
   onClose,
   onLogout,
 }: UserProfileProps) {
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Discover avatar reliably across props and local storage
+  const getCachedAvatar = (): string => {
+    if (initialAvatar) return initialAvatar;
+    if (typeof window === "undefined") return "";
+    const activeSession = localStorage.getItem("ak_session") || "";
+    const activeName = localStorage.getItem("ak_display_name") || "";
+    return (
+      (username ? localStorage.getItem(`ak_avatar_${username}`) : null) ||
+      (username ? localStorage.getItem(`ak_avatar_${username.toLowerCase()}`) : null) ||
+      (activeSession ? localStorage.getItem(`ak_avatar_${activeSession}`) : null) ||
+      (activeSession ? localStorage.getItem(`ak_avatar_${activeSession.toLowerCase()}`) : null) ||
+      (activeName ? localStorage.getItem(`ak_avatar_${activeName}`) : null) ||
+      (activeName ? localStorage.getItem(`ak_avatar_${activeName.toLowerCase()}`) : null) ||
+      localStorage.getItem("ak_avatar") ||
+      ""
+    );
+  };
+
+  const getCachedDisplayName = (): string => {
+    if (initialDisplayName) return initialDisplayName;
+    if (typeof window === "undefined") return "";
+    return localStorage.getItem("ak_display_name") || "";
+  };
+
+  const [profile, setProfile] = useState<ProfileData>(() => ({
+    id: 1,
+    username: username || (typeof window !== "undefined" ? localStorage.getItem("ak_session") || "admin" : "admin"),
+    name: (typeof window !== "undefined" ? localStorage.getItem("ak_display_name") : "") || initialDisplayName || "",
+    email: typeof window !== "undefined" ? localStorage.getItem("ak_email") || "" : "",
+    mobile: typeof window !== "undefined" ? localStorage.getItem("ak_mobile") || "" : "",
+    avatar: (typeof window !== "undefined" ? (
+      (username ? localStorage.getItem(`ak_avatar_${username}`) : null) ||
+      (username ? localStorage.getItem(`ak_avatar_${username.toLowerCase()}`) : null) ||
+      localStorage.getItem("ak_avatar") ||
+      ""
+    ) : "") || initialAvatar || "",
+  }));
+  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{
     msg: string;
     type: "ok" | "err";
   } | null>(null);
-  const [editName, setEditName] = useState("");
+  const [editName, setEditName] = useState(() => (typeof window !== "undefined" ? localStorage.getItem("ak_display_name") : "") || initialDisplayName || "");
   const [editEmail, setEditEmail] = useState("");
   const [editMobile, setEditMobile] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -100,8 +140,9 @@ export default function UserProfile({
         return;
       }
     }
-    if (profile?.avatar) {
-      setCropperRawImage(profile.avatar);
+    const activeAvatar = profile?.avatar || getCachedAvatar();
+    if (activeAvatar) {
+      setCropperRawImage(activeAvatar);
     } else {
       fileInputRef.current?.click();
     }
@@ -551,7 +592,9 @@ export default function UserProfile({
     year: "numeric",
   });
   const isAdmin = username === "admin";
-  const initials = (profile?.name || username || "U")
+  const displayAvatar = profile?.avatar || getCachedAvatar();
+  const displayName = profile?.name || getCachedDisplayName() || username;
+  const initials = (displayName || "U")
     .split(" ")
     .map((w: string) => w[0] || "")
     .join("")
@@ -582,8 +625,19 @@ export default function UserProfile({
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setProfile(data);
-      setEditName(data.name || "");
+
+      const effectiveAvatar = data.avatar || getCachedAvatar();
+      const effectiveName = data.name || getCachedDisplayName() || username;
+
+      setProfile((prev) => ({
+        id: data.id ?? prev?.id ?? 1,
+        username: data.username || prev?.username || username,
+        name: effectiveName,
+        email: data.email ?? prev?.email ?? "",
+        mobile: data.mobile ?? prev?.mobile ?? "",
+        avatar: effectiveAvatar,
+      }));
+      setEditName(effectiveName || "");
       setEditEmail(data.email || "");
       setEditMobile(data.mobile || "");
       if (data.defaultStartingTab) {
@@ -617,19 +671,35 @@ export default function UserProfile({
       if (data.avatar) {
         if (typeof window !== "undefined") {
           localStorage.setItem(`ak_avatar_${username}`, data.avatar);
+          localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, data.avatar);
           window.dispatchEvent(
             new CustomEvent("ak-avatar-updated", { detail: { avatar: data.avatar } })
           );
         }
-      } else if (typeof window !== "undefined") {
-        const localAvatar = localStorage.getItem(`ak_avatar_${username}`);
-        if (localAvatar) {
-          setProfile((prev) => (prev ? { ...prev, avatar: localAvatar } : prev));
-        }
+      } else if (effectiveAvatar) {
+        // Auto-heal: If server doesn't have avatar yet, sync client avatar to server
+        fetch(`${API_BASE_URL}/auth/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          credentials: "include",
+          body: JSON.stringify({ avatar: effectiveAvatar }),
+        }).catch(() => {});
       }
     } catch {
-      // Still show UI, just no server data
-      setProfile({ id: 0, username, name: "", email: "", mobile: "" });
+      // Still show UI with cached data - DO NOT wipe out avatar or name!
+      const fallbackAvatar = getCachedAvatar();
+      const fallbackName = getCachedDisplayName();
+      setProfile((prev) => ({
+        id: prev?.id ?? 1,
+        username: prev?.username || username || "admin",
+        name: prev?.name || fallbackName || username,
+        email: prev?.email || "",
+        mobile: prev?.mobile || "",
+        avatar: prev?.avatar || fallbackAvatar || "",
+      }));
     } finally {
       setLoading(false);
     }
@@ -1032,20 +1102,20 @@ export default function UserProfile({
 
                 <div
                   onClick={() => {
-                    if (profile?.avatar) {
+                    if (displayAvatar) {
                       setShowPhotoViewer(true);
                     } else {
                       fileInputRef.current?.click();
                     }
                   }}
-                  title={profile?.avatar ? "Click to view & edit photo" : "Click to upload photo"}
+                  title={displayAvatar ? "Click to view & edit photo" : "Click to upload photo"}
                   style={{
                     position: "relative",
                     zIndex: 1,
                     width: "88px",
                     height: "88px",
                     borderRadius: "24px",
-                    background: profile?.avatar
+                    background: displayAvatar
                       ? "var(--bg-secondary)"
                       : "linear-gradient(145deg, #1d4ed8 0%, #0d9488 100%)",
                     border: "2px solid var(--border-medium)",
@@ -1063,10 +1133,10 @@ export default function UserProfile({
                     transition: "transform 0.15s ease, box-shadow 0.15s ease",
                   }}
                 >
-                  {profile?.avatar ? (
+                  {displayAvatar ? (
                     <img
-                      src={profile.avatar}
-                      alt={profile.name || username}
+                      src={displayAvatar}
+                      alt={displayName}
                       style={{
                         width: "100%",
                         height: "100%",
@@ -1084,13 +1154,13 @@ export default function UserProfile({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (profile?.avatar) {
+                    if (displayAvatar) {
                       setShowPhotoViewer(true);
                     } else {
                       fileInputRef.current?.click();
                     }
                   }}
-                  title={profile?.avatar ? "View & edit photo" : "Upload photo"}
+                  title={displayAvatar ? "View & edit photo" : "Upload photo"}
                   disabled={uploadingAvatar}
                   style={{
                     position: "absolute",
@@ -1133,7 +1203,7 @@ export default function UserProfile({
                   letterSpacing: "-0.5px",
                 }}
               >
-                {profile?.name || username}
+                {displayName}
               </h2>
               <p
                 style={{
@@ -1184,10 +1254,10 @@ export default function UserProfile({
                   }}
                 >
                   <Upload size={12} />
-                  {uploadingAvatar ? "Processing…" : profile?.avatar ? "Change Photo" : "Upload Photo"}
+                  {uploadingAvatar ? "Processing…" : displayAvatar ? "Change Photo" : "Upload Photo"}
                 </button>
 
-                {profile?.avatar && (
+                {displayAvatar && (
                   <button
                     type="button"
                     onClick={handleRemoveAvatar}
@@ -3040,7 +3110,7 @@ export default function UserProfile({
         @keyframes gradientShift { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
         @keyframes ripplePulse { 0% { opacity: 0.8; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.2); } }
       `}</style>
-      {showPhotoViewer && profile?.avatar && (
+      {showPhotoViewer && displayAvatar && (
         <div
           style={{
             position: "fixed",
@@ -3145,8 +3215,8 @@ export default function UserProfile({
                 }}
               >
                 <img
-                  src={profile.avatar}
-                  alt={profile.name || username}
+                  src={displayAvatar}
+                  alt={displayName}
                   style={{
                     width: "100%",
                     height: "100%",
