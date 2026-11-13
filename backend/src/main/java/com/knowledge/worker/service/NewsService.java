@@ -85,7 +85,20 @@ public class NewsService {
         List<Article> combined = new ArrayList<>();
         Set<String> seenUrls = new LinkedHashSet<>();
 
-        // 1. Live Google News RSS (always free, no key needed)
+        // 1. Publisher RSS feeds with authentic original photos (BBC, Yahoo, The Verge, etc.)
+        try {
+            List<Article> pubArticles = fetchPublisherRss(category, topic);
+            for (Article a : pubArticles) {
+                if (a.getUrl() != null && seenUrls.add(a.getUrl())) {
+                    combined.add(a);
+                }
+            }
+            log.info("[News] Publisher RSS: {} articles fetched", pubArticles.size());
+        } catch (Exception e) {
+            log.warn("[News] Publisher RSS error: {}", e.getMessage());
+        }
+
+        // 2. Live Google News RSS (always free, broad coverage)
         try {
             List<Article> rssArticles = fetchGoogleNewsRss(category, topic);
             for (Article a : rssArticles) {
@@ -98,7 +111,7 @@ public class NewsService {
             log.warn("[News] Google News RSS failed: {}", e.getMessage());
         }
 
-        // 2. Currents API (if key configured)
+        // 3. Currents API (if key configured)
         if (currentsApiKey != null && currentsApiKey.length() > 10 && !currentsApiKey.startsWith("your_")) {
             try {
                 List<Article> currentArticles = fetchCurrentsApi(category, topic);
@@ -183,54 +196,163 @@ public class NewsService {
         return articles;
     }
 
-    private static final String[][] THEMATIC_PHOTOS = {
-        {"politics", "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"politics", "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"court", "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"court", "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"military", "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"military", "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"business", "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"business", "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"technology", "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"technology", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"health", "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"science", "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"sports", "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"entertainment", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80"},
-        {"world", "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80"}
+    private List<Article> fetchPublisherRss(String category, String topic) {
+        List<Article> list = new ArrayList<>();
+        if (!topic.isEmpty()) return list;
+
+        String cat = category != null ? category.toLowerCase().trim() : "all";
+        List<String> feedUrls = switch (cat) {
+            case "sports" -> List.of("https://sports.yahoo.com/rss/", "https://feeds.bbci.co.uk/sport/rss.xml");
+            case "technology" -> List.of("https://www.theverge.com/rss/index.xml", "https://feeds.bbci.co.uk/news/technology/rss.xml");
+            case "business" -> List.of("https://finance.yahoo.com/news/rssindex", "https://feeds.bbci.co.uk/news/business/rss.xml");
+            case "entertainment" -> List.of("https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml", "https://news.yahoo.com/rss/entertainment");
+            case "science" -> List.of("https://feeds.bbci.co.uk/news/science_and_environment/rss.xml");
+            case "health" -> List.of("https://feeds.bbci.co.uk/news/health/rss.xml");
+            default -> List.of("https://feeds.bbci.co.uk/news/world/rss.xml", "https://news.yahoo.com/rss/");
+        };
+
+        for (String fUrl : feedUrls) {
+            try {
+                Request req = new Request.Builder()
+                        .url(fUrl)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+                        .build();
+                try (Response resp = httpClient.newCall(req).execute()) {
+                    if (resp.isSuccessful() && resp.body() != null) {
+                        String xml = resp.body().string();
+                        List<Article> parsed = parseRssFeed(xml, cat.equals("all") ? "technology" : cat);
+                        list.addAll(parsed);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("[News] Publisher RSS {} error: {}", fUrl, e.getMessage());
+            }
+        }
+        return list;
+    }
+
+    private static final String[] SPORTS_PHOTOS = {
+        "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&h=450&q=80", // Soccer match
+        "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&h=450&q=80", // Basketball hoop
+        "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&h=450&q=80", // Stadium crowd
+        "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=800&h=450&q=80", // Tennis match
+        "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80", // Athletics track
+        "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&h=450&q=80", // Gym training
+        "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&h=450&q=80", // Swimming competition
+        "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=800&h=450&q=80", // Golf course
+        "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=800&h=450&q=80", // Volleyball
+        "https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&w=800&h=450&q=80", // Baseball action
+        "https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=800&h=450&q=80", // Hockey rink
+        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&h=450&q=80"  // Cycling race
+    };
+
+    private static final String[] TECH_PHOTOS = {
+        "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80", // Chipset
+        "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80", // AI neural network
+        "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&h=450&q=80", // Code / software
+        "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&h=450&q=80", // Cyber matrix
+        "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&h=450&q=80", // Robotics
+        "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&h=450&q=80", // Datacenter
+        "https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=800&h=450&q=80", // Tech laptop
+        "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&h=450&q=80"  // Hardware lab
+    };
+
+    private static final String[] BUSINESS_PHOTOS = {
+        "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80", // Stock charts
+        "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80", // Wall Street Bull
+        "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&h=450&q=80", // Financial analytics
+        "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80", // Corporate towers
+        "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&h=450&q=80", // Currency
+        "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&h=450&q=80"  // Meeting board
+    };
+
+    private static final String[] ENTERTAINMENT_PHOTOS = {
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80", // Music concert
+        "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=450&q=80", // Cinema theater
+        "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=800&h=450&q=80", // Film camera
+        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&h=450&q=80", // Recording studio
+        "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800&h=450&q=80", // Photography
+        "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&h=450&q=80"  // Stage crowd
+    };
+
+    private static final String[] HEALTH_PHOTOS = {
+        "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80", // Doctor / hospital
+        "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80", // Medical lab
+        "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&h=450&q=80", // Stethoscope
+        "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&h=450&q=80", // Wellness / healthcare
+        "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&h=450&q=80"  // Pharmacy
+    };
+
+    private static final String[] SCIENCE_PHOTOS = {
+        "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80", // Rocket launch
+        "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80", // Satellite
+        "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&h=450&q=80", // Particle physics
+        "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&w=800&h=450&q=80", // Space telescope
+        "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80"  // Science research
+    };
+
+    private static final String[] POLITICS_PHOTOS = {
+        "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&h=450&q=80", // US Capitol
+        "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=800&h=450&q=80", // Government building
+        "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&h=450&q=80", // Press podium
+        "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=800&h=450&q=80"  // Voting ballot
+    };
+
+    private static final String[] COURT_PHOTOS = {
+        "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&h=450&q=80", // Court gavel
+        "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&h=450&q=80"  // Law library
+    };
+
+    private static final String[] MILITARY_PHOTOS = {
+        "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80", // Military defense
+        "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80"  // Security patrol
+    };
+
+    private static final String[] GLOBAL_PHOTOS = {
+        "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&h=450&q=80", // Newspaper / journalism
+        "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80", // Global city skyline
+        "https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=800&h=450&q=80", // City aerial
+        "https://images.unsplash.com/photo-1444723121867-7a241cacace9?auto=format&fit=crop&w=800&h=450&q=80", // Metropolis bridge
+        "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=800&h=450&q=80"  // International square
     };
 
     private String getThematicImageUrl(String title, String category, int index) {
-        String lower = (title != null ? title : "").toLowerCase();
-        if (lower.matches(".*\\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice|death row|commute|prison|sentence)\\b.*")) {
-            return (index % 2 == 0) ? THEMATIC_PHOTOS[2][1] : THEMATIC_PHOTOS[3][1];
+        String lowerTitle = (title != null ? title : "").toLowerCase();
+        String lowerCat = (category != null ? category : "all").toLowerCase();
+
+        // 1. Check title keywords first
+        if (lowerTitle.matches(".*\\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice|prison|sentence)\\b.*")) {
+            return COURT_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % COURT_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern|midterm|governor)\\b.*")) {
-            return (index % 2 == 0) ? THEMATIC_PHOTOS[0][1] : THEMATIC_PHOTOS[1][1];
+        if (lowerTitle.matches(".*\\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern|governor)\\b.*")) {
+            return POLITICS_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % POLITICS_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(war|military|strike|drone|missile|attack|ukraine|russia|israel|gaza|iran|troops|army|weapon|terror|defense|treaty|broker)\\b.*")) {
-            return (index % 2 == 0) ? THEMATIC_PHOTOS[4][1] : THEMATIC_PHOTOS[5][1];
+        if (lowerTitle.matches(".*\\b(war|military|strike|drone|missile|attack|ukraine|russia|israel|gaza|iran|troops|army|weapon|terror|defense)\\b.*")) {
+            return MILITARY_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % MILITARY_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq|gold|oil)\\b.*")) {
-            return (index % 2 == 0) ? THEMATIC_PHOTOS[6][1] : THEMATIC_PHOTOS[7][1];
+
+        // 2. Check category / sport-specific match
+        if (lowerCat.contains("sport") || lowerTitle.matches(".*\\b(sport|sports|volleyball|basketball|football|soccer|tennis|baseball|golf|athletics|olympic|championship|ncaa|cusa|acc|sec|match|team|coach|win|cup|game|score|athlete|trojans|aggies|wku|smu|playfly|strikes|race|runner)\\b.*")) {
+            return SPORTS_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % SPORTS_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(ai|nvidia|chip|tech|software|google|apple|microsoft|openai|robot|computer|quantum|cyber|coding)\\b.*")) {
-            return (index % 2 == 0) ? THEMATIC_PHOTOS[8][1] : THEMATIC_PHOTOS[9][1];
+        if (lowerCat.contains("tech") || lowerTitle.matches(".*\\b(ai|nvidia|chip|tech|software|google|apple|microsoft|openai|robot|computer|quantum|cyber|coding|developer|app)\\b.*")) {
+            return TECH_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % TECH_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|patient|pandemic)\\b.*")) {
-            return THEMATIC_PHOTOS[10][1];
+        if (lowerCat.contains("business") || lowerTitle.matches(".*\\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq|gold|oil|finance|fund)\\b.*")) {
+            return BUSINESS_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % BUSINESS_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(space|nasa|rocket|starship|spacex|satellite|mars|moon|astronaut|telescope|orbit|planet|astronomy)\\b.*")) {
-            return THEMATIC_PHOTOS[11][1];
+        if (lowerCat.contains("entertain") || lowerTitle.matches(".*\\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre|culture|streaming|netflix)\\b.*")) {
+            return ENTERTAINMENT_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % ENTERTAINMENT_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(sport|football|soccer|nfl|nba|premier league|match|cup|goal|coach|olympic|tennis|race|player)\\b.*")) {
-            return THEMATIC_PHOTOS[12][1];
+        if (lowerCat.contains("health") || lowerTitle.matches(".*\\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|patient|therapy|diet)\\b.*")) {
+            return HEALTH_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % HEALTH_PHOTOS.length];
         }
-        if (lower.matches(".*\\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre|culture)\\b.*")) {
-            return THEMATIC_PHOTOS[13][1];
+        if (lowerCat.contains("science") || lowerTitle.matches(".*\\b(science|research|study|physics|nasa|space|mars|satellite|telescope|orbit|planet|astronomy|biology|climate)\\b.*")) {
+            return SCIENCE_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % SCIENCE_PHOTOS.length];
         }
-        return THEMATIC_PHOTOS[14][1];
+
+        // Diverse global news imagery (never repeat the same single image)
+        return GLOBAL_PHOTOS[Math.abs((lowerTitle + index).hashCode()) % GLOBAL_PHOTOS.length];
     }
 
     private String unescapeHtml(String text) {
@@ -324,15 +446,17 @@ public class NewsService {
                     parsedDate = Instant.now().toString();
                 }
 
-                // Check for real media tags or img tag in description
+                // Check for real media tags or img tag in description or item content
                 String imageUrl = getAttribute(item, "media:content", "url");
                 if (imageUrl == null || imageUrl.isBlank()) imageUrl = getAttribute(item, "media:thumbnail", "url");
                 if (imageUrl == null || imageUrl.isBlank()) imageUrl = getAttribute(item, "enclosure", "url");
+                if (imageUrl == null || imageUrl.isBlank()) imageUrl = getAttribute(item, "thumbnail", "url");
+                if (imageUrl == null || imageUrl.isBlank()) imageUrl = getAttribute(item, "content", "url");
                 if (imageUrl == null || imageUrl.isBlank()) {
-                    if (rawDescription != null && rawDescription.contains("<img")) {
-                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("<img[^>]+src=[\"\']([^\"\']+)[\"\']").matcher(rawDescription);
+                    if (rawDescription != null) {
+                        java.util.regex.Matcher m = java.util.regex.Pattern.compile("(https?://[^\\s\"'<>]+\\.(?:jpg|jpeg|png|webp)[^\\s\"'<>]*)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(rawDescription);
                         if (m.find()) {
-                            imageUrl = m.group(1);
+                            imageUrl = m.group(1).replace("&amp;", "&");
                         }
                     }
                 }

@@ -15,57 +15,98 @@ interface RawArticle {
 }
 
 const CONTEXTUAL_IMAGES: Record<string, string[]> = {
+  sports: [
+    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&h=450&q=80", // Soccer match
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&h=450&q=80", // Basketball hoop
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&h=450&q=80", // Stadium crowd
+    "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=800&h=450&q=80", // Tennis match
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80", // Athletics track
+    "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&h=450&q=80", // Gym training
+    "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&h=450&q=80", // Swimming competition
+    "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=800&h=450&q=80", // Golf course
+    "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=800&h=450&q=80", // Volleyball
+    "https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&w=800&h=450&q=80", // Baseball action
+    "https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=800&h=450&q=80", // Hockey rink
+    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&h=450&q=80", // Cycling race
+  ],
+  technology: [
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80", // Microchip
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80", // AI neural network
+    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&h=450&q=80", // Code / software
+    "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&h=450&q=80", // Cyber matrix
+    "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&h=450&q=80", // Robotics
+    "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&h=450&q=80", // Datacenter
+    "https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=800&h=450&q=80", // Tech laptop
+    "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&h=450&q=80", // Hardware lab
+  ],
+  business: [
+    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80", // Stock charts
+    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80", // Wall Street Bull
+    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&h=450&q=80", // Financial analysis
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80", // Corporate towers
+    "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&h=450&q=80", // Currency
+    "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&h=450&q=80", // Meeting board
+  ],
+  entertainment: [
+    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80", // Music concert
+    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=450&q=80", // Cinema theater
+    "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=800&h=450&q=80", // Film camera
+    "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&h=450&q=80", // Recording studio
+    "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800&h=450&q=80", // Photography
+    "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&h=450&q=80", // Stage crowd
+  ],
+  health: [
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80", // Doctor / hospital
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80", // Medical lab
+    "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&h=450&q=80", // Stethoscope
+    "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&h=450&q=80", // Wellness / healthcare
+    "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&h=450&q=80", // Pharmacy
+  ],
+  science: [
+    "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80", // Rocket launch
+    "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&h=450&q=80", // Particle physics
+    "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&w=800&h=450&q=80", // Space telescope
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80", // Science research
+  ],
   politics: [
     "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&h=450&q=80", // US Capitol
     "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=800&h=450&q=80", // Government building
-    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&h=450&q=80", // Press conference / podium
+    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&h=450&q=80", // Press podium
+    "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=800&h=450&q=80", // Voting ballot
   ],
   court: [
     "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&h=450&q=80", // Court gavel
     "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&h=450&q=80", // Law library
   ],
   military: [
-    "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80", // Defense / military
-    "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80", // Security / defense
+    "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80", // Military defense
+    "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80", // Security patrol
   ],
   weather: [
     "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&h=450&q=80", // Storm rain
     "https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=800&h=450&q=80", // Storm clouds
   ],
-  business: [
-    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80", // Stock board
-    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80", // Wall Street
-    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&h=450&q=80", // Finance team
-  ],
-  technology: [
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80", // Technology
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80", // AI neural network
-    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&h=450&q=80", // Software code
-  ],
   space: [
     "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80", // Rocket launch
     "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80", // Earth / satellite
   ],
-  health: [
-    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80", // Healthcare / doctor
-    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80", // Science laboratory
-  ],
-  sports: [
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80", // Sports stadium
-    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&h=450&q=80", // Football match
-  ],
-  entertainment: [
-    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80", // Concert / event
-    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=450&q=80", // Cinema / movie
+  global: [
+    "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&h=450&q=80", // Newspaper / journalism
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80", // Global city skyline
+    "https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=800&h=450&q=80", // City aerial
+    "https://images.unsplash.com/photo-1444723121867-7a241cacace9?auto=format&fit=crop&w=800&h=450&q=80", // Metropolis bridge
+    "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=800&h=450&q=80", // International square
   ],
 };
 
 function getSmartFallbackImage(title: string, category: string, index: number): string {
   const lower = title.toLowerCase();
-  if (lower.match(/\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice)\b/)) {
+  const cat = (category || "all").toLowerCase();
+
+  if (lower.match(/\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice|prison|sentence)\b/)) {
     return CONTEXTUAL_IMAGES.court[index % CONTEXTUAL_IMAGES.court.length];
   }
-  if (lower.match(/\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern)\b/)) {
+  if (lower.match(/\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern|governor)\b/)) {
     return CONTEXTUAL_IMAGES.politics[index % CONTEXTUAL_IMAGES.politics.length];
   }
   if (lower.match(/\b(war|military|strike|drone|missile|attack|ukraine|russia|israel|gaza|iran|troops|army|weapon|terror|defense)\b/)) {
@@ -77,21 +118,28 @@ function getSmartFallbackImage(title: string, category: string, index: number): 
   if (lower.match(/\b(space|nasa|rocket|starship|spacex|satellite|mars|moon|astronaut|telescope|orbit)\b/)) {
     return CONTEXTUAL_IMAGES.space[index % CONTEXTUAL_IMAGES.space.length];
   }
-  if (lower.match(/\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|ebola|measles|patient)\b/)) {
-    return CONTEXTUAL_IMAGES.health[index % CONTEXTUAL_IMAGES.health.length];
-  }
-  if (lower.match(/\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq)\b/)) {
-    return CONTEXTUAL_IMAGES.business[index % CONTEXTUAL_IMAGES.business.length];
-  }
-  if (lower.match(/\b(sport|football|soccer|nfl|nba|premier league|match|cup|goal|coach|olympic|tennis|race|player)\b/)) {
+
+  // Category matching
+  if (cat.includes("sport") || lower.match(/\b(sport|sports|volleyball|basketball|football|soccer|tennis|baseball|golf|athletics|olympic|championship|ncaa|cusa|acc|sec|match|team|coach|win|cup|game|score|athlete|trojans|aggies|wku|smu|playfly|strikes|race|runner)\b/)) {
     return CONTEXTUAL_IMAGES.sports[index % CONTEXTUAL_IMAGES.sports.length];
   }
-  if (lower.match(/\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre)\b/)) {
+  if (cat.includes("tech") || lower.match(/\b(ai|nvidia|chip|tech|software|google|apple|microsoft|openai|robot|computer|quantum|cyber|coding|developer|app)\b/)) {
+    return CONTEXTUAL_IMAGES.technology[index % CONTEXTUAL_IMAGES.technology.length];
+  }
+  if (cat.includes("business") || lower.match(/\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq|gold|oil|finance|fund)\b/)) {
+    return CONTEXTUAL_IMAGES.business[index % CONTEXTUAL_IMAGES.business.length];
+  }
+  if (cat.includes("entertain") || lower.match(/\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre|culture|streaming|netflix)\b/)) {
     return CONTEXTUAL_IMAGES.entertainment[index % CONTEXTUAL_IMAGES.entertainment.length];
   }
-  const cat = (category || "technology").toLowerCase();
-  const pool = CONTEXTUAL_IMAGES[cat] || CONTEXTUAL_IMAGES.technology;
-  return pool[index % pool.length];
+  if (cat.includes("health") || lower.match(/\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|ebola|measles|patient|therapy|diet)\b/)) {
+    return CONTEXTUAL_IMAGES.health[index % CONTEXTUAL_IMAGES.health.length];
+  }
+  if (cat.includes("science") || lower.match(/\b(science|research|study|physics|nasa|space|mars|satellite|telescope|orbit|planet|astronomy|biology|climate)\b/)) {
+    return CONTEXTUAL_IMAGES.science[index % CONTEXTUAL_IMAGES.science.length];
+  }
+
+  return CONTEXTUAL_IMAGES.global[index % CONTEXTUAL_IMAGES.global.length];
 }
 
 function decodeHtml(html?: string): string {
@@ -159,14 +207,21 @@ function parseRssFeed(xml: string, defaultSource: string, category: string): Raw
       }
     }
 
-    // Extract genuine article photo from media tags or thumbnail enclosure
+    // Extract genuine article photo from media tags, thumbnail, enclosure, or embedded <img>
     const imgMatch =
       itemXml.match(/<media:content[^>]+url=["']([^"']+)["']/i) ||
       itemXml.match(/<media:thumbnail[^>]+url=["']([^"']+)["']/i) ||
-      itemXml.match(/<enclosure[^>]+url=["']([^"']+)["']/i);
+      itemXml.match(/<enclosure[^>]+url=["']([^"']+)["']/i) ||
+      itemXml.match(/<img[^>]+src=["']([^"']+)["']/i);
     let image = imgMatch ? imgMatch[1].trim() : "";
 
-    // If no media tag, use smart semantic image matching
+    // Regex check for direct publisher image URLs (.jpg, .jpeg, .png, .webp) inside description or content
+    if (!image) {
+      const urlMatch = itemXml.match(/https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|avif)(?:\?[^\s"'<>]*)?/i);
+      if (urlMatch) image = urlMatch[0];
+    }
+
+    // If no authentic publisher media tag was found, use smart semantic image matching
     if (!image || !image.startsWith("http")) {
       image = getSmartFallbackImage(cleanTitle, category, i);
     }
@@ -238,58 +293,58 @@ async function fetchAllLiveNews(category: string, topic: string): Promise<RawArt
 
   if (cat === "technology") {
     feeds.push(
-      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en" },
       { name: "The Verge", url: "https://www.theverge.com/rss/index.xml" },
       { name: "Ars Technica", url: "https://feeds.arstechnica.com/arstechnica/index" },
       { name: "BBC News", url: "https://feeds.bbci.co.uk/news/technology/rss.xml" },
       { name: "The Guardian", url: "https://www.theguardian.com/technology/rss" },
-      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml" }
+      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en" }
     );
   } else if (cat === "business") {
     feeds.push(
-      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en" },
-      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/business/rss.xml" },
       { name: "Yahoo Finance", url: "https://finance.yahoo.com/news/rssindex" },
+      { name: "BBC News", url: "https://feeds.bbci.co.uk/news/business/rss.xml" },
       { name: "The Guardian", url: "https://www.theguardian.com/business/rss" },
-      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml" }
+      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en" }
     );
   } else if (cat === "science") {
     feeds.push(
-      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=en-US&gl=US&ceid=US:en" },
       { name: "BBC News", url: "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml" },
       { name: "The Guardian", url: "https://www.theguardian.com/science/rss" },
-      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml" }
+      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Science.xml" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/SCIENCE?hl=en-US&gl=US&ceid=US:en" }
     );
   } else if (cat === "health") {
     feeds.push(
-      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=en-US&gl=US&ceid=US:en" },
       { name: "BBC News", url: "https://feeds.bbci.co.uk/news/health/rss.xml" },
       { name: "The Guardian", url: "https://www.theguardian.com/society/health/rss" },
-      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml" }
+      { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml" },
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/HEALTH?hl=en-US&gl=US&ceid=US:en" }
     );
   } else if (cat === "sports") {
     feeds.push(
-      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=en-US&gl=US&ceid=US:en" },
+      { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/" },
       { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/rss.xml" },
       { name: "The Guardian", url: "https://www.theguardian.com/sport/rss" },
-      { name: "Yahoo Sports", url: "https://sports.yahoo.com/rss/" }
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/SPORTS?hl=en-US&gl=US&ceid=US:en" }
     );
   } else if (cat === "entertainment") {
     feeds.push(
-      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-US&gl=US&ceid=US:en" },
+      { name: "Yahoo News", url: "https://news.yahoo.com/rss/entertainment" },
       { name: "BBC News", url: "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml" },
       { name: "The Guardian", url: "https://www.theguardian.com/culture/rss" },
-      { name: "Yahoo News", url: "https://news.yahoo.com/rss/entertainment" }
+      { name: "Google News", url: "https://news.google.com/rss/headlines/section/topic/ENTERTAINMENT?hl=en-US&gl=US&ceid=US:en" }
     );
   } else {
     // "all" - Top Global Headlines across world, politics, tech, finance
     feeds.push(
-      { name: "Google News", url: "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en" },
       { name: "BBC News", url: "https://feeds.bbci.co.uk/news/world/rss.xml" },
-      { name: "NPR News", url: "https://feeds.npr.org/1001/rss.xml" },
+      { name: "Sky News", url: "https://feeds.skynews.com/feeds/rss/world.xml" },
       { name: "The Guardian", url: "https://www.theguardian.com/world/rss" },
+      { name: "NPR News", url: "https://feeds.npr.org/1001/rss.xml" },
       { name: "NY Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" },
-      { name: "Sky News", url: "https://feeds.skynews.com/feeds/rss/world.xml" }
+      { name: "Google News", url: "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en" }
     );
   }
 
