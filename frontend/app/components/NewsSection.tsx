@@ -149,97 +149,153 @@ function isRecent(iso?: string): boolean {
 
 // Curated high-resolution 16:9 news images from Unsplash CDN
 const THEMATIC_IMAGES: Record<string, string[]> = {
-  politics: [
-    "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1575517111478-7f6afd0973db?auto=format&fit=crop&w=800&h=450&q=80",
-  ],
-  court: [
-    "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1453733197781-7178555201a0?auto=format&fit=crop&w=800&h=450&q=80",
-  ],
-  world: [
-    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1532375810709-75b1da00537c?auto=format&fit=crop&w=800&h=450&q=80",
-  ],
-  military: [
-    "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80",
-  ],
-  business: [
-    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&h=450&q=80",
+  sports: [
+    "https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=800&h=450&q=80", // Basketball
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=800&h=450&q=80", // Football Stadium crowd
+    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&h=450&q=80", // Soccer match
+    "https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?auto=format&fit=crop&w=800&h=450&q=80", // Tennis court
+    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80", // Running track / athletics
+    "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&h=450&q=80", // Athletic training
+    "https://images.unsplash.com/photo-1530549387789-4c1017266635?auto=format&fit=crop&w=800&h=450&q=80", // Swimming competition
+    "https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=800&h=450&q=80", // Volleyball match
+    "https://images.unsplash.com/photo-1569517282132-25d22f4573e6?auto=format&fit=crop&w=800&h=450&q=80", // Baseball action
+    "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&h=450&q=80", // Cycling race
+    "https://images.unsplash.com/photo-1535131749006-b7f58c99034b?auto=format&fit=crop&w=800&h=450&q=80", // Golf championship
+    "https://images.unsplash.com/photo-1517927033932-b3d18e61fb3a?auto=format&fit=crop&w=800&h=450&q=80", // Hockey rink
   ],
   technology: [
-    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&h=450&q=80",
+    "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&h=450&q=80", // Microchip
+    "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&h=450&q=80", // AI neural network
+    "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&h=450&q=80", // Code / software
+    "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&h=450&q=80", // Cyber matrix
+    "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&h=450&q=80", // Robotics
+    "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&h=450&q=80", // Datacenter servers
+    "https://images.unsplash.com/photo-1531297484001-80022131f5a1?auto=format&fit=crop&w=800&h=450&q=80", // Modern tech laptop
+    "https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&h=450&q=80", // Hardware engineering
   ],
-  health: [
-    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80",
-  ],
-  science: [
-    "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&h=450&q=80",
-  ],
-  sports: [
-    "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=800&h=450&q=80",
+  business: [
+    "https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&w=800&h=450&q=80", // Stock charts
+    "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&h=450&q=80", // Wall Street Bull
+    "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=800&h=450&q=80", // Financial analysis
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80", // Corporate towers
+    "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&h=450&q=80", // Global currency
+    "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&h=450&q=80", // Executive meeting
   ],
   entertainment: [
-    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80",
-    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=450&q=80",
+    "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&h=450&q=80", // Concert stage
+    "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&h=450&q=80", // Cinema auditorium
+    "https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=800&h=450&q=80", // Film camera
+    "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=800&h=450&q=80", // Music studio
+    "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800&h=450&q=80", // Red carpet
+    "https://images.unsplash.com/photo-1501386761578-eac5c94b800a?auto=format&fit=crop&w=800&h=450&q=80", // Festival crowd
+  ],
+  health: [
+    "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&h=450&q=80", // Hospital doctor
+    "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=800&h=450&q=80", // Medical lab
+    "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&h=450&q=80", // Stethoscope
+    "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=800&h=450&q=80", // Healthcare
+    "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&h=450&q=80", // Pharmaceuticals
+  ],
+  science: [
+    "https://images.unsplash.com/photo-1517976487507-526435f0a719?auto=format&fit=crop&w=800&h=450&q=80", // Rocket launch
+    "https://images.unsplash.com/photo-1507668077129-56e32842fceb?auto=format&fit=crop&w=800&h=450&q=80", // Physics lab
+    "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?auto=format&fit=crop&w=800&h=450&q=80", // Deep space nebula
+    "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&h=450&q=80", // Astronomy
+  ],
+  politics: [
+    "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=800&h=450&q=80", // US Capitol
+    "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?auto=format&fit=crop&w=800&h=450&q=80", // Parliament
+    "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&h=450&q=80", // Press conference
+    "https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?auto=format&fit=crop&w=800&h=450&q=80", // Election
+  ],
+  court: [
+    "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=800&h=450&q=80", // Supreme Court gavel
+    "https://images.unsplash.com/photo-1505664194779-8beaceb93744?auto=format&fit=crop&w=800&h=450&q=80", // Legal library
+    "https://images.unsplash.com/photo-1453733197781-7178555201a0?auto=format&fit=crop&w=800&h=450&q=80", // Scales of justice
+  ],
+  military: [
+    "https://images.unsplash.com/photo-1579975096649-e773152b04cb?auto=format&fit=crop&w=800&h=450&q=80", // Defense patrol
+    "https://images.unsplash.com/photo-1508873696983-2df5293cb395?auto=format&fit=crop&w=800&h=450&q=80", // Naval fleet
+  ],
+  world: [
+    "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=800&h=450&q=80", // Journalism newspaper
+    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&h=450&q=80", // Global city skyline
+    "https://images.unsplash.com/photo-1477959858617-67f30bc75b82?auto=format&fit=crop&w=800&h=450&q=80", // City aerial
+    "https://images.unsplash.com/photo-1444723121867-7a241cacace9?auto=format&fit=crop&w=800&h=450&q=80", // Metropolis bridge
+    "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=800&h=450&q=80", // Global plaza
+    "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=800&h=450&q=80", // World map compass
   ],
 };
 
 function getSmartImage(title: string, category?: string, index = 0): string {
   const lower = (title || "").toLowerCase();
-  let pool = THEMATIC_IMAGES.world;
+  const cat = (category || "").toLowerCase();
 
-  if (lower.match(/\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice|death row|commute|prison|sentence)\b/)) {
-    pool = THEMATIC_IMAGES.court;
-  } else if (lower.match(/\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern|midterm|governor)\b/)) {
-    pool = THEMATIC_IMAGES.politics;
-  } else if (lower.match(/\b(war|military|strike|drone|missile|attack|ukraine|russia|israel|gaza|iran|troops|army|weapon|terror|defense|treaty|broker)\b/)) {
-    pool = THEMATIC_IMAGES.military;
-  } else if (lower.match(/\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq|gold|oil)\b/)) {
-    pool = THEMATIC_IMAGES.business;
-  } else if (lower.match(/\b(ai|nvidia|chip|tech|software|google|apple|microsoft|openai|robot|computer|quantum|cyber|coding)\b/)) {
-    pool = THEMATIC_IMAGES.technology;
-  } else if (lower.match(/\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|patient|pandemic)\b/)) {
-    pool = THEMATIC_IMAGES.health;
-  } else if (lower.match(/\b(space|nasa|rocket|starship|spacex|satellite|mars|moon|astronaut|telescope|orbit|planet|astronomy)\b/)) {
-    pool = THEMATIC_IMAGES.science;
-  } else if (lower.match(/\b(sport|football|soccer|nfl|nba|premier league|match|cup|goal|coach|olympic|tennis|race|player)\b/)) {
-    pool = THEMATIC_IMAGES.sports;
-  } else if (lower.match(/\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre|culture)\b/)) {
-    pool = THEMATIC_IMAGES.entertainment;
-  } else if (category && THEMATIC_IMAGES[category.toLowerCase()]) {
-    pool = THEMATIC_IMAGES[category.toLowerCase()];
+  // Match sports category or comprehensive sports terminology
+  if (
+    cat.includes("sport") ||
+    lower.match(/\b(sport|football|soccer|nfl|nba|premier league|match|cup|goal|coach|olympic|tennis|race|player|athletics|championship|tournament|volleyball|basketball|baseball|cricket|stadium|marathon|hockey|athlete|wku|cusa|sec|ncaa|sweeps?|semifinal|trophy|score|rebound|striker|quarterback|touchdown)\b/)
+  ) {
+    return THEMATIC_IMAGES.sports[Math.abs(index) % THEMATIC_IMAGES.sports.length];
+  }
+  // Match technology category or keywords
+  if (
+    cat.includes("tech") ||
+    lower.match(/\b(ai|nvidia|chip|tech|software|google|apple|microsoft|openai|robot|computer|quantum|cyber|coding|semiconductor|cloud|hardware|app|gpu|cpu|algorithm)\b/)
+  ) {
+    return THEMATIC_IMAGES.technology[Math.abs(index) % THEMATIC_IMAGES.technology.length];
+  }
+  // Match business/finance category or keywords
+  if (
+    cat.includes("business") ||
+    lower.match(/\b(stock|shares|market|investor|fed|rate|inflation|bank|economy|revenue|earnings|trade|tariff|bitcoin|crypto|dow|sp500|nasdaq|gold|oil|wall street|dividend|ipo|bonds)\b/)
+  ) {
+    return THEMATIC_IMAGES.business[Math.abs(index) % THEMATIC_IMAGES.business.length];
+  }
+  // Match science category or keywords
+  if (
+    cat.includes("science") ||
+    lower.match(/\b(space|nasa|rocket|starship|spacex|satellite|mars|moon|astronaut|telescope|orbit|planet|astronomy|physics|biology|climate|fusion)\b/)
+  ) {
+    return THEMATIC_IMAGES.science[Math.abs(index) % THEMATIC_IMAGES.science.length];
+  }
+  // Match health category or keywords
+  if (
+    cat.includes("health") ||
+    lower.match(/\b(health|doctor|hospital|cancer|virus|disease|medical|fda|drug|vaccine|patient|pandemic|clinical|therapy|medicine)\b/)
+  ) {
+    return THEMATIC_IMAGES.health[Math.abs(index) % THEMATIC_IMAGES.health.length];
+  }
+  // Match entertainment category or keywords
+  if (
+    cat.includes("entertainment") ||
+    lower.match(/\b(movie|film|actor|star|music|album|song|hollywood|oscar|grammy|concert|celebrity|theatre|culture|streaming|netflix|cinema)\b/)
+  ) {
+    return THEMATIC_IMAGES.entertainment[Math.abs(index) % THEMATIC_IMAGES.entertainment.length];
+  }
+  if (lower.match(/\b(court|judge|trial|jury|lawyer|lawsuit|prosecut|guilty|mistrial|testif|probe|hearing|justice|prison|sentence)\b/)) {
+    return THEMATIC_IMAGES.court[Math.abs(index) % THEMATIC_IMAGES.court.length];
+  }
+  if (lower.match(/\b(trump|biden|senate|congress|house|democrat|republican|president|minister|parliament|vote|election|politico|govern|governor)\b/)) {
+    return THEMATIC_IMAGES.politics[Math.abs(index) % THEMATIC_IMAGES.politics.length];
+  }
+  if (lower.match(/\b(war|military|strike|drone|missile|attack|ukraine|russia|israel|gaza|iran|troops|army|weapon|terror|defense|treaty|broker)\b/)) {
+    return THEMATIC_IMAGES.military[Math.abs(index) % THEMATIC_IMAGES.military.length];
+  }
+  if (THEMATIC_IMAGES[cat] && THEMATIC_IMAGES[cat].length > 0) {
+    return THEMATIC_IMAGES[cat][Math.abs(index) % THEMATIC_IMAGES[cat].length];
   }
 
-  let hash = 0;
-  for (let i = 0; i < (title || "").length; i++) {
-    hash = ((hash << 5) - hash + title.charCodeAt(i)) | 0;
-  }
-  const chosenIndex = Math.abs(hash + index) % pool.length;
-  return pool[chosenIndex];
+  return THEMATIC_IMAGES.world[Math.abs(index) % THEMATIC_IMAGES.world.length];
 }
 
-function getArticleImage(article?: Article, index = 0): string {
+function getArticleImage(article?: Article, index = 0, fallbackCategory = ""): string {
   if (!article) return THEMATIC_IMAGES.world[0];
   if (article.urlToImage && article.urlToImage.trim().startsWith("http")) {
     return article.urlToImage.trim();
   }
-  return getSmartImage(article.title, article.source, index);
+  const effectiveCat = article.category || fallbackCategory || "";
+  return getSmartImage(article.title, effectiveCat, index);
 }
 
 export default function NewsSection({
@@ -504,13 +560,13 @@ export default function NewsSection({
               >
                 <div className="news-hero-img-wrap">
                   <img
-                    src={getArticleImage(featuredArticle, 0)}
+                    src={getArticleImage(featuredArticle, 0, category)}
                     alt={cleanTitle(featuredArticle.title).title}
                     className="news-hero-img"
                     loading="eager"
                     onError={(e) => {
                       const img = e.target as HTMLImageElement;
-                      const fallback = getSmartImage(featuredArticle.title, featuredArticle.source, 1);
+                      const fallback = getSmartImage(featuredArticle.title, featuredArticle.category || category, 1);
                       if (img.src !== fallback) {
                         img.src = fallback;
                       }
@@ -588,13 +644,13 @@ export default function NewsSection({
                     </div>
                     <div className="news-side-thumb-wrap">
                       <img
-                        src={getArticleImage(art, idx + 1)}
+                        src={getArticleImage(art, idx + 1, category)}
                         alt=""
                         className="news-side-thumb"
                         loading="lazy"
                         onError={(e) => {
                           const img = e.target as HTMLImageElement;
-                          const fallback = getSmartImage(art.title, art.source, idx + 2);
+                          const fallback = getSmartImage(art.title, art.category || category, idx + 2);
                           if (img.src !== fallback) {
                             img.src = fallback;
                           }
@@ -620,13 +676,13 @@ export default function NewsSection({
                 >
                   <div className="news-card-img-wrap">
                     <img
-                      src={getArticleImage(article, i + 5)}
+                      src={getArticleImage(article, i + 5, category)}
                       alt={cleanTitle(article.title).title}
                       className="news-card-img"
                       loading="lazy"
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;
-                        const fallback = getSmartImage(article.title, article.source, i + 6);
+                        const fallback = getSmartImage(article.title, article.category || category, i + 6);
                         if (img.src !== fallback) {
                           img.src = fallback;
                         }
