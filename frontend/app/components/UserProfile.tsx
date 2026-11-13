@@ -157,8 +157,8 @@ export default function UserProfile({
       return;
     }
 
-    if (file.size > 12 * 1024 * 1024) {
-      showToast("Image size must be under 12MB.", "err");
+    if (file.size > 20 * 1024 * 1024) {
+      showToast("Image size must be under 20MB.", "err");
       return;
     }
 
@@ -166,8 +166,12 @@ export default function UserProfile({
     reader.onload = (event) => {
       const src = event.target?.result as string;
       if (src) {
-        if (typeof window !== "undefined") {
-          localStorage.setItem(`ak_avatar_raw_${username}`, src);
+        try {
+          if (src.length < 500000 && typeof window !== "undefined") {
+            localStorage.setItem(`ak_avatar_raw_${username}`, src);
+          }
+        } catch {
+          // Safeguard against browser quota limits
         }
         setCropperRawImage(src);
       }
@@ -181,13 +185,17 @@ export default function UserProfile({
 
   const saveAvatar = (dataUrl: string) => {
     setUploadingAvatar(true);
-    setProfile((prev) => (prev ? { ...prev, avatar: dataUrl } : prev));
-    if (typeof window !== "undefined") {
-      localStorage.setItem(`ak_avatar_${username}`, dataUrl);
-      localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, dataUrl);
-      window.dispatchEvent(
-        new CustomEvent("ak-avatar-updated", { detail: { avatar: dataUrl } })
-      );
+    setProfile((prev) => ({ ...prev, avatar: dataUrl }));
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(`ak_avatar_${username}`, dataUrl);
+        localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, dataUrl);
+        window.dispatchEvent(
+          new CustomEvent("ak-avatar-updated", { detail: { avatar: dataUrl } })
+        );
+      }
+    } catch {
+      // Ignore localStorage quota limits
     }
 
     fetch(`${API_BASE_URL}/auth/profile`, {
@@ -203,8 +211,10 @@ export default function UserProfile({
         if (!res.ok) throw new Error();
         const json = await res.json().catch(() => ({}));
         if (json?.avatar) {
-          localStorage.setItem(`ak_avatar_${username}`, json.avatar);
-          localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, json.avatar);
+          try {
+            localStorage.setItem(`ak_avatar_${username}`, json.avatar);
+            localStorage.setItem(`ak_avatar_${username.toLowerCase()}`, json.avatar);
+          } catch {}
         }
         showToast("Profile photo updated across all devices! 📸", "ok");
       })
@@ -602,10 +612,10 @@ export default function UserProfile({
     .slice(0, 2);
 
   useEffect(() => {
-    fetchProfile();
+    fetchProfile(false);
     const handleVis = () => {
       if (typeof document !== "undefined" && document.visibilityState === "visible") {
-        fetchProfile();
+        fetchProfile(true);
       }
     };
     window.addEventListener("visibilitychange", handleVis);
@@ -616,8 +626,10 @@ export default function UserProfile({
     };
   }, [username]);
 
-  async function fetchProfile() {
-    setLoading(true);
+  async function fetchProfile(silent = false) {
+    if (!silent && !profile?.name && !profile?.avatar) {
+      setLoading(true);
+    }
     try {
       const res = await fetch(`${API_BASE_URL}/auth/profile`, {
         headers: getAuthHeaders(),
@@ -1002,6 +1014,15 @@ export default function UserProfile({
           </button>
         </div>
 
+        {/* Permanent hidden file input - persists across loading & tab switches */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={handleImageUpload}
+          style={{ display: "none" }}
+        />
+
         {loading ? (
           <div
             style={{
@@ -1183,14 +1204,6 @@ export default function UserProfile({
                 >
                   <Camera size={14} />
                 </button>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  onChange={handleImageUpload}
-                  style={{ display: "none" }}
-                />
               </div>
 
               {/* Name */}

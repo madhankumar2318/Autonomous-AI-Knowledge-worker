@@ -39,11 +39,18 @@ export default function PhotoCropperModal({
 
   // Load image
   useEffect(() => {
+    if (!imageSrc) return;
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Only set crossOrigin for remote URLs; setting crossOrigin on data: URLs causes errors in some browsers
+    if (!imageSrc.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => {
       setImageObj(img);
       initializeCrop(img, 0);
+    };
+    img.onerror = (err) => {
+      console.error("Failed to load image into cropper:", err);
     };
     img.src = imageSrc;
   }, [imageSrc]);
