@@ -20,6 +20,7 @@ import {
   Mic,
   MicOff,
   ArrowLeft,
+  ArrowDown,
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { showToast } from "./Toast";
@@ -275,7 +276,10 @@ export default function ChatAssistant({
   }, [sendMessage]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const isUserScrolledUpRef = useRef(false);
 
   // â”€â”€ Thread CRUD Helpers â”€â”€
 
@@ -328,13 +332,39 @@ export default function ChatAssistant({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const distanceFromBottom =
+      target.scrollHeight - target.scrollTop - target.clientHeight;
+    const isScrolledUp = distanceFromBottom > 120;
+    isUserScrolledUpRef.current = isScrolledUp;
+    setShowScrollBottom((prev) => (prev !== isScrolledUp ? isScrolledUp : prev));
+  };
+
+  const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior,
+      });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    }
+    setShowScrollBottom(false);
+    isUserScrolledUpRef.current = false;
   };
 
   useEffect(() => {
-    scrollToBottom();
+    if (!isUserScrolledUpRef.current) {
+      scrollToBottom("smooth");
+    }
   }, [messages, loading]);
+
+  useEffect(() => {
+    isUserScrolledUpRef.current = false;
+    setShowScrollBottom(false);
+    scrollToBottom("auto");
+  }, [activeThreadId]);
 
   useEffect(() => {
     if (inline && inputRef.current) {
@@ -528,7 +558,11 @@ export default function ChatAssistant({
           {/* Main Chat Area */}
           <div className="chat-inline-main">
             {/* Messages */}
-            <div className="chat-inline-messages">
+            <div
+              className="chat-inline-messages"
+              ref={messagesContainerRef}
+              onScroll={handleScroll}
+            >
               {messages.map((msg, idx) => {
                 const isLastAi =
                   msg.role === "ai" && idx === messages.length - 1 && loading;
@@ -648,6 +682,21 @@ export default function ChatAssistant({
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Jump to latest floating button */}
+            {showScrollBottom && (
+              <button
+                type="button"
+                onClick={() => scrollToBottom("smooth")}
+                className="chat-scroll-bottom-btn"
+                title="Jump to latest message"
+                aria-label="Jump to latest message"
+              >
+                <ArrowDown size={14} />
+                <span className="chat-scroll-bottom-text">Latest</span>
+                {loading && <span className="chat-scroll-bottom-pulse" />}
+              </button>
+            )}
+
             {/* Quick prompts (only if few messages) */}
             {messages.length <= 1 && !loading && (
               <div className="chat-quick-prompts">
@@ -664,9 +713,11 @@ export default function ChatAssistant({
                     key={i}
                     type="button"
                     className="chat-quick-btn"
-                    onClick={() =>
-                      sendMessage(prompt.replace(/^[\p{Emoji}\s]+/u, "").trim())
-                    }
+                    onClick={() => {
+                      isUserScrolledUpRef.current = false;
+                      setShowScrollBottom(false);
+                      sendMessage(prompt.replace(/^[\p{Emoji}\s]+/u, "").trim());
+                    }}
                   >
                     {prompt}
                   </button>
@@ -682,7 +733,10 @@ export default function ChatAssistant({
                   if (loading) {
                     stopGeneration();
                   } else {
+                    isUserScrolledUpRef.current = false;
+                    setShowScrollBottom(false);
                     sendMessage(input, () => setInput(""));
+                    setTimeout(() => scrollToBottom("smooth"), 50);
                   }
                 }}
                 className="chat-input-form"
@@ -1135,6 +1189,59 @@ export default function ChatAssistant({
             display: flex;
             flex-direction: column;
             gap: 14px;
+          }
+
+          .chat-scroll-bottom-btn {
+            position: absolute;
+            bottom: 82px;
+            right: 28px;
+            z-index: 25;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 13px;
+            border-radius: 20px;
+            background: color-mix(in srgb, var(--bg-card, #131722) 88%, black);
+            border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, rgba(255, 255, 255, 0.15));
+            color: var(--accent-primary, #22d3ee);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45), 0 0 10px color-mix(in srgb, var(--accent-primary, #22d3ee) 20%, transparent);
+            backdrop-filter: blur(8px);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: scrollBtnFadeIn 0.22s ease-out;
+          }
+          .chat-scroll-bottom-btn:hover {
+            transform: translateY(-2px);
+            background: var(--bg-hover, #1f2937);
+            border-color: var(--accent-primary, #22d3ee);
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6), 0 0 16px color-mix(in srgb, var(--accent-primary, #22d3ee) 35%, transparent);
+          }
+          .chat-scroll-bottom-text {
+            font-size: 12px;
+            letter-spacing: 0.2px;
+          }
+          .chat-scroll-bottom-pulse {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-primary, #22d3ee);
+            animation: scrollPulseDot 1.2s infinite ease-in-out;
+          }
+          @keyframes scrollBtnFadeIn {
+            from {
+              opacity: 0;
+              transform: translateY(8px) scale(0.92);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+          @keyframes scrollPulseDot {
+            0%, 100% { opacity: 0.3; transform: scale(0.85); }
+            50% { opacity: 1; transform: scale(1.2); }
           }
 
           .chat-msg-row {
@@ -1697,7 +1804,11 @@ export default function ChatAssistant({
             ) : (
               /* ACTIVE CONVERSATION FEED */
               <div className="cfab-chat">
-                <div className="cfab-messages">
+                <div
+                  className="cfab-messages"
+                  ref={messagesContainerRef}
+                  onScroll={handleScroll}
+                >
                   {messages.map((msg, idx) => {
                     const isLastAi =
                       msg.role === "ai" &&
@@ -1826,6 +1937,21 @@ export default function ChatAssistant({
                   <div ref={messagesEndRef} />
                 </div>
 
+                {/* Jump to latest floating button */}
+                {showScrollBottom && (
+                  <button
+                    type="button"
+                    onClick={() => scrollToBottom("smooth")}
+                    className="cfab-scroll-bottom-btn"
+                    title="Jump to latest message"
+                    aria-label="Jump to latest message"
+                  >
+                    <ArrowDown size={14} />
+                    <span style={{ fontSize: "11px", fontWeight: 600 }}>Latest</span>
+                    {loading && <span className="cfab-scroll-bottom-pulse" />}
+                  </button>
+                )}
+
                 {/* Input bar */}
                 <div className="cfab-input-bar">
                   <form
@@ -1834,7 +1960,10 @@ export default function ChatAssistant({
                       if (loading) {
                         stopGeneration();
                       } else {
+                        isUserScrolledUpRef.current = false;
+                        setShowScrollBottom(false);
                         sendMessage(input, () => setInput(""));
+                        setTimeout(() => scrollToBottom("smooth"), 50);
                       }
                     }}
                     className="cfab-input-form"
@@ -2155,7 +2284,41 @@ export default function ChatAssistant({
         }
 
         /* Chat panel */
-        .cfab-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+        .cfab-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; position: relative; }
+        .cfab-scroll-bottom-btn {
+          position: absolute;
+          bottom: 66px;
+          right: 16px;
+          z-index: 15;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 6px 11px;
+          border-radius: 18px;
+          background: color-mix(in srgb, var(--bg-card, #131722) 88%, black);
+          border: 1px solid color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, rgba(255, 255, 255, 0.15));
+          color: var(--accent-primary, #22d3ee);
+          font-size: 11px;
+          font-weight: 600;
+          cursor: pointer;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 10px color-mix(in srgb, var(--accent-primary, #22d3ee) 25%, transparent);
+          backdrop-filter: blur(8px);
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          animation: scrollBtnFadeIn 0.2s ease-out;
+        }
+        .cfab-scroll-bottom-btn:hover {
+          transform: translateY(-2px);
+          background: var(--bg-hover, #1f2937);
+          border-color: var(--accent-primary, #22d3ee);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.65), 0 0 14px color-mix(in srgb, var(--accent-primary, #22d3ee) 40%, transparent);
+        }
+        .cfab-scroll-bottom-pulse {
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: var(--accent-primary, #22d3ee);
+          animation: scrollPulseDot 1.2s infinite ease-in-out;
+        }
         .cfab-messages { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 11px; scroll-behavior: smooth; }
         .cfab-messages::-webkit-scrollbar { width: 3px; }
         .cfab-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 4px; }
