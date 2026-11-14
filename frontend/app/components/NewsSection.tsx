@@ -789,7 +789,7 @@ export default function NewsSection({
           max-height: 100%;
           overflow-y: auto;
           overflow-x: hidden;
-          padding: 16px 20px 32px;
+          padding: 4px 0 32px;
         }
 
         /* ── TOOLBAR ── */
@@ -923,7 +923,10 @@ export default function NewsSection({
           align-items: start;
         }
         @media (max-width: 900px) {
-          .news-hero-row { grid-template-columns: 1fr; }
+          .news-hero-row,
+          .news-skeleton-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
         /* Hero Card */
@@ -1271,6 +1274,72 @@ export default function NewsSection({
           display: flex;
           justify-content: center;
           padding: 16px 0;
+        }
+
+        @media (max-width: 640px) {
+          .news-root {
+            padding-bottom: 80px;
+          }
+          .news-toolbar {
+            gap: 10px;
+            padding-bottom: 8px;
+          }
+          .news-search-form {
+            flex: 1 1 100%;
+            width: 100%;
+            order: 1;
+          }
+          .news-category-pills {
+            order: 2;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            padding-bottom: 4px;
+            gap: 6px;
+          }
+          .news-category-pills::-webkit-scrollbar {
+            display: none;
+          }
+          .news-cat-pill {
+            flex-shrink: 0;
+            padding: 6px 14px;
+            font-size: 13px;
+          }
+          .news-refresh-wrap {
+            order: 3;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-left: 0;
+            padding-top: 6px;
+            border-top: 1px solid var(--border-light);
+          }
+          .news-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+          .news-hero-card {
+            border-radius: 16px;
+          }
+          .news-hero-body {
+            padding: 16px;
+          }
+          .news-hero-title {
+            font-size: 17px;
+            line-height: 1.35;
+          }
+          .news-card-body {
+            padding: 14px;
+          }
+          .news-card-title {
+            font-size: 15px;
+            line-height: 1.35;
+          }
         }
       `}</style>
     </div>
